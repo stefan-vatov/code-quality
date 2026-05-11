@@ -31,6 +31,10 @@
                [exit_status: 2, priority: :high]},
               {Credo.Check.Readability.Specs,
                [exit_status: 2, priority: :high]},
+              {Credo.Check.Readability.AliasOrder,
+               [exit_status: 2, priority: :high]},
+              {Credo.Check.Readability.StrictModuleLayout,
+               [exit_status: 2, priority: :high]},
               {ThethracianLintConfig.Checks.MaxDirectoryDepth,
                [max: 4, exit_status: 2, priority: :high]}
             ]

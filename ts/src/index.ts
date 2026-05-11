@@ -23,6 +23,16 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'thethracian/private-underscore': 'error',
       'thethracian/acronym-case': 'error',
       'thethracian/max-import-depth': 'error',
+      'sort-imports': [
+        'error',
+        {
+          allowSeparatedGroups: true,
+          ignoreDeclarationSort: false,
+          ignoreMemberSort: false,
+          memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single'],
+        },
+      ],
+      'import/max-dependencies': ['error', { max: 15 }],
       'no-console': 'error',
       'no-debugger': 'error',
       'no-eval': 'error',
