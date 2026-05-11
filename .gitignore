@@ -3,3 +3,6 @@ dist/
 .nx/
 .DS_Store
 *.tgz
+.stryker-tmp/
+reports/mutation/
+reports/stryker-incremental.json

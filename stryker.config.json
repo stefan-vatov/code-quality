@@ -1,0 +1,72 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation.html"
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "packageManager": "pnpm",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "testRunner": "vitest",
+  "thresholds": {
+    "break": null,
+    "high": 80,
+    "low": 60
+  },
+  "vitest": {
+    "configFile": "vitest.config.mts",
+    "related": true
+  },
+  "mutate": [
+    "cli/src/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/*.d.ts",
+    "!cli/src/**/*.spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/*.test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/*_spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/*_test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/__tests__/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/{test,tests}/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/*.config.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/setupTests.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/vitest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!cli/src/**/jest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "elixir/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/*.d.ts",
+    "!elixir/**/*.spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/*.test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/*_spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/*_test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/__tests__/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/{test,tests}/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/*.config.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/setupTests.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/vitest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!elixir/**/jest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "rust/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/*.d.ts",
+    "!rust/**/*.spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/*.test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/*_spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/*_test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/__tests__/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/{test,tests}/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/*.config.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/setupTests.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/vitest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!rust/**/jest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "ts/src/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/*.d.ts",
+    "!ts/src/**/*.spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/*.test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/*_spec.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/*_test.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/__tests__/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/{test,tests}/**/*.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/*.config.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/setupTests.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/vitest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}",
+    "!ts/src/**/jest.setup.{cjs,mjs,js,ts,mts,cts,jsx,tsx}"
+  ]
+}

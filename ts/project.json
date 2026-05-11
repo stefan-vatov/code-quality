@@ -15,6 +15,9 @@
     "lint": {
       "command": "pnpm exec oxlint ts --type-aware --type-check && pnpm exec oxfmt --check ts"
     },
+    "test": {
+      "command": "pnpm exec vitest run --config vitest.config.mts --passWithNoTests ts"
+    },
     "pack": {
       "command": "mkdir -p dist/packages && pnpm --dir ts pack --pack-destination ../dist/packages",
       "outputs": ["{workspaceRoot}/dist/packages"]

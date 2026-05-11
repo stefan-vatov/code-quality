@@ -3,5 +3,6 @@ set -eu
 
 pnpm run lint:ci
 pnpm run check
+pnpm run test:projects
 pnpm run build
 pnpm exec prek run --stage pre-push --all-files --skip thx-linting-pre-push-lint-ci
