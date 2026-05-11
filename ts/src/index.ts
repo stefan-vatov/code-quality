@@ -17,6 +17,11 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
     rules: {
       'complexity/complexity': ['error', { cyclomatic: 10 }],
       'thethracian/no-commented-out-code': 'error',
+      'thethracian/pascal-case-types': 'error',
+      'thethracian/camel-case-identifiers': 'error',
+      'thethracian/boolean-prefix': 'error',
+      'thethracian/private-underscore': 'error',
+      'thethracian/acronym-case': 'error',
       'no-console': 'error',
       'no-debugger': 'error',
       'no-eval': 'error',
@@ -37,6 +42,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
           ignoreRegExpLiterals: true,
         },
       ],
+      'max-nested-callbacks': ['error', { max: 4 }],
       'max-params': ['error', { max: 5 }],
       'max-lines': [
         'error',
