@@ -16,7 +16,7 @@
             ],
             extra: [
               {Credo.Check.Readability.MaxLineLength,
-               [max_length: 500, exit_status: 2, priority: :high]},
+               [max_length: 150, exit_status: 2, priority: :high]},
               {TheThracian.Credo.Check.Refactor.FunctionBodyLength,
                [max_lines: 75, exit_status: 2, priority: :high]},
               {Credo.Check.Warning.IoInspect, []}

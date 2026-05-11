@@ -17,6 +17,16 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'no-console': 'warn',
       'no-debugger': 'error',
       eqeqeq: 'error',
+      'max-len': [
+        'error',
+        {
+          code: 150,
+          ignoreUrls: true,
+          ignoreStrings: true,
+          ignoreTemplateLiterals: true,
+          ignoreRegExpLiterals: true,
+        },
+      ],
       'max-lines': [
         'error',
         {

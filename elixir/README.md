@@ -9,4 +9,4 @@ The package ships:
 - `configs/dialyzer_ignore.exs`
 - `configs/mix_dialyzer_snippet.exs`
 
-The Credo config fails on lines over 500 characters and functions over 75 lines.
+The Credo config fails on lines over 150 characters and functions over 75 lines.

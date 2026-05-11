@@ -2,7 +2,7 @@
 
 Importable Oxlint config for TypeScript projects.
 
-The config errors on files over 500 lines and functions over 75 lines.
+The config errors on lines over 150 characters, files over 500 lines, and functions over 75 lines.
 
 ```ts
 import theThracian from '@thethracian/oxlint-config';

@@ -31,14 +31,14 @@ The root workspace owns tooling only: Nx project orchestration, Oxlint/Oxfmt for
 Exported configs should be strict by default. Current cross-language policy:
 
 - Maximum file length: 500 lines where the language tool supports file line counts.
-- Maximum line width: 500 characters where the language tool supports line width.
+- Maximum line width: 150 characters where the language tool supports line width.
 - Maximum function length: 75 lines.
 - These limits should fail, not warn, whenever the underlying tool supports failure severity.
 
 Current implementation:
 
-- TypeScript/Oxlint: `max-lines` and `max-lines-per-function` are `error`.
-- Rust: rustfmt uses `max_width = 500`; Clippy uses `too_many_lines = "deny"` and `too-many-lines-threshold = 75`.
+- TypeScript/Oxlint: `max-len` (150 chars), `max-lines`, and `max-lines-per-function` are `error`.
+- Rust: rustfmt uses `max_width = 150`; Clippy uses `too_many_lines = "deny"` and `too-many-lines-threshold = 75`.
 - Elixir: Credo uses `MaxLineLength` with failing exit status and a custom shipped `FunctionBodyLength` check with failing exit status.
 
 ## Ways Of Working
