@@ -28,4 +28,28 @@ function isUpperCase(name: string): boolean {
   return /^[A-Z][A-Z0-9_]*$/.test(name);
 }
 
-export { isCamelCase, isUpperCase };
+/**
+ * Convert a name to camelCase.
+ *
+ * snake_case → camelCase: user_name → userName
+ * PascalCase → camelCase: UserName → userName
+ * SCREAMING_SNAKE → camelCase: USER_NAME → userName
+ */
+function toCamelCase(name: string): string {
+  if (name.length === 0) {
+    return '';
+  }
+  if (name.includes('_')) {
+    const parts = name.split('_').filter(Boolean);
+    return (
+      parts[0].toLowerCase() +
+      parts
+        .slice(1)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('')
+    );
+  }
+  return name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+export { isCamelCase, isUpperCase, toCamelCase };

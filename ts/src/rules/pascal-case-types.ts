@@ -16,18 +16,36 @@ export default function isPascalCase(name: string): boolean {
   if (name.length === 0) {
     return false;
   }
-  if (name[0] !== name[0].toUpperCase() || name[0] < 'A' || name[0] > 'Z') {
+  if (name[0] < 'A' || name[0] > 'Z') {
     return false;
   }
   if (name.includes('_')) {
     return false;
   }
-  // Entirely uppercase multi-character is not PascalCase (constant convention),
-  // But single uppercase letters (T, K) are valid type parameter names.
-  // Strip digits before checking — F123 is PascalCase, not a constant.
   const letters = name.replace(/[^A-Za-z]/g, '');
   if (letters.length > 1 && letters === letters.toUpperCase()) {
     return false;
   }
   return true;
+}
+
+/**
+ * Convert a name to PascalCase.
+ *
+ * snake_case → PascalCase: user_account → UserAccount
+ * camelCase → PascalCase: userAccount → UserAccount
+ * SCREAMING_SNAKE → PascalCase: USER_ACCOUNT → UserAccount
+ */
+export function toPascalCase(name: string): string {
+  if (name.length === 0) {
+    return '';
+  }
+  if (name.includes('_')) {
+    return name
+      .split('_')
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
+  }
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }

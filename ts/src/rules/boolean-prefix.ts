@@ -14,7 +14,30 @@ export default function hasBooleanPrefix(name: string): boolean {
     return false;
   }
   const [, , next] = match;
-  // Next character must be underscore, uppercase, or digit (not lowercase,
-  // Which would indicate a single word like "island")
   return next === '_' || (next >= 'A' && next <= 'Z') || (next >= '0' && next <= '9');
+}
+
+/**
+ * Suggest a boolean-prefixed name by prepending `is_`.
+ *
+ * camelCase: visible → isVisible
+ * snake_case: visible_flag → is_visible_flag
+ * SCREAMING: VISIBLE → IS_VISIBLE
+ * PascalCase: Visible → IsVisible
+ */
+export function suggestBooleanName(name: string): string {
+  if (name.length === 0) {
+    return 'isEnabled';
+  }
+  // Snake/UPPER-case: add is_ prefix
+  if (name.includes('_')) {
+    const prefix = name === name.toUpperCase() ? 'IS_' : 'is_';
+    return prefix + name;
+  }
+  // PascalCase: Is + Name
+  if (name[0] >= 'A' && name[0] <= 'Z') {
+    return `is${name}`;
+  }
+  // CamelCase: is + Capitalized
+  return `is${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 }

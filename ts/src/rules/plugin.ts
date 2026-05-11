@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import isCommentedOutCode from './no-commented-out-code.js';
-import isPascalCase from './pascal-case-types.js';
-import { isCamelCase, isUpperCase } from './camel-case-identifiers.js';
-import hasBooleanPrefix from './boolean-prefix.js';
-import hasLeadingUnderscore from './private-underscore.js';
-import findMisCasedAcronyms from './acronym-case.js';
+import isPascalCase, { toPascalCase } from './pascal-case-types.js';
+import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers.js';
+import hasBooleanPrefix, { suggestBooleanName } from './boolean-prefix.js';
+import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore.js';
+import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case.js';
 
 /**
  * Oxlint plugin for The Thracian custom rules.
@@ -15,7 +15,6 @@ interface NamedNode {
   key?: { name: string };
 }
 
-// Biome-ignore lint/complexity/noBannedTypes: Oxlint ESLint-compat API
 type Context = {
   report: (descriptor: { message: string; node: object }) => void;
   filename?: string;
@@ -44,7 +43,7 @@ const noCommentedOutCodeRule = {
           const match = singleLineRe.exec(lines[idx]);
           if (match && isCommentedOutCode(match[1])) {
             context.report({
-              message: 'Commented-out code found. Remove it instead of commenting it out.',
+              message: 'Remove this commented-out code instead of leaving it dead.',
               node: {},
             });
           }
@@ -56,7 +55,7 @@ const noCommentedOutCodeRule = {
           const [, body] = mm;
           if (isCommentedOutCode(body)) {
             context.report({
-              message: 'Commented-out code found. Remove it instead of commenting it out.',
+              message: 'Remove this commented-out code instead of leaving it dead.',
               node: {},
             });
           }
@@ -68,37 +67,32 @@ const noCommentedOutCodeRule = {
 
 const pascalCaseTypesRule = {
   create(context: Context) {
+    function reportType(kind: string, name: string, node: object) {
+      context.report({
+        message: `Rename ${kind} from '${name}' to '${toPascalCase(name)}' (PascalCase required for types).`,
+        node,
+      });
+    }
+
     return {
       ClassDeclaration(node: NamedNode) {
         if (node.id && !isPascalCase(node.id.name)) {
-          context.report({
-            message: `Class name '${node.id.name}' must be PascalCase.`,
-            node,
-          });
+          reportType('class', node.id.name, node);
         }
       },
       TSInterfaceDeclaration(node: NamedNode) {
         if (node.id && !isPascalCase(node.id.name)) {
-          context.report({
-            message: `Interface name '${node.id.name}' must be PascalCase.`,
-            node,
-          });
+          reportType('interface', node.id.name, node);
         }
       },
       TSTypeAliasDeclaration(node: NamedNode) {
         if (node.id && !isPascalCase(node.id.name)) {
-          context.report({
-            message: `Type alias '${node.id.name}' must be PascalCase.`,
-            node,
-          });
+          reportType('type', node.id.name, node);
         }
       },
       TSEnumDeclaration(node: NamedNode) {
         if (node.id && !isPascalCase(node.id.name)) {
-          context.report({
-            message: `Enum name '${node.id.name}' must be PascalCase.`,
-            node,
-          });
+          reportType('enum', node.id.name, node);
         }
       },
     };
@@ -126,14 +120,14 @@ const camelCaseIdentifiersRule = {
         if (isConst) {
           if (!isCamelCase(name) && !isUpperCase(name)) {
             context.report({
-              message: `Constant '${name}' must be camelCase or UPPER_CASE.`,
+              message: `Rename constant '${name}' to '${toCamelCase(name)}' for camelCase, or '${name.toUpperCase()}' for UPPER_CASE convention.`,
               node,
             });
           }
         } else {
           if (!isCamelCase(name)) {
             context.report({
-              message: `Variable '${name}' must be camelCase.`,
+              message: `Rename variable '${name}' to '${toCamelCase(name)}' (camelCase required).`,
               node,
             });
           }
@@ -142,7 +136,7 @@ const camelCaseIdentifiersRule = {
       FunctionDeclaration(node: NamedNode) {
         if (node.id && !isCamelCase(node.id.name)) {
           context.report({
-            message: `Function name '${node.id.name}' must be camelCase.`,
+            message: `Rename function '${node.id.name}' to '${toCamelCase(node.id.name)}' (camelCase required).`,
             node,
           });
         }
@@ -150,7 +144,7 @@ const camelCaseIdentifiersRule = {
       Parameter(node: DeclNode) {
         if (node.type === 'Identifier' && node.value && !isCamelCase(node.value.name)) {
           context.report({
-            message: `Parameter '${node.value.name}' must be camelCase.`,
+            message: `Rename parameter '${node.value.name}' to '${toCamelCase(node.value.name)}' (camelCase required).`,
             node,
           });
         }
@@ -158,7 +152,7 @@ const camelCaseIdentifiersRule = {
       MethodDefinition(node: NamedNode) {
         if (node.key && !isCamelCase(node.key.name)) {
           context.report({
-            message: `Method '${node.key.name}' must be camelCase.`,
+            message: `Rename method '${node.key.name}' to '${toCamelCase(node.key.name)}' (camelCase required).`,
             node,
           });
         }
@@ -166,7 +160,7 @@ const camelCaseIdentifiersRule = {
       PropertyDefinition(node: NamedNode) {
         if (node.key && !isCamelCase(node.key.name)) {
           context.report({
-            message: `Property '${node.key.name}' must be camelCase.`,
+            message: `Rename property '${node.key.name}' to '${toCamelCase(node.key.name)}' (camelCase required).`,
             node,
           });
         }
@@ -198,7 +192,7 @@ const booleanPrefixRule = {
         }
         if (isBooleanVar(node) && !hasBooleanPrefix(node.id.name)) {
           context.report({
-            message: `Boolean variable '${node.id.name}' must use is_, has_, or should_ prefix.`,
+            message: `Rename boolean '${node.id.name}' to '${suggestBooleanName(node.id.name)}' (is_/has_/should_ prefix required for boolean variables).`,
             node,
           });
         }
@@ -213,7 +207,7 @@ const privateUnderscoreRule = {
       PropertyDefinition(node: DeclNode) {
         if (node.key && node.accessibility === 'private' && !hasLeadingUnderscore(node.key.name)) {
           context.report({
-            message: `Private property '${node.key.name}' must use leading underscore.`,
+            message: `Rename private property '${node.key.name}' to '${suggestPrivateName(node.key.name)}' (leading underscore required for private members).`,
             node,
           });
         }
@@ -221,7 +215,7 @@ const privateUnderscoreRule = {
       MethodDefinition(node: DeclNode) {
         if (node.key && node.accessibility === 'private' && !hasLeadingUnderscore(node.key.name)) {
           context.report({
-            message: `Private method '${node.key.name}' must use leading underscore.`,
+            message: `Rename private method '${node.key.name}' to '${suggestPrivateName(node.key.name)}' (leading underscore required for private members).`,
             node,
           });
         }
@@ -237,7 +231,7 @@ const acronymCaseRule = {
       if (violations.length > 0) {
         const listed = violations.map((acr) => `'${acr}'`).join(', ');
         context.report({
-          message: `Acronym${violations.length > 1 ? 's' : ''} ${listed} in '${name}' should be uppercase.`,
+          message: `Rename '${name}' to '${fixAcronymCase(name)}' — acronym${violations.length > 1 ? 's' : ''} ${listed} must be uppercase.`,
           node,
         });
       }

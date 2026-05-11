@@ -93,3 +93,27 @@ export default function findMisCasedAcronyms(name: string): string[] {
 
   return violations;
 }
+
+/**
+ * Fix mis-cased acronyms in an identifier by uppercasing known acronyms.
+ *
+ * parseUrl → parseURL
+ * UrlParser → URLParser
+ * getHttpResponse → getHTTPResponse
+ */
+export function fixAcronymCase(name: string): string {
+  const violations = findMisCasedAcronyms(name);
+  if (violations.length === 0) {
+    return name;
+  }
+
+  const words = splitMixedCase(name);
+  const fixed = words.map((word) => {
+    const lower = word.toLowerCase();
+    if (acronyms.has(lower) && word !== word.toUpperCase()) {
+      return word.toUpperCase();
+    }
+    return word;
+  });
+  return fixed.join('');
+}
