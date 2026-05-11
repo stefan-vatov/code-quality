@@ -33,7 +33,17 @@ describe('findMisCasedAcronyms', () => {
   it('returns empty for identifiers without acronyms', () => {
     expect(findMisCasedAcronyms('userName')).toEqual([]);
     expect(findMisCasedAcronyms('getUserData')).toEqual([]);
-    expect(findMisCasedAcronyms('MyClass')).toEqual([]);
+    expect(findMisCasedAcronyms('SimpleThing')).toEqual([]);
+    expect(findMisCasedAcronyms('T2')).toEqual([]);
+    expect(findMisCasedAcronyms('a1b2c3')).toEqual([]);
+    expect(findMisCasedAcronyms('oneTwo')).toEqual([]);
+    expect(findMisCasedAcronyms('A')).toEqual([]);
+    expect(findMisCasedAcronyms('Ab')).toEqual([]);
+  });
+
+  it('skips words where digit-stripped alpha is single character', () => {
+    expect(findMisCasedAcronyms('myFuncT2')).toEqual([]);
+    expect(findMisCasedAcronyms('doA1')).toEqual([]);
   });
 
   it('returns empty for snake_case identifiers (different convention)', () => {

@@ -80,7 +80,7 @@ export default function findMisCasedAcronyms(name: string): string[] {
   for (const word of words) {
     if (word.length < 2) {
       continue;
-    } // Skip single letters
+    } // Skip single-letter words
     // Strip trailing digits before lookup (parseUrl2 → "Url")
     const alpha = word.replace(/\d+$/, '');
     if (alpha.length < 2) {
