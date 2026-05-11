@@ -23,18 +23,21 @@ export default function hasBooleanPrefix(name: string): boolean {
  * camelCase: visible → isVisible
  * snake_case: visible_flag → is_visible_flag
  * SCREAMING: VISIBLE → IS_VISIBLE
- * PascalCase: Visible → IsVisible
+ * PascalCase: Visible → isVisible
  */
 export function suggestBooleanName(name: string): string {
   if (name.length === 0) {
     return 'isEnabled';
   }
-  // Snake/UPPER-case: add is_ prefix
-  if (name.includes('_')) {
-    const prefix = name === name.toUpperCase() ? 'IS_' : 'is_';
-    return prefix + name;
+  // All-caps (with or without underscores): IS_ prefix
+  if (name === name.toUpperCase() && /[A-Z]/.test(name)) {
+    return `IS_${name}`;
   }
-  // PascalCase: Is + Name
+  // Snake_case (lowercase): is_ prefix
+  if (name.includes('_')) {
+    return `is_${name}`;
+  }
+  // PascalCase: is + Name
   if (name[0] >= 'A' && name[0] <= 'Z') {
     return `is${name}`;
   }

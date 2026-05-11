@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import findMisCasedAcronyms from '../../src/rules/acronym-case.js';
+import findMisCasedAcronyms, { fixAcronymCase } from '../../src/rules/acronym-case.js';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'acronym-case');
 
@@ -174,5 +174,31 @@ describe('acronym-case invalid fixtures', () => {
     const passing = names.filter((n) => findMisCasedAcronyms(n).length === 0);
     expect(passing).toEqual([]);
     expect(names.length).toBeGreaterThan(0);
+  });
+});
+
+describe('fixAcronymCase', () => {
+  it('uppercases mis-cased acronyms in camelCase', () => {
+    expect(fixAcronymCase('parseUrl')).toBe('parseURL');
+    expect(fixAcronymCase('getHttpResponse')).toBe('getHTTPResponse');
+    expect(fixAcronymCase('convertToJson')).toBe('convertToJSON');
+  });
+
+  it('uppercases mis-cased acronyms in PascalCase', () => {
+    expect(fixAcronymCase('UrlParser')).toBe('URLParser');
+    expect(fixAcronymCase('HttpsConnection')).toBe('HTTPSConnection');
+  });
+
+  it('handles multiple mis-cased acronyms', () => {
+    expect(fixAcronymCase('parseUrlFromJson')).toBe('parseURLFromJSON');
+  });
+
+  it('returns unchanged when no mis-cased acronyms', () => {
+    expect(fixAcronymCase('parseURL')).toBe('parseURL');
+    expect(fixAcronymCase('userName')).toBe('userName');
+  });
+
+  it('handles empty string', () => {
+    expect(fixAcronymCase('')).toBe('');
   });
 });

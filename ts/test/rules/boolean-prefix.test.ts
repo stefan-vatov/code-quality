@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import hasBooleanPrefix from '../../src/rules/boolean-prefix.js';
+import hasBooleanPrefix, { suggestBooleanName } from '../../src/rules/boolean-prefix.js';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'boolean-prefix');
 
@@ -127,5 +127,31 @@ describe('boolean-prefix invalid fixtures', () => {
     const passing = names.filter((n) => hasBooleanPrefix(n));
     expect(passing).toEqual([]);
     expect(names.length).toBeGreaterThan(0);
+  });
+});
+
+describe('suggestBooleanName', () => {
+  it('prefixes camelCase with is', () => {
+    expect(suggestBooleanName('visible')).toBe('isVisible');
+    expect(suggestBooleanName('active')).toBe('isActive');
+    expect(suggestBooleanName('loading')).toBe('isLoading');
+  });
+
+  it('prefixes PascalCase with is', () => {
+    expect(suggestBooleanName('Visible')).toBe('isVisible');
+    expect(suggestBooleanName('Active')).toBe('isActive');
+  });
+
+  it('prefixes snake_case with is_', () => {
+    expect(suggestBooleanName('visible_flag')).toBe('is_visible_flag');
+  });
+
+  it('prefixes SCREAMING_SNAKE with IS_', () => {
+    expect(suggestBooleanName('VISIBLE')).toBe('IS_VISIBLE');
+    expect(suggestBooleanName('ACTIVE_STATE')).toBe('IS_ACTIVE_STATE');
+  });
+
+  it('handles empty string', () => {
+    expect(suggestBooleanName('')).toBe('isEnabled');
   });
 });

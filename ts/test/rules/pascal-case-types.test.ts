@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import isPascalCase from '../../src/rules/pascal-case-types.js';
+import isPascalCase, { toPascalCase } from '../../src/rules/pascal-case-types.js';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'pascal-case-types');
 
@@ -135,5 +135,31 @@ describe('pascal-case-types invalid fixtures', () => {
     const passing = names.filter((n) => isPascalCase(n));
     expect(passing).toEqual([]);
     expect(names.length).toBeGreaterThan(0);
+  });
+});
+
+describe('toPascalCase', () => {
+  it('converts snake_case to PascalCase', () => {
+    expect(toPascalCase('user_account')).toBe('UserAccount');
+    expect(toPascalCase('my_class')).toBe('MyClass');
+  });
+
+  it('converts SCREAMING_SNAKE to PascalCase', () => {
+    expect(toPascalCase('USER_ACCOUNT')).toBe('UserAccount');
+    expect(toPascalCase('API_KEY')).toBe('ApiKey');
+  });
+
+  it('converts camelCase to PascalCase', () => {
+    expect(toPascalCase('userAccount')).toBe('UserAccount');
+    expect(toPascalCase('getUserData')).toBe('GetUserData');
+  });
+
+  it('handles empty string', () => {
+    expect(toPascalCase('')).toBe('');
+  });
+
+  it('preserves trailing digits', () => {
+    expect(toPascalCase('foo2')).toBe('Foo2');
+    expect(toPascalCase('my_var_3')).toBe('MyVar3');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import hasLeadingUnderscore from '../../src/rules/private-underscore.js';
+import hasLeadingUnderscore, { suggestPrivateName } from '../../src/rules/private-underscore.js';
 
 describe('hasLeadingUnderscore', () => {
   // Positive cases
@@ -61,5 +61,21 @@ describe('hasLeadingUnderscore', () => {
   it('returns false for names that are just underscores', () => {
     expect(hasLeadingUnderscore('__')).toBe(true); // length > 1, starts with _
     expect(hasLeadingUnderscore('___')).toBe(true);
+  });
+});
+
+describe('suggestPrivateName', () => {
+  it('prefixes with underscore', () => {
+    expect(suggestPrivateName('secret')).toBe('_secret');
+    expect(suggestPrivateName('cache')).toBe('_cache');
+    expect(suggestPrivateName('internalState')).toBe('_internalState');
+  });
+
+  it('handles PascalCase', () => {
+    expect(suggestPrivateName('MyField')).toBe('_MyField');
+  });
+
+  it('handles empty string', () => {
+    expect(suggestPrivateName('')).toBe('_field');
   });
 });

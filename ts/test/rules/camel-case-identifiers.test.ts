@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { isCamelCase, isUpperCase } from '../../src/rules/camel-case-identifiers.js';
+import { isCamelCase, isUpperCase, toCamelCase } from '../../src/rules/camel-case-identifiers.js';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'camel-case-identifiers');
 
@@ -173,5 +173,31 @@ describe('camel-case invalid fixtures', () => {
     const violations = names.filter((n) => !isCamelCase(n) && !isUpperCase(n));
     expect(violations.length).toBeGreaterThan(0);
     expect(names.length).toBeGreaterThan(0);
+  });
+});
+
+describe('toCamelCase', () => {
+  it('converts snake_case to camelCase', () => {
+    expect(toCamelCase('user_name')).toBe('userName');
+    expect(toCamelCase('get_user_data')).toBe('getUserData');
+  });
+
+  it('converts SCREAMING_SNAKE to camelCase', () => {
+    expect(toCamelCase('USER_NAME')).toBe('userName');
+    expect(toCamelCase('API_KEY')).toBe('apiKey');
+  });
+
+  it('converts PascalCase to camelCase', () => {
+    expect(toCamelCase('UserName')).toBe('userName');
+    expect(toCamelCase('GetUserData')).toBe('getUserData');
+  });
+
+  it('handles empty string', () => {
+    expect(toCamelCase('')).toBe('');
+  });
+
+  it('preserves digits', () => {
+    expect(toCamelCase('foo2')).toBe('foo2');
+    expect(toCamelCase('my_var_3')).toBe('myVar3');
   });
 });
