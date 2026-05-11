@@ -167,11 +167,11 @@ describe('isCommentedOutCode heuristic', () => {
   });
 
   it('detects commented-out typeof check', () => {
-    expect(isCommentedOutCode(' typeof value === "string" ? trim(value) : value')).toBe(true);
+    expect(isCommentedOutCode(' typeof value === "string" ? trim(value) : value;')).toBe(true);
   });
 
   it('detects commented-out instanceof guard', () => {
-    expect(isCommentedOutCode(' instanceof Error ? err.message : String(err)')).toBe(true);
+    expect(isCommentedOutCode(' instanceof Error ? err.message : String(err);')).toBe(true);
   });
 
   it('detects commented-out finally block', () => {
@@ -336,22 +336,386 @@ describe('isCommentedOutCode heuristic', () => {
   });
 
   // ════════════════════════════════════════════════════════════════
+  //  FALSE POSITIVE PREVENTION — NATURAL LANGUAGE WITH KEYWORD WORDS
+  // ════════════════════════════════════════════════════════════════
+
+  it('does not flag natural language starting with const', () => {
+    expect(isCommentedOutCode('const is used for immutable bindings')).toBe(false);
+  });
+
+  it('does not flag natural language starting with let', () => {
+    expect(isCommentedOutCode('let the user decide what to do')).toBe(false);
+  });
+
+  it('does not flag natural language starting with return', () => {
+    expect(isCommentedOutCode('return early to avoid errors')).toBe(false);
+  });
+
+  it('does not flag natural language starting with try', () => {
+    expect(isCommentedOutCode('try this approach instead')).toBe(false);
+  });
+
+  it('does not flag natural language starting with new', () => {
+    expect(isCommentedOutCode('new approach to the problem')).toBe(false);
+  });
+
+  it('does not flag natural language starting with yield', () => {
+    expect(isCommentedOutCode('yield is used in generators')).toBe(false);
+  });
+
+  it('does not flag natural language starting with break', () => {
+    expect(isCommentedOutCode('break the loop when the timeout fires')).toBe(false);
+  });
+
+  it('does not flag natural language starting with case', () => {
+    expect(isCommentedOutCode('case matters when comparing strings')).toBe(false);
+  });
+
+  it('does not flag natural language starting with get', () => {
+    expect(isCommentedOutCode('get the value from the cache')).toBe(false);
+  });
+
+  it('does not flag natural language starting with set', () => {
+    expect(isCommentedOutCode('set the defaults before initializing')).toBe(false);
+  });
+
+  it('does not flag natural language starting with public', () => {
+    expect(isCommentedOutCode('public API is stable and documented')).toBe(false);
+  });
+
+  it('does not flag natural language starting with private', () => {
+    expect(isCommentedOutCode('private methods use underscore prefix')).toBe(false);
+  });
+
+  it('does not flag natural language starting with static', () => {
+    expect(isCommentedOutCode('static analysis helps catch bugs')).toBe(false);
+  });
+
+  it('does not flag natural language starting with abstract', () => {
+    expect(isCommentedOutCode('abstract thinking is required here')).toBe(false);
+  });
+
+  it('does not flag natural language starting with while', () => {
+    expect(isCommentedOutCode('while this works, prefer the other approach')).toBe(false);
+  });
+
+  it('does not flag natural language starting with if', () => {
+    expect(isCommentedOutCode('if needed, fall back to the default value')).toBe(false);
+  });
+
+  it('does not flag natural language starting with for (preposition use)', () => {
+    expect(isCommentedOutCode('for each item in the collection')).toBe(false);
+  });
+
+  it('does not flag natural language starting with switch', () => {
+    expect(isCommentedOutCode('switch to the new implementation')).toBe(false);
+  });
+
+  it('does not flag natural language starting with continue', () => {
+    expect(isCommentedOutCode('continue processing after validation')).toBe(false);
+  });
+
+  it('does not flag natural language starting with class', () => {
+    expect(isCommentedOutCode('class inheritance should be avoided here')).toBe(false);
+  });
+
+  it('does not flag natural language starting with import', () => {
+    expect(isCommentedOutCode('import the module dynamically instead')).toBe(false);
+  });
+
+  it('does not flag natural language starting with export', () => {
+    expect(isCommentedOutCode('export only what is needed')).toBe(false);
+  });
+
+  it('does not flag natural language starting with extends', () => {
+    expect(isCommentedOutCode('extends the base functionality')).toBe(false);
+  });
+
+  it('does not flag natural language starting with implements', () => {
+    expect(isCommentedOutCode('implements the required interface')).toBe(false);
+  });
+
+  it('does not flag natural language starting with enum', () => {
+    expect(isCommentedOutCode('enum values should be documented')).toBe(false);
+  });
+
+  it('does not flag natural language starting with type', () => {
+    expect(isCommentedOutCode('type safety is important')).toBe(false);
+  });
+
+  it('does not flag natural language starting with interface', () => {
+    expect(isCommentedOutCode('interface should be kept simple')).toBe(false);
+  });
+
+  it('does not flag natural language starting with default', () => {
+    expect(isCommentedOutCode('default behavior is acceptable')).toBe(false);
+  });
+
+  it('does not flag natural language starting with finally', () => {
+    expect(isCommentedOutCode('finally clean up resources')).toBe(false);
+  });
+
+  it('does not flag natural language starting with throw', () => {
+    expect(isCommentedOutCode('throw an error if validation fails')).toBe(false);
+  });
+
+  it('does not flag natural language starting with await', () => {
+    expect(isCommentedOutCode('await the promise resolution')).toBe(false);
+  });
+
+  it('does not flag natural language starting with async', () => {
+    expect(isCommentedOutCode('async operations are handled elsewhere')).toBe(false);
+  });
+
+  it('does not flag natural language starting with function', () => {
+    expect(isCommentedOutCode('function naming conventions should be consistent')).toBe(false);
+  });
+
+  // ════════════════════════════════════════════════════════════════
+  //  COMPREHENSIVE FALSE POSITIVE PREVENTION
+  // ════════════════════════════════════════════════════════════════
+
+  // --- Short identifiers & single words ---
+
+  it('does not flag single-word identifier', () => {
+    expect(isCommentedOutCode('foo')).toBe(false);
+  });
+
+  it('does not flag two-word identifier', () => {
+    expect(isCommentedOutCode('my variable')).toBe(false);
+  });
+
+  // --- Labels with colons ---
+
+  it('does not flag label-style comment', () => {
+    expect(isCommentedOutCode('example:')).toBe(false);
+  });
+
+  it('does not flag note label with colon', () => {
+    expect(isCommentedOutCode('Note: see above for explanation')).toBe(false);
+  });
+
+  it('does not flag step label', () => {
+    expect(isCommentedOutCode('Step 1: initialize the component')).toBe(false);
+  });
+
+  // --- Capital-letter sentences ---
+
+  it('does not flag sentence starting with capital letter', () => {
+    expect(isCommentedOutCode('This module handles user authentication')).toBe(false);
+  });
+
+  it('does not flag sentence about architecture', () => {
+    expect(isCommentedOutCode('We use a layered approach with three tiers')).toBe(false);
+  });
+
+  it('does not flag sentence about implementation', () => {
+    expect(isCommentedOutCode('Implementation follows the strategy pattern')).toBe(false);
+  });
+
+  // --- Parenthetical asides in natural language ---
+
+  it('does not flag parenthetical aside', () => {
+    expect(isCommentedOutCode('fastpath (usually not needed)')).toBe(false);
+  });
+
+  it('does not flag recommendation in parentheses', () => {
+    expect(isCommentedOutCode('use the defaults (recommended approach)')).toBe(false);
+  });
+
+  it('does not flag abbreviation in parens', () => {
+    expect(isCommentedOutCode('the application programming interface (API) layer')).toBe(false);
+  });
+
+  it('does not flag cross-reference in parens', () => {
+    expect(isCommentedOutCode('see the migration guide (docs/migration.md) for details')).toBe(
+      false,
+    );
+  });
+
+  // --- Task markers ---
+
+  it('does not flag TODO comment', () => {
+    expect(isCommentedOutCode('TODO: implement error handling')).toBe(false);
+  });
+
+  it('does not flag FIXME comment', () => {
+    expect(isCommentedOutCode('FIXME: this breaks with large inputs')).toBe(false);
+  });
+
+  it('does not flag HACK comment', () => {
+    expect(isCommentedOutCode('HACK: temporary workaround for safari')).toBe(false);
+  });
+
+  it('does not flag XXX comment', () => {
+    expect(isCommentedOutCode('XXX: revisit when upgrading to v2')).toBe(false);
+  });
+
+  // --- Documentation patterns ---
+
+  it('does not flag usage documentation', () => {
+    expect(isCommentedOutCode('Usage: import { handler } from the module')).toBe(false);
+  });
+
+  it('does not flag returns documentation', () => {
+    expect(isCommentedOutCode('Returns: a promise that resolves to the result')).toBe(false);
+  });
+
+  it('does not flag see-also reference', () => {
+    expect(isCommentedOutCode('See also: RFC 1234, docs/api.md')).toBe(false);
+  });
+
+  it('does not flag markdown heading', () => {
+    expect(isCommentedOutCode('## Implementation Details')).toBe(false);
+  });
+
+  it('does not flag bullet point', () => {
+    expect(isCommentedOutCode('- handles edge cases for empty input')).toBe(false);
+  });
+
+  it('does not flag numbered list item', () => {
+    expect(isCommentedOutCode('1. validate the input parameters')).toBe(false);
+  });
+
+  // --- ESLint / TypeScript directives ---
+
+  it('does not flag eslint-disable directive', () => {
+    expect(isCommentedOutCode('eslint-disable-next-line no-console')).toBe(false);
+  });
+
+  it('does not flag ts-expect-error directive', () => {
+    expect(isCommentedOutCode('@ts-expect-error type is narrowed below')).toBe(false);
+  });
+
+  it('does not flag ts-ignore directive', () => {
+    expect(isCommentedOutCode('@ts-ignore not worth fixing')).toBe(false);
+  });
+
+  // --- Inline code references in documentation ---
+
+  it('does not flag inline code reference', () => {
+    expect(isCommentedOutCode('use const assert = require("assert") in tests')).toBe(false);
+  });
+
+  // --- Natural language with "=" ---
+
+  it('does not flag mathematical equality explanation', () => {
+    expect(isCommentedOutCode('where x = y in the base case')).toBe(false);
+  });
+
+  // --- Natural language with arrows ---
+
+  it('does not flag flow diagram arrow', () => {
+    expect(isCommentedOutCode('request -> handler -> response pipeline')).toBe(false);
+  });
+
+  // --- Punctuation / separator comments ---
+
+  it('does not flag separator comment', () => {
+    expect(isCommentedOutCode('---')).toBe(false);
+  });
+
+  it('does not flag ellipsis comment', () => {
+    expect(isCommentedOutCode('...')).toBe(false);
+  });
+
+  it('does not flag equals separator', () => {
+    expect(isCommentedOutCode('==========')).toBe(false);
+  });
+
+  // --- Natural language with comparison operators ---
+
+  it('does not flag explanation with equals comparison', () => {
+    expect(isCommentedOutCode('when length == 0 the loop exits')).toBe(false);
+  });
+
+  it('does not flag explanation with strict equality', () => {
+    expect(isCommentedOutCode('if x === null the default is used')).toBe(false);
+  });
+
+  it('does not flag explanation with not-equal', () => {
+    expect(isCommentedOutCode('when status != "active" skip processing')).toBe(false);
+  });
+
+  it('does not flag explanation with greater-than', () => {
+    expect(isCommentedOutCode('if count > 100 use batch mode')).toBe(false);
+  });
+
+  // --- Natural language with braces for grouping ---
+
+  it('does not flag braces used for grouping in text', () => {
+    expect(isCommentedOutCode('the {placeholder} will be replaced at runtime')).toBe(false);
+  });
+
+  // --- Natural language with quoted strings ---
+
+  it('does not flag explanation with quoted value', () => {
+    expect(isCommentedOutCode('defaults to "production" when unset')).toBe(false);
+  });
+
+  // --- Natural language with code-like words in mid-sentence ---
+
+  it('does not flag prose containing code keywords inline', () => {
+    expect(
+      isCommentedOutCode(
+        'this function returns a promise that resolves after the async operation completes',
+      ),
+    ).toBe(false);
+  });
+
+  // --- Natural language with semicolons (English punctuation) ---
+
+  it('does not flag sentence ending with semicolon list', () => {
+    expect(isCommentedOutCode('handles three cases: empty; single item; multiple items')).toBe(
+      false,
+    );
+  });
+
+  // ════════════════════════════════════════════════════════════════
   //  THRESHOLD BOUNDARY TESTS — score exactly at/around 3
   // ════════════════════════════════════════════════════════════════
 
-  it('flags code at threshold (score = 3 from keyword alone)', () => {
-    // keyword "const" at start = 3, no other patterns, score = 3
-    expect(isCommentedOutCode(' const x')).toBe(true);
+  it('flags code with keyword + pattern (score 4 from keyword + assignment)', () => {
+    // keyword "const" = 2, assignment "=" = 2, score = 4
+    expect(isCommentedOutCode(' const x = 1;')).toBe(true);
   });
 
-  it('flags code at threshold (score = 3 from pattern alone)', () => {
+  it('flags code with keyword + brace (score 3 from keyword + brace)', () => {
+    // keyword "class" = 2, brace = 1, score = 3 ≥ 3
+    expect(isCommentedOutCode(' class Foo {')).toBe(true);
+  });
+
+  it('does not flag keyword alone without other indicators (score 2 < 3)', () => {
+    // keyword "const" = 2, no other indicators, score = 2 < 3
+    expect(isCommentedOutCode(' const placeholder')).toBe(false);
+  });
+
+  it('flags keyword + semicolon (score 4)', () => {
+    // keyword "return" = 2, semicolon = 2, score = 4
+    expect(isCommentedOutCode(' return result;')).toBe(true);
+  });
+
+  // ════════════════════════════════════════════════════════════════
+  //  OLD THRESHOLD BOUNDARY TESTS
+  // ════════════════════════════════════════════════════════════════
+
+  it('flags code with keyword + semicolon (score 4, keyword=2 + semicolon=2)', () => {
+    expect(isCommentedOutCode(' return result;')).toBe(true);
+  });
+
+  it('flags code at threshold (score = 3 from pattern + brace)', () => {
     // semicolon pattern = 2, plus brace = 1, score = 3
     expect(isCommentedOutCode(' x = { y: z };')).toBe(true);
   });
 
-  it('does not flag code below threshold (score = 2)', () => {
+  it('does not flag text below threshold (score = 2, semicolon only)', () => {
     // just a semicolon at end = 2, no keyword or brace
     expect(isCommentedOutCode(' hello world;')).toBe(false);
+  });
+
+  it('does not flag keyword alone without other indicators (keyword=2 < 3)', () => {
+    // keyword "const" at start = 2, no other patterns, score = 2 < 3
+    expect(isCommentedOutCode(' const x')).toBe(false);
   });
 
   // ════════════════════════════════════════════════════════════════

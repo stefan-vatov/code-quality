@@ -110,7 +110,7 @@ export default function isCommentedOutCode(text: string): boolean {
       CODE_KEYWORDS.has(lineFirstWord) ||
       CODE_KEYWORDS.has(stripTrailingPunctuation(lineFirstWord))
     ) {
-      score += 3;
+      score += 2;
       foundKeyword = true;
     }
   }
@@ -134,8 +134,9 @@ export default function isCommentedOutCode(text: string): boolean {
   }
 
   // 5. Penalize natural-language indicators
-  // - Starting with lowercase articles or prepositions (not keywords)
+  // - Starting with lowercase articles or prepositions (but not when code keyword found)
   if (
+    !foundKeyword &&
     /^(a|an|the|this|that|these|those|we|you|it|is|are|was|were|to|in|of|for|with|on|at|by|from|see|note|use)\s/i.test(
       normalized,
     )
@@ -153,8 +154,8 @@ export default function isCommentedOutCode(text: string): boolean {
     score -= 5;
   }
 
-  // - Looks like a natural language sentence (starts with capital letter, single line, no braces)
-  if (/^[A-Z][a-z]/.test(normalized) && braceCount === 0 && lines.length === 1) {
+  // - Looks like a natural language sentence (but not when code keyword found)
+  if (!foundKeyword && /^[A-Z][a-z]/.test(normalized) && braceCount === 0 && lines.length === 1) {
     score -= 2;
   }
 
