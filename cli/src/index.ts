@@ -119,6 +119,11 @@ async function rustOperations(cwd: string): Promise<PatchOperation[]> {
       blockName: '@thethracian/rust-lint-config',
       body: await readFile(join(packageRoot, 'configs', cargoLintsFile), 'utf8'),
     },
+    {
+      kind: 'copy',
+      source: join(packageRoot, 'configs', 'checks', 'depth'),
+      target: join(cwd, '.thethracian-checks', 'depth'),
+    },
   ];
 }
 
@@ -135,6 +140,11 @@ function elixirOperations(cwd: string): PatchOperation[] {
       kind: 'copy',
       source: join(packageRoot, 'configs', 'credo_checks', 'function_body_length.ex'),
       target: join(cwd, '.credo_checks', 'thethracian', 'function_body_length.ex'),
+    },
+    {
+      kind: 'copy',
+      source: join(packageRoot, 'configs', 'credo_checks', 'max_directory_depth.ex'),
+      target: join(cwd, '.credo_checks', 'thethracian', 'max_directory_depth.ex'),
     },
     {
       kind: 'copy',
@@ -204,6 +214,14 @@ async function doctor(cwd: string) {
       join(cwd, '.credo_checks', 'thethracian', 'function_body_length.ex'),
     ],
     ['.dialyzer_ignore.exs', join(cwd, '.dialyzer_ignore.exs')],
+    [
+      '.credo_checks/thethracian/max_directory_depth.ex',
+      join(cwd, '.credo_checks', 'thethracian', 'max_directory_depth.ex'),
+    ],
+    [
+      '.thethracian-checks/depth/Cargo.toml',
+      join(cwd, '.thethracian-checks', 'depth', 'Cargo.toml'),
+    ],
   ] as const;
 
   for (const [label, file] of checks) {

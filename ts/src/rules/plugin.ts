@@ -5,6 +5,7 @@ import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers.
 import hasBooleanPrefix, { suggestBooleanName } from './boolean-prefix.js';
 import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore.js';
 import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case.js';
+import countImportDepth from './max-import-depth.js';
 
 /**
  * Oxlint plugin for The Thracian custom rules.
@@ -272,6 +273,46 @@ const acronymCaseRule = {
   },
 };
 
+interface ImportNode {
+  source?: { value: string; raw: string } | null;
+  arguments?: Array<{ value: string }>;
+  callee?: { name: string };
+}
+
+const maxImportDepthRule = {
+  create(context: Context) {
+    const MAX_DEPTH = 4;
+
+    function checkPath(importPath: string, node: object) {
+      const depth = countImportDepth(importPath);
+      if (depth > MAX_DEPTH) {
+        context.report({
+          message: `Import path depth ${depth} exceeds maximum of ${MAX_DEPTH} (found '${importPath}'). Use a flatter directory structure or path alias.`,
+          node,
+        });
+      }
+    }
+
+    return {
+      ImportDeclaration(node: ImportNode) {
+        if (node.source?.value) {
+          checkPath(node.source.value, node);
+        }
+      },
+      CallExpression(node: ImportNode) {
+        if (
+          node.callee?.name === 'require' &&
+          node.arguments &&
+          node.arguments.length > 0 &&
+          typeof node.arguments[0].value === 'string'
+        ) {
+          checkPath(node.arguments[0].value, node);
+        }
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'thethracian',
@@ -283,6 +324,7 @@ const plugin = {
     'boolean-prefix': booleanPrefixRule,
     'private-underscore': privateUnderscoreRule,
     'acronym-case': acronymCaseRule,
+    'max-import-depth': maxImportDepthRule,
   },
 };
 

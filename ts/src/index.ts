@@ -22,6 +22,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'thethracian/boolean-prefix': 'error',
       'thethracian/private-underscore': 'error',
       'thethracian/acronym-case': 'error',
+      'thethracian/max-import-depth': 'error',
       'no-console': 'error',
       'no-debugger': 'error',
       'no-eval': 'error',

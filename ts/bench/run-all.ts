@@ -13,6 +13,7 @@ import {
   longIdentifierFixtures,
   commentFixtures,
 } from './fixtures.js';
+import { importDepthFixtures } from './import-fixtures.js';
 
 // ---- Imports from rule modules ----
 import isPascalCase from '../src/rules/pascal-case-types.js';
@@ -21,6 +22,7 @@ import hasBooleanPrefix from '../src/rules/boolean-prefix.js';
 import hasLeadingUnderscore from '../src/rules/private-underscore.js';
 import findMisCasedAcronyms from '../src/rules/acronym-case.js';
 import isCommentedOutCode from '../src/rules/no-commented-out-code.js';
+import countImportDepth from '../src/rules/max-import-depth.js';
 
 // ---- Benchmark configuration ----
 const ITERATIONS = 100_000;
@@ -64,6 +66,12 @@ results.push(
 const commentInputs = commentFixtures();
 results.push(
   benchmark('commentedCode  :: isCommentedOutCode', isCommentedOutCode, commentInputs, 10_000),
+);
+
+// ---- max-import-depth ----
+const importInputs = importDepthFixtures();
+results.push(
+  benchmark('importDepth   :: countImportDepth', countImportDepth, importInputs, ITERATIONS),
 );
 
 // ---- Output ----
