@@ -3,14 +3,12 @@
 // PascalCase variables
 let UserName = 'alice';
 let TotalCount = 42;
+var LegacyVar = true;
 
 // snake_case variables
 let user_name = 'bob';
 let total_count = 100;
-
-// SCREAMING_SNAKE variables (not const)
-let MAX_RETRIES = 5;
-let API_KEY_ID = 'abc';
+var legacy_var = true;
 
 // PascalCase functions
 export function GetUserData() {}
@@ -23,8 +21,18 @@ export function process_order() {}
 // PascalCase parameters
 function processOrder(OrderId: string, LineItem: number) {}
 
-// SCREAMING_SNAKE parameters
-function fetchData(ApiKey: string, _Timeout: number) {}
+// snake_case parameters
+function fetchData(user_name: string, total_count: number) {}
+
+// SCREAMING_SNAKE params
+function loadConfig(ApiKey: string) {}
+
+// Single uppercase letter (not valid camelCase)
+let X = 5;
+function Y() {}
+
+// Leading underscore (separate convention)
+let _privateVar = 42;
 
 // PascalCase methods
 export class BadService {

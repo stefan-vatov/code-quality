@@ -13,41 +13,88 @@ describe('isPascalCase', () => {
   it('returns false for lowercase start', () => {
     expect(isPascalCase('foo')).toBe(false);
     expect(isPascalCase('userAccount')).toBe(false);
+    expect(isPascalCase('someName')).toBe(false);
   });
 
   it('returns true for PascalCase', () => {
     expect(isPascalCase('UserAccount')).toBe(true);
     expect(isPascalCase('Foo')).toBe(true);
+    expect(isPascalCase('MyComponent')).toBe(true);
+    expect(isPascalCase('DataService')).toBe(true);
+  });
+
+  it('returns true for single uppercase letter', () => {
     expect(isPascalCase('H')).toBe(true);
+    expect(isPascalCase('T')).toBe(true);
+    expect(isPascalCase('K')).toBe(true);
   });
 
   it('returns true for PascalCase with consecutive capitals (acronyms)', () => {
     expect(isPascalCase('HTTPSConnection')).toBe(true);
     expect(isPascalCase('URLParser')).toBe(true);
     expect(isPascalCase('XMLParser')).toBe(true);
+    expect(isPascalCase('JSONSchema')).toBe(true);
+    expect(isPascalCase('APIClient')).toBe(true);
+    expect(isPascalCase('I18nHelper')).toBe(true); // I + 18n
   });
 
   it('returns false for snake_case', () => {
     expect(isPascalCase('my_class')).toBe(false);
     expect(isPascalCase('User_Account')).toBe(false);
+    expect(isPascalCase('My_Type')).toBe(false);
   });
 
   it('returns false for SCREAMING_SNAKE_CASE', () => {
     expect(isPascalCase('HTTP_STATUS_CODE')).toBe(false);
+    expect(isPascalCase('MAX_SIZE')).toBe(false);
   });
 
-  it('returns false for all caps with no underscores', () => {
+  it('returns false for all caps multi-character', () => {
     expect(isPascalCase('URLPARSER')).toBe(false);
     expect(isPascalCase('HTTPSCONNECTION')).toBe(false);
+    expect(isPascalCase('FOOBAR')).toBe(false);
+  });
+
+  it('returns false for names starting with digit', () => {
+    expect(isPascalCase('1Foo')).toBe(false);
+    expect(isPascalCase('0Bar')).toBe(false);
   });
 
   it('returns false for names starting with underscore', () => {
     expect(isPascalCase('_Foo')).toBe(false);
+    expect(isPascalCase('_MyClass')).toBe(false);
+  });
+
+  it('returns false for names with underscores in body', () => {
+    expect(isPascalCase('Foo_Bar')).toBe(false);
+    expect(isPascalCase('My_Component')).toBe(false);
+  });
+
+  it('returns false for camelCase', () => {
+    expect(isPascalCase('userName')).toBe(false);
+    expect(isPascalCase('getUserData')).toBe(false);
+  });
+
+  // False positive prevention
+  it('returns true for single uppercase letters (type parameters)', () => {
+    expect(isPascalCase('T')).toBe(true);
+    expect(isPascalCase('K')).toBe(true);
+    expect(isPascalCase('V')).toBe(true);
+  });
+
+  it('returns false for all-lowercase (not PascalCase just because no underscore)', () => {
+    expect(isPascalCase('myclass')).toBe(false);
+    expect(isPascalCase('foobar')).toBe(false);
+  });
+
+  it('handles mixed case with numbers correctly', () => {
+    expect(isPascalCase('Foo123Bar')).toBe(true);
+    expect(isPascalCase('F123')).toBe(true);
+    expect(isPascalCase('f123')).toBe(false); // starts lowercase
   });
 });
 
 function extractTypeNames(source: string): string[] {
-  // Strip single-line comments so regexes don't match inside them
   const clean = source.replace(/\/\/.*$/gm, '');
   const classRe = /(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/g;
   const ifaceRe = /(?:export\s+)?interface\s+(\w+)/g;

@@ -23,8 +23,10 @@ export default function isPascalCase(name: string): boolean {
     return false;
   }
   // Entirely uppercase multi-character is not PascalCase (constant convention),
-  // But single uppercase letters (T, K) are valid type parameter names
-  if (name.length > 1 && name === name.toUpperCase()) {
+  // But single uppercase letters (T, K) are valid type parameter names.
+  // Strip digits before checking — F123 is PascalCase, not a constant.
+  const letters = name.replace(/[^A-Za-z]/g, '');
+  if (letters.length > 1 && letters === letters.toUpperCase()) {
     return false;
   }
   return true;
