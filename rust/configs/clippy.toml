@@ -1,5 +1,5 @@
 avoid-breaking-exported-api = false
-too-many-arguments-threshold = 6
+too-many-arguments-threshold = 5
 too-many-lines-threshold = 75
 type-complexity-threshold = 250
 enum-variant-name-threshold = 3

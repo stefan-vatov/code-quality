@@ -28,6 +28,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
           ignoreRegExpLiterals: true,
         },
       ],
+      'max-params': ['error', { max: 5 }],
       'max-lines': [
         'error',
         {
