@@ -9,12 +9,12 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
     categories: {
       correctness: 'error',
       suspicious: 'error',
-      perf: 'warn',
-      style: 'warn',
+      perf: 'error',
+      style: 'error',
     },
     plugins: ['typescript', 'oxc', 'import', 'promise', 'unicorn'],
     rules: {
-      'no-console': 'warn',
+      'no-console': 'error',
       'no-debugger': 'error',
       eqeqeq: 'error',
       'max-len': [
@@ -43,7 +43,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
           skipComments: true,
         },
       ],
-      'typescript/no-explicit-any': 'warn',
+      'typescript/no-explicit-any': 'error',
       'typescript/no-floating-promises': options.typeAware ? 'error' : 'off',
     },
   });

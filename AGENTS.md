@@ -33,7 +33,7 @@ Exported configs should be strict by default. Current cross-language policy:
 - Maximum file length: 500 lines where the language tool supports file line counts.
 - Maximum line width: 150 characters where the language tool supports line width.
 - Maximum function length: 75 lines.
-- These limits should fail, not warn, whenever the underlying tool supports failure severity.
+- All rules use the strictest severity available (error/deny/forbid). No warnings allowed — the config is super-strict by design.
 
 Current implementation:
 
