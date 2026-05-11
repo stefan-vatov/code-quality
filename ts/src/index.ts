@@ -54,6 +54,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'typescript/no-unsafe-return': options.typeAware ? 'error' : 'off',
       'typescript/no-unsafe-argument': options.typeAware ? 'error' : 'off',
       'typescript/no-floating-promises': options.typeAware ? 'error' : 'off',
+      'typescript/no-misused-promises': options.typeAware ? 'error' : 'off',
     },
   });
 }

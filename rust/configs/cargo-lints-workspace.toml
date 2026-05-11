@@ -1,6 +1,7 @@
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_docs = "deny"
+unused_must_use = "deny"
 
 [workspace.lints.clippy]
 clippy::wildcard_enum_match_arm = "deny"all = "deny"
