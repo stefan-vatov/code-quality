@@ -50,3 +50,35 @@ export function activeFunction(): string {
    line: true,
    removed: "yes"
 }; */
+
+// while (queue.length > 0) { process(queue.shift()); }
+
+// switch (status) { case "ok": break; default: throw new Error("bad"); }
+
+// break;
+
+// continue;
+
+// extends BaseComponent {
+
+// implements IValidator {
+
+// static create(): Instance { return new Instance(); }
+
+// private secret: string;
+
+// protected init(): void {
+
+// abstract class BaseService {
+
+// readonly id: number;
+
+// `Hello ${name}, you have ${count} items`
+
+// <MyComponent prop={value} />
+
+// const merged = { ...defaults, ...overrides };
+
+// enum Color { Red, Green, Blue }
+
+// declare module "my-lib" {

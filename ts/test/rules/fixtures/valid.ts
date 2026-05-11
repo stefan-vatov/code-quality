@@ -27,3 +27,13 @@ export function applyDiscount(total: number, percent: number): number {
 export function processOrder(): void {
   /* intentional empty block */
 }
+
+// Implementation Details
+
+// TODO: migrate to new API in v3
+
+// See https://docs.example.com/migration-guide
+
+// This code handles edge cases for the parser
+
+/* eslint-disable-next-line no-empty */

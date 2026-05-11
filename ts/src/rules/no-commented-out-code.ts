@@ -78,28 +78,38 @@ export default function isCommentedOutCode(text: string): boolean {
   }
 
   // Fast-path: if text contains no code-like tokens at all, skip
-  const firstWord = normalized.split(/\s+/)[0]?.toLowerCase() ?? '';
-  const hasCodeTokens = /[;={}<>()&|!?:[\]]/.test(normalized) || CODE_KEYWORDS.has(firstWord);
+  const firstWord = normalized.split(/\s+/)[0].toLowerCase();
+  let hasCodeTokens = /[;={}<>()&|!?:[\]]/.test(normalized);
+  if (!hasCodeTokens) {
+    hasCodeTokens = CODE_KEYWORDS.has(firstWord);
+  }
 
-  if (
-    !hasCodeTokens &&
-    !/\b(await|async|function|class|import|export|return|throw|new|yield|for|while|if|switch|try|catch)\b/i.test(
-      normalized,
-    )
-  ) {
-    return false;
+  if (!hasCodeTokens) {
+    if (
+      !/\b(await|async|function|class|import|export|return|throw|new|yield|for|while|if|switch|try|catch)\b/i.test(
+        normalized,
+      )
+    ) {
+      return false;
+    }
   }
 
   let score = 0;
   let foundKeyword = false;
 
+  // Helper: strip trailing punctuation from a word for keyword matching
+  const stripTrailingPunctuation = (word: string): string => word.replace(/[;:,]$/, '');
+
   // 1. Check for keywords at start of line (strong signal)
   const lines = normalized.split('\n');
   for (const line of lines) {
     const trimmed = line.trim();
-    const lineFirstWord = trimmed.split(/\s+/)[0]?.toLowerCase() ?? '';
+    const lineFirstWord = trimmed.split(/\s+/)[0].toLowerCase();
 
-    if (CODE_KEYWORDS.has(lineFirstWord)) {
+    if (
+      CODE_KEYWORDS.has(lineFirstWord) ||
+      CODE_KEYWORDS.has(stripTrailingPunctuation(lineFirstWord))
+    ) {
       score += 3;
       foundKeyword = true;
     }
