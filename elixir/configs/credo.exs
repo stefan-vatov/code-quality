@@ -11,9 +11,7 @@
       parse_timeout: 5000,
       color: true,
       checks: %{
-            disabled: [
-              {Credo.Check.Readability.ModuleDoc, []}
-            ],
+            disabled: [],
             extra: [
               {Credo.Check.Readability.MaxLineLength,
                [max_length: 150, exit_status: 2, priority: :high]},
@@ -30,6 +28,8 @@
               {Credo.Check.Refactor.VariableRebinding,
                [exit_status: 2, priority: :high]},
               {Credo.Check.Readability.Specs,
+               [exit_status: 2, priority: :high]},
+              {Credo.Check.Readability.ModuleDoc,
                [exit_status: 2, priority: :high]},
               {Credo.Check.Readability.AliasOrder,
                [exit_status: 2, priority: :high]},

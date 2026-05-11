@@ -6,6 +6,7 @@ import hasBooleanPrefix, { suggestBooleanName } from './boolean-prefix.js';
 import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore.js';
 import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case.js';
 import countImportDepth from './max-import-depth.js';
+import hasRequiredFileDoc from './require-file-doc.js';
 
 /**
  * Oxlint plugin for The Thracian custom rules.
@@ -313,6 +314,38 @@ const maxImportDepthRule = {
   },
 };
 
+const requireFileDocRule = {
+  create(context: Context) {
+    return {
+      Program() {
+        if (!context.filename) {
+          return;
+        }
+
+        let source = '';
+        try {
+          source = readFileSync(context.filename, 'utf-8');
+        } catch {
+          return;
+        }
+        if (source === '') {
+          return;
+        }
+
+        if (!hasRequiredFileDoc(source)) {
+          context.report({
+            message:
+              'File must have a JSDoc header comment (' +
+              '/** ... */)' +
+              ' describing its purpose. Use // @internal to opt out for internal modules.',
+            node: {},
+          });
+        }
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'thethracian',
@@ -325,6 +358,7 @@ const plugin = {
     'private-underscore': privateUnderscoreRule,
     'acronym-case': acronymCaseRule,
     'max-import-depth': maxImportDepthRule,
+    'require-file-doc': requireFileDocRule,
   },
 };
 

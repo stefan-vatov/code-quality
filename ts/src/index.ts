@@ -23,6 +23,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'thethracian/private-underscore': 'error',
       'thethracian/acronym-case': 'error',
       'thethracian/max-import-depth': 'error',
+      'thethracian/require-file-doc': 'error',
       'sort-imports': [
         'error',
         {
