@@ -53,6 +53,10 @@ Current implementation:
 
 ## Ways Of Working
 
+### Writing custom Oxlint rules
+
+See `SKILL.md` for the complete workflow for writing custom Oxlint JS plugin rules in this repository.
+
 Use the existing package boundaries. Do not split a language across multiple top-level folders unless there is a concrete package boundary that needs independent publishing.
 
 When adding a new language:
