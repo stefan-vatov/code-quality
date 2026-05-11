@@ -23,6 +23,8 @@
                [max_nesting: 3, exit_status: 2, priority: :high]},
               {Credo.Check.Refactor.FunctionArity,
                [max_arity: 5, exit_status: 2, priority: :high]},
+              {Credo.Check.Refactor.CyclomaticComplexity,
+               [max_complexity: 10, exit_status: 2, priority: :high]},
               {Credo.Check.Warning.IoInspect, []}
             ]
           }

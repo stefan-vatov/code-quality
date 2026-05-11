@@ -13,7 +13,9 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       style: 'error',
     },
     plugins: ['typescript', 'oxc', 'import', 'promise', 'unicorn'],
+    jsPlugins: ['oxlint-plugin-complexity'],
     rules: {
+      'complexity/complexity': ['error', { cyclomatic: 10 }],
       'no-console': 'error',
       'no-debugger': 'error',
       eqeqeq: 'error',

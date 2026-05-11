@@ -9,4 +9,4 @@ The package ships:
 - `configs/cargo-lints-package.toml`
 - `configs/cargo-lints-workspace.toml`
 
-The config sets rustfmt line width to 150 characters and denies Clippy functions over 75 lines.
+The config sets rustfmt line width to 150 characters and denies Clippy functions over 75 lines, nesting deeper than 3 levels, and functions with more than 5 arguments.

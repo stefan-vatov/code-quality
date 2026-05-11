@@ -24,6 +24,7 @@
     "oxlint": "^1.63.0"
   },
   "peerDependencies": {
-    "oxlint": ">=1.63.0"
+    "oxlint": ">=1.63.0",
+    "oxlint-plugin-complexity": ">=2.0.0"
   }
 }

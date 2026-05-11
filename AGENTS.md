@@ -30,7 +30,7 @@ The root workspace owns tooling only: Nx project orchestration, Oxlint/Oxfmt for
 
 Exported configs should be strict by default. Current cross-language policy:
 
-- Maximum function arity: 5 parameters.
+- Maximum cyclomatic complexity: 10 where the language tool supports a reliable metric.
 - Maximum file length: 500 lines where the language tool supports file line counts.
 - Maximum line width: 150 characters where the language tool supports line width.
 - Maximum nesting depth: 3 levels.
@@ -39,9 +39,9 @@ Exported configs should be strict by default. Current cross-language policy:
 
 Current implementation:
 
-- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-params` (5 params), `max-lines`, and `max-lines-per-function` are `error`.
+- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-params` (5 params), `max-lines`, `max-lines-per-function`, and `complexity/complexity` with `cyclomatic: 10` (via `oxlint-plugin-complexity`) are `error`.
 - Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, and `too-many-lines-threshold = 75`.
-- Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), and a custom shipped `FunctionBodyLength` check, all with failing exit status.
+- Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), and a custom shipped `FunctionBodyLength` check, all with failing exit status.
 
 ## Ways Of Working
 
