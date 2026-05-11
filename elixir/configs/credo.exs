@@ -28,6 +28,8 @@
               {Credo.Check.Warning.IoInspect, []},
               {Credo.Check.Warning.IExPry, []},
               {Credo.Check.Refactor.VariableRebinding,
+               [exit_status: 2, priority: :high]},
+              {Credo.Check.Readability.Specs,
                [exit_status: 2, priority: :high]}
             ]
           }
