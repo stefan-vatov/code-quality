@@ -32,14 +32,15 @@ Exported configs should be strict by default. Current cross-language policy:
 
 - Maximum file length: 500 lines where the language tool supports file line counts.
 - Maximum line width: 150 characters where the language tool supports line width.
+- Maximum nesting depth: 3 levels.
 - Maximum function length: 75 lines.
 - All rules use the strictest severity available (error/deny/forbid). No warnings allowed — the config is super-strict by design.
 
 Current implementation:
 
-- TypeScript/Oxlint: `max-len` (150 chars), `max-lines`, and `max-lines-per-function` are `error`.
-- Rust: rustfmt uses `max_width = 150`; Clippy uses `too_many_lines = "deny"` and `too-many-lines-threshold = 75`.
-- Elixir: Credo uses `MaxLineLength` with failing exit status and a custom shipped `FunctionBodyLength` check with failing exit status.
+- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-lines`, and `max-lines-per-function` are `error`.
+- Rust: rustfmt uses `max_width = 150`; Clippy uses `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, and `too-many-lines-threshold = 75`.
+- Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), and a custom shipped `FunctionBodyLength` check, all with failing exit status.
 
 ## Ways Of Working
 

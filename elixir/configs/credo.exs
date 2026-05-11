@@ -19,6 +19,8 @@
                [max_length: 150, exit_status: 2, priority: :high]},
               {TheThracian.Credo.Check.Refactor.FunctionBodyLength,
                [max_lines: 75, exit_status: 2, priority: :high]},
+              {Credo.Check.Refactor.Nesting,
+               [max_nesting: 3, exit_status: 2, priority: :high]},
               {Credo.Check.Warning.IoInspect, []}
             ]
           }
