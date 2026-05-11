@@ -31,7 +31,10 @@
     "test:ci": "vitest run --coverage --config vitest.config.mts --passWithNoTests",
     "test:projects": "nx run-many -t test",
     "test:mutation": "stryker run",
-    "test:mutation:incremental": "stryker run --incremental"
+    "test:mutation:incremental": "stryker run --incremental",
+    "knip": "knip --cache --strict",
+    "knip:watch": "knip --watch --strict",
+    "knip:ci": "knip --cache --strict"
   },
   "dependencies": {},
   "devDependencies": {
@@ -41,6 +44,7 @@
     "@types/node": "^24.10.0",
     "@vitest/coverage-v8": "~4.1.0",
     "husky": "^9.1.7",
+    "knip": "^6.3.0",
     "lint-staged": "^16.4.0",
     "nx": "^22.7.1",
     "oxfmt": "^0.43.0",

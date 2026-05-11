@@ -20,3 +20,13 @@ hooks = [
   ] },
 ]
 # thx-linting:end
+
+# thx-knip:start
+[[repos]]
+repo = "local"
+hooks = [
+  { id = "thx-knip-pre-push", name = "thx-knip pre-push", entry = "pnpm run knip:ci", language = "system", pass_filenames = false, stages = [
+    "pre-push",
+  ] },
+]
+# thx-knip:end

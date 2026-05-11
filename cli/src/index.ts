@@ -133,6 +133,11 @@ function elixirOperations(cwd: string): PatchOperation[] {
     },
     {
       kind: 'copy',
+      source: join(packageRoot, 'configs', 'credo_checks', 'function_body_length.ex'),
+      target: join(cwd, '.credo_checks', 'thethracian', 'function_body_length.ex'),
+    },
+    {
+      kind: 'copy',
       source: join(packageRoot, 'configs', 'dialyzer_ignore.exs'),
       target: join(cwd, '.dialyzer_ignore.exs'),
     },
@@ -194,6 +199,10 @@ async function doctor(cwd: string) {
     ['rustfmt.toml', join(cwd, 'rustfmt.toml')],
     ['clippy.toml', join(cwd, 'clippy.toml')],
     ['.credo.exs', join(cwd, '.credo.exs')],
+    [
+      '.credo_checks/thethracian/function_body_length.ex',
+      join(cwd, '.credo_checks', 'thethracian', 'function_body_length.ex'),
+    ],
     ['.dialyzer_ignore.exs', join(cwd, '.dialyzer_ignore.exs')],
   ] as const;
 

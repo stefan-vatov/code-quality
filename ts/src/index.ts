@@ -17,6 +17,22 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'no-console': 'warn',
       'no-debugger': 'error',
       eqeqeq: 'error',
+      'max-lines': [
+        'error',
+        {
+          max: 500,
+          skipBlankLines: true,
+          skipComments: true,
+        },
+      ],
+      'max-lines-per-function': [
+        'error',
+        {
+          max: 75,
+          skipBlankLines: true,
+          skipComments: true,
+        },
+      ],
       'typescript/no-explicit-any': 'warn',
       'typescript/no-floating-promises': options.typeAware ? 'error' : 'off',
     },

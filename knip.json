@@ -1,0 +1,30 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "treatConfigHintsAsErrors": true,
+  "workspaces": {
+    ".": {
+      "includeEntryExports": true,
+      "entry": ["test/setup.ts", "vitest.config.mts"]
+    },
+    "cli": {
+      "includeEntryExports": true,
+      "ignoreBinaries": ["oxfmt", "oxlint", "vitest"],
+      "ignoreDependencies": ["@thethracian/elixir-lint-config", "@thethracian/rust-lint-config"],
+      "entry": ["src/index.ts"]
+    },
+    "elixir": {
+      "includeEntryExports": true,
+      "ignoreBinaries": ["oxfmt", "oxlint", "vitest"],
+      "entry": ["scripts/build.mjs", "scripts/check.mjs"]
+    },
+    "rust": {
+      "includeEntryExports": true,
+      "ignoreBinaries": ["oxfmt", "oxlint", "vitest"],
+      "entry": ["scripts/build.mjs", "scripts/check.mjs"]
+    },
+    "ts": {
+      "ignoreBinaries": ["oxfmt", "vitest"],
+      "entry": ["src/index.ts"]
+    }
+  }
+}
