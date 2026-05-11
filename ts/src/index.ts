@@ -13,11 +13,15 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       style: 'error',
     },
     plugins: ['typescript', 'oxc', 'import', 'promise', 'unicorn'],
-    jsPlugins: ['oxlint-plugin-complexity'],
+    jsPlugins: ['oxlint-plugin-complexity', './rules/plugin.js'],
     rules: {
       'complexity/complexity': ['error', { cyclomatic: 10 }],
+      'thethracian/no-commented-out-code': 'error',
       'no-console': 'error',
       'no-debugger': 'error',
+      'no-empty': ['error', { allowEmptyCatch: false }],
+      'no-inline-comments': 'error',
+      'no-warning-comments': 'error',
       eqeqeq: 'error',
       'max-depth': ['error', { max: 3 }],
       'max-len': [

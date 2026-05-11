@@ -32,6 +32,9 @@ Exported configs should be strict by default. Current cross-language policy:
 
 - Maximum cyclomatic complexity: 10 where the language tool supports a reliable metric.
 - No debug artifacts in production code: ban console.log, dbg!, print!, println!, todo!, IO.inspect, IEx.pry, etc.
+- No commented-out code or inline explanatory text: prevent dead code in comments and inline explanations that waste context tokens.
+  - TypeScript uses our custom `thethracian/no-commented-out-code` Oxlint rule (shipped with the config).
+- No silent catch: empty catch/rescue blocks are forbidden; all exceptions must be routed to a logger, error reporter, or re-raised.
 - No stale suppressions: every suppression must name the exact rule and include a reason; unused disables fail.
 - No unhandled async work: promises/futures/results must be awaited, returned, or explicitly handled.
 - Exhaustiveness required: unions/enums must be exhaustively handled in switch/match statements.
@@ -44,8 +47,8 @@ Exported configs should be strict by default. Current cross-language policy:
 
 Current implementation:
 
-- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-params` (5 params), `max-lines`, `max-lines-per-function`, `complexity/complexity` with `cyclomatic: 10` (via `oxlint-plugin-complexity`), `no-console`, `no-debugger`, `no-unsafe-call`, and `no-unsafe-member-access` are `error`; `no-unsafe-assignment`, `no-unsafe-return`, `no-unsafe-argument`, `no-floating-promises`, `no-misused-promises`, and `switch-exhaustiveness-check` are `error` when type-aware.
-- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, and `cast_lossless`; rustc lints `unused_must_use` and `non_exhaustive_omitted_patterns` are `deny` to catch unhandled Results/unawaited Futures and missing patterns for `#[non_exhaustive]` types.
+- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-params` (5 params), `max-lines`, `max-lines-per-function`, `complexity/complexity` with `cyclomatic: 10` (via `oxlint-plugin-complexity`), `thethracian/no-commented-out-code` (custom rule, shipped with config), `no-console`, `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-inline-comments`, `no-warning-comments`, `no-unsafe-call`, and `no-unsafe-member-access` are `error`; `no-unsafe-assignment`, `no-unsafe-return`, `no-unsafe-argument`, `no-floating-promises`, `no-misused-promises`, and `switch-exhaustiveness-check` are `error` when type-aware.
+- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, and `cast_lossless`; rustc lints `unused_must_use` and `non_exhaustive_omitted_patterns` are `deny`; silent error swallowing is handled by `unused_must_use` (ignored Results) and compiler exhaustiveness (Rust has no catch/empty catch equivalent).
 - Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents.
 
 ## Ways Of Working

@@ -6,3 +6,4 @@ dist/
 .stryker-tmp/
 reports/mutation/
 reports/stryker-incremental.json
+coverage/

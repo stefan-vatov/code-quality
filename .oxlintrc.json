@@ -10,6 +10,8 @@
     "**/dist/**",
     "**/build/**",
     "**/coverage/**",
+    "**/test/**",
+    "**/fixtures/**",
     "**/.next/**",
     "**/.nuxt/**",
     "**/out/**",
