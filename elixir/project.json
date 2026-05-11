@@ -1,0 +1,19 @@
+{
+  "name": "elixir",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "root": "elixir",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "command": "pnpm --dir elixir build",
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "check": {
+      "command": "pnpm --dir elixir check"
+    },
+    "pack": {
+      "command": "mkdir -p dist/packages && pnpm --dir elixir pack --pack-destination ../dist/packages",
+      "outputs": ["{workspaceRoot}/dist/packages"]
+    }
+  }
+}

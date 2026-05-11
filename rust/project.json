@@ -1,0 +1,19 @@
+{
+  "name": "rust",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "root": "rust",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "command": "pnpm --dir rust build",
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "check": {
+      "command": "pnpm --dir rust check"
+    },
+    "pack": {
+      "command": "mkdir -p dist/packages && pnpm --dir rust pack --pack-destination ../dist/packages",
+      "outputs": ["{workspaceRoot}/dist/packages"]
+    }
+  }
+}

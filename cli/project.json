@@ -1,0 +1,21 @@
+{
+  "name": "cli",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "root": "cli",
+  "sourceRoot": "cli/src",
+  "projectType": "application",
+  "implicitDependencies": ["rust", "elixir"],
+  "targets": {
+    "build": {
+      "command": "pnpm --dir cli build",
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "check": {
+      "command": "pnpm --dir cli check"
+    },
+    "pack": {
+      "command": "mkdir -p dist/packages && pnpm --dir cli pack --pack-destination ../dist/packages",
+      "outputs": ["{workspaceRoot}/dist/packages"]
+    }
+  }
+}

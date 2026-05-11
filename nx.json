@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*"],
+    "production": ["default", "!{projectRoot}/dist/**/*"]
+  },
+  "targetDefaults": {
+    "build": {
+      "inputs": ["production"],
+      "cache": true
+    },
+    "check": {
+      "inputs": ["default"],
+      "cache": true
+    },
+    "pack": {
+      "dependsOn": ["build"],
+      "inputs": ["production"],
+      "cache": true
+    }
+  },
+  "release": {
+    "projects": ["ts", "rust", "elixir", "cli"],
+    "projectsRelationship": "independent",
+    "changelog": {
+      "projectChangelogs": true,
+      "workspaceChangelog": true
+    }
+  }
+}

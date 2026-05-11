@@ -1,0 +1,22 @@
+{
+  "name": "thethracian-linters",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@10.12.4",
+  "scripts": {
+    "build": "nx run-many -t build",
+    "check": "nx run-many -t check",
+    "affected:build": "nx affected -t build",
+    "affected:check": "nx affected -t check",
+    "graph": "nx graph",
+    "release": "nx release",
+    "release:dry-run": "nx release --dry-run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "nx": "^22.7.1",
+    "oxlint": "^1.63.0",
+    "typescript": "^5.9.3"
+  }
+}

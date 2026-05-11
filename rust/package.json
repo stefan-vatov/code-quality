@@ -1,0 +1,21 @@
+{
+  "name": "@thethracian/rust-lint-config",
+  "version": "0.0.0",
+  "description": "The Thracian Rust lint and format configuration assets.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "configs",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    "./package.json": "./package.json",
+    "./configs/*": "./configs/*"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs"
+  }
+}

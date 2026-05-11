@@ -1,0 +1,20 @@
+{
+  "name": "ts",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "root": "ts",
+  "sourceRoot": "ts/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "command": "pnpm --dir ts build",
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "check": {
+      "command": "pnpm --dir ts check"
+    },
+    "pack": {
+      "command": "mkdir -p dist/packages && pnpm --dir ts pack --pack-destination ../dist/packages",
+      "outputs": ["{workspaceRoot}/dist/packages"]
+    }
+  }
+}
