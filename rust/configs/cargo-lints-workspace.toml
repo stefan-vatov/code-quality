@@ -2,6 +2,7 @@
 unsafe_code = "forbid"
 missing_docs = "deny"
 unused_must_use = "deny"
+unused_mut = "deny"
 non_exhaustive_omitted_patterns = "deny"
 
 [workspace.lints.clippy]

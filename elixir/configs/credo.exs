@@ -26,7 +26,9 @@
               {Credo.Check.Refactor.CyclomaticComplexity,
                [max_complexity: 10, exit_status: 2, priority: :high]},
               {Credo.Check.Warning.IoInspect, []},
-              {Credo.Check.Warning.IExPry, []}
+              {Credo.Check.Warning.IExPry, []},
+              {Credo.Check.Refactor.VariableRebinding,
+               [exit_status: 2, priority: :high]}
             ]
           }
     }

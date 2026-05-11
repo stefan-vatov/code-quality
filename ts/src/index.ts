@@ -21,7 +21,9 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'no-debugger': 'error',
       'no-empty': ['error', { allowEmptyCatch: false }],
       'no-inline-comments': 'error',
+      'no-param-reassign': ['error', { props: true }],
       'no-warning-comments': 'error',
+      'prefer-const': ['error', { destructuring: 'any' }],
       eqeqeq: 'error',
       'max-depth': ['error', { max: 3 }],
       'max-len': [
