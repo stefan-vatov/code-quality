@@ -7,6 +7,7 @@ import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore.j
 import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case.js';
 import countImportDepth from './max-import-depth.js';
 import hasRequiredFileDoc from './require-file-doc.js';
+import hasRequiredFunctionDocs from './require-function-doc.js';
 
 /**
  * Oxlint plugin for The Thracian custom rules.
@@ -346,6 +347,38 @@ const requireFileDocRule = {
   },
 };
 
+const requireFunctionDocRule = {
+  create(context: Context) {
+    return {
+      Program() {
+        if (!context.filename) {
+          return;
+        }
+
+        let source = '';
+        try {
+          source = readFileSync(context.filename, 'utf-8');
+        } catch {
+          return;
+        }
+        if (source === '') {
+          return;
+        }
+
+        if (!hasRequiredFunctionDocs(source)) {
+          context.report({
+            message:
+              'Missing JSDoc on an exported declaration. Every public function, class, type, ' +
+              'interface, enum, and const must have a non-empty /** ... */ JSDoc comment with ' +
+              'a description of its purpose, parameters, return value, and error conditions.',
+            node: {},
+          });
+        }
+      },
+    };
+  },
+};
+
 const plugin = {
   meta: {
     name: 'thethracian',
@@ -359,6 +392,7 @@ const plugin = {
     'acronym-case': acronymCaseRule,
     'max-import-depth': maxImportDepthRule,
     'require-file-doc': requireFileDocRule,
+    'require-function-doc': requireFunctionDocRule,
   },
 };
 

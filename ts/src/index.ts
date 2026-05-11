@@ -24,6 +24,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'thethracian/acronym-case': 'error',
       'thethracian/max-import-depth': 'error',
       'thethracian/require-file-doc': 'error',
+      'thethracian/require-function-doc': 'error',
       'sort-imports': [
         'error',
         {
@@ -73,6 +74,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
         },
       ],
       'typescript/no-explicit-any': 'error',
+      'typescript/explicit-function-return-type': 'error',
       'typescript/no-unsafe-call': 'error',
       'typescript/no-unsafe-member-access': 'error',
       'typescript/no-unsafe-assignment': options.typeAware ? 'error' : 'off',
