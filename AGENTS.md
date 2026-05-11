@@ -31,7 +31,10 @@ The root workspace owns tooling only: Nx project orchestration, Oxlint/Oxfmt for
 Exported configs should be strict by default. Current cross-language policy:
 
 - Maximum cyclomatic complexity: 10 where the language tool supports a reliable metric.
+- No debug artifacts in production code: ban console.log, dbg!, print!, println!, todo!, IO.inspect, IEx.pry, etc.
+- No stale suppressions: every suppression must name the exact rule and include a reason; unused disables fail.
 - No unhandled async work: promises/futures/results must be awaited, returned, or explicitly handled.
+- Exhaustiveness required: unions/enums must be exhaustively handled in switch/match statements.
 - No unchecked dynamic escape hatches: ban constructs that bypass the type system (unsafe any operations, wildcard enum matches, underspecified function specs).
 - Maximum file length: 500 lines where the language tool supports file line counts.
 - Maximum line width: 150 characters where the language tool supports line width.
@@ -41,9 +44,9 @@ Exported configs should be strict by default. Current cross-language policy:
 
 Current implementation:
 
-- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-params` (5 params), `max-lines`, `max-lines-per-function`, `complexity/complexity` with `cyclomatic: 10` (via `oxlint-plugin-complexity`), `no-unsafe-call`, and `no-unsafe-member-access` are `error`; `no-unsafe-assignment`, `no-unsafe-return`, `no-unsafe-argument`, `no-floating-promises`, and `no-misused-promises` are `error` when type-aware.
-- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, and `cast_lossless`; `unused_must_use` is `deny` to catch unhandled Results and unawaited Futures.
-- Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags.
+- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-params` (5 params), `max-lines`, `max-lines-per-function`, `complexity/complexity` with `cyclomatic: 10` (via `oxlint-plugin-complexity`), `no-console`, `no-debugger`, `no-unsafe-call`, and `no-unsafe-member-access` are `error`; `no-unsafe-assignment`, `no-unsafe-return`, `no-unsafe-argument`, `no-floating-promises`, `no-misused-promises`, and `switch-exhaustiveness-check` are `error` when type-aware.
+- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, and `cast_lossless`; rustc lints `unused_must_use` and `non_exhaustive_omitted_patterns` are `deny` to catch unhandled Results/unawaited Futures and missing patterns for `#[non_exhaustive]` types.
+- Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents.
 
 ## Ways Of Working
 
