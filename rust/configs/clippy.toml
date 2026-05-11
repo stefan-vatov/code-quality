@@ -4,3 +4,6 @@ too-many-lines-threshold = 75
 type-complexity-threshold = 250
 enum-variant-name-threshold = 3
 excessive-nesting-threshold = 3
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

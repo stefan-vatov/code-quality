@@ -49,7 +49,7 @@ Exported configs should be strict by default. Current cross-language policy:
 Current implementation:
 
 - TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-params` (5 params), `max-lines`, `max-lines-per-function`, `complexity/complexity` with `cyclomatic: 10` (via `oxlint-plugin-complexity`), `thethracian/no-commented-out-code` (custom rule, shipped with config), `no-console`, `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-inline-comments`, `no-warning-comments`, `prefer-const`, `no-param-reassign` (with `props: true`), `no-unsafe-call`, and `no-unsafe-member-access` are `error`; `no-unsafe-assignment`, `no-unsafe-return`, `no-unsafe-argument`, `no-floating-promises`, `no-misused-promises`, and `switch-exhaustiveness-check` are `error` when type-aware.
-- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_docs`, `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `non_exhaustive_omitted_patterns` are `deny`, with `unused_crate_dependencies` at `warn`; silent error swallowing is handled by `unused_must_use` (ignored Results) and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints.
+- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, `unwrap_used = "deny"`, `expect_used = "deny"`, `unused_result_ok = "deny"` (calling .ok() discards errors), and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_docs`, `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `non_exhaustive_omitted_patterns` are `deny`, with `unused_crate_dependencies` at `warn`; silent error swallowing is handled by `unused_must_use` (ignored Results), `unused_result_ok` (discarded errors via .ok()), and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints; tests are granted unwrap/expect/panic exceptions via clippy.toml.
 - Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, `VariableRebinding`, and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents; immutability is enforced by Elixir's immutable data structures plus `VariableRebinding` to forbid variable rebinding within a scope.
 
 ## Ways Of Working
@@ -127,3 +127,42 @@ Publishing is expected to happen through GitHub Actions later. Do not manually p
 - Keep package names flat under `@thethracian`; npm does not support deeper scoped package namespaces like `@thethracian/linters/oxlint-config`.
 - Avoid broad refactors while changing a specific lint config.
 - Do not revert unrelated user changes in the worktree.
+
+## TDD-First Protocol (MANDATORY)
+
+You MUST follow Red → Green → Refactor for every new feature or bug fix.
+
+### Phase 1: RED (Write Tests)
+
+1. Read the task specification carefully.
+2. Write test file(s) covering happy path, edge cases, and error cases.
+3. Run tests: they MUST FAIL. If they pass, the test is wrong — rewrite it.
+4. Show me the failing test output as proof.
+
+### Phase 2: GREEN (Minimum Implementation)
+
+5. Write the MINIMUM code to make tests pass. No extra features.
+6. Run tests: they MUST PASS.
+7. Run compiler/linter: MUST PASS.
+
+### Phase 3: REFACTOR (Clean Up)
+
+8. Refactor for clarity, performance, idiomatic style.
+9. Run tests after each refactor: they must stay passing.
+10. Add typespecs, documentation, inline comments for complex logic.
+11. Run full quality pipeline.
+
+### CRITICAL RULES
+
+- NEVER write implementation and tests in the same response.
+- If you add a feature later, you MUST add tests FIRST (new RED phase).
+- If tests are failing after your changes, fix the IMPLEMENTATION, not the tests.
+- Exception: fixing a test that was testing wrong behavior (document why).
+
+### Verification
+
+Before declaring complete, paste:
+
+- Test count: X tests, Y failures, Z skipped
+- Coverage: %
+- Linter: clean / N warnings
