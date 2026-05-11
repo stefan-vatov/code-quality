@@ -32,7 +32,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
           memberSyntaxSortOrder: ['none', 'all', 'multiple', 'single'],
         },
       ],
-      'import/max-dependencies': ['error', { max: 15 }],
+      'import/max-dependencies': ['error', { max: 20 }],
       'no-console': 'error',
       'no-debugger': 'error',
       'no-eval': 'error',
