@@ -12,6 +12,7 @@
     "**/coverage/**",
     "**/test/**",
     "**/fixtures/**",
+    "**/bench/**",
     "**/.next/**",
     "**/.nuxt/**",
     "**/out/**",

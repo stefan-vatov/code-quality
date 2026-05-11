@@ -5,16 +5,19 @@
  * Leading underscores are not camelCase (private member convention).
  */
 function isCamelCase(name: string): boolean {
-  if (name.length === 0) {
+  const len = name.length;
+  if (len === 0) {
     return false;
   }
-  if (name[0] < 'a' || name[0] > 'z') {
+
+  // First char must be lowercase letter
+  const first = name.charCodeAt(0);
+  if (first < 97 || first > 122) {
     return false;
   }
-  if (name.includes('_')) {
-    return false;
-  }
-  return true;
+
+  // Must not contain underscores
+  return name.indexOf('_') === -1;
 }
 
 /**
@@ -22,10 +25,21 @@ function isCamelCase(name: string): boolean {
  * Used for constants: `MAX_RETRIES`, `API_KEY`, `DEFAULT_TIMEOUT`.
  */
 function isUpperCase(name: string): boolean {
-  if (name.length === 0) {
+  const len = name.length;
+  if (len === 0) {
     return false;
   }
-  return /^[A-Z][A-Z0-9_]*$/.test(name);
+  const first = name.charCodeAt(0);
+  if (first < 65 || first > 90) {
+    return false;
+  }
+  for (let idx = 1; idx < len; idx++) {
+    const ch = name.charCodeAt(idx);
+    if (!((ch >= 65 && ch <= 90) || (ch >= 48 && ch <= 57) || ch === 95)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -39,16 +53,45 @@ function toCamelCase(name: string): string {
   if (name.length === 0) {
     return '';
   }
-  if (name.includes('_')) {
-    const parts = name.split('_').filter(Boolean);
-    return (
-      parts[0].toLowerCase() +
-      parts
-        .slice(1)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join('')
-    );
+
+  if (name.indexOf('_') !== -1) {
+    // Find first non-empty segment
+    let start = 0;
+    while (start < name.length && name.charCodeAt(start) === 95) {
+      start++;
+    }
+    if (start >= name.length) {
+      return '';
+    }
+
+    // Find end of first segment
+    let end = start;
+    while (end < name.length && name.charCodeAt(end) !== 95) {
+      end++;
+    }
+    let result = name.slice(start, end).toLowerCase();
+
+    // Process remaining segments
+    let segStart = end + 1;
+    while (segStart < name.length) {
+      // Skip underscores
+      while (segStart < name.length && name.charCodeAt(segStart) === 95) {
+        segStart++;
+      }
+      if (segStart >= name.length) {
+        break;
+      }
+      let segEnd = segStart;
+      while (segEnd < name.length && name.charCodeAt(segEnd) !== 95) {
+        segEnd++;
+      }
+      const word = name.slice(segStart, segEnd);
+      result += word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      segStart = segEnd + 1;
+    }
+    return result;
   }
+
   return name.charAt(0).toLowerCase() + name.slice(1);
 }
 

@@ -8,7 +8,7 @@
  * a leading underscore.
  */
 export default function hasLeadingUnderscore(name: string): boolean {
-  return name.length > 1 && name[0] === '_';
+  return name.length > 1 && name.charCodeAt(0) === 95;
 }
 
 /**
@@ -18,8 +18,5 @@ export default function hasLeadingUnderscore(name: string): boolean {
  * MyField → _myField
  */
 export function suggestPrivateName(name: string): string {
-  if (name.length === 0) {
-    return '_field';
-  }
-  return `_${name}`;
+  return name.length === 0 ? '_field' : `_${name}`;
 }

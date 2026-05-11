@@ -13,17 +13,36 @@
  * a private/internal convention, not a type name.
  */
 export default function isPascalCase(name: string): boolean {
-  if (name.length === 0) {
+  const len = name.length;
+  if (len === 0) {
     return false;
   }
-  if (name[0] < 'A' || name[0] > 'Z') {
+
+  // First char must be uppercase letter
+  const first = name.charCodeAt(0);
+  if (first < 65 || first > 90) {
     return false;
   }
-  if (name.includes('_')) {
+
+  // Reject underscores
+  if (name.indexOf('_') !== -1) {
     return false;
   }
-  const letters = name.replace(/[^A-Za-z]/g, '');
-  if (letters.length > 1 && letters === letters.toUpperCase()) {
+
+  // Must not be entirely uppercase (that's the constant convention).
+  // But digits are fine — only check alphabetic characters.
+  let alphaCount = 0;
+  let allUpper = true;
+  for (let idx = 0; idx < len; idx++) {
+    const code = name.charCodeAt(idx);
+    if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) {
+      alphaCount++;
+      if (code >= 97) {
+        allUpper = false;
+      }
+    }
+  }
+  if (allUpper && alphaCount > 1) {
     return false;
   }
   return true;
@@ -40,12 +59,40 @@ export function toPascalCase(name: string): string {
   if (name.length === 0) {
     return '';
   }
-  if (name.includes('_')) {
-    return name
-      .split('_')
-      .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join('');
+
+  if (name.indexOf('_') !== -1) {
+    let start = 0;
+    while (start < name.length && name.charCodeAt(start) === 95) {
+      start++;
+    }
+    if (start >= name.length) {
+      return '';
+    }
+
+    let end = start;
+    while (end < name.length && name.charCodeAt(end) !== 95) {
+      end++;
+    }
+    let result = name.charAt(start).toUpperCase() + name.slice(start + 1, end).toLowerCase();
+
+    let segStart = end + 1;
+    while (segStart < name.length) {
+      while (segStart < name.length && name.charCodeAt(segStart) === 95) {
+        segStart++;
+      }
+      if (segStart >= name.length) {
+        break;
+      }
+      let segEnd = segStart;
+      while (segEnd < name.length && name.charCodeAt(segEnd) !== 95) {
+        segEnd++;
+      }
+      result +=
+        name.charAt(segStart).toUpperCase() + name.slice(segStart + 1, segEnd).toLowerCase();
+      segStart = segEnd + 1;
+    }
+    return result;
   }
+
   return name.charAt(0).toUpperCase() + name.slice(1);
 }

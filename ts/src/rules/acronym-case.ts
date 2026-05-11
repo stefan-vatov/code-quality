@@ -1,75 +1,97 @@
 import acronyms from './acronyms.js';
 
 /**
- * Split a mixedCase (camelCase or PascalCase) identifier into its word segments.
+ * Split a mixedCase (camelCase or PascalCase) identifier into word segments.
  *
- * Uses case-transition detection: transitions from lowercase→uppercase, or
- * uppercase→lowercase (when preceded by multiple uppercase → acronym boundary).
- *
- * Examples:
- *   "parseURL"          → ["parse", "URL"]
- *   "URLParser"         → ["URL", "Parser"]
- *   "getHTTPSResponse"  → ["get", "HTTPS", "Response"]
- *   "XMLHttpRequest"    → ["XML", "Http", "Request"]
- *   "userId"            → ["user", "Id"]
+ * Uses index tracking + single slice at word boundaries instead of per-character
+ * string concatenation.
  */
 function splitMixedCase(name: string): string[] {
   const words: string[] = [];
-  let current = '';
-  let prevUpper = false;
-  let prevUpperCount = 0;
+  const len = name.length;
+  if (len === 0) {
+    return words;
+  }
 
-  for (const ch of name) {
-    const isUpper = ch >= 'A' && ch <= 'Z';
+  let wordStart = 0;
+  let prevUpper = name.charCodeAt(0) < 97;
+  let prevUpperCount = prevUpper ? 1 : 0;
 
-    if (current.length === 0) {
-      current = ch;
-      prevUpper = isUpper;
-      prevUpperCount = isUpper ? 1 : 0;
-    } else if (isUpper && !prevUpper) {
-      // Lowercase → uppercase: new word
-      words.push(current);
-      current = ch;
-      prevUpper = true;
+  for (let idx = 1; idx < len; idx++) {
+    const code = name.charCodeAt(idx);
+    const isUpper = code < 97 && code >= 65;
+
+    if (isUpper && !prevUpper) {
+      words.push(name.slice(wordStart, idx));
+      wordStart = idx;
       prevUpperCount = 1;
     } else if (!isUpper && prevUpper && prevUpperCount >= 2) {
-      // Multiple uppercase → lowercase: the last uppercase char belongs to the new word
-      const lastUpper = current[current.length - 1];
-      current = current.slice(0, -1);
-      words.push(current);
-      current = lastUpper + ch;
-      prevUpper = false;
+      words.push(name.slice(wordStart, idx - 1));
+      wordStart = idx - 1;
       prevUpperCount = 0;
     } else {
-      current += ch;
-      prevUpper = isUpper;
       prevUpperCount = isUpper ? prevUpperCount + 1 : 0;
     }
+    prevUpper = isUpper;
   }
 
-  if (current.length > 0) {
-    words.push(current);
-  }
-
+  words.push(name.slice(wordStart));
   return words;
+}
+
+/** Check if a word is a mis-cased acronym (known acronym not in ALLCAPS). */
+function hasMisCasedAcronym(word: string): boolean {
+  if (word.length < 2) {
+    return false;
+  }
+
+  // Strip trailing digits
+  let alphaEnd = word.length;
+  while (alphaEnd > 0) {
+    const dc = word.charCodeAt(alphaEnd - 1);
+    if (dc < 48 || dc > 57) {
+      break;
+    }
+    alphaEnd--;
+  }
+  if (alphaEnd < 2) {
+    return false;
+  }
+
+  const alpha = word.slice(0, alphaEnd);
+  return acronyms.has(alpha.toLowerCase()) && !isAllUpper(alpha, alpha.length);
+}
+
+/** Check if entire string (known length) is all uppercase A-Z. */
+function isAllUpper(str: string, length: number): boolean {
+  for (let idx = 0; idx < length; idx++) {
+    const ch = str.charCodeAt(idx);
+    if (ch < 65 || ch > 90) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
  * Check if an identifier contains acronyms that are not consistently uppercase.
- *
- * For mixedCase identifiers (camelCase / PascalCase), each word segment that is
- * a known programming acronym must be all uppercase. Examples:
- *
- *   Correct: parseURL, URLParser, HTTPSConnection
- *   Wrong:   parseUrl, UrlParser, HttpsConnection
- *
- * Returns an array of word segments that are known acronyms but not all-caps.
- * Empty array means no violations.
  */
 export default function findMisCasedAcronyms(name: string): string[] {
-  // Only process mixed-case identifiers (contain both upper and lower)
-  const hasUpper = /[A-Z]/.test(name);
-  const hasLower = /[a-z]/.test(name);
+  // Quick rejection: must have both upper and lower
+  let hasUpper = false;
+  let hasLower = false;
+  const len = name.length;
+  for (let idx = 0; idx < len; idx++) {
+    const ch = name.charCodeAt(idx);
+    if (ch < 97) {
+      hasUpper ||= ch >= 65 && ch <= 90;
+    } else if (ch <= 122) {
+      hasLower = true;
+    }
+    if (hasUpper && hasLower) {
+      break;
+    }
+  }
   if (!hasUpper || !hasLower) {
     return [];
   }
@@ -77,17 +99,9 @@ export default function findMisCasedAcronyms(name: string): string[] {
   const words = splitMixedCase(name);
   const violations: string[] = [];
 
-  for (const word of words) {
-    if (word.length < 2) {
-      continue;
-    }
-    const alpha = word.replace(/\d+$/, '');
-    if (alpha.length < 2) {
-      continue;
-    }
-    const lower = alpha.toLowerCase();
-    if (acronyms.has(lower) && word !== word.toUpperCase()) {
-      violations.push(word);
+  for (let idx = 0; idx < words.length; idx++) {
+    if (hasMisCasedAcronym(words[idx])) {
+      violations.push(words[idx]);
     }
   }
 
@@ -96,24 +110,53 @@ export default function findMisCasedAcronyms(name: string): string[] {
 
 /**
  * Fix mis-cased acronyms in an identifier by uppercasing known acronyms.
- *
- * parseUrl → parseURL
- * UrlParser → URLParser
- * getHttpResponse → getHTTPResponse
  */
 export function fixAcronymCase(name: string): string {
-  const violations = findMisCasedAcronyms(name);
-  if (violations.length === 0) {
+  let hasUpper = false;
+  let hasLower = false;
+  const len = name.length;
+  for (let idx = 0; idx < len; idx++) {
+    const ch = name.charCodeAt(idx);
+    if (ch < 97) {
+      hasUpper ||= ch >= 65 && ch <= 90;
+    } else if (ch <= 122) {
+      hasLower = true;
+    }
+    if (hasUpper && hasLower) {
+      break;
+    }
+  }
+  if (!hasUpper || !hasLower) {
     return name;
   }
 
   const words = splitMixedCase(name);
-  const fixed = words.map((word) => {
-    const lower = word.toLowerCase();
-    if (acronyms.has(lower) && word !== word.toUpperCase()) {
-      return word.toUpperCase();
+  let changed = false;
+
+  for (let idx = 0; idx < words.length; idx++) {
+    const word = words[idx];
+    if (word.length < 2) {
+      continue;
     }
-    return word;
-  });
-  return fixed.join('');
+
+    let alphaEnd = word.length;
+    while (alphaEnd > 0) {
+      const dc = word.charCodeAt(alphaEnd - 1);
+      if (dc < 48 || dc > 57) {
+        break;
+      }
+      alphaEnd--;
+    }
+    if (alphaEnd < 2) {
+      continue;
+    }
+
+    const alpha = word.slice(0, alphaEnd);
+    if (acronyms.has(alpha.toLowerCase()) && !isAllUpper(alpha, alpha.length)) {
+      words[idx] = word.slice(0, alphaEnd).toUpperCase() + word.slice(alphaEnd);
+      changed = true;
+    }
+  }
+
+  return changed ? words.join('') : name;
 }
