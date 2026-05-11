@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-# thx-linting:start
-pnpm exec prek run --hook-stage pre-push
-# thx-linting:end
+pnpm run lint:ci
+pnpm run check
+pnpm run build
+pnpm exec prek run --stage pre-push --all-files --skip thx-linting-pre-push-lint-ci
