@@ -1,9 +1,11 @@
 [lints.rust]
 unsafe_code = "forbid"
 missing_docs = "deny"
+missing_debug_implementations = "deny"
 unused_must_use = "deny"
 unused_mut = "deny"
 non_exhaustive_omitted_patterns = "deny"
+unused_crate_dependencies = "warn"
 
 [lints.clippy]
 clippy::wildcard_enum_match_arm = "deny"clippy::print_stdout = "deny"clippy::print_stderr = "deny"clippy::todo = "deny"all = "deny"
