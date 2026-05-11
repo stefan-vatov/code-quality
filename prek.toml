@@ -1,0 +1,22 @@
+minimum_prek_version = "0.3.0"
+
+[[repos]]
+repo = "builtin"
+hooks = [
+  { id = "trailing-whitespace" },
+  { id = "end-of-file-fixer" },
+  { id = "check-merge-conflict" },
+]
+
+# thx-linting:start
+[[repos]]
+repo = "local"
+hooks = [
+  { id = "thx-linting-pre-commit", name = "thx-linting pre-commit", entry = "pnpm run fix:staged", language = "system", pass_filenames = false, stages = [
+    "pre-commit",
+  ] },
+  { id = "thx-linting-pre-push-lint-ci", name = "thx-linting pre-push lint:ci", entry = "pnpm run lint:ci", language = "system", pass_filenames = false, stages = [
+    "pre-push",
+  ] },
+]
+# thx-linting:end

@@ -3,20 +3,48 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "packageManager": "pnpm@10.12.4",
   "scripts": {
     "build": "nx run-many -t build",
     "check": "nx run-many -t check",
     "affected:build": "nx affected -t build",
     "affected:check": "nx affected -t check",
+    "affected:lint": "nx affected -t lint",
     "graph": "nx graph",
+    "lint:projects": "nx run-many -t lint",
     "release": "nx release",
-    "release:dry-run": "nx release --dry-run"
+    "release:dry-run": "nx release --dry-run",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "fix:staged": "lint-staged --concurrent false",
+    "lint:staged": "pnpm run fix:staged",
+    "lint:type-aware": "oxlint . --type-aware --type-check",
+    "lint:type-aware:fix": "oxlint . --type-aware --type-check --fix",
+    "fix": "pnpm run lint:type-aware:fix && pnpm run format",
+    "lint:ci": "pnpm run lint:type-aware && pnpm run format:check",
+    "prepare": "husky"
   },
+  "dependencies": {},
   "devDependencies": {
+    "@j178/prek": "^0.3.8",
     "@types/node": "^24.10.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "nx": "^22.7.1",
+    "oxfmt": "^0.43.0",
     "oxlint": "^1.63.0",
+    "oxlint-tsgolint": "^0.22.1",
     "typescript": "^5.9.3"
-  }
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}": [
+      "oxlint --type-aware --type-check --fix",
+      "oxfmt"
+    ],
+    "*.{json,md,yml,yaml,toml,css,scss,html}": [
+      "oxfmt"
+    ]
+  },
+  "packageManager": "pnpm@10.12.4"
 }

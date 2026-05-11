@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "description": "Patcher CLI for The Thracian lint configs.",
   "license": "MIT",
-  "type": "module",
   "bin": {
     "thx-lint-cli": "./dist/index.js"
   },
@@ -12,6 +11,7 @@
     "README.md",
     "LICENSE"
   ],
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

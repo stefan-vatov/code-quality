@@ -11,6 +11,9 @@
     "check": {
       "command": "pnpm --dir rust check"
     },
+    "lint": {
+      "command": "pnpm exec oxlint rust --type-aware --type-check && pnpm exec oxfmt --check rust"
+    },
     "pack": {
       "command": "mkdir -p dist/packages && pnpm --dir rust pack --pack-destination ../dist/packages",
       "outputs": ["{workspaceRoot}/dist/packages"]

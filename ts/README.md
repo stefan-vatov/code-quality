@@ -3,7 +3,7 @@
 Importable Oxlint config for TypeScript projects.
 
 ```ts
-import theThracian from "@thethracian/oxlint-config";
+import theThracian from '@thethracian/oxlint-config';
 
 export default theThracian();
 ```

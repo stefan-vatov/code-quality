@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "style": "warn",
+    "suspicious": "error"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/.next/**",
+    "**/.nuxt/**",
+    "**/out/**",
+    "**/out-tsc/**",
+    "**/.turbo/**",
+    "**/.cache/**"
+  ],
+  "options": {
+    "denyWarnings": true,
+    "typeAware": true,
+    "typeCheck": true
+  },
+  "plugins": ["import", "promise"],
+  "rules": {
+    "eslint/func-style": "off",
+    "eslint/max-statements": "off",
+    "eslint/no-console": "off",
+    "eslint/no-continue": "off",
+    "eslint/no-magic-numbers": "off",
+    "eslint/no-ternary": "off",
+    "eslint/sort-imports": "off",
+    "eslint/sort-keys": "off",
+    "import/no-named-export": "off",
+    "import/no-nodejs-modules": "off",
+    "promise/prefer-await-to-callbacks": "off",
+    "promise/prefer-await-to-then": "off"
+  }
+}

@@ -3,13 +3,13 @@
   "version": "0.0.0",
   "description": "The Thracian Oxlint configuration.",
   "license": "MIT",
-  "type": "module",
-  "sideEffects": false,
   "files": [
     "dist",
     "README.md",
     "LICENSE"
   ],
+  "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -20,10 +20,10 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit"
   },
-  "peerDependencies": {
-    "oxlint": ">=1.63.0"
-  },
   "devDependencies": {
     "oxlint": "^1.63.0"
+  },
+  "peerDependencies": {
+    "oxlint": ">=1.63.0"
   }
 }

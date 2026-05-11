@@ -11,6 +11,9 @@
     "check": {
       "command": "pnpm --dir elixir check"
     },
+    "lint": {
+      "command": "pnpm exec oxlint elixir --type-aware --type-check && pnpm exec oxfmt --check elixir"
+    },
     "pack": {
       "command": "mkdir -p dist/packages && pnpm --dir elixir pack --pack-destination ../dist/packages",
       "outputs": ["{workspaceRoot}/dist/packages"]
