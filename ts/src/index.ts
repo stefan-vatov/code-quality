@@ -48,6 +48,11 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
         },
       ],
       'typescript/no-explicit-any': 'error',
+      'typescript/no-unsafe-call': 'error',
+      'typescript/no-unsafe-member-access': 'error',
+      'typescript/no-unsafe-assignment': options.typeAware ? 'error' : 'off',
+      'typescript/no-unsafe-return': options.typeAware ? 'error' : 'off',
+      'typescript/no-unsafe-argument': options.typeAware ? 'error' : 'off',
       'typescript/no-floating-promises': options.typeAware ? 'error' : 'off',
     },
   });

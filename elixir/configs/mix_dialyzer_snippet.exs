@@ -1,5 +1,5 @@
 dialyzer: [
   plt_add_apps: [:mix, :ex_unit],
-  flags: [:unmatched_returns, :error_handling, :extra_return, :missing_return],
+  flags: [:unmatched_returns, :error_handling, :extra_return, :missing_return, :underspecs, :no_return],
   ignore_warnings: ".dialyzer_ignore.exs"
 ]
