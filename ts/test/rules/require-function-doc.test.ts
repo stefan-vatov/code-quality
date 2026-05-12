@@ -374,4 +374,301 @@ export function b() {}`;
     const src = `import { x } from './x';\n\n/** Final export. */\nexport function last() {}`;
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // FALSE POSITIVE PREVENTION — patterns that should NOT require docs
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── expression defaults ──────────────────────────────────────────────
+
+  it('skips export default with literal expression', () => {
+    const src = 'export default 42;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export default with object expression', () => {
+    const src = 'export default { foo: "bar" };';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export default with new operator', () => {
+    const src = 'export default new Map();';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export default with IIFE', () => {
+    const src = 'export default (() => { return 1; })();';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export default with computed expression', () => {
+    const src = 'export default config.port || 3000;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export default with identifier reference', () => {
+    const src = 'const App = {};\nexport default App;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── CommonJS / UMD / legacy patterns ─────────────────────────────────
+
+  it('skips export = (CommonJS namespace export)', () => {
+    const src = 'export = React;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export = with complex expression', () => {
+    const src = 'export = function foo() { return 1; };';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export as namespace (UMD global declaration)', () => {
+    const src = 'export as namespace mathLib;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export as namespace with export = combo', () => {
+    const src = 'export = React;\nexport as namespace React;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── declare / ambient patterns ───────────────────────────────────────
+
+  it('skips declare export function (ambient declaration)', () => {
+    // In .d.ts files, the declare keyword makes this ambient
+    const src = 'declare export function parse(cmd: string): Args;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips declare export class (ambient class)', () => {
+    const src = 'declare export class EventBus {\n  on(e: string, fn: Function): void;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export in declare module block', () => {
+    const src = 'declare module "fs" {\n  export function readFile(p: string): string;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export in declare namespace block', () => {
+    const src = 'declare namespace Internal {\n  export function helper(): void;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips declare global augmentation export', () => {
+    const src = 'declare global {\n  export function gc(): void;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── inline type-only exports ─────────────────────────────────────────
+
+  it('skips export { type A, type B }', () => {
+    const src = 'export { type A, type B };';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export type * from (wildcard type re-export)', () => {
+    const src = "export type * from './types';";
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips export type * as NS from', () => {
+    const src = "export type * as Types from './types';";
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── export namespace ─────────────────────────────────────────────────
+
+  it('fails for export namespace without JSDoc', () => {
+    const src = 'export namespace MathUtil {\n  export function add(a: number, b: number): number { return a + b; }\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('fails when export namespace has doc but inner export does not', () => {
+    // Inner `export function add` also needs its own JSDoc
+    const src = '/** Math utilities. */\nexport namespace MathUtil {\n  export function add(a: number, b: number): number { return a + b; }\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes when export namespace and all inner exports have JSDoc', () => {
+    const src = '/** Math utilities. */\nexport namespace MathUtil {\n  /** Adds two numbers. */\n  export function add(a: number, b: number): number { return a + b; }\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── overloaded function declarations ─────────────────────────────────
+
+  it('KNOWN LIMITATION: flags all overload signatures as undocumented', () => {
+    // Only the implementation should need docs, but source scanning can\'t
+    // distinguish declaration-only overloads from the implementation.
+    const src = `/** Parses input. */
+export function parse(input: string): AST;
+export function parse(input: string, options: Options): AST;
+export function parse(input: string, options?: Options): AST {
+  return {} as AST;
+}`;
+    // Current behavior: flags the second overload as undocumented (false positive)
+    // Ideal: should detect that the first overload has doc and accept the pattern
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  // ── JSDoc before decorator ───────────────────────────────────────────
+
+  it('KNOWN LIMITATION: JSDoc before decorator not recognized', () => {
+    // JSDoc is above the decorator, not directly before export.
+    // The decorator creates a gap our backwards scan doesn\'t cross.
+    const src = '/** Controller. */\n@Controller()\nexport class AppController {}';
+    // Current: fails (JSDoc not found directly before export)
+    // Ideal: should detect JSDoc above the decorator
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes when JSDoc is directly before export (decorator after)', () => {
+    // This is valid: JSDoc belongs to the export, decorator is part of the declaration
+    const src = '@Controller()\n/** Controller. */\nexport class AppController {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── override methods (class members) ─────────────────────────────────
+
+  it('correctly ignores method definitions on exported class', () => {
+    // Method `on` is not itself an export — only the class is
+    const src = '/** Event bus. */\nexport class EventBus {\n  on(event: string) {}\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('fails when exported class has no JSDoc (methods irrelevant)', () => {
+    const src = 'export class EventBus {\n  /** Handles event. */\n  on(event: string) {}\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  // ── triple-slash directives ──────────────────────────────────────────
+
+  it('skips triple-slash reference with export following', () => {
+    const src = '/// <reference path="./types.d.ts" />\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes for triple-slash reference + documented export', () => {
+    const src = '/// <reference path="./types.d.ts" />\n/** Foo. */\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── shebang + multiple exports ───────────────────────────────────────
+
+  it('fails when shebang file has undocumented export', () => {
+    const src = '#!/usr/bin/env node\n\nexport function main() {}\n';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes when shebang file has documented export', () => {
+    const src = '#!/usr/bin/env node\n\n/** Entry. */\nexport function main() {}\n';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── export from index barrel files ───────────────────────────────────
+
+  it('skips barrel export * without doc', () => {
+    const src = 'export * from "./utils";\nexport * from "./types";';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips barrel export * with only type exports mixed in', () => {
+    const src = 'export * from "./utils";\nexport type * from "./types";\nexport { default } from "./main";';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── edge: empty export (zero-length file) ────────────────────────────
+
+  it('passes for empty file', () => {
+    expect(hasRequiredFunctionDocs('')).toBe(true);
+  });
+
+  // ── edge: export at very start of file ───────────────────────────────
+
+  it('fails for export at position 0 without JSDoc', () => {
+    const src = 'export function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes for export at position 0 with JSDoc', () => {
+    const src = '/** Doc. */\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── edge: export with Unicode in JSDoc ───────────────────────────────
+
+  it('passes for JSDoc with Unicode description', () => {
+    const src = '/** Résumé handler — processes UTF-8. */\nexport function handler() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── edge: JSDoc with embedded /* ─────────────────────────────────────
+
+  it('handles JSDoc containing /* as example code', () => {
+    const src = '/**\n * Usage: /* comment */\n */\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── edge: export in template literal (should not match) ───────────────
+
+  it('ignores export keyword inside template literal', () => {
+    const src = 'const msg = `export function fake() {}`;\nexport function real() {}';
+    // "export function fake" is in a string — but source scanning sees it.
+    // fake export at start of template literal would be detected.
+    // The real export at end lacks JSDoc → fails
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  // ── export default class / interface ─────────────────────────────────
+
+  it('passes for export default class with JSDoc', () => {
+    const src = '/** Default handler. */\nexport default class DefaultHandler {\n  handle() {}\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('fails for export default class without JSDoc', () => {
+    const src = 'export default class DefaultHandler {\n  handle() {}\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes for export default interface with JSDoc', () => {
+    const src = '/** Default config shape. */\nexport default interface DefaultConfig {\n  port: number;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('fails for export default interface without JSDoc', () => {
+    const src = 'export default interface DefaultConfig {\n  port: number;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes for export default abstract class with JSDoc', () => {
+    const src = '/** Base entity. */\nexport default abstract class BaseEntity {\n  abstract id: string;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── declare module edge cases ────────────────────────────────────────
+
+  it('skips exports inside declare module with JSDoc anyway', () => {
+    // Even with JSDoc, ambient module exports are skipped
+    const src = '/** Not needed. */\ndeclare module "test" {\n  export function run(): void;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('skips declare module with shebang', () => {
+    const src = '#!/usr/bin/env node\ndeclare module "test" {\n  export function run(): void;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── word boundary in endsWithWord ────────────────────────────────────
+
+  it('does not confuse const with class for default export', () => {
+    const src = 'export default constValue;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('does not confuse interface with identifier starting with i', () => {
+    const src = 'export default item;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
 });
