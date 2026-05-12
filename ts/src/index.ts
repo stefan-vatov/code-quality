@@ -38,7 +38,8 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'no-console': 'error',
       'no-debugger': 'error',
       'no-eval': 'error',
-      'no-empty': ['error', { allowEmptyCatch: false }],
+      'preserve-caught-error': 'error',
+      'typescript/only-throw-error': 'error',
       'no-inline-comments': 'error',
       'no-param-reassign': ['error', { props: true }],
       'no-warning-comments': 'error',
@@ -83,6 +84,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'typescript/no-floating-promises': options.typeAware ? 'error' : 'off',
       'typescript/no-implied-eval': options.typeAware ? 'error' : 'off',
       'typescript/no-misused-promises': options.typeAware ? 'error' : 'off',
+      'typescript/prefer-promise-reject-errors': options.typeAware ? 'error' : 'off',
       'typescript/switch-exhaustiveness-check': options.typeAware ? 'error' : 'off',
     },
   });
