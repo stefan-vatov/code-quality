@@ -40,6 +40,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'no-eval': 'error',
       'preserve-caught-error': 'error',
       'typescript/only-throw-error': 'error',
+      'typescript/no-non-null-assertion': 'error',
       'no-inline-comments': 'error',
       'no-param-reassign': ['error', { props: true }],
       'no-warning-comments': 'error',
