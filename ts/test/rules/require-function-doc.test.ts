@@ -250,4 +250,128 @@ export function foo() { return 1; }`;
     const src = 'export const A = 1, B = 2;';
     expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
+
+  // ── keyword combinations ─────────────────────────────────────────────
+
+  it('passes for export abstract class with JSDoc', () => {
+    const src = '/** Base handler. */\nexport abstract class Handler {\n  abstract handle(): void;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('fails for export abstract class without JSDoc', () => {
+    const src = 'export abstract class Handler {\n  abstract handle(): void;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes for export default async function with JSDoc', () => {
+    const src = '/** Boot sequence. */\nexport default async function boot() {\n  await init();\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('fails for export default async function without JSDoc', () => {
+    const src = 'export default async function boot() {\n  await init();\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('fails for export default async function without JSDoc (combined keywords)', () => {
+    const src = 'export default async function init() {\n  return;\n}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes for export let with JSDoc', () => {
+    const src = '/** Mutable counter. */\nexport let counter = 0;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('fails for export let without JSDoc', () => {
+    const src = 'export let counter = 0;';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes for export var with JSDoc', () => {
+    const src = '/** Legacy flag. */\nexport var flag = true;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('fails for export var without JSDoc', () => {
+    const src = 'export var flag = true;';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  // ── non-whitespace preceding export ─────────────────────────────────
+
+  it('skips "export" when preceded by non-whitespace (e.g. reexport)', () => {
+    // "reexport" contains "export" but is not an export keyword
+    const src = 'const reexport = 1;';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('correctly finds export after preceding content on different line', () => {
+    // export is at start of line after } — the newline is whitespace
+    const src = 'function bar() {}\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes when export after preceding content has JSDoc', () => {
+    const src = 'function bar() {}\n\n/** Docs. */\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── whitespace edge cases ────────────────────────────────────────────
+
+  it('handles tab characters before JSDoc on export', () => {
+    const src = '\t\t/** Docs. */\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('handles CRLF line endings on export without JSDoc', () => {
+    const src = '/** Docs. */\r\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('handles CRLF line endings failing case', () => {
+    const src = 'export function foo() {}\r\n';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  // ── JSDoc content edge cases ─────────────────────────────────────────
+
+  it('fails when JSDoc is only asterisk markers with no text', () => {
+    const src = '/**\n *\n *\n */\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes when JSDoc has text mixed with asterisk-only lines', () => {
+    const src = '/**\n *\n * Actual description.\n */\nexport function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  // ── exports deeper in the file ───────────────────────────────────────
+
+  it('fails when first export is documented but second deeper export is not', () => {
+    const src = `/** First. */
+export function a() {}
+
+const helper = () => {};
+
+export function b() {}`;
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  // ── exports at end of file ───────────────────────────────────────────
+
+  it('handles export with multiple spaces before declaration', () => {
+    const src = '/** Docs. */\nexport   function foo() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('handles export default with multiple spaces before async', () => {
+    const src = '/** Boot. */\nexport default   async function boot() {}';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('passes when only export is at end of file with JSDoc', () => {
+    const src = `import { x } from './x';\n\n/** Final export. */\nexport function last() {}`;
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
 });

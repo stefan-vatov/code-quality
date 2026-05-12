@@ -24,26 +24,20 @@ export default function hasRequiredFunctionDocs(source: string): boolean {
   const len = source.length;
   let pos = 0;
 
-  // Collect all exports that need documentation
-  const exports: Array<{ pos: number; lineStart: number }> = [];
+  // Collect position of each export declaration that needs documentation
+  const exportPositions: number[] = [];
 
   while (pos < len) {
     const exp = source.indexOf('export ', pos);
     if (exp === -1) break;
 
-    // Skip if preceded by non-whitespace (e.g., "import/export" is two tokens)
+    // Skip if preceded by non-whitespace (e.g., "reexport" is one token)
     if (exp > 0) {
       const prev = source.charCodeAt(exp - 1);
       if (prev !== 10 && prev !== 13 && prev !== 9 && prev !== 32) {
         pos = exp + 1;
         continue;
       }
-    }
-
-    // Find the start of this line
-    let lineStart = exp;
-    while (lineStart > 0 && source.charCodeAt(lineStart - 1) !== 10) {
-      lineStart--;
     }
 
     // Skip whitespace after "export "
@@ -68,81 +62,67 @@ export default function hasRequiredFunctionDocs(source: string): boolean {
     }
 
     // export type { ... } — skip ahead past "type "
-    if (c0 === 116) {
-      // 't' — could be "type"
-      if (after + 5 <= len && source.slice(after, after + 5) === 'type ') {
-        const afterType = after + 5;
-        if (afterType < len && source.charCodeAt(afterType) === 123) {
-          // export type { ... }
-          pos = afterType;
-          continue;
-        }
+    if (c0 === 116 && after + 5 <= len && source.slice(after, after + 5) === 'type ') {
+      const afterType = after + 5;
+      if (afterType < len && source.charCodeAt(afterType) === 123) {
+        pos = afterType;
+        continue;
       }
     }
 
-    // export default — check if followed by declaration or expression
-    let afterDefaultOrType = after;
+    // Skip modifier keywords (default, async, abstract, type)
+    // Supports sequences: export default async function, export abstract class
+    let afterMod = after;
+    let changed = true;
+    while (changed && afterMod < len) {
+      changed = false;
+      const ch = source.charCodeAt(afterMod);
 
-    if (c0 === 97) {
-      // 'a' — could be "abstract" or "async"
-      if (after + 9 <= len && source.slice(after, after + 9) === 'abstract ') {
-        afterDefaultOrType = after + 9;
-        while (afterDefaultOrType < len && isWhitespace(source.charCodeAt(afterDefaultOrType))) {
-          afterDefaultOrType++;
-        }
-      } else if (after + 6 <= len && source.slice(after, after + 6) === 'async ') {
-        afterDefaultOrType = after + 6;
-        while (afterDefaultOrType < len && isWhitespace(source.charCodeAt(afterDefaultOrType))) {
-          afterDefaultOrType++;
-        }
+      if (ch === 100 && afterMod + 8 <= len && source.slice(afterMod, afterMod + 8) === 'default ') {
+        afterMod += 8;
+        changed = true;
+      } else if (ch === 97 && afterMod + 6 <= len && source.slice(afterMod, afterMod + 6) === 'async ') {
+        afterMod += 6;
+        changed = true;
+      } else if (ch === 97 && afterMod + 9 <= len && source.slice(afterMod, afterMod + 9) === 'abstract ') {
+        afterMod += 9;
+        changed = true;
+      } else if (ch === 116 && afterMod + 5 <= len && source.slice(afterMod, afterMod + 5) === 'type ') {
+        afterMod += 5;
+        changed = true;
+      }
+
+      if (changed) {
+        while (afterMod < len && isWhitespace(source.charCodeAt(afterMod))) afterMod++;
       }
     }
 
-    if (afterDefaultOrType === after && c0 === 100) {
-      // 'd' — could be "default"
-      if (after + 8 <= len && source.slice(after, after + 8) === 'default ') {
-        afterDefaultOrType = after + 8;
-        while (afterDefaultOrType < len && isWhitespace(source.charCodeAt(afterDefaultOrType))) {
-          afterDefaultOrType++;
-        }
-      }
-    } else if (c0 === 116) {
-      // 't' — could be "type"
-      if (after + 5 <= len && source.slice(after, after + 5) === 'type ') {
-        afterDefaultOrType = after + 5;
-        while (afterDefaultOrType < len && isWhitespace(source.charCodeAt(afterDefaultOrType))) {
-          afterDefaultOrType++;
-        }
-      }
-    }
+    if (afterMod >= len) break;
 
-    if (afterDefaultOrType >= len) break;
+    const next = source.charCodeAt(afterMod);
 
-    const next = source.charCodeAt(afterDefaultOrType);
-
-    // Check if it's a declaration kind we care about (case-insensitive start)
+    // Check if the next token starts a declaration:
+    // function, class, const, interface, enum, let, var (case-insensitive first char)
     if (
-      next === 102 || next === 70 ||  // 'f','F' function
-      next === 99  || next === 67 ||  // 'c','C' class, const
-      next === 105 || next === 73 ||  // 'i','I' interface
-      next === 101 || next === 69 ||  // 'e','E' enum
-      next === 108 || next === 76 ||  // 'l','L' let
-      next === 118 || next === 86      // 'v','V' var
+      next === 102 || next === 70 ||  // f/F function
+      next === 99  || next === 67 ||  // c/C class, const
+      next === 105 || next === 73 ||  // i/I interface
+      next === 101 || next === 69 ||  // e/E enum
+      next === 108 || next === 76 ||  // l/L let
+      next === 118 || next === 86      // v/V var
     ) {
-      exports.push({ pos: exp, lineStart });
+      exportPositions.push(exp);
     }
 
     pos = exp + 7;
   }
 
   // No exports need documentation — pass
-  if (exports.length === 0) return true;
+  if (exportPositions.length === 0) return true;
 
-  // For each export, check if it has a JSDoc comment before it.
-  // A JSDoc comment is a block comment starting with /** (not /*! or /*).
-  // Scan backwards from the export to find the nearest preceding JSDoc.
-  for (const exp of exports) {
-    if (!hasJSDocBefore(source, exp.pos)) {
+  // Check each export has a non-empty JSDoc immediately before it
+  for (let i = 0; i < exportPositions.length; i++) {
+    if (!hasJSDocBefore(source, exportPositions[i])) {
       return false;
     }
   }
@@ -200,7 +180,7 @@ function hasJSDocBefore(source: string, exportPos: number): boolean {
  * Rejects: blank, whitespace-only, only * characters
  */
 function hasDescriptionContent(jsdocBody: string): boolean {
-  // Strip leading asterisk markers and trim
+  // Strip leading asterisk markers from each line and trim
   const stripped = jsdocBody
     .split('\n')
     .map((line) => {
@@ -213,14 +193,7 @@ function hasDescriptionContent(jsdocBody: string): boolean {
     .join('\n')
     .trim();
 
-  // Remove @tags to check if there's description text
-  const withoutTags = stripped
-    .split('\n')
-    .filter((line) => !line.startsWith('@'))
-    .join('\n')
-    .trim();
-
-  return withoutTags.length > 0 || stripped.length > 0;
+  return stripped.length > 0;
 }
 
 function isWhitespace(code: number): boolean {
