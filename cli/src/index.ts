@@ -156,6 +156,11 @@ function elixirOperations(cwd: string): PatchOperation[] {
       source: join(packageRoot, 'configs', 'dialyzer_ignore.exs'),
       target: join(cwd, '.dialyzer_ignore.exs'),
     },
+    {
+      kind: 'copy',
+      source: join(packageRoot, 'configs', 'dot_formatter.exs'),
+      target: join(cwd, '.formatter.exs'),
+    },
   ];
 }
 
@@ -220,6 +225,7 @@ async function doctor(cwd: string) {
     ],
     ['.dialyzer_ignore.exs', join(cwd, '.dialyzer_ignore.exs')],
     ['.doctor.exs', join(cwd, '.doctor.exs')],
+    ['.formatter.exs', join(cwd, '.formatter.exs')],
     [
       '.credo_checks/thethracian/max_directory_depth.ex',
       join(cwd, '.credo_checks', 'thethracian', 'max_directory_depth.ex'),
