@@ -38,6 +38,8 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'no-console': 'error',
       'no-debugger': 'error',
       'no-eval': 'error',
+      'no-new-func': 'error',
+      'no-script-url': 'error',
       'preserve-caught-error': 'error',
       'typescript/only-throw-error': 'error',
       'typescript/no-non-null-assertion': 'error',

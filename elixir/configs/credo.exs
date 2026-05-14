@@ -38,6 +38,8 @@
               {ThethracianLintConfig.Checks.MaxDirectoryDepth,
                [max: 4, exit_status: 2, priority: :high]},
               {Credo.Check.Warning.UnusedEnumOperation,
+               [exit_status: 2, priority: :high]},
+              {Credo.Check.Warning.UnsafeExec,
                [exit_status: 2, priority: :high]}
             ]
           }
