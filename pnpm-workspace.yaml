@@ -1,5 +1,2 @@
 packages:
   - ts
-  - rust
-  - elixir
-  - cli

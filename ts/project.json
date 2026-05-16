@@ -13,7 +13,7 @@
       "command": "pnpm --dir ts check"
     },
     "lint": {
-      "command": "pnpm exec oxlint ts --type-aware --type-check && pnpm exec oxfmt --check ts"
+      "command": "pnpm exec oxlint ts --type-aware --type-check && pnpm exec oxfmt --check ts '!ts/dist/**'"
     },
     "test": {
       "command": "pnpm exec vitest run --config vitest.config.mts --passWithNoTests ts"

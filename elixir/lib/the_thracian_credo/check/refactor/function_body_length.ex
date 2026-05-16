@@ -1,4 +1,8 @@
-defmodule TheThracian.Credo.Check.Refactor.FunctionBodyLength do
+defmodule TheThracianCredo.Check.Refactor.FunctionBodyLength do
+  @moduledoc """
+  Credo check that limits the number of source lines in a function body.
+  """
+
   use Credo.Check,
     category: :refactor,
     base_priority: :high,
@@ -10,6 +14,7 @@ defmodule TheThracian.Credo.Check.Refactor.FunctionBodyLength do
     ],
     param_defaults: [max_lines: 75]
 
+  alias Credo.Check.Params
   alias Credo.IssueMeta
   alias Credo.SourceFile
 
@@ -18,13 +23,15 @@ defmodule TheThracian.Credo.Check.Refactor.FunctionBodyLength do
   @impl true
   def run(source_file, params \\ []) do
     issue_meta = IssueMeta.for(source_file, params)
-    max_lines = Keyword.get(params, :max_lines, 75)
+    max_lines = Params.get(params, :max_lines, __MODULE__)
 
-    with {:ok, ast} <- Code.string_to_quoted(SourceFile.source(source_file), token_metadata: true) do
-      {_ast, issues} = Macro.prewalk(ast, [], &traverse(&1, &2, issue_meta, max_lines))
-      Enum.reverse(issues)
-    else
-      _error -> []
+    case Code.string_to_quoted(SourceFile.source(source_file), token_metadata: true) do
+      {:ok, ast} ->
+        {_ast, issues} = Macro.prewalk(ast, [], &traverse(&1, &2, issue_meta, max_lines))
+        Enum.reverse(issues)
+
+      _error ->
+        []
     end
   end
 

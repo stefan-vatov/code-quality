@@ -5,21 +5,21 @@
   "projectType": "library",
   "targets": {
     "build": {
-      "command": "pnpm --dir elixir build",
-      "outputs": ["{projectRoot}/dist"]
+      "command": "cd elixir && mix deps.get && mix compile --warnings-as-errors",
+      "outputs": ["{projectRoot}/_build"]
     },
     "check": {
-      "command": "pnpm --dir elixir check"
+      "command": "cd elixir && mix deps.get && mix compile --warnings-as-errors"
     },
     "lint": {
-      "command": "pnpm exec oxlint elixir --type-aware --type-check && pnpm exec oxfmt --check elixir"
+      "command": "cd elixir && mix deps.get && mix format --check-formatted && mix credo --strict"
     },
     "test": {
-      "command": "pnpm exec vitest run --config vitest.config.mts --passWithNoTests elixir"
+      "command": "cd elixir && mix deps.get && mix test"
     },
     "pack": {
-      "command": "mkdir -p dist/packages && pnpm --dir elixir pack --pack-destination ../dist/packages",
-      "outputs": ["{workspaceRoot}/dist/packages"]
+      "command": "cd elixir && mix deps.get && mix hex.build",
+      "outputs": ["{projectRoot}/*.tar"]
     }
   }
 }

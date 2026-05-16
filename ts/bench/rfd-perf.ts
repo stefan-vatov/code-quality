@@ -13,13 +13,18 @@ const fixtures = [
   '/** Boot. */\nexport default async function boot() {}',
   '/** Config. */\nexport interface CacheConfig { ttl: number; }',
 ];
-const W = 10000, N = 200000;
+const W = 10000,
+  N = 200000;
 for (let i = 0; i < W; i++) for (const f of fixtures) hasRequiredFunctionDocs(f);
 const s = performance.now();
 for (let i = 0; i < N; i++) for (const f of fixtures) hasRequiredFunctionDocs(f);
-const e = performance.now() - s, c = N * fixtures.length;
-writeFileSync('/tmp/bench_rfd_result.txt',
-  Math.round(c / (e / 1000)).toLocaleString() + ' ops/s ' +
-  (e / c * 1e6).toFixed(0) + 'ns/call\n',
+const e = performance.now() - s,
+  c = N * fixtures.length;
+writeFileSync(
+  '/tmp/bench_rfd_result.txt',
+  Math.round(c / (e / 1000)).toLocaleString() +
+    ' ops/s ' +
+    ((e / c) * 1e6).toFixed(0) +
+    'ns/call\n',
   'utf-8',
 );

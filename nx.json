@@ -20,11 +20,11 @@
     }
   },
   "release": {
-    "projects": ["ts", "rust", "elixir", "cli"],
+    "projects": ["ts"],
     "projectsRelationship": "independent",
     "changelog": {
       "projectChangelogs": true,
-      "workspaceChangelog": true
+      "workspaceChangelog": false
     }
   }
 }

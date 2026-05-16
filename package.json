@@ -1,5 +1,5 @@
 {
-  "name": "thethracian-linters",
+  "name": "thethracian-code-quality",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -36,9 +36,9 @@
     "knip:watch": "knip --watch --strict",
     "knip:ci": "knip --cache --strict"
   },
-  "dependencies": {},
   "devDependencies": {
     "@j178/prek": "^0.3.8",
+    "@nx/js": "22.7.1",
     "@stryker-mutator/core": "~9.6.0",
     "@stryker-mutator/vitest-runner": "~9.6.0",
     "@types/node": "^24.10.0",

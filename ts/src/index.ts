@@ -1,10 +1,14 @@
 import { defineConfig } from 'oxlint';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export type TheThracianOxlintOptions = {
   typeAware?: boolean;
 };
 
 export default function theThracianOxlint(options: TheThracianOxlintOptions = {}) {
+  const pluginPath = join(dirname(fileURLToPath(import.meta.url)), 'rules', 'plugin.js');
+
   return defineConfig({
     categories: {
       correctness: 'error',
@@ -13,7 +17,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       style: 'error',
     },
     plugins: ['typescript', 'oxc', 'import', 'promise', 'unicorn'],
-    jsPlugins: ['oxlint-plugin-complexity', './rules/plugin.js'],
+    jsPlugins: ['oxlint-plugin-complexity', pluginPath],
     rules: {
       'complexity/complexity': ['error', { cyclomatic: 10 }],
       'thethracian/no-commented-out-code': 'error',
@@ -23,6 +27,7 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'thethracian/private-underscore': 'error',
       'thethracian/acronym-case': 'error',
       'thethracian/max-import-depth': 'error',
+      'thethracian/max-line-length': 'error',
       'thethracian/require-file-doc': 'error',
       'thethracian/require-function-doc': 'error',
       'sort-imports': [
@@ -49,16 +54,6 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       'prefer-const': ['error', { destructuring: 'any' }],
       eqeqeq: 'error',
       'max-depth': ['error', { max: 3 }],
-      'max-len': [
-        'error',
-        {
-          code: 150,
-          ignoreUrls: true,
-          ignoreStrings: true,
-          ignoreTemplateLiterals: true,
-          ignoreRegExpLiterals: true,
-        },
-      ],
       'max-nested-callbacks': ['error', { max: 4 }],
       'max-params': ['error', { max: 5 }],
       'max-lines': [

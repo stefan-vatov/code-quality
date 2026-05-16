@@ -1,6 +1,6 @@
 {
   "name": "@thethracian/oxlint-config",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "The Thracian Oxlint configuration.",
   "license": "MIT",
   "files": [
@@ -15,6 +15,9 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

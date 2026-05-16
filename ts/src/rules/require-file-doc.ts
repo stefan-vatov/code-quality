@@ -22,18 +22,24 @@ export function extractDocHeader(source: string): string | null {
   // Skip shebang lines
   while (pos < len && source.charCodeAt(pos) === CH_HASH) {
     pos = source.indexOf('\n', pos);
-    if (pos === -1) return null;
+    if (pos === -1) {
+      return null;
+    }
     pos++;
   }
 
   // Skip leading whitespace
   while (pos < len) {
     const ch = source.charCodeAt(pos);
-    if (ch !== CH_SPACE && ch !== CH_NEWLINE && ch !== CH_RETURN && ch !== CH_TAB) break;
+    if (ch !== CH_SPACE && ch !== CH_NEWLINE && ch !== CH_RETURN && ch !== CH_TAB) {
+      break;
+    }
     pos++;
   }
 
-  if (pos >= len) return null;
+  if (pos >= len) {
+    return null;
+  }
 
   // Must be a JSDoc block comment
   if (
@@ -47,7 +53,9 @@ export function extractDocHeader(source: string): string | null {
 
   // Find closing */
   const closePos = source.indexOf(JSDOC_END, pos + 3);
-  if (closePos === -1) return null;
+  if (closePos === -1) {
+    return null;
+  }
 
   return source.slice(pos, closePos + 2);
 }
@@ -63,43 +71,50 @@ export default function hasRequiredFileDoc(source: string): boolean {
   // Skip shebang lines
   while (pos < len && source.charCodeAt(pos) === CH_HASH) {
     pos = source.indexOf('\n', pos);
-    if (pos === -1) return true;
+    if (pos === -1) {
+      return true;
+    }
     pos++;
   }
 
   // Skip leading whitespace
   while (pos < len) {
     const ch = source.charCodeAt(pos);
-    if (ch !== CH_SPACE && ch !== CH_NEWLINE && ch !== CH_RETURN && ch !== CH_TAB) break;
+    if (ch !== CH_SPACE && ch !== CH_NEWLINE && ch !== CH_RETURN && ch !== CH_TAB) {
+      break;
+    }
     pos++;
   }
 
-  if (pos >= len) return true;
+  if (pos >= len) {
+    return true;
+  }
 
   // Opt-out markers
   if (source.charCodeAt(pos) === CH_SLASH && pos + 1 < len) {
-    const n = source.charCodeAt(pos + 1);
+    const next = source.charCodeAt(pos + 1);
 
-    if (n === CH_SLASH) {
+    if (next === CH_SLASH) {
       // Line comment: check @internal or @generated
       const end = pos + 20 < len ? pos + 20 : len;
       const frag = source.slice(pos, end);
-      if (
-        frag.indexOf('// @internal') === 0 ||
-        frag.indexOf('// @generated') === 0
-      ) {
+      if (frag.indexOf('// @internal') === 0 || frag.indexOf('// @generated') === 0) {
         return true;
       }
-    } else if (n === 42 && pos + 2 < len && source.charCodeAt(pos + 2) !== 42) {
+    } else if (next === 42 && pos + 2 < len && source.charCodeAt(pos + 2) !== 42) {
       // Block comment (not JSDoc): check @internal at start
       const end = pos + 15 < len ? pos + 15 : len;
-      if (source.slice(pos, end).indexOf('/* @internal') === 0) return true;
+      if (source.slice(pos, end).indexOf('/* @internal') === 0) {
+        return true;
+      }
     }
   }
 
   // JSDoc header must be at or near file start
   const jsdocPos = source.indexOf(JSDOC_START, pos);
-  if (jsdocPos === -1 || jsdocPos > pos + 50) return false;
+  if (jsdocPos === -1 || jsdocPos > pos + 50) {
+    return false;
+  }
 
   // Must close
   return source.indexOf(JSDOC_END, jsdocPos + 3) !== -1;

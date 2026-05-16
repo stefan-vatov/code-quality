@@ -224,20 +224,40 @@ export default function hasRequiredFunctionDocs(source: string): boolean {
       changed = false;
       const ch = source.charCodeAt(afterMod);
 
-      if (ch === 100 && afterMod + 8 <= len && source.slice(afterMod, afterMod + 8) === 'default ') {
+      if (
+        ch === 100 &&
+        afterMod + 8 <= len &&
+        source.slice(afterMod, afterMod + 8) === 'default '
+      ) {
         afterMod += 8;
         changed = true;
         sawDefault = true;
-      } else if (ch === 97 && afterMod + 6 <= len && source.slice(afterMod, afterMod + 6) === 'async ') {
+      } else if (
+        ch === 97 &&
+        afterMod + 6 <= len &&
+        source.slice(afterMod, afterMod + 6) === 'async '
+      ) {
         afterMod += 6;
         changed = true;
-      } else if (ch === 97 && afterMod + 9 <= len && source.slice(afterMod, afterMod + 9) === 'abstract ') {
+      } else if (
+        ch === 97 &&
+        afterMod + 9 <= len &&
+        source.slice(afterMod, afterMod + 9) === 'abstract '
+      ) {
         afterMod += 9;
         changed = true;
-      } else if (ch === 116 && afterMod + 5 <= len && source.slice(afterMod, afterMod + 5) === 'type ') {
+      } else if (
+        ch === 116 &&
+        afterMod + 5 <= len &&
+        source.slice(afterMod, afterMod + 5) === 'type '
+      ) {
         afterMod += 5;
         changed = true;
-      } else if (ch === 110 && afterMod + 10 <= len && source.slice(afterMod, afterMod + 10) === 'namespace ') {
+      } else if (
+        ch === 110 &&
+        afterMod + 10 <= len &&
+        source.slice(afterMod, afterMod + 10) === 'namespace '
+      ) {
         break;
       }
 
@@ -255,15 +275,22 @@ export default function hasRequiredFunctionDocs(source: string): boolean {
     const next = source.charCodeAt(afterMod);
 
     // Declaration keyword check (case-insensitive first character):
-    // f/F=function, c/C=class|const, i/I=interface, e/E=enum, l/L=let, v/V=var, n/N=namespace
+    // First chars: f/F=function, c/C=class|const, i/I=interface, e/E=enum, l/L=let, v/V=var, n/N=namespace
     if (
-      next === 102 || next === 70 ||
-      next === 99  || next === 67 ||
-      next === 105 || next === 73 ||
-      next === 101 || next === 69 ||
-      next === 108 || next === 76 ||
-      next === 118 || next === 86 ||
-      next === 110 || next === 78
+      next === 102 ||
+      next === 70 ||
+      next === 99 ||
+      next === 67 ||
+      next === 105 ||
+      next === 73 ||
+      next === 101 ||
+      next === 69 ||
+      next === 108 ||
+      next === 76 ||
+      next === 118 ||
+      next === 86 ||
+      next === 110 ||
+      next === 78
     ) {
       if (sawDefault) {
         if (!isDefaultDeclaration(source, afterMod, len)) {

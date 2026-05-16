@@ -5,21 +5,21 @@
   "projectType": "library",
   "targets": {
     "build": {
-      "command": "pnpm --dir rust build",
-      "outputs": ["{projectRoot}/dist"]
+      "command": "cargo build --manifest-path rust/Cargo.toml --locked",
+      "outputs": ["{projectRoot}/target"]
     },
     "check": {
-      "command": "pnpm --dir rust check"
+      "command": "cargo check --manifest-path rust/Cargo.toml --locked"
     },
     "lint": {
-      "command": "pnpm exec oxlint rust --type-aware --type-check && pnpm exec oxfmt --check rust"
+      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check && cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings"
     },
     "test": {
-      "command": "pnpm exec vitest run --config vitest.config.mts --passWithNoTests rust"
+      "command": "cargo test --manifest-path rust/Cargo.toml --locked"
     },
     "pack": {
-      "command": "mkdir -p dist/packages && pnpm --dir rust pack --pack-destination ../dist/packages",
-      "outputs": ["{workspaceRoot}/dist/packages"]
+      "command": "cargo package --manifest-path rust/Cargo.toml --allow-dirty",
+      "outputs": ["{projectRoot}/target/package"]
     }
   }
 }

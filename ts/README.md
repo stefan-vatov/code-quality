@@ -6,6 +6,10 @@ The config errors on lines over 150 characters, files over 500 lines, functions 
 
 Requires `oxlint-plugin-complexity` (peer dependency) for the cyclomatic complexity rule.
 
+```sh
+pnpm add -D @thethracian/oxlint-config oxlint@^1.63.0 oxlint-tsgolint@^0.22.1 oxlint-plugin-complexity
+```
+
 ```ts
 import theThracian from '@thethracian/oxlint-config';
 

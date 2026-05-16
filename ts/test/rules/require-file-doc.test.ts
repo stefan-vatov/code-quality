@@ -9,14 +9,16 @@ describe('extractDocHeader', () => {
 
   it('extracts single-line JSDoc after shebang', () => {
     expect(
-      extractDocHeader('#!/usr/bin/env node\n/** @fileoverview CLI entry. */\n\nimport { foo } from "./foo.js";'),
+      extractDocHeader(
+        '#!/usr/bin/env node\n/** @fileoverview CLI entry. */\n\nimport { foo } from "./foo.js";',
+      ),
     ).toBe('/** @fileoverview CLI entry. */');
   });
 
   it('extracts single-line JSDoc at file start', () => {
-    expect(extractDocHeader('/** @fileoverview Core utilities. */\n\nimport { foo } from "./foo.js";')).toBe(
-      '/** @fileoverview Core utilities. */',
-    );
+    expect(
+      extractDocHeader('/** @fileoverview Core utilities. */\n\nimport { foo } from "./foo.js";'),
+    ).toBe('/** @fileoverview Core utilities. */');
   });
 
   it('extracts multi-line JSDoc block', () => {
@@ -33,7 +35,8 @@ describe('extractDocHeader', () => {
   });
 
   it('extracts JSDoc with double shebang', () => {
-    const src = '#!/usr/bin/env node\n#!/usr/bin/env -S node --loader tsx\n/** CLI entry. */\ncode();';
+    const src =
+      '#!/usr/bin/env node\n#!/usr/bin/env -S node --loader tsx\n/** CLI entry. */\ncode();';
     expect(extractDocHeader(src)).toBe('/** CLI entry. */');
   });
 
@@ -44,7 +47,9 @@ describe('extractDocHeader', () => {
   });
 
   it('returns null for non-JSDoc block comment', () => {
-    expect(extractDocHeader('/* not a JSDoc comment */\nimport { foo } from "./foo.js";')).toBeNull();
+    expect(
+      extractDocHeader('/* not a JSDoc comment */\nimport { foo } from "./foo.js";'),
+    ).toBeNull();
   });
 
   it('returns null for single-line comment', () => {
@@ -138,12 +143,16 @@ describe('hasRequiredFileDoc', () => {
 
   it('passes when file has multi-line JSDoc header', () => {
     expect(
-      hasRequiredFileDoc('/**\n * Core utilities.\n * @module shared\n */\n\nimport { foo } from "./foo.js";'),
+      hasRequiredFileDoc(
+        '/**\n * Core utilities.\n * @module shared\n */\n\nimport { foo } from "./foo.js";',
+      ),
     ).toBe(true);
   });
 
   it('passes when file has shebang + multi-line JSDoc', () => {
-    expect(hasRequiredFileDoc('#!/usr/bin/env node\n/**\n * CLI entry point.\n */\n\nparseArgs();')).toBe(true);
+    expect(
+      hasRequiredFileDoc('#!/usr/bin/env node\n/**\n * CLI entry point.\n */\n\nparseArgs();'),
+    ).toBe(true);
   });
 
   it('passes with shebang + compact single-line JSDoc', () => {
@@ -151,9 +160,11 @@ describe('hasRequiredFileDoc', () => {
   });
 
   it('passes with JSDoc containing @fileoverview tag', () => {
-    expect(hasRequiredFileDoc('/** @fileoverview Authentication module. */\n\nexport function login() {}')).toBe(
-      true,
-    );
+    expect(
+      hasRequiredFileDoc(
+        '/** @fileoverview Authentication module. */\n\nexport function login() {}',
+      ),
+    ).toBe(true);
   });
 
   it('passes with JSDoc containing @module tag', () => {
@@ -162,7 +173,9 @@ describe('hasRequiredFileDoc', () => {
 
   it('passes with JSDoc containing @license and @author', () => {
     expect(
-      hasRequiredFileDoc('/** @license MIT\n * @author team\n */\n\nexport const VERSION = "1.0.0";'),
+      hasRequiredFileDoc(
+        '/** @license MIT\n * @author team\n */\n\nexport const VERSION = "1.0.0";',
+      ),
     ).toBe(true);
   });
 
@@ -201,7 +214,9 @@ describe('hasRequiredFileDoc', () => {
   });
 
   it('passes when // @internal has trailing description', () => {
-    expect(hasRequiredFileDoc('// @internal - this module is not part of the public API\ncode();')).toBe(true);
+    expect(
+      hasRequiredFileDoc('// @internal - this module is not part of the public API\ncode();'),
+    ).toBe(true);
   });
 
   // ── passes: empty / whitespace-only ───────────────────────────────────
@@ -295,7 +310,9 @@ describe('hasRequiredFileDoc', () => {
   // ── fails: false positive prevention ──────────────────────────────────
 
   it('fails for copyright header only', () => {
-    expect(hasRequiredFileDoc('/* Copyright 2024 Acme Corp. */\n\nimport { x } from "./y.js";')).toBe(false);
+    expect(
+      hasRequiredFileDoc('/* Copyright 2024 Acme Corp. */\n\nimport { x } from "./y.js";'),
+    ).toBe(false);
   });
 
   it('fails for license header only', () => {
@@ -324,7 +341,9 @@ describe('hasRequiredFileDoc', () => {
   });
 
   it('fails for TODO comment at top', () => {
-    expect(hasRequiredFileDoc('// TODO: document this module\nimport { x } from "./y.js";')).toBe(false);
+    expect(hasRequiredFileDoc('// TODO: document this module\nimport { x } from "./y.js";')).toBe(
+      false,
+    );
   });
 
   it('fails for eslint-disable comment at top', () => {

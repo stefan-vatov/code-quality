@@ -1,20 +1,21 @@
-# The Thracian Linters
+# The Thracian Code Quality
 
-Nx monorepo for The Thracian lint configuration packages.
+Nx workspace for The Thracian code-quality packages.
 
 ## Packages
 
-- `@thethracian/oxlint-config`: importable Oxlint config for TypeScript projects.
-- `@thethracian/rust-lint-config`: versioned Rust lint and format config assets.
-- `@thethracian/elixir-lint-config`: versioned Elixir Credo and Dialyxir config assets.
-- `@thethracian/lint-cli`: patcher CLI for ecosystems without first-party shared config support.
+- `@thethracian/oxlint-config`: npm package imported directly by TypeScript/Oxlint projects.
+- `cargo-thx-lint`: crates.io Cargo subcommand that installs Rust `rustfmt`, Clippy, and Cargo lint config.
+- `the_thracian_credo`: Hex package that provides the Credo plugin, custom checks, and Mix installer for Elixir projects.
+
+Rust and Elixir are native ecosystem packages. They are not npm wrappers.
 
 ## Commands
 
 ```sh
 pnpm install
-pnpm check
-pnpm build
-pnpm nx affected -t check
-pnpm release:dry-run
+pnpm run check
+pnpm run build
+pnpm run test:projects
+pnpm nx run-many -t pack
 ```

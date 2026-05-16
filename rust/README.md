@@ -1,12 +1,56 @@
-# @thethracian/rust-lint-config
+# cargo-thx-lint
 
-Versioned Rust lint and format config assets for `@thethracian/lint-cli`.
+Cargo subcommand that installs The Thracian Rust lint configuration into a Rust package or workspace.
 
-The package ships:
+## Install
 
-- `configs/rustfmt.toml`
-- `configs/clippy.toml`
-- `configs/cargo-lints-package.toml`
-- `configs/cargo-lints-workspace.toml`
+After publishing:
 
-The config sets rustfmt line width to 150 characters and denies Clippy functions over 75 lines, nesting deeper than 3 levels, functions with more than 5 arguments, debug artifacts (print_stdout, print_stderr, todo, dbg_macro), wildcard enum match arms, unsafe `as` casts — both via the pedantic group and via `as_conversions = "deny"` which bans all `as` coercions requiring TryFrom/From — and unhandled `#[must_use]` values (unhandled Results and unawaited Futures). The `pedantic` group forces strictly idiomatic, highly structured implementations. Error handling is strictly enforced: `unwrap_used`, `expect_used`, and `unused_result_ok` are all denied — no panic shortcuts or discarded errors. Rustc lints deny `unsafe_code`, `unused_must_use`, `unused_mut`, `missing_docs`, `missing_debug_implementations`, and `non_exhaustive_omitted_patterns`, and warn on `unused_crate_dependencies` to prevent hallucinated imports. Test code is exempted from unwrap/expect/panic denials via clippy.toml (`allow-unwrap-in-tests`, `allow-expect-in-tests`, `allow-panic-in-tests`). Immutability is enforced by Rust's `let` vs `let mut` design: `unused_mut` denies unnecessary `mut`, and the `pedantic` Clippy group catches redundant mutable bindings (`unnecessary_mut_passed`, `mut_mut`).
+```sh
+cargo install cargo-thx-lint
+cargo thx-lint init --write
+```
+
+For local validation before publishing:
+
+```sh
+cargo install --path /path/to/linters/rust --force
+cargo thx-lint init --write --cwd /path/to/consumer
+```
+
+## Update
+
+```sh
+cargo install cargo-thx-lint --force
+cargo thx-lint update --write
+```
+
+Reruns are idempotent. Files and Cargo manifest regions owned by this package are replaced in place, not duplicated.
+
+## Managed Files
+
+The installer writes:
+
+- `rustfmt.toml`
+- `clippy.toml`
+- a managed lint section in `Cargo.toml`
+- `.thethracian-checks/depth`, the vendored Dylint custom check source
+
+Managed regions use versioned comments:
+
+```toml
+# BEGIN cargo-thx-lint
+# VERSION 0.1.0
+# END cargo-thx-lint
+```
+
+Legacy npm markers from `@thethracian/rust-lint-config` are migrated automatically on update.
+
+## Verify
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+```
+
+The config sets rustfmt line width to 150 characters and denies Clippy functions over 75 lines, nesting deeper than 3 levels, functions with more than 5 arguments, debug artifacts, wildcard enum match arms, unsafe `as` casts, discarded results, `unwrap`, and `expect`. Rustc lints deny unsafe code, unused must-use values, unnecessary mutability, missing docs, missing debug implementations, and unused crate dependencies.

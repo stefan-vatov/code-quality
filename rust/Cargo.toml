@@ -1,0 +1,25 @@
+[package]
+name = "cargo-thx-lint"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Cargo subcommand that installs The Thracian Rust lint configuration."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/stefan-vatov/code-quality"
+keywords = ["cargo", "clippy", "lint", "rustfmt"]
+categories = ["command-line-utilities", "development-tools"]
+include = [
+  "Cargo.toml",
+  "README.md",
+  "LICENSE",
+  "src/**/*.rs",
+  "tests/**/*.rs",
+  "configs/**/*.toml",
+  "configs/checks/depth/cargo_manifest.toml",
+  "configs/checks/depth/src/lib.rs",
+]
+
+[[bin]]
+name = "cargo-thx-lint"
+path = "src/main.rs"

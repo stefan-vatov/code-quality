@@ -6,25 +6,19 @@
       "includeEntryExports": true,
       "entry": ["test/setup.ts", "vitest.config.mts"]
     },
-    "cli": {
-      "includeEntryExports": true,
-      "ignoreBinaries": ["oxfmt", "oxlint", "vitest"],
-      "ignoreDependencies": ["@thethracian/elixir-lint-config", "@thethracian/rust-lint-config"],
-      "entry": ["src/index.ts"]
-    },
-    "elixir": {
-      "includeEntryExports": true,
-      "ignoreBinaries": ["oxfmt", "oxlint", "vitest"],
-      "entry": ["scripts/build.mjs", "scripts/check.mjs"]
-    },
-    "rust": {
-      "includeEntryExports": true,
-      "ignoreBinaries": ["oxfmt", "oxlint", "vitest"],
-      "entry": ["scripts/build.mjs", "scripts/check.mjs"]
-    },
     "ts": {
       "ignoreBinaries": ["oxfmt", "vitest"],
-      "entry": ["src/index.ts"]
+      "ignoreDependencies": ["oxlint-plugin-complexity"],
+      "ignore": ["test/rules/fixtures/**/*.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/rules/plugin.ts",
+        "bench/run-all.ts",
+        "bench/rfd-compare.ts",
+        "bench/rfd-perf.ts",
+        "test/**/*.test.ts"
+      ],
+      "project": ["src/**/*.ts", "bench/**/*.ts", "test/**/*.ts"]
     }
   }
 }

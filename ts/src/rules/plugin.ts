@@ -5,6 +5,7 @@ import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers.
 import hasBooleanPrefix, { suggestBooleanName } from './boolean-prefix.js';
 import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore.js';
 import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case.js';
+import findLongLines from './max-line-length.js';
 import countImportDepth from './max-import-depth.js';
 import hasRequiredFileDoc from './require-file-doc.js';
 import hasRequiredFunctionDocs from './require-function-doc.js';
@@ -26,7 +27,7 @@ type Context = {
 const noCommentedOutCodeRule = {
   create(context: Context) {
     return {
-      Program() {
+      Program(node: object) {
         if (!context.filename) {
           return;
         }
@@ -47,7 +48,7 @@ const noCommentedOutCodeRule = {
           if (match && isCommentedOutCode(match[1])) {
             context.report({
               message: 'Remove this commented-out code instead of leaving it dead.',
-              node: {},
+              node,
             });
           }
         }
@@ -59,7 +60,7 @@ const noCommentedOutCodeRule = {
           if (isCommentedOutCode(body)) {
             context.report({
               message: 'Remove this commented-out code instead of leaving it dead.',
-              node: {},
+              node,
             });
           }
         }
@@ -315,10 +316,36 @@ const maxImportDepthRule = {
   },
 };
 
+const maxLineLengthRule = {
+  create(context: Context) {
+    return {
+      Program(node: object) {
+        if (!context.filename) {
+          return;
+        }
+
+        let source = '';
+        try {
+          source = readFileSync(context.filename, 'utf-8');
+        } catch {
+          return;
+        }
+
+        for (const violation of findLongLines(source)) {
+          context.report({
+            message: `Line ${violation.line} has ${violation.length} characters, exceeding the maximum of 150.`,
+            node,
+          });
+        }
+      },
+    };
+  },
+};
+
 const requireFileDocRule = {
   create(context: Context) {
     return {
-      Program() {
+      Program(node: object) {
         if (!context.filename) {
           return;
         }
@@ -339,7 +366,7 @@ const requireFileDocRule = {
               'File must have a JSDoc header comment (' +
               '/** ... */)' +
               ' describing its purpose. Use // @internal to opt out for internal modules.',
-            node: {},
+            node,
           });
         }
       },
@@ -350,7 +377,7 @@ const requireFileDocRule = {
 const requireFunctionDocRule = {
   create(context: Context) {
     return {
-      Program() {
+      Program(node: object) {
         if (!context.filename) {
           return;
         }
@@ -371,7 +398,7 @@ const requireFunctionDocRule = {
               'Missing JSDoc on an exported declaration. Every public function, class, type, ' +
               'interface, enum, and const must have a non-empty /** ... */ JSDoc comment with ' +
               'a description of its purpose, parameters, return value, and error conditions.',
-            node: {},
+            node,
           });
         }
       },
@@ -391,6 +418,7 @@ const plugin = {
     'private-underscore': privateUnderscoreRule,
     'acronym-case': acronymCaseRule,
     'max-import-depth': maxImportDepthRule,
+    'max-line-length': maxLineLengthRule,
     'require-file-doc': requireFileDocRule,
     'require-function-doc': requireFunctionDocRule,
   },

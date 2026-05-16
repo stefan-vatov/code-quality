@@ -9,7 +9,8 @@ describe('hasRequiredFunctionDocs', () => {
   // ── passes: documented exported functions ─────────────────────────────
 
   it('passes for exported function with JSDoc', () => {
-    const src = '/** Authenticates a user. */\nexport function login(user: string, pass: string): boolean {\n  return true;\n}';
+    const src =
+      '/** Authenticates a user. */\nexport function login(user: string, pass: string): boolean {\n  return true;\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -19,17 +20,20 @@ describe('hasRequiredFunctionDocs', () => {
   });
 
   it('passes for exported async function with JSDoc', () => {
-    const src = '/** Fetches user data. */\nexport async function fetchUser(id: string) {\n  return {};\n}';
+    const src =
+      '/** Fetches user data. */\nexport async function fetchUser(id: string) {\n  return {};\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
   it('passes for exported class with JSDoc', () => {
-    const src = '/** Represents a user entity. */\nexport class User {\n  constructor(public name: string) {}\n}';
+    const src =
+      '/** Represents a user entity. */\nexport class User {\n  constructor(public name: string) {}\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
   it('passes for exported const arrow function with JSDoc', () => {
-    const src = '/** Formats a date. */\nexport const formatDate = (d: Date): string => d.toISOString();';
+    const src =
+      '/** Formats a date. */\nexport const formatDate = (d: Date): string => d.toISOString();';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -39,7 +43,8 @@ describe('hasRequiredFunctionDocs', () => {
   });
 
   it('passes for exported type with JSDoc', () => {
-    const src = '/** User configuration options. */\nexport type UserConfig = {\n  name: string;\n};';
+    const src =
+      '/** User configuration options. */\nexport type UserConfig = {\n  name: string;\n};';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -161,7 +166,8 @@ export function sub(a: number, b: number): number { return a - b; }`;
 
   it('passes when JSDoc has only tags but no description', () => {
     // Edge case: @param only, no description text. This is still "documented."
-    const src = '/**\n * @param a - first number\n * @returns sum\n */\nexport function add(a: number): number { return a + 1; }';
+    const src =
+      '/**\n * @param a - first number\n * @returns sum\n */\nexport function add(a: number): number { return a + 1; }';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -254,7 +260,8 @@ export function foo() { return 1; }`;
   // ── keyword combinations ─────────────────────────────────────────────
 
   it('passes for export abstract class with JSDoc', () => {
-    const src = '/** Base handler. */\nexport abstract class Handler {\n  abstract handle(): void;\n}';
+    const src =
+      '/** Base handler. */\nexport abstract class Handler {\n  abstract handle(): void;\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -481,18 +488,21 @@ export function b() {}`;
   // ── export namespace ─────────────────────────────────────────────────
 
   it('fails for export namespace without JSDoc', () => {
-    const src = 'export namespace MathUtil {\n  export function add(a: number, b: number): number { return a + b; }\n}';
+    const src =
+      'export namespace MathUtil {\n  export function add(a: number, b: number): number { return a + b; }\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
   it('fails when export namespace has doc but inner export does not', () => {
     // Inner `export function add` also needs its own JSDoc
-    const src = '/** Math utilities. */\nexport namespace MathUtil {\n  export function add(a: number, b: number): number { return a + b; }\n}';
+    const src =
+      '/** Math utilities. */\nexport namespace MathUtil {\n  export function add(a: number, b: number): number { return a + b; }\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
   it('passes when export namespace and all inner exports have JSDoc', () => {
-    const src = '/** Math utilities. */\nexport namespace MathUtil {\n  /** Adds two numbers. */\n  export function add(a: number, b: number): number { return a + b; }\n}';
+    const src =
+      '/** Math utilities. */\nexport namespace MathUtil {\n  /** Adds two numbers. */\n  export function add(a: number, b: number): number { return a + b; }\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -574,7 +584,8 @@ export function parse(input: string, options?: Options): AST {
   });
 
   it('skips barrel export * with only type exports mixed in', () => {
-    const src = 'export * from "./utils";\nexport type * from "./types";\nexport { default } from "./main";';
+    const src =
+      'export * from "./utils";\nexport type * from "./types";\nexport { default } from "./main";';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -633,7 +644,8 @@ export function parse(input: string, options?: Options): AST {
   });
 
   it('passes for export default interface with JSDoc', () => {
-    const src = '/** Default config shape. */\nexport default interface DefaultConfig {\n  port: number;\n}';
+    const src =
+      '/** Default config shape. */\nexport default interface DefaultConfig {\n  port: number;\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
@@ -643,7 +655,8 @@ export function parse(input: string, options?: Options): AST {
   });
 
   it('passes for export default abstract class with JSDoc', () => {
-    const src = '/** Base entity. */\nexport default abstract class BaseEntity {\n  abstract id: string;\n}';
+    const src =
+      '/** Base entity. */\nexport default abstract class BaseEntity {\n  abstract id: string;\n}';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
