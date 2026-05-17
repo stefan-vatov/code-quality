@@ -1,0 +1,301 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: prepare release
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      !startsWith(github.event.head_commit.message, 'chore(release): publish'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+
+    outputs:
+      elixir_released: ${{ steps.plan.outputs.elixir_released }}
+      elixir_tag: ${{ steps.plan.outputs.elixir_tag }}
+      elixir_version: ${{ steps.plan.outputs.elixir_version }}
+      has_releases: ${{ steps.plan.outputs.has_releases }}
+      release_sha: ${{ steps.commit.outputs.release_sha }}
+      rust_released: ${{ steps.plan.outputs.rust_released }}
+      rust_tag: ${{ steps.plan.outputs.rust_tag }}
+      rust_version: ${{ steps.plan.outputs.rust_version }}
+      ts_released: ${{ steps.plan.outputs.ts_released }}
+      ts_tag: ${{ steps.plan.outputs.ts_tag }}
+      ts_version: ${{ steps.plan.outputs.ts_version }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --force --tags
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27.3'
+          elixir-version: '1.18.4'
+
+      - name: Install Hex
+        run: mix local.hex --force
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate current commit
+        run: |
+          pnpm run lint:ci
+          pnpm run knip:ci
+          pnpm run check
+          pnpm run test:projects
+          pnpm run build
+          pnpm nx run-many -t pack
+
+      - name: Plan and apply release metadata
+        id: plan
+        run: node scripts/release-plan.mjs prepare --github-output "$GITHUB_OUTPUT"
+
+      - name: Stop when no packages need release
+        if: steps.plan.outputs.has_releases != 'true'
+        run: echo "No package releases detected."
+
+      - name: Format release metadata
+        if: steps.plan.outputs.has_releases == 'true'
+        run: pnpm run format
+
+      - name: Validate release metadata commit
+        if: steps.plan.outputs.has_releases == 'true'
+        run: |
+          pnpm run lint:ci
+          pnpm run knip:ci
+          pnpm run check
+          pnpm run test:projects
+          pnpm run build
+          pnpm nx run-many -t pack
+
+      - name: Commit release metadata
+        id: commit
+        if: steps.plan.outputs.has_releases == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ts/package.json rust/Cargo.toml rust/Cargo.lock elixir/mix.exs
+          for path in ts/CHANGELOG.md rust/CHANGELOG.md elixir/CHANGELOG.md; do
+            if [ -f "$path" ]; then
+              git add "$path"
+            fi
+          done
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): publish [skip ci]"
+            git push origin HEAD:main
+          fi
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release plan
+        if: steps.plan.outputs.has_releases == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-plan
+          path: release-plan.json
+          if-no-files-found: error
+
+  publish-npm:
+    name: publish npm
+    needs: prepare
+    if: needs.prepare.outputs.ts_released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure npm token fallback
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "${NPM_TOKEN:-}" ]; then
+            npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          fi
+
+      - name: Publish package
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.ts_version }}
+        run: |
+          if npm view "@thethracian/oxlint-config@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "@thethracian/oxlint-config@$PACKAGE_VERSION is already published."
+            exit 0
+          fi
+          pnpm --dir ts build
+          cd ts
+          npm publish --access public
+
+  publish-crate:
+    name: publish crate
+    needs: prepare
+    if: needs.prepare.outputs.rust_released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Request crates.io trusted publishing token
+        id: crates-auth
+        if: env.CARGO_REGISTRY_TOKEN == ''
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish crate
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.rust_version }}
+          TRUSTED_PUBLISHING_TOKEN: ${{ steps.crates-auth.outputs.token }}
+        run: |
+          if curl --fail --silent --show-error "https://crates.io/api/v1/crates/cargo-thx-lint/$PACKAGE_VERSION" >/dev/null; then
+            echo "cargo-thx-lint@$PACKAGE_VERSION is already published."
+            exit 0
+          fi
+          export CARGO_REGISTRY_TOKEN="${CARGO_REGISTRY_TOKEN:-$TRUSTED_PUBLISHING_TOKEN}"
+          cargo publish --manifest-path rust/Cargo.toml --locked
+
+  publish-hex:
+    name: publish hex
+    needs: prepare
+    if: needs.prepare.outputs.elixir_released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27.3'
+          elixir-version: '1.18.4'
+
+      - name: Publish package
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.elixir_version }}
+        run: |
+          if curl --fail --silent --show-error "https://hex.pm/api/packages/the_thracian_credo/releases/$PACKAGE_VERSION" >/dev/null; then
+            echo "the_thracian_credo@$PACKAGE_VERSION is already published."
+            exit 0
+          fi
+          cd elixir
+          mix local.hex --force
+          mix deps.get
+          mix hex.publish package --yes
+
+  tag:
+    name: tag published releases
+    needs:
+      - prepare
+      - publish-npm
+      - publish-crate
+      - publish-hex
+    if: >-
+      always() &&
+      needs.prepare.outputs.has_releases == 'true' &&
+      needs.prepare.result == 'success' &&
+      (needs.publish-npm.result == 'success' || needs.publish-npm.result == 'skipped') &&
+      (needs.publish-crate.result == 'success' || needs.publish-crate.result == 'skipped') &&
+      (needs.publish-hex.result == 'success' || needs.publish-hex.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+          fetch-depth: 0
+
+      - name: Download release plan
+        uses: actions/download-artifact@v4
+        with:
+          name: release-plan
+
+      - name: Create and push package tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node -e "const fs = require('node:fs'); for (const plan of JSON.parse(fs.readFileSync('release-plan.json', 'utf8'))) console.log(plan.tag)" |
+            while IFS= read -r tag; do
+              if git rev-parse "$tag" >/dev/null 2>&1; then
+                echo "$tag already exists."
+              else
+                git tag "$tag"
+              fi
+            done
+          git push origin --tags

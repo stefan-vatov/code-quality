@@ -3,9 +3,15 @@
   "version": "0.1.0",
   "description": "The Thracian Oxlint configuration.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stefan-vatov/code-quality.git",
+    "directory": "ts"
+  },
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "type": "module",

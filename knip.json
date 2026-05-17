@@ -4,7 +4,13 @@
   "workspaces": {
     ".": {
       "includeEntryExports": true,
-      "entry": ["test/setup.ts", "vitest.config.mts"]
+      "entry": [
+        "scripts/release-plan.mjs",
+        "test/**/*.test.mjs",
+        "test/setup.ts",
+        "vitest.config.mts"
+      ],
+      "project": ["scripts/**/*.mjs", "test/**/*.mjs", "test/**/*.ts"]
     },
     "ts": {
       "ignoreBinaries": ["oxfmt", "vitest"],
