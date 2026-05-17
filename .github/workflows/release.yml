@@ -27,14 +27,17 @@ jobs:
 
     outputs:
       elixir_released: ${{ steps.plan.outputs.elixir_released }}
+      elixir_sha: ${{ steps.plan.outputs.elixir_sha }}
       elixir_tag: ${{ steps.plan.outputs.elixir_tag }}
       elixir_version: ${{ steps.plan.outputs.elixir_version }}
       has_releases: ${{ steps.plan.outputs.has_releases }}
       release_sha: ${{ steps.commit.outputs.release_sha }}
       rust_released: ${{ steps.plan.outputs.rust_released }}
+      rust_sha: ${{ steps.plan.outputs.rust_sha }}
       rust_tag: ${{ steps.plan.outputs.rust_tag }}
       rust_version: ${{ steps.plan.outputs.rust_version }}
       ts_released: ${{ steps.plan.outputs.ts_released }}
+      ts_sha: ${{ steps.plan.outputs.ts_sha }}
       ts_tag: ${{ steps.plan.outputs.ts_tag }}
       ts_version: ${{ steps.plan.outputs.ts_version }}
 
@@ -144,7 +147,7 @@ jobs:
       - name: Check out release commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
+          ref: ${{ needs.prepare.outputs.ts_sha || needs.prepare.outputs.release_sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -197,7 +200,7 @@ jobs:
       - name: Check out release commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
+          ref: ${{ needs.prepare.outputs.rust_sha || needs.prepare.outputs.release_sha }}
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -233,7 +236,7 @@ jobs:
       - name: Check out release commit
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.prepare.outputs.release_sha }}
+          ref: ${{ needs.prepare.outputs.elixir_sha || needs.prepare.outputs.release_sha }}
 
       - name: Set up Erlang and Elixir
         uses: erlef/setup-beam@v1
@@ -281,21 +284,23 @@ jobs:
           ref: ${{ needs.prepare.outputs.release_sha }}
           fetch-depth: 0
 
-      - name: Download release plan
-        uses: actions/download-artifact@v4
-        with:
-          name: release-plan
-
       - name: Create and push package tags
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          node -e "const fs = require('node:fs'); for (const plan of JSON.parse(fs.readFileSync('release-plan.json', 'utf8'))) console.log(plan.tag)" |
-            while IFS= read -r tag; do
-              if git rev-parse "$tag" >/dev/null 2>&1; then
-                echo "$tag already exists."
-              else
-                git tag "$tag"
-              fi
-            done
+          create_tag() {
+            tag="$1"
+            ref="$2"
+            if [ -z "$tag" ]; then
+              return
+            fi
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "$tag already exists."
+            else
+              git tag "$tag" "$ref"
+            fi
+          }
+          create_tag "${{ needs.prepare.outputs.ts_tag }}" "${{ needs.prepare.outputs.ts_sha || needs.prepare.outputs.release_sha }}"
+          create_tag "${{ needs.prepare.outputs.rust_tag }}" "${{ needs.prepare.outputs.rust_sha || needs.prepare.outputs.release_sha }}"
+          create_tag "${{ needs.prepare.outputs.elixir_tag }}" "${{ needs.prepare.outputs.elixir_sha || needs.prepare.outputs.release_sha }}"
           git push origin --tags

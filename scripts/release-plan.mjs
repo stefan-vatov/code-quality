@@ -37,8 +37,29 @@ const bumpRank = {
   major: 3,
 };
 
-function planPackageRelease({ commits, currentVersion, date, lastTag, name, tagPrefix }) {
+function planPackageRelease({
+  commits,
+  currentVersion,
+  date,
+  hasCurrentChangelogEntry = false,
+  lastTag,
+  name,
+  tagPrefix,
+}) {
   if (lastTag === null) {
+    if (hasCurrentChangelogEntry) {
+      return {
+        bump: 'pending',
+        changelogSections: {},
+        date,
+        name,
+        nextVersion: currentVersion,
+        previousVersion: null,
+        release: true,
+        tag: `${tagPrefix}@${currentVersion}`,
+      };
+    }
+
     return {
       bump: 'initial',
       changelogSections: {
@@ -111,7 +132,9 @@ function applyReleasePlan({ files, plans }) {
       continue;
     }
 
-    updateVersionFiles(nextFiles, plan);
+    if (plan.bump !== 'initial') {
+      updateVersionFiles(nextFiles, plan);
+    }
     prependChangelog(nextFiles, plan);
   }
 
@@ -273,6 +296,10 @@ function prependChangelogEntry(current, plan) {
   const header = '# Changelog';
   const body = [`## ${plan.nextVersion} - ${plan.date}`, ''];
 
+  if (current !== undefined && changelogHasVersion(current, plan.nextVersion)) {
+    return `${current.trimEnd()}\n`;
+  }
+
   for (const [section, entries] of Object.entries(plan.changelogSections)) {
     body.push(`### ${section}`, '');
     for (const entry of entries) {
@@ -326,6 +353,14 @@ function replaceRequired({ files, path, pattern, replacement }) {
 
 function currentDate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function changelogHasVersion(content, version) {
+  return new RegExp(`^##\\s+${escapeRegExp(version)}(?:\\s+-|\\s*$)`, 'mu').test(content);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function readPackageVersion(config) {
@@ -418,16 +453,88 @@ function commitsForPackage(config, lastTag) {
 function buildReleasePlans({ date = currentDate() } = {}) {
   return PACKAGE_CONFIGS.map((config) => {
     const lastTag = latestTagFor(config);
-
-    return planPackageRelease({
+    const currentVersion = readPackageVersion(config);
+    const plan = planPackageRelease({
       commits: commitsForPackage(config, lastTag),
-      currentVersion: readPackageVersion(config),
+      currentVersion,
       date,
+      hasCurrentChangelogEntry: currentChangelogHasVersion(config, currentVersion),
       lastTag,
       name: config.name,
       tagPrefix: config.tagPrefix,
     });
+
+    if (plan.release && plan.bump === 'pending') {
+      return {
+        ...plan,
+        releaseSha: pendingReleaseShaFor(config, plan, lastTag),
+      };
+    }
+
+    return plan;
   });
+}
+
+function currentChangelogHasVersion(config, version) {
+  return (
+    existsSync(config.changelogPath) &&
+    changelogHasVersion(readFileSync(config.changelogPath, 'utf8'), version)
+  );
+}
+
+function pendingReleaseShaFor(config, plan, lastTag) {
+  const releaseSha = findReleaseMetadataCommit(config, plan.nextVersion, lastTag);
+
+  if (releaseSha === null) {
+    throw new Error(`Could not find release metadata commit for ${plan.tag}`);
+  }
+
+  const laterPackageCommits = execFileSync(
+    'git',
+    ['log', '--format=%H', `${releaseSha}..HEAD`, '--', ...config.paths],
+    {
+      encoding: 'utf8',
+    },
+  ).trim();
+
+  if (laterPackageCommits !== '') {
+    throw new Error(
+      `Pending release ${plan.tag} has package changes after release metadata commit ${releaseSha}`,
+    );
+  }
+
+  return releaseSha;
+}
+
+function findReleaseMetadataCommit(config, version, lastTag) {
+  const range = lastTag === null ? [] : [`${lastTag}..HEAD`];
+  const commits = execFileSync(
+    'git',
+    ['log', '--reverse', '--format=%H', ...range, '--', config.changelogPath],
+    {
+      encoding: 'utf8',
+    },
+  )
+    .trim()
+    .split(/\r?\n/u)
+    .filter(Boolean);
+
+  return (
+    commits.find((commit) => commitFileHasVersion(commit, config.changelogPath, version)) ?? null
+  );
+}
+
+function commitFileHasVersion(commit, path, version) {
+  try {
+    return changelogHasVersion(
+      execFileSync('git', ['show', `${commit}:${path}`], {
+        encoding: 'utf8',
+      }),
+      version,
+    );
+  } catch {
+    return false;
+  }
 }
 
 function readReleaseFiles() {
@@ -467,6 +574,7 @@ function writeGithubOutput(path, plans) {
     lines.push(`${config.id}_released=${String(plan?.release ?? false)}`);
     lines.push(`${config.id}_version=${plan?.nextVersion ?? ''}`);
     lines.push(`${config.id}_tag=${plan?.tag ?? ''}`);
+    lines.push(`${config.id}_sha=${plan?.releaseSha ?? ''}`);
   }
 
   writeFileSync(path, `${lines.join(EOL)}${EOL}`, {
