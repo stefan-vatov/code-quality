@@ -142,15 +142,12 @@ Releases are CI-owned. After a Conventional Commit lands on `main`, GitHub Actio
 repo, updates package versions and changelogs, commits that release metadata back to `main`,
 publishes changed packages from the release commit, and then tags the published package versions.
 
-The first publish can use registry token secrets. After the packages exist, npm and crates.io can
-move to trusted publishing; Hex continues to use a scoped `HEX_API_KEY`.
-
-The release workflow expects a GitHub environment named `release`. For first publishes, configure
-`NPM_TOKEN`, `CARGO_REGISTRY_TOKEN`, and `HEX_API_KEY` as environment secrets. After the npm and
-crates.io packages exist, configure trusted publishing for `.github/workflows/release.yml` with the
-same `release` environment and remove the long-lived npm/Cargo tokens. Hex publishing still uses a
-Hex key with `api:write` permission. Branch protection must also allow this workflow to push release
-metadata commits and package tags, either through `GITHUB_TOKEN` permissions or an approved bot token.
+The release workflow expects a GitHub environment named `release`. npm publishes through trusted
+publishing from `.github/workflows/release.yml` with the same `release` environment, so no npm token
+is required. For first Rust publishes, configure `CARGO_REGISTRY_TOKEN` as an environment secret
+unless crates.io trusted publishing is already configured. Hex publishing uses a scoped `HEX_API_KEY`
+environment secret. Branch protection must also allow this workflow to push release metadata commits
+and package tags, either through `GITHUB_TOKEN` permissions or an approved bot token.
 
 ## Documentation
 
