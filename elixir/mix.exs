@@ -30,7 +30,7 @@ defmodule TheThracianCredo.MixProject do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => "https://github.com/stefan-vatov/code-quality"},
-      files: ["lib", "mix.exs", "README.md", "LICENSE", ".formatter.exs"]
+      files: ["lib", "mix.exs", "README.md", "CHANGELOG.md", "LICENSE", ".formatter.exs"]
     ]
   end
 end

@@ -138,8 +138,16 @@ Each package is published independently:
 - `rust/` publishes `cargo-thx-lint` to crates.io.
 - `elixir/` publishes `the_thracian_credo` to Hex.
 
-Run dry-run packaging before a real release. Publishing is intentionally not hidden behind the
-root README commands so registry credentials and first-publish steps stay explicit.
+Releases are CI-owned. After a Conventional Commit lands on `main`, GitHub Actions validates the
+repo, updates package versions and changelogs, commits that release metadata back to `main`,
+publishes changed packages from the release commit, and then tags the published package versions.
+
+The release workflow expects a GitHub environment named `release`. npm publishes through trusted
+publishing from `.github/workflows/release.yml` with the same `release` environment, so no npm token
+is required. For first Rust publishes, configure `CARGO_REGISTRY_TOKEN` as an environment secret
+unless crates.io trusted publishing is already configured. Hex publishing uses a scoped `HEX_API_KEY`
+environment secret. Branch protection must also allow this workflow to push release metadata commits
+and package tags, either through `GITHUB_TOKEN` permissions or an approved bot token.
 
 ## Documentation
 

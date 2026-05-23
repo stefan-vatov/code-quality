@@ -121,7 +121,7 @@ Use lowercase conventional commits. Examples:
 - `fix: copy elixir credo checks`
 - `chore: update workspace hooks`
 
-Publishing is expected to happen through GitHub Actions later. Do not manually publish from local agent sessions unless explicitly asked.
+Publishing is owned by GitHub Actions. Do not manually publish from local agent sessions unless explicitly asked.
 
 ## Important Constraints
 
