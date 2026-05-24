@@ -39,7 +39,8 @@
     "knip:watch": "knip --watch --strict",
     "knip:ci": "knip --cache --strict",
     "performance:gate": "tsx ts/bench/performance-gate.ts --check",
-    "performance:calibrate": "tsx ts/bench/performance-gate.ts --update --runs 20"
+    "performance:calibrate": "tsx ts/bench/performance-gate.ts --update --runs 20",
+    "performance:estimate": "tsx ts/bench/performance-estimate.ts"
   },
   "devDependencies": {
     "@j178/prek": "^0.3.8",
