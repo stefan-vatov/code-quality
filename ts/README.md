@@ -8,7 +8,7 @@
   <a href="https://github.com/stefan-vatov/code-quality/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
 </p>
 
-The Thracian Oxlint config is a strict TypeScript lint profile for teams that want AI-generated code reviewed like production code.
+The Thracian Oxlint config is an experimental, painfully strict, very opinionated TypeScript lint profile for teams that want AI-generated code reviewed like production code.
 
 ```text
 oxlint.config.mjs

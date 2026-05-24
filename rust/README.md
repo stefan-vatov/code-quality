@@ -7,7 +7,7 @@
   <a href="https://github.com/stefan-vatov/code-quality/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
 </p>
 
-`cargo-thx-lint` installs The Thracian Rust lint policy into a Cargo package or workspace.
+`cargo-thx-lint` installs The Thracian experimental, painfully strict, very opinionated Rust lint policy into a Cargo package or workspace.
 
 ```text
 cargo thx-lint init --write

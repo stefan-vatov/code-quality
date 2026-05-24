@@ -7,7 +7,7 @@
   <a href="https://github.com/stefan-vatov/code-quality/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
 </p>
 
-`the_thracian_credo` is a Credo plugin and installer for strict Elixir linting.
+`the_thracian_credo` is a Credo plugin and installer for experimental, painfully strict, very opinionated Elixir linting.
 
 ```text
 mix thx_lint.install --yes
