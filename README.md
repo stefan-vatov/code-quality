@@ -1,8 +1,8 @@
-# The Thracian Code Quality
+# The Thracian - Code Quality
 
 <div align="center">
 
-Strict, versioned lint packages for TypeScript, Rust, and Elixir.
+An experimental, painfully strict, very opinionated, versioned lint packages for TypeScript, Rust, and Elixir and agentic coding.
 
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![TypeScript Oxlint](https://img.shields.io/badge/TypeScript-Oxlint-3178c6?logo=typescript&logoColor=white)
