@@ -1,8 +1,8 @@
-# The Thracian Code Quality
+# The Thracian - Code Quality
 
 <div align="center">
 
-Strict, versioned lint packages for TypeScript, Rust, and Elixir.
+An experimental, painfully strict, very opinionated, versioned lint packages for TypeScript, Rust, and Elixir and agentic coding.
 
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![TypeScript Oxlint](https://img.shields.io/badge/TypeScript-Oxlint-3178c6?logo=typescript&logoColor=white)
@@ -42,15 +42,11 @@ a Mix installer for Elixir.
 
 ## Packages
 
-| Package                                      | Ecosystem | Consumer entrypoint                                    | Purpose                                                                                  |
-| -------------------------------------------- | --------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [`@thethracian/oxlint-config`](ts/README.md) | npm       | `import theThracian from "@thethracian/oxlint-config"` | TypeScript/Oxlint config with custom JS plugin rules.                                    |
-| [`cargo-thx-lint`](rust/README.md)           | crates.io | `cargo thx-lint init --write`                          | Rust installer for `rustfmt.toml`, `clippy.toml`, Cargo lint tables, and a Dylint check. |
-| [`the_thracian_credo`](elixir/README.md)     | Hex       | `mix thx_lint.install --yes`                           | Credo plugin, custom checks, formatter setup, and Dialyxir helper config.                |
-
-> [!NOTE]
-> Registry install commands are the intended consumer flow after the first publish. Until then,
-> the package READMEs include local path and tarball flows for pre-publish validation.
+| Package                                      | Registry                                                        | Consumer entrypoint                                    | Purpose                                                                                  |
+| -------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | TypeScript/Oxlint config with custom JS plugin rules.                                    |
+| [`cargo-thx-lint`](rust/README.md)           | [crates.io](https://crates.io/crates/cargo-thx-lint)            | `cargo thx-lint init --write`                          | Rust installer for `rustfmt.toml`, `clippy.toml`, Cargo lint tables, and a Dylint check. |
+| [`the_thracian_credo`](elixir/README.md)     | [Hex](https://hex.pm/packages/the_thracian_credo)               | `mix thx_lint.install --yes`                           | Credo plugin, custom checks, formatter setup, and Dialyxir helper config.                |
 
 ## Quick Start
 
@@ -59,7 +55,7 @@ Use the package for your ecosystem.
 ### TypeScript
 
 ```sh
-pnpm add -D @thethracian/oxlint-config oxlint@^1.63.0 oxlint-tsgolint@^0.22.1 oxlint-plugin-complexity
+pnpm add -D @thethracian/oxlint-config oxlint@^1.63.0
 ```
 
 ```ts
@@ -86,7 +82,7 @@ rerun, and legacy npm-wrapper markers are migrated automatically.
 defp deps do
   [
     {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-    {:the_thracian_credo, "~> 0.1", only: [:dev, :test], runtime: false}
+    {:the_thracian_credo, "~> 0.1.0", only: [:dev, :test], runtime: false}
   ]
 end
 ```

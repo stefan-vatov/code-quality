@@ -1,25 +1,57 @@
 # @thethracian/oxlint-config
 
-Importable Oxlint config for TypeScript projects.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@thethracian/oxlint-config"><img alt="npm version" src="https://img.shields.io/npm/v/@thethracian/oxlint-config?style=flat-square"></a>
+  <a href="https://www.npmjs.com/package/@thethracian/oxlint-config"><img alt="npm downloads" src="https://img.shields.io/npm/dw/@thethracian/oxlint-config?style=flat-square"></a>
+  <a href="https://socket.dev/npm/package/%40thethracian/oxlint-config"><img alt="Socket package analysis" src="https://socket.dev/api/badge/npm/package/@thethracian/oxlint-config"></a>
+  <a href="https://github.com/stefan-vatov/code-quality/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/stefan-vatov/code-quality/ci.yml?branch=main&style=flat-square"></a>
+  <a href="https://github.com/stefan-vatov/code-quality/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square"></a>
+</p>
 
-The config errors on lines over 150 characters, files over 500 lines, functions over 75 lines, nesting deeper than 3 levels, callback nesting deeper than 4 levels (max-nested-callbacks), more than 5 parameters, cyclomatic complexity over 10, requires strict equality (eqeqeq), denies eval and dynamic code execution (no-eval, no-implied-eval when type-aware), denies debug artifacts (no-console, no-debugger), bans silent catch blocks (no-empty), bans commented-out code (custom thethracian/no-commented-out-code rule), bans inline comments and warning comments (no-inline-comments, no-warning-comments), bans `any` and untyped escape hatches (no-explicit-any, no-unsafe-call, no-unsafe-member-access, plus no-unsafe-assignment/return/argument when type-aware), denies unhandled promises (no-floating-promises, no-misused-promises when type-aware), and enforces immutability with prefer-const and no-param-reassign (including property mutations).
+The Thracian Oxlint config is an experimental, painfully strict, very opinionated TypeScript lint profile for teams that want AI-generated code reviewed like production code.
 
-The package uses Oxlint's native complexity rule and ships the Oxlint type-aware runner needed by
-the `typeAware` profile.
+```text
+oxlint.config.mjs
+  import theThracian from '@thethracian/oxlint-config';
+
+  export default theThracian({ typeAware: true });
+
+Result: native Oxlint rules + The Thracian custom rules + optional Effect policy checks.
+```
+
+## Why Use It
+
+- Strict by default: every rule is an error, not a suggestion.
+- Agent-ready TypeScript: catches debug artifacts, unsafe escape hatches, silent catches, mutation, deep nesting, and oversized code.
+- Effect-aware out of the box: 81 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
+- Strict Effect mode when you want it: opt in to 60 additional project-boundary rules for entrypoints, adapters, config layers, domain modules, service wiring, external calls, and test ownership.
+- Importable config: consumers import one package instead of copying linter files around a codebase.
+
+## Install
 
 ```sh
 pnpm add -D @thethracian/oxlint-config oxlint@^1.63.0
 ```
 
-```ts
+Create `oxlint.config.mjs`:
+
+```js
 import theThracian from '@thethracian/oxlint-config';
 
 export default theThracian();
 ```
 
-Enable type-aware Oxlint execution and the matching type-aware rules from the shared config:
+Run Oxlint:
 
-```ts
+```sh
+pnpm oxlint .
+```
+
+## Type-Aware Mode
+
+Type-aware mode enables Oxlint's semantic TypeScript checks and the matching strict rules from this config.
+
+```js
 import theThracian from '@thethracian/oxlint-config';
 
 export default theThracian({
@@ -27,14 +59,26 @@ export default theThracian({
 });
 ```
 
-The 81-rule always-on default Effect bucket is enabled by default for this config. These rules
-target lazy Effect values, generator style, Promise boundaries, typed errors, resource safety,
-Schema boundaries, test determinism, stale APIs, platform escape hatches, unsafe Effect type
-assertions, service self-type drift, and common AI-generated Effect hallucinations.
+Use this when you want checks such as unsafe calls, unsafe member access, floating promises, misused promises, and exhaustive switch handling. It is slower than syntax-only linting because Oxlint has to load TypeScript project information.
 
-Non-Effect projects can disable that bucket explicitly:
+## Effect Defaults
 
-```ts
+Effect rules are enabled by default. They are designed for codebases where agents may produce plausible-looking but semantically weak Effect code.
+
+The default bucket checks for patterns such as:
+
+- floating `Effect` values that are never run, yielded, returned, or composed
+- missing `yield*` inside `Effect.gen`
+- nested `flatMap` code that should be `Effect.gen`
+- string errors and untagged error channels
+- unsafe Promise, throw, runtime, and sync boundaries
+- Schema decode misuse at external data boundaries
+- resource, fiber, stream, concurrency, and test determinism mistakes
+- deprecated or invented Effect APIs
+
+Disable the Effect bucket for non-Effect projects:
+
+```js
 import theThracian from '@thethracian/oxlint-config';
 
 export default theThracian({
@@ -42,10 +86,11 @@ export default theThracian({
 });
 ```
 
-Effect projects that want strict project-boundary enforcement can opt in to the 60-rule strict
-bucket:
+## Strict Effect Mode
 
-```ts
+Strict mode adds project-boundary checks. It is intentionally opinionated and is best for Effect services with clear layers.
+
+```js
 import theThracian from '@thethracian/oxlint-config';
 
 export default theThracian({
@@ -55,10 +100,9 @@ export default theThracian({
 });
 ```
 
-Strict mode uses conventional project globs for entrypoints, composition roots, config layers,
-domain modules, adapters, and test types. Override them when a project uses a different layout:
+Override the default project layout when your repository uses different paths:
 
-```ts
+```js
 import theThracian from '@thethracian/oxlint-config';
 
 export default theThracian({
@@ -75,3 +119,26 @@ export default theThracian({
   },
 });
 ```
+
+## What It Enforces
+
+| Area                   | Policy                                                                                                                           |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Size and shape         | 150-character lines, 500-line files, 75-line functions, max nesting depth 3, max 5 parameters, cyclomatic complexity 10          |
+| TypeScript safety      | no `any` escape hatches, no unsafe calls/member access, explicit function return types, strict equality                          |
+| Async safety           | no floating promises in type-aware mode, no misused promises, no unhandled Effect values                                         |
+| Debug and dynamic code | no `console`, `debugger`, `eval`, `new Function`, script URLs, warning comments, or commented-out code                           |
+| Immutability           | `prefer-const` and no parameter reassignment, including property mutation                                                        |
+| Naming                 | PascalCase types, camelCase identifiers, boolean prefixes, private underscores, and consistent acronym casing                    |
+| Effect                 | generator style, typed errors, Schema validation, resource safety, bounded concurrency, test determinism, and project boundaries |
+
+## Registry Links
+
+- npm: <https://www.npmjs.com/package/@thethracian/oxlint-config>
+- Socket package analysis: <https://socket.dev/npm/package/%40thethracian/oxlint-config>
+- Source: <https://github.com/stefan-vatov/code-quality/tree/main/ts>
+- Issues: <https://github.com/stefan-vatov/code-quality/issues>
+
+## License
+
+MIT. See [LICENSE](LICENSE).
