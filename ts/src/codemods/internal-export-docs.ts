@@ -1,8 +1,9 @@
 /* -------------------------------------------------------------------------- */
 /*          Codemod for internal exported declaration documentation.          */
 /* -------------------------------------------------------------------------- */
+import type { ExportNamedDeclaration, Statement } from 'jscodeshift';
 import { formatJSDoc } from './comment-format';
-import ts from 'typescript';
+import jscodeshift from 'jscodeshift';
 
 interface Insertion {
   position: number;
@@ -14,6 +15,20 @@ const internalExportDoc = formatJSDoc({
   tags: ['@internal'],
 });
 const internalHeaderScanLength = 240;
+const codemodAPI = jscodeshift.withParser('ts');
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const nodeStart = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { start } = node;
+    if (typeof start === 'number') {
+      return start;
+    }
+  }
+  throw new Error('jscodeshift node is missing a start offset');
+};
 
 const hasInternalFileHeader = (source: string): boolean => {
   const trimmedStart = source.trimStart();
@@ -23,34 +38,54 @@ const hasInternalFileHeader = (source: string): boolean => {
   );
 };
 
-const hasExportModifier = (node: ts.Node): boolean =>
-  Boolean(
-    ts.canHaveModifiers(node) &&
-    ts
-      .getModifiers(node)
-      ?.some((modifier): boolean => modifier.kind === ts.SyntaxKind.ExportKeyword),
-  );
+const isExportedDeclarationStatement = (
+  statement: Statement,
+): statement is ExportNamedDeclaration =>
+  statement.type === 'ExportNamedDeclaration' &&
+  isObjectRecord(statement) &&
+  Boolean(statement.declaration);
 
-const isExportedDeclarationStatement = (statement: ts.Statement): boolean =>
-  (ts.isVariableStatement(statement) ||
-    ts.isFunctionDeclaration(statement) ||
-    ts.isClassDeclaration(statement) ||
-    ts.isInterfaceDeclaration(statement) ||
-    ts.isTypeAliasDeclaration(statement) ||
-    ts.isEnumDeclaration(statement)) &&
-  hasExportModifier(statement);
+const commentStart = (comment: unknown): number | undefined => {
+  if (isObjectRecord(comment)) {
+    const { start } = comment;
+    if (typeof start === 'number') {
+      return start;
+    }
+  }
+  return undefined;
+};
 
-const hasDeclarationJSDoc = (source: string, statement: ts.Statement): boolean => {
-  const comments = ts.getLeadingCommentRanges(source, statement.pos) ?? [];
-  const declarationStart = statement.getStart();
+const commentEnd = (comment: unknown): number | undefined => {
+  if (isObjectRecord(comment)) {
+    const { end } = comment;
+    if (typeof end === 'number') {
+      return end;
+    }
+  }
+  return undefined;
+};
+
+const isJSDocComment = (source: string, comment: unknown): boolean => {
+  const start = commentStart(comment);
+  if (!isObjectRecord(comment) || comment.type !== 'CommentBlock' || start === undefined) {
+    return false;
+  }
+  return source[start + 2] === '*';
+};
+
+const hasDeclarationJSDoc = (source: string, statement: Statement): boolean => {
+  const comments = statement.comments ?? [];
+  const declarationStart = nodeStart(statement);
   return comments.some((comment): boolean => {
-    if (comment.kind !== ts.SyntaxKind.MultiLineCommentTrivia || source[comment.pos + 2] !== '*') {
+    const start = commentStart(comment);
+    const end = commentEnd(comment);
+    if (start === undefined || end === undefined || !isJSDocComment(source, comment)) {
       return false;
     }
-    if (comment.pos === 0) {
+    if (start === 0) {
       return false;
     }
-    return source.slice(comment.end, declarationStart).trim() === '';
+    return source.slice(end, declarationStart).trim() === '';
   });
 };
 
@@ -63,6 +98,19 @@ const applyInsertions = (source: string, insertions: readonly Insertion[]): stri
       source,
     );
 
+const internalExportDocInsertions = (source: string): readonly Insertion[] => {
+  const program = codemodAPI(source).find(codemodAPI.Program).paths()[0]?.value;
+  if (!program) {
+    return [];
+  }
+  return program.body.flatMap((statement): Insertion[] => {
+    if (!isExportedDeclarationStatement(statement) || hasDeclarationJSDoc(source, statement)) {
+      return [];
+    }
+    return [{ position: nodeStart(statement), text: internalExportDoc }];
+  });
+};
+
 /**
  * Adds explicit declaration-level `@internal` JSDoc to exports in internal files.
  *
@@ -73,13 +121,5 @@ export const addInternalExportDocs = (source: string): string => {
     return source;
   }
 
-  const sourceFile = ts.createSourceFile('codemod.ts', source, ts.ScriptTarget.Latest, true);
-  const insertions = sourceFile.statements.flatMap((statement): Insertion[] => {
-    if (!isExportedDeclarationStatement(statement) || hasDeclarationJSDoc(source, statement)) {
-      return [];
-    }
-    return [{ position: statement.getStart(sourceFile), text: internalExportDoc }];
-  });
-
-  return applyInsertions(source, insertions);
+  return applyInsertions(source, internalExportDocInsertions(source));
 };

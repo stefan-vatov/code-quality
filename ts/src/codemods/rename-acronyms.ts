@@ -1,8 +1,9 @@
 /* -------------------------------------------------------------------------- */
 /*  AST-backed codemod for correcting repeatable acronym casing violations.   */
 /* -------------------------------------------------------------------------- */
+import type { Identifier, ObjectProperty, Statement } from 'jscodeshift';
 import findMisCasedAcronyms, { fixAcronymCase } from '../rules/acronym-case';
-import ts from 'typescript';
+import jscodeshift from 'jscodeshift';
 
 interface Replacement {
   end: number;
@@ -10,187 +11,225 @@ interface Replacement {
   text: string;
 }
 
-const applyReplacements = (source: string, replacements: readonly Replacement[]): string => {
-  let output = source;
-  const ordered = [...replacements].sort((left, right) => right.start - left.start);
+interface ProgramLike {
+  body: readonly Statement[];
+}
 
-  for (const replacement of ordered) {
-    output = output.slice(0, replacement.start) + replacement.text + output.slice(replacement.end);
+interface RenameContext {
+  protectedNames: ReadonlySet<string>;
+  protectedRanges: ReadonlySet<string>;
+}
+
+const codemodAPI = jscodeshift.withParser('ts');
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
+  [...replacements]
+    .sort((left, right) => right.start - left.start)
+    .reduce(
+      (current, replacement) =>
+        current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
+      source,
+    );
+
+const nodeStart = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { start } = node;
+    if (typeof start === 'number') {
+      return start;
+    }
   }
-
-  return output;
+  throw new Error('jscodeshift node is missing a start offset');
 };
 
-const hasExportModifier = (node: ts.Node): boolean => {
-  const modifiers = ((): readonly ts.ModifierLike[] | undefined => {
-    if (ts.canHaveModifiers(node)) {
-      return ts.getModifiers(node);
+const nodeEnd = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { end } = node;
+    if (typeof end === 'number') {
+      return end;
     }
+  }
+  throw new Error('jscodeshift node is missing an end offset');
+};
+
+const nodeRangeKey = (node: unknown): string => `${nodeStart(node)}:${nodeEnd(node)}`;
+
+const isIdentifier = (node: unknown): node is Identifier =>
+  isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
+
+const collectObjectPatternNames = (name: Record<string, unknown>, names: Set<string>): void => {
+  const { properties } = name;
+  if (!Array.isArray(properties)) {
+    return;
+  }
+  for (const property of properties) {
+    collectPropertyBindingName(property, names);
+  }
+};
+
+const collectArrayPatternNames = (name: Record<string, unknown>, names: Set<string>): void => {
+  const { elements } = name;
+  if (!Array.isArray(elements)) {
+    return;
+  }
+  for (const element of elements) {
+    collectBindingNames(element, names);
+  }
+};
+
+const collectPropertyBindingName = (property: unknown, names: Set<string>): void => {
+  if (!isObjectRecord(property)) {
+    return;
+  }
+  if (property.type === 'ObjectProperty') {
+    collectBindingNames(property.value, names);
+  } else if (property.type === 'RestElement') {
+    collectBindingNames(property.argument, names);
+  }
+};
+
+const collectBindingNames = (name: unknown, names: Set<string>): void => {
+  if (!isObjectRecord(name)) {
+    return;
+  }
+  if (isIdentifier(name)) {
+    names.add(name.name);
+    return;
+  }
+  if (name.type === 'ObjectPattern') {
+    collectObjectPatternNames(name, names);
+  } else if (name.type === 'ArrayPattern') {
+    collectArrayPatternNames(name, names);
+  } else if (name.type === 'AssignmentPattern') {
+    collectBindingNames(name.left, names);
+  } else if (name.type === 'RestElement') {
+    collectBindingNames(name.argument, names);
+  }
+};
+
+const collectImportProtectedNames = (statement: Statement, names: Set<string>): void => {
+  if (!isObjectRecord(statement) || !Array.isArray(statement.specifiers)) {
+    return;
+  }
+  for (const specifier of statement.specifiers) {
+    if (isObjectRecord(specifier) && isIdentifier(specifier.local)) {
+      names.add(specifier.local.name);
+    }
+  }
+};
+
+const collectExportedVariableNames = (declaration: unknown, names: Set<string>): void => {
+  if (!isObjectRecord(declaration) || !Array.isArray(declaration.declarations)) {
+    return;
+  }
+  for (const variableDeclarator of declaration.declarations) {
+    if (isObjectRecord(variableDeclarator)) {
+      collectBindingNames(variableDeclarator.id, names);
+    }
+  }
+};
+
+const collectExportedDeclarationName = (declaration: unknown, names: Set<string>): void => {
+  if (!isObjectRecord(declaration)) {
+    return;
+  }
+  if (declaration.type === 'VariableDeclaration') {
+    collectExportedVariableNames(declaration, names);
+    return;
+  }
+  if (isIdentifier(declaration.id)) {
+    names.add(declaration.id.name);
+  }
+};
+
+const collectExportSpecifierNames = (statement: Statement, names: Set<string>): void => {
+  if (!isObjectRecord(statement) || !Array.isArray(statement.specifiers)) {
+    return;
+  }
+  for (const specifier of statement.specifiers) {
+    if (isObjectRecord(specifier)) {
+      collectBindingNames(specifier.local, names);
+      collectBindingNames(specifier.exported, names);
+    }
+  }
+};
+
+const collectProtectedNameFromStatement = (statement: Statement, names: Set<string>): void => {
+  if (statement.type === 'ImportDeclaration') {
+    collectImportProtectedNames(statement, names);
+  } else if (statement.type === 'ExportNamedDeclaration' && isObjectRecord(statement)) {
+    collectExportedDeclarationName(statement.declaration, names);
+    collectExportSpecifierNames(statement, names);
+  }
+};
+
+const sourceProgram = (source: string): ProgramLike | undefined => {
+  const [programPath] = codemodAPI(source).find(codemodAPI.Program).paths();
+  if (!programPath) {
     return undefined;
-  })();
-  return (
-    modifiers?.some((modifier): boolean => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false
-  );
+  }
+  return programPath.value;
 };
 
-const collectBindingNames = (name: ts.BindingName, protectedNames: Set<string>): void => {
-  if (ts.isIdentifier(name)) {
-    protectedNames.add(name.text);
-    return;
-  }
-
-  for (const element of name.elements) {
-    if (!ts.isOmittedExpression(element)) {
-      collectBindingNames(element.name, protectedNames);
-    }
-  }
-};
-
-const collectImportProtectedNames = (node: ts.ImportClause, protectedNames: Set<string>): void => {
-  if (node.name) {
-    protectedNames.add(node.name.text);
-  }
-  if (node.namedBindings && ts.isNamespaceImport(node.namedBindings)) {
-    protectedNames.add(node.namedBindings.name.text);
-  }
-};
-
-const exportedDeclarationName = (node: ts.Node): string | undefined => {
-  if (
-    (ts.isClassDeclaration(node) ||
-      ts.isFunctionDeclaration(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isTypeAliasDeclaration(node) ||
-      ts.isEnumDeclaration(node)) &&
-    node.name &&
-    hasExportModifier(node)
-  ) {
-    return node.name.text;
-  }
-  return undefined;
-};
-
-const collectExportedVariableNames = (
-  node: ts.VariableStatement,
-  protectedNames: Set<string>,
-): void => {
-  if (!hasExportModifier(node)) {
-    return;
-  }
-  for (const declaration of node.declarationList.declarations) {
-    collectBindingNames(declaration.name, protectedNames);
-  }
-};
-
-const collectExportSpecifierNames = (
-  node: ts.ExportSpecifier,
-  protectedNames: Set<string>,
-): void => {
-  protectedNames.add(node.propertyName?.text ?? node.name.text);
-  protectedNames.add(node.name.text);
-};
-
-const collectProtectedNameFromNode = (node: ts.Node, protectedNames: Set<string>): void => {
-  const exportedName = exportedDeclarationName(node);
-  if (ts.isImportClause(node)) {
-    collectImportProtectedNames(node, protectedNames);
-  } else if (ts.isImportSpecifier(node)) {
-    protectedNames.add(node.name.text);
-  } else if (exportedName) {
-    protectedNames.add(exportedName);
-  } else if (ts.isVariableStatement(node)) {
-    collectExportedVariableNames(node, protectedNames);
-  } else if (ts.isExportSpecifier(node)) {
-    collectExportSpecifierNames(node, protectedNames);
-  }
-};
-
-const collectProtectedNames = (sourceFile: ts.SourceFile): Set<string> => {
+const collectProtectedNames = (source: string): Set<string> => {
   const protectedNames = new Set<string>();
+  const program = sourceProgram(source);
+  if (!program) {
+    return protectedNames;
+  }
 
-  const visit = (node: ts.Node): void => {
-    collectProtectedNameFromNode(node, protectedNames);
-    ts.forEachChild(node, visit);
-  };
-
-  visit(sourceFile);
+  for (const statement of program.body) {
+    collectProtectedNameFromStatement(statement, protectedNames);
+  }
   return protectedNames;
 };
 
-const isImportOrExportSpecifierName = (node: ts.Identifier): boolean => {
-  const { parent } = node;
-  return (
-    ts.isImportSpecifier(parent) ||
-    ts.isExportSpecifier(parent) ||
-    ts.isImportClause(parent) ||
-    ts.isNamespaceImport(parent) ||
-    ts.isExportAssignment(parent)
-  );
-};
-
-const isObjectPropertyKey = (node: ts.Identifier): boolean => {
-  const { parent } = node;
-  return ts.isPropertyAssignment(parent) && parent.name === node;
-};
-
-const isExportedDeclarationName = (node: ts.Identifier): boolean => {
-  const { parent } = node;
-  if (
-    !(
-      ts.isClassDeclaration(parent) ||
-      ts.isFunctionDeclaration(parent) ||
-      ts.isInterfaceDeclaration(parent) ||
-      ts.isTypeAliasDeclaration(parent) ||
-      ts.isEnumDeclaration(parent) ||
-      ts.isVariableDeclaration(parent)
-    )
-  ) {
-    return false;
+const addObjectPropertyKeyRange = (ranges: Set<string>, property: ObjectProperty): void => {
+  if (property.shorthand === true) {
+    ranges.add(nodeRangeKey(property.key));
+    ranges.add(nodeRangeKey(property.value));
+    return;
   }
-  const declaration = ((): ts.Node => {
-    if (ts.isVariableDeclaration(parent)) {
-      return parent.parent.parent;
-    }
-    return parent;
-  })();
-  const modifiers = ((): readonly ts.ModifierLike[] | undefined => {
-    if (ts.canHaveModifiers(declaration)) {
-      return ts.getModifiers(declaration);
-    }
-    return undefined;
-  })();
-  return (
-    modifiers?.some((modifier): boolean => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false
-  );
+  ranges.add(nodeRangeKey(property.key));
 };
+
+const collectProtectedRanges = (source: string): Set<string> => {
+  const ranges = new Set<string>();
+
+  codemodAPI(source)
+    .find(codemodAPI.ObjectProperty)
+    .forEach((path): void => {
+      addObjectPropertyKeyRange(ranges, path.value);
+    });
+
+  return ranges;
+};
+
+const shouldSkipIdentifier = (node: Identifier, context: RenameContext): boolean =>
+  context.protectedNames.has(node.name) || context.protectedRanges.has(nodeRangeKey(node));
 
 const collectIdentifierReplacements = (source: string): Replacement[] => {
-  const sourceFile = ts.createSourceFile('codemod.ts', source, ts.ScriptTarget.Latest, true);
-  const protectedNames = collectProtectedNames(sourceFile);
+  const context: RenameContext = {
+    protectedNames: collectProtectedNames(source),
+    protectedRanges: collectProtectedRanges(source),
+  };
   const replacements: Replacement[] = [];
 
-  const shouldSkipIdentifier = (node: ts.Identifier): boolean =>
-    protectedNames.has(node.text) ||
-    isImportOrExportSpecifierName(node) ||
-    isObjectPropertyKey(node) ||
-    isExportedDeclarationName(node);
-
-  const visit = (node: ts.Node): void => {
-    if (ts.isIdentifier(node)) {
-      const name = node.text;
-      if (!shouldSkipIdentifier(node) && findMisCasedAcronyms(name).length > 0) {
+  codemodAPI(source)
+    .find(codemodAPI.Identifier)
+    .forEach((path): void => {
+      const { name } = path.value;
+      if (!shouldSkipIdentifier(path.value, context) && findMisCasedAcronyms(name).length > 0) {
         replacements.push({
-          end: node.getEnd(),
-          start: node.getStart(sourceFile),
+          end: nodeEnd(path.value),
+          start: nodeStart(path.value),
           text: fixAcronymCase(name),
         });
       }
-    }
+    });
 
-    ts.forEachChild(node, visit);
-  };
-
-  visit(sourceFile);
   return replacements;
 };
 

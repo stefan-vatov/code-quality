@@ -1,7 +1,15 @@
 /* -------------------------------------------------------------------------- */
 /*            Conservative codemod for local export-list rewrites.            */
 /* -------------------------------------------------------------------------- */
-import ts from 'typescript';
+import type {
+  Declaration,
+  ExportNamedDeclaration,
+  Identifier,
+  Statement,
+  VariableDeclaration,
+  VariableDeclarator,
+} from 'jscodeshift';
+import jscodeshift from 'jscodeshift';
 
 interface Replacement {
   end: number;
@@ -14,7 +22,15 @@ interface ExportList {
   range: Replacement;
 }
 
+interface ProgramLike {
+  body: readonly Statement[];
+}
+
 const exportKeyword = 'export ';
+const codemodAPI = jscodeshift.withParser('ts');
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   [...replacements]
@@ -25,13 +41,25 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
       source,
     );
 
-const hasExportModifier = (node: ts.Node): boolean =>
-  Boolean(
-    ts.canHaveModifiers(node) &&
-    ts
-      .getModifiers(node)
-      ?.some((modifier): boolean => modifier.kind === ts.SyntaxKind.ExportKeyword),
-  );
+const nodeStart = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { start } = node;
+    if (typeof start === 'number') {
+      return start;
+    }
+  }
+  throw new Error('jscodeshift node is missing a start offset');
+};
+
+const nodeEnd = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { end } = node;
+    if (typeof end === 'number') {
+      return end;
+    }
+  }
+  throw new Error('jscodeshift node is missing an end offset');
+};
 
 const lineEndAfter = (source: string, position: number): number => {
   const newline = source.indexOf('\n', position);
@@ -41,106 +69,166 @@ const lineEndAfter = (source: string, position: number): number => {
   return newline + 1;
 };
 
+const isIdentifier = (node: unknown): node is Identifier =>
+  isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
+
+const isExportNamedDeclaration = (statement: Statement): statement is ExportNamedDeclaration =>
+  statement.type === 'ExportNamedDeclaration';
+
+const isVariableDeclaration = (declaration: Declaration): declaration is VariableDeclaration =>
+  declaration.type === 'VariableDeclaration';
+
+const isVariableDeclarator = (declaration: unknown): declaration is VariableDeclarator =>
+  isObjectRecord(declaration) && 'id' in declaration;
+
+const exportSpecifierName = (specifier: unknown): string | undefined => {
+  if (!isObjectRecord(specifier) || specifier.type !== 'ExportSpecifier') {
+    return undefined;
+  }
+  const { exported, local } = specifier;
+  if (!isIdentifier(local) || !isIdentifier(exported)) {
+    return undefined;
+  }
+  if (local.name !== exported.name) {
+    return undefined;
+  }
+  return local.name;
+};
+
+const exportSpecifierNames = (specifiers: readonly unknown[]): string[] | undefined => {
+  const names: string[] = [];
+  for (const specifier of specifiers) {
+    const name = exportSpecifierName(specifier);
+    if (!name) {
+      return undefined;
+    }
+    names.push(name);
+  }
+  return names;
+};
+
 const localExportListFor = (
   source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.ExportDeclaration,
+  node: ExportNamedDeclaration,
 ): ExportList | undefined => {
-  if (node.moduleSpecifier || !node.exportClause || !ts.isNamedExports(node.exportClause)) {
+  const specifiers = node.specifiers ?? [];
+  if (node.source || node.declaration || specifiers.length === 0) {
     return undefined;
   }
 
-  const names: string[] = [];
-  for (const element of node.exportClause.elements) {
-    if (element.propertyName) {
-      return undefined;
-    }
-    names.push(element.name.text);
+  const names = exportSpecifierNames(specifiers);
+  if (!names) {
+    return undefined;
   }
 
   return {
     names,
     range: {
-      end: lineEndAfter(source, node.getEnd()),
-      start: node.getStart(sourceFile),
+      end: lineEndAfter(source, nodeEnd(node)),
+      start: nodeStart(node),
       text: '',
     },
   };
 };
 
-const variableStatementNames = (node: ts.VariableStatement): readonly string[] =>
-  node.declarationList.declarations.flatMap((declaration): string[] => {
-    if (ts.isIdentifier(declaration.name)) {
-      return [declaration.name.text];
+const variableStatementNames = (node: VariableDeclaration): readonly string[] =>
+  node.declarations.flatMap((declaration): string[] => {
+    if (isVariableDeclarator(declaration) && isIdentifier(declaration.id)) {
+      return [declaration.id.name];
     }
     return [];
   });
 
-const declarationName = (node: ts.Node): string | undefined => {
-  if (
-    (ts.isFunctionDeclaration(node) ||
-      ts.isClassDeclaration(node) ||
-      ts.isInterfaceDeclaration(node) ||
-      ts.isTypeAliasDeclaration(node) ||
-      ts.isEnumDeclaration(node)) &&
-    node.name
-  ) {
-    return node.name.text;
+const declarationName = (node: Declaration): string | undefined => {
+  if (!isObjectRecord(node) || !isIdentifier(node.id)) {
+    return undefined;
+  }
+  return node.id.name;
+};
+
+const unwrappedDeclaration = (node: Statement): Declaration | undefined => {
+  if (isExportNamedDeclaration(node)) {
+    return node.declaration ?? undefined;
+  }
+  if (node.type === 'VariableDeclaration' || (isObjectRecord(node) && 'id' in node)) {
+    return node;
   }
   return undefined;
 };
 
-const declarationNames = (node: ts.Statement): readonly string[] => {
-  if (ts.isVariableStatement(node)) {
-    return variableStatementNames(node);
+const declarationNames = (node: Statement): readonly string[] => {
+  const declaration = unwrappedDeclaration(node);
+  if (!declaration) {
+    return [];
   }
-  const name = declarationName(node);
+  if (isVariableDeclaration(declaration)) {
+    return variableStatementNames(declaration);
+  }
+  const name = declarationName(declaration);
   if (name) {
     return [name];
   }
   return [];
 };
 
-const inlineExportReplacement = (
-  sourceFile: ts.SourceFile,
-  statement: ts.Statement,
-): Replacement | undefined => {
-  if (hasExportModifier(statement)) {
+const inlineExportReplacement = (statement: Statement): Replacement | undefined => {
+  if (isExportNamedDeclaration(statement)) {
     return undefined;
   }
   return {
-    end: statement.getStart(sourceFile),
-    start: statement.getStart(sourceFile),
+    end: nodeStart(statement),
+    start: nodeStart(statement),
     text: exportKeyword,
   };
 };
 
-const collectExportListReplacements = (
+const collectExportLists = (
   source: string,
-  sourceFile: ts.SourceFile,
-): Replacement[] => {
-  const exportLists = sourceFile.statements.flatMap((statement): ExportList[] => {
-    if (ts.isExportDeclaration(statement)) {
-      const exportList = localExportListFor(source, sourceFile, statement);
-      if (exportList) {
-        return [exportList];
-      }
+  statements: readonly Statement[],
+): readonly ExportList[] =>
+  statements.flatMap((statement): ExportList[] => {
+    if (!isExportNamedDeclaration(statement)) {
       return [];
+    }
+    const exportList = localExportListFor(source, statement);
+    if (exportList) {
+      return [exportList];
     }
     return [];
   });
-  const names = new Set(exportLists.flatMap((exportList) => [...exportList.names]));
-  const replacements: Replacement[] = exportLists.map((exportList) => exportList.range);
 
-  for (const statement of sourceFile.statements) {
+const sourceProgram = (source: string): ProgramLike | undefined => {
+  const [programPath] = codemodAPI(source).find(codemodAPI.Program).paths();
+  if (!programPath) {
+    return undefined;
+  }
+  return programPath.value;
+};
+
+const appendInlineExportReplacements = (
+  replacements: Replacement[],
+  statements: readonly Statement[],
+  names: ReadonlySet<string>,
+): void => {
+  for (const statement of statements) {
     if (declarationNames(statement).some((name) => names.has(name))) {
-      const replacement = inlineExportReplacement(sourceFile, statement);
+      const replacement = inlineExportReplacement(statement);
       if (replacement) {
         replacements.push(replacement);
       }
     }
   }
+};
 
+const collectExportListReplacements = (source: string): Replacement[] => {
+  const program = sourceProgram(source);
+  if (!program) {
+    return [];
+  }
+  const exportLists = collectExportLists(source, program.body);
+  const names = new Set(exportLists.flatMap((exportList) => [...exportList.names]));
+  const replacements: Replacement[] = exportLists.map((exportList) => exportList.range);
+  appendInlineExportReplacements(replacements, program.body, names);
   return replacements;
 };
 
@@ -149,7 +237,5 @@ const collectExportListReplacements = (
  *
  * @internal
  */
-export const inlineLocalExportLists = (source: string): string => {
-  const sourceFile = ts.createSourceFile('codemod.ts', source, ts.ScriptTarget.Latest, true);
-  return applyReplacements(source, collectExportListReplacements(source, sourceFile));
-};
+export const inlineLocalExportLists = (source: string): string =>
+  applyReplacements(source, collectExportListReplacements(source));

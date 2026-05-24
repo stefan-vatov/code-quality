@@ -1,12 +1,26 @@
 /* -------------------------------------------------------------------------- */
 /*      Conservative codemod for sorting top-level import declarations.       */
 /* -------------------------------------------------------------------------- */
-import ts from 'typescript';
+import type { ImportDeclaration, Statement } from 'jscodeshift';
+import jscodeshift from 'jscodeshift';
 
 interface Replacement {
   end: number;
   start: number;
   text: string;
+}
+
+interface ImportSpecifierNode {
+  imported?: unknown;
+  importKind?: string;
+  local?: unknown;
+  type: string;
+}
+
+interface ImportNode {
+  importKind?: string;
+  source: unknown;
+  specifiers: readonly ImportSpecifierNode[];
 }
 
 const syntaxOrder = {
@@ -15,6 +29,36 @@ const syntaxOrder = {
   none: 0,
   single: 3,
 } as const;
+const codemodAPI = jscodeshift.withParser('ts');
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isImportDeclaration = (statement: Statement): statement is ImportDeclaration =>
+  statement.type === 'ImportDeclaration';
+
+const nodeStart = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { start } = node;
+    if (typeof start === 'number') {
+      return start;
+    }
+  }
+  throw new Error('jscodeshift node is missing a start offset');
+};
+
+const nodeEnd = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { end } = node;
+    if (typeof end === 'number') {
+      return end;
+    }
+  }
+  throw new Error('jscodeshift node is missing an end offset');
+};
+
+const sourceForNode = (source: string, node: unknown): string =>
+  source.slice(nodeStart(node), nodeEnd(node));
 
 const compareText = (left: string, right: string): number => {
   if (left < right) {
@@ -33,163 +77,175 @@ const applyReplacement = (source: string, replacement: Replacement | undefined):
   return source.slice(0, replacement.start) + replacement.text + source.slice(replacement.end);
 };
 
-const importSyntaxKind = (statement: ts.ImportDeclaration): keyof typeof syntaxOrder => {
-  const clause = statement.importClause;
-  if (!clause) {
+const importNode = (statement: ImportDeclaration): ImportNode => ({
+  importKind: statement.importKind,
+  source: statement.source,
+  specifiers: statement.specifiers ?? [],
+});
+
+const isImportSpecifier = (specifier: ImportSpecifierNode | undefined): boolean =>
+  specifier?.type === 'ImportSpecifier';
+
+const isDefaultSpecifier = (specifier: ImportSpecifierNode | undefined): boolean =>
+  specifier?.type === 'ImportDefaultSpecifier';
+
+const isNamespaceSpecifier = (specifier: ImportSpecifierNode | undefined): boolean =>
+  specifier?.type === 'ImportNamespaceSpecifier';
+
+const localName = (identifier: unknown): string => {
+  if (
+    isObjectRecord(identifier) &&
+    identifier.type === 'Identifier' &&
+    typeof identifier.name === 'string'
+  ) {
+    return identifier.name;
+  }
+  return '';
+};
+
+const importedName = (node: unknown): string => {
+  if (isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string') {
+    return node.name;
+  }
+  if (isObjectRecord(node)) {
+    const { value } = node;
+    return String(value);
+  }
+  return '';
+};
+
+const importSpecifiers = (statement: ImportDeclaration): readonly ImportSpecifierNode[] =>
+  importNode(statement).specifiers.filter(isImportSpecifier);
+
+const defaultSpecifier = (statement: ImportDeclaration): ImportSpecifierNode | undefined =>
+  importNode(statement).specifiers.find(isDefaultSpecifier);
+
+const namespaceSpecifier = (statement: ImportDeclaration): ImportSpecifierNode | undefined =>
+  importNode(statement).specifiers.find(isNamespaceSpecifier);
+
+const importSyntaxKind = (statement: ImportDeclaration): keyof typeof syntaxOrder => {
+  const { specifiers } = importNode(statement);
+  if (specifiers.length === 0) {
     return 'none';
   }
-  if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
+  if (namespaceSpecifier(statement)) {
     return 'all';
   }
-  if (
-    clause.namedBindings &&
-    ts.isNamedImports(clause.namedBindings) &&
-    (clause.name || clause.namedBindings.elements.length > 1)
-  ) {
+  if (defaultSpecifier(statement) && importSpecifiers(statement).length > 0) {
+    return 'multiple';
+  }
+  if (importSpecifiers(statement).length > 1) {
     return 'multiple';
   }
   return 'single';
 };
 
-const importSpecifierKey = (specifier: ts.ImportSpecifier): string =>
-  (specifier.propertyName ?? specifier.name).text;
+const importSpecifierKey = (specifier: ImportSpecifierNode): string =>
+  importedName(specifier.imported);
 
-const namedImportSortKey = (namedBindings: ts.NamedImportBindings): string => {
-  if (ts.isNamespaceImport(namedBindings)) {
-    return namedBindings.name.text;
+const namedImportSortKey = (statement: ImportDeclaration): string => {
+  const namespaceImport = namespaceSpecifier(statement);
+  if (namespaceImport) {
+    return localName(namespaceImport.local);
   }
-  const [firstSpecifier] = namedBindings.elements;
+  const [firstSpecifier] = importSpecifiers(statement);
   if (firstSpecifier) {
     return importSpecifierKey(firstSpecifier);
   }
   return '';
 };
 
-const importSortKey = (statement: ts.ImportDeclaration): string => {
-  const clause = statement.importClause;
-  if (!clause) {
-    return '';
+const importSortKey = (statement: ImportDeclaration): string => {
+  const defaultImport = defaultSpecifier(statement);
+  if (defaultImport) {
+    return localName(defaultImport.local);
   }
-  if (clause.name) {
-    return clause.name.text;
-  }
-  const { namedBindings } = clause;
-  if (!namedBindings) {
-    return '';
-  }
-  return namedImportSortKey(namedBindings);
+  return namedImportSortKey(statement);
 };
 
-const importSpecifierText = (specifier: ts.ImportSpecifier): string => {
+const importSpecifierText = (specifier: ImportSpecifierNode): string => {
   const typePrefix = ((): string => {
-    if (specifier.isTypeOnly) {
+    if (specifier.importKind === 'type') {
       return 'type ';
     }
     return '';
   })();
-  const importedName = specifier.propertyName?.text;
-  const localName = specifier.name.text;
-  if (importedName && importedName !== localName) {
-    return `${typePrefix}${importedName} as ${localName}`;
+  const imported = importedName(specifier.imported);
+  const local = localName(specifier.local);
+  if (imported !== local) {
+    return `${typePrefix}${imported} as ${local}`;
   }
-  return `${typePrefix}${localName}`;
+  return `${typePrefix}${local}`;
 };
 
-const sortedNamedImportText = (bindings: ts.NamedImports, isMultiline: boolean): string => {
-  const sorted = [...bindings.elements].sort((left, right) =>
+const sortedNamedImportText = (
+  specifiers: readonly ImportSpecifierNode[],
+  isMultiline: boolean,
+): string => {
+  const sorted = [...specifiers].sort((left, right) =>
     compareText(importSpecifierKey(left), importSpecifierKey(right)),
   );
-  const specifiers = sorted.map(importSpecifierText);
+  const texts = sorted.map(importSpecifierText);
 
   if (isMultiline) {
-    return `{\n  ${specifiers.join(',\n  ')},\n}`;
+    return `{\n  ${texts.join(',\n  ')},\n}`;
   }
-  return `{ ${specifiers.join(', ')} }`;
+  return `{ ${texts.join(', ')} }`;
 };
 
-const typePrefixForClause = (clause: ts.ImportClause): string => {
-  if (clause.isTypeOnly) {
+const typePrefixForImport = (statement: ImportDeclaration): string => {
+  if (statement.importKind === 'type') {
     return 'type ';
   }
   return '';
 };
 
-const defaultPrefixForClause = (clause: ts.ImportClause): string => {
-  if (clause.name) {
-    return `${clause.name.text}, `;
+const defaultPrefixForImport = (statement: ImportDeclaration): string => {
+  const specifier = defaultSpecifier(statement);
+  if (specifier) {
+    return `${localName(specifier.local)}, `;
   }
   return '';
 };
 
 const importWithNamespaceText = (
-  typePrefix: string,
-  defaultPrefix: string,
-  namedBindings: ts.NamespaceImport,
+  statement: ImportDeclaration,
+  namespaceImport: ImportSpecifierNode,
   moduleText: string,
 ): string =>
-  `import ${typePrefix}${defaultPrefix}* as ${namedBindings.name.text} from ${moduleText};`;
+  `import ${typePrefixForImport(statement)}${defaultPrefixForImport(statement)}* as ${localName(namespaceImport.local)} from ${moduleText};`;
 
-interface NamedImportTextInput {
-  source: string;
-  statement: ts.ImportDeclaration;
-  typePrefix: string;
-  defaultPrefix: string;
-  namedBindings: ts.NamedImports;
-  moduleText: string;
-}
-
-const importWithNamedText = (input: NamedImportTextInput): string => {
-  const { defaultPrefix, moduleText, namedBindings, source, statement, typePrefix } = input;
-  const originalText = source.slice(statement.getStart(), statement.getEnd());
-  const isMultiline = originalText.includes('\n');
-  return `import ${typePrefix}${defaultPrefix}${sortedNamedImportText(namedBindings, isMultiline)} from ${moduleText};`;
-};
-
-const importTextParts = (
+const importWithNamedText = (
   source: string,
-  statement: ts.ImportDeclaration,
-): Omit<NamedImportTextInput, 'namedBindings'> & {
-  clause: ts.ImportClause;
-} => {
-  const clause = statement.importClause;
-  if (!clause) {
-    throw new Error('Import clause is required for import text parts');
-  }
-  return {
-    clause,
-    defaultPrefix: defaultPrefixForClause(clause),
-    moduleText: source.slice(
-      statement.moduleSpecifier.getStart(),
-      statement.moduleSpecifier.getEnd(),
-    ),
-    source,
-    statement,
-    typePrefix: typePrefixForClause(clause),
-  };
+  statement: ImportDeclaration,
+  specifiers: readonly ImportSpecifierNode[],
+  moduleText: string,
+): string => {
+  const originalText = sourceForNode(source, statement);
+  const isMultiline = originalText.includes('\n');
+  return [
+    `import ${typePrefixForImport(statement)}${defaultPrefixForImport(statement)}`,
+    `${sortedNamedImportText(specifiers, isMultiline)} from ${moduleText};`,
+  ].join('');
 };
 
-const importText = (source: string, statement: ts.ImportDeclaration): string => {
-  const clause = statement.importClause;
-  if (!clause) {
-    return source.slice(statement.getStart(), statement.getEnd());
+const importText = (source: string, statement: ImportDeclaration): string => {
+  if (importNode(statement).specifiers.length === 0) {
+    return sourceForNode(source, statement);
   }
 
-  const parts = importTextParts(source, statement);
-  const { namedBindings } = clause;
-
-  if (!namedBindings) {
-    return `import ${parts.typePrefix}${clause.name?.text ?? ''} from ${parts.moduleText};`;
-  }
-  if (ts.isNamespaceImport(namedBindings)) {
-    return importWithNamespaceText(
-      parts.typePrefix,
-      parts.defaultPrefix,
-      namedBindings,
-      parts.moduleText,
-    );
+  const moduleText = sourceForNode(source, importNode(statement).source);
+  const namespaceImport = namespaceSpecifier(statement);
+  if (namespaceImport) {
+    return importWithNamespaceText(statement, namespaceImport, moduleText);
   }
 
-  return importWithNamedText({ ...parts, namedBindings });
+  const specifiers = importSpecifiers(statement);
+  if (specifiers.length === 0) {
+    return `import ${typePrefixForImport(statement)}${localName(defaultSpecifier(statement)?.local)} from ${moduleText};`;
+  }
+
+  return importWithNamedText(source, statement, specifiers, moduleText);
 };
 
 interface SortableImport {
@@ -198,7 +254,7 @@ interface SortableImport {
   text: string;
 }
 
-const sortableImport = (source: string, statement: ts.ImportDeclaration): SortableImport => ({
+const sortableImport = (source: string, statement: ImportDeclaration): SortableImport => ({
   order: syntaxOrder[importSyntaxKind(statement)],
   sortKey: importSortKey(statement),
   text: importText(source, statement),
@@ -215,21 +271,21 @@ const compareSortableImports = (left: SortableImport, right: SortableImport): nu
   return compareText(left.text, right.text);
 };
 
-const sortedImportBlock = (source: string, imports: readonly ts.ImportDeclaration[]): string =>
+const sortedImportBlock = (source: string, imports: readonly ImportDeclaration[]): string =>
   imports
     .map((statement) => sortableImport(source, statement))
     .sort(compareSortableImports)
     .map((entry) => entry.text)
     .join('\n');
 
-const collectLeadingImports = (sourceFile: ts.SourceFile): ts.ImportDeclaration[] => {
-  const imports: ts.ImportDeclaration[] = [];
+const collectLeadingImports = (statements: readonly Statement[]): ImportDeclaration[] => {
+  const imports: ImportDeclaration[] = [];
 
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement)) {
+  for (const statement of statements) {
+    if (!isImportDeclaration(statement)) {
       break;
     }
-    if (!statement.importClause) {
+    if (importNode(statement).specifiers.length === 0) {
       return [];
     }
     imports.push(statement);
@@ -239,27 +295,20 @@ const collectLeadingImports = (sourceFile: ts.SourceFile): ts.ImportDeclaration[
 };
 
 const leadingImportSpan = (
-  sourceFile: ts.SourceFile,
-  imports: readonly ts.ImportDeclaration[],
+  imports: readonly ImportDeclaration[],
 ): { end: number; start: number } | undefined => {
-  if (imports.length === 0) {
-    return undefined;
-  }
-
   const [firstImport] = imports;
   const lastImport = imports.at(-1);
   if (!firstImport || !lastImport) {
     return undefined;
   }
 
-  const start = firstImport.getStart(sourceFile);
-  const end = lastImport.getEnd();
-  return { end, start };
+  return { end: nodeEnd(lastImport), start: nodeStart(firstImport) };
 };
 
 const replacementForSortedImports = (
   source: string,
-  imports: readonly ts.ImportDeclaration[],
+  imports: readonly ImportDeclaration[],
   span: Replacement,
 ): Replacement | undefined => {
   const before = source.slice(span.start, span.end);
@@ -273,9 +322,12 @@ const replacementForSortedImports = (
 };
 
 const importSortReplacement = (source: string): Replacement | undefined => {
-  const sourceFile = ts.createSourceFile('codemod.ts', source, ts.ScriptTarget.Latest, true);
-  const imports = collectLeadingImports(sourceFile);
-  const span = leadingImportSpan(sourceFile, imports);
+  const program = codemodAPI(source).find(codemodAPI.Program).paths()[0]?.value;
+  if (!program) {
+    return undefined;
+  }
+  const imports = collectLeadingImports(program.body);
+  const span = leadingImportSpan(imports);
   if (!span) {
     return undefined;
   }

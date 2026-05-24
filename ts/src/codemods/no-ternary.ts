@@ -1,402 +1,279 @@
 /* -------------------------------------------------------------------------- */
 /*         Conservative codemod for return-position no-ternary fixes.         */
 /* -------------------------------------------------------------------------- */
-import type { BranchInitializerContext, Replacement } from './no-ternary-helpers';
-import {
-  INDENT_STEP,
-  applyReplacements,
-  arrowBaseIndent,
-  arrowIIFEReturnType,
-  branchInitializerText,
-  explicitAssignmentText,
-  explicitInitializerText,
-  explicitReturnText,
-  initializerReturnType,
-  lineIndent,
-  optionalTypeText,
-  returnReplacement,
-} from './no-ternary-helpers';
-import ts from 'typescript';
+import type {
+  ArrowFunctionExpression,
+  AssignmentExpression,
+  ConditionalExpression,
+  ExpressionStatement,
+  ReturnStatement,
+  VariableDeclaration,
+} from 'jscodeshift';
+import { collectBranchInitializerRepairs } from './no-ternary-branch-initializers';
+import jscodeshift from 'jscodeshift';
+import { variableReplacement } from './no-ternary-variable-initializers';
 
-const branchInitializerKind = (
-  statements: ts.NodeArray<ts.Statement>,
-  index: number,
-  name: string,
-): 'const' | 'let' => {
-  if (hasLaterWrite(statements, index + 2, name)) {
-    return 'let';
+interface Replacement {
+  end: number;
+  start: number;
+  text: string;
+}
+
+const INDENT_STEP = '  ';
+const NOT_FOUND_INDEX = -1;
+const codemodAPI = jscodeshift.withParser('ts');
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
+  [...replacements]
+    .sort((left, right) => right.start - left.start)
+    .reduce(
+      (current, replacement) =>
+        current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
+      source,
+    );
+
+const nodeStart = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { start } = node;
+    if (typeof start === 'number') {
+      return start;
+    }
   }
-  return 'const';
+  throw new Error('jscodeshift node is missing a start offset');
 };
 
-const assignmentReplacement = (
+const nodeEnd = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { end } = node;
+    if (typeof end === 'number') {
+      return end;
+    }
+  }
+  throw new Error('jscodeshift node is missing an end offset');
+};
+
+const sourceForNode = (source: string, node: unknown): string =>
+  source.slice(nodeStart(node), nodeEnd(node));
+
+const lineIndent = (source: string, index: number): string => {
+  const lineStart = source.lastIndexOf('\n', index) + 1;
+  let cursor = lineStart;
+  while (cursor < source.length) {
+    const character = source[cursor];
+    if (character !== ' ' && character !== '\t') {
+      break;
+    }
+    cursor += 1;
+  }
+  return source.slice(lineStart, cursor);
+};
+
+const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<object>): boolean => {
+  if (Array.isArray(node)) {
+    return node.some((entry) => containsConditionalExpressionInValue(entry, seen));
+  }
+  if (!isObjectRecord(node)) {
+    return false;
+  }
+  if (seen.has(node)) {
+    return false;
+  }
+  seen.add(node);
+  if (node.type === 'ConditionalExpression') {
+    return true;
+  }
+  return Object.values(node).some((entry) => containsConditionalExpressionInValue(entry, seen));
+};
+
+const containsConditionalExpression = (node: unknown): boolean =>
+  containsConditionalExpressionInValue(node, new WeakSet());
+
+const hasUnsafeBranches = (expression: ConditionalExpression): boolean =>
+  containsConditionalExpression(expression.consequent) ||
+  containsConditionalExpression(expression.alternate);
+
+const explicitReturnText = (
   source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.ExpressionStatement,
-): Replacement | undefined => {
-  if (
-    !ts.isBinaryExpression(node.expression) ||
-    node.expression.operatorToken.kind !== ts.SyntaxKind.EqualsToken
-  ) {
+  expression: ConditionalExpression,
+  indent: string,
+): string | undefined => {
+  if (hasUnsafeBranches(expression)) {
     return undefined;
   }
 
-  const assignment = node.expression;
-  if (!ts.isConditionalExpression(assignment.right)) {
+  const condition = sourceForNode(source, expression.test);
+  const whenTrue = sourceForNode(source, expression.consequent);
+  const whenFalse = sourceForNode(source, expression.alternate);
+  const childIndent = `${indent}${INDENT_STEP}`;
+
+  return [
+    `if (${condition}) {`,
+    `${childIndent}return ${whenTrue};`,
+    `${indent}}`,
+    `${indent}return ${whenFalse};`,
+  ].join('\n');
+};
+
+const returnReplacement = (source: string, node: ReturnStatement): Replacement | undefined => {
+  if (node.argument?.type !== 'ConditionalExpression') {
     return undefined;
   }
 
-  const indent = lineIndent(source, node.getStart(sourceFile));
-  const text = explicitAssignmentText(source, sourceFile, assignment, assignment.right, indent);
+  const indent = lineIndent(source, nodeStart(node));
+  const text = explicitReturnText(source, node.argument, indent);
   if (text) {
-    return { end: node.getEnd(), start: node.getStart(sourceFile), text };
+    return { end: nodeEnd(node), start: nodeStart(node), text };
   }
   return undefined;
 };
 
-const assignedExpression = (statement: ts.Statement, name: string): ts.Expression | undefined => {
-  const candidate = ((): ts.Statement => {
-    if (ts.isBlock(statement) && statement.statements.length === 1) {
-      return statement.statements[0];
-    }
-    return statement;
-  })();
-  if (
-    !candidate ||
-    !ts.isExpressionStatement(candidate) ||
-    !ts.isBinaryExpression(candidate.expression)
-  ) {
-    return undefined;
-  }
-
-  const assignment = candidate.expression;
-  if (
-    assignment.operatorToken.kind !== ts.SyntaxKind.EqualsToken ||
-    !ts.isIdentifier(assignment.left)
-  ) {
-    return undefined;
-  }
-  if (assignment.left.text !== name) {
-    return undefined;
-  }
-  return assignment.right;
-};
-
-const writesIdentifier = (node: ts.Node, name: string): boolean => {
-  if (
-    ts.isBinaryExpression(node) &&
-    node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-    ts.isIdentifier(node.left)
-  ) {
-    return node.left.text === name;
-  }
-  if (
-    (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
-    ts.isIdentifier(node.operand)
-  ) {
-    return node.operand.text === name;
-  }
-
-  let hasWrite = false;
-  const visit = (child: ts.Node): void => {
-    if (hasWrite) {
-      return;
-    }
-    hasWrite = writesIdentifier(child, name);
-  };
-  ts.forEachChild(node, visit);
-  return hasWrite;
-};
-
-const hasLaterWrite = (
-  statements: ts.NodeArray<ts.Statement>,
-  startIndex: number,
-  name: string,
-): boolean => {
-  for (let idx = startIndex; idx < statements.length; idx += 1) {
-    if (writesIdentifier(statements[idx], name)) {
-      return true;
-    }
-  }
-  return false;
-};
-
-const branchInitializerTextFor = (context: BranchInitializerContext): string | undefined => {
-  const { declaration, ifStatement, index, source, sourceFile, statements } = context;
-  const branchExpressions = branchAssignmentExpressions(sourceFile, ifStatement, declaration);
-  if (!branchExpressions) {
-    return undefined;
-  }
-  const { name, whenFalse, whenTrue } = branchExpressions;
-
-  const returnType = initializerReturnType(source, sourceFile, declaration, whenTrue, whenFalse);
-  if (!returnType) {
-    return undefined;
-  }
-
-  return branchInitializerText({
-    condition: source.slice(
-      ifStatement.expression.getStart(sourceFile),
-      ifStatement.expression.getEnd(),
-    ),
-    falseText: source.slice(whenFalse.getStart(sourceFile), whenFalse.getEnd()),
-    indent: lineIndent(source, statements[index].getStart(sourceFile)),
-    keyword: branchInitializerKind(statements, index, name),
-    name,
-    returnType,
-    trueText: source.slice(whenTrue.getStart(sourceFile), whenTrue.getEnd()),
-    typeText: optionalTypeText(declaration, returnType),
-  });
-};
-
-const branchAssignmentExpressions = (
-  sourceFile: ts.SourceFile,
-  ifStatement: ts.IfStatement,
-  declaration: ts.VariableDeclaration,
-): { name: string; whenFalse: ts.Expression; whenTrue: ts.Expression } | undefined => {
-  const name = declaration.name.getText(sourceFile);
-  const whenTrue = assignedExpression(ifStatement.thenStatement, name);
-  if (!ifStatement.elseStatement) {
-    return undefined;
-  }
-  const whenFalse = assignedExpression(ifStatement.elseStatement, name);
-  if (!whenTrue || !whenFalse) {
-    return undefined;
-  }
-  return { name, whenFalse, whenTrue };
-};
-
-const branchInitializerDeclaration = (
-  statements: ts.NodeArray<ts.Statement>,
-  index: number,
-):
-  | {
-      declaration: ts.VariableDeclaration;
-      declarationStatement: ts.VariableStatement;
-      ifStatement: ts.IfStatement;
-    }
-  | undefined => {
-  const declarationStatement = statements[index];
-  const ifStatement = statements[index + 1];
-  if (
-    !declarationStatement ||
-    !ifStatement ||
-    !ts.isVariableStatement(declarationStatement) ||
-    !ts.isIfStatement(ifStatement)
-  ) {
-    return undefined;
-  }
-  if (declarationStatement.declarationList.declarations.length !== 1) {
-    return undefined;
-  }
-  const [declaration] = declarationStatement.declarationList.declarations;
-  if (
-    !declaration ||
-    declaration.initializer ||
-    !ts.isIdentifier(declaration.name) ||
-    !ifStatement.elseStatement
-  ) {
-    return undefined;
-  }
-  return { declaration, declarationStatement, ifStatement };
-};
-
-const branchInitializerReplacement = (
+const explicitAssignmentText = (
   source: string,
-  sourceFile: ts.SourceFile,
-  statements: ts.NodeArray<ts.Statement>,
-  index: number,
+  assignment: AssignmentExpression,
+  expression: ConditionalExpression,
+  indent: string,
+): string | undefined => {
+  if (hasUnsafeBranches(expression)) {
+    return undefined;
+  }
+
+  const left = sourceForNode(source, assignment.left);
+  const condition = sourceForNode(source, expression.test);
+  const whenTrue = sourceForNode(source, expression.consequent);
+  const whenFalse = sourceForNode(source, expression.alternate);
+  const childIndent = `${indent}${INDENT_STEP}`;
+
+  return [
+    `if (${condition}) {`,
+    `${childIndent}${left} = ${whenTrue};`,
+    `${indent}} else {`,
+    `${childIndent}${left} = ${whenFalse};`,
+    `${indent}}`,
+  ].join('\n');
+};
+
+const assignmentReplacement = (
+  source: string,
+  node: ExpressionStatement,
 ): Replacement | undefined => {
-  const branchDeclaration = branchInitializerDeclaration(statements, index);
-  if (!branchDeclaration) {
-    return undefined;
-  }
-  const { declaration, declarationStatement, ifStatement } = branchDeclaration;
-
-  const text = branchInitializerTextFor({
-    declaration,
-    ifStatement,
-    index,
-    source,
-    sourceFile,
-    statements,
-  });
-  if (!text) {
+  if (node.expression.type !== 'AssignmentExpression' || node.expression.operator !== '=') {
     return undefined;
   }
 
-  return {
-    end: ifStatement.getEnd(),
-    start: declarationStatement.getStart(sourceFile),
-    text,
-  };
+  const assignment = node.expression;
+  if (assignment.right.type !== 'ConditionalExpression') {
+    return undefined;
+  }
+
+  const indent = lineIndent(source, nodeStart(node));
+  const text = explicitAssignmentText(source, assignment, assignment.right, indent);
+  if (text) {
+    return { end: nodeEnd(node), start: nodeStart(node), text };
+  }
+  return undefined;
 };
 
-const isWhitespaceChar = (char: string | undefined): boolean =>
-  char === ' ' || char === '\n' || char === '\r' || char === '\t';
-
-const arrowReturnTypeInsertPosition = (
-  source: string,
-  sourceFile: ts.SourceFile,
-  arrow: ts.ArrowFunction,
-): number => {
-  let insertAt = arrow.equalsGreaterThanToken.getStart(sourceFile);
-  while (insertAt > arrow.getStart(sourceFile) && isWhitespaceChar(source[insertAt - 1])) {
-    insertAt -= 1;
+const arrowBaseIndent = (source: string, node: ArrowFunctionExpression): string => {
+  const arrowLineStart = source.lastIndexOf('\n', nodeStart(node));
+  if (arrowLineStart === NOT_FOUND_INDEX) {
+    return '';
   }
-  return insertAt;
-};
-
-const collectBranchInitializerRepairs = (
-  source: string,
-  sourceFile: ts.SourceFile,
-  statements: ts.NodeArray<ts.Statement>,
-  replacements: Replacement[],
-): void => {
-  for (let idx = 0; idx < statements.length - 1; idx += 1) {
-    const replacement = branchInitializerReplacement(source, sourceFile, statements, idx);
-    if (replacement) {
-      replacements.push(replacement);
-      idx += 1;
-    }
-  }
-};
-
-const zeroArgArrowIIFE = (declaration: ts.VariableDeclaration): ts.ArrowFunction | undefined => {
-  if (!declaration.initializer || !ts.isCallExpression(declaration.initializer)) {
-    return undefined;
-  }
-
-  const callee = declaration.initializer.expression;
-  if (!ts.isParenthesizedExpression(callee) || !ts.isArrowFunction(callee.expression)) {
-    return undefined;
-  }
-
-  const arrow = callee.expression;
-  if (arrow.parameters.length > 0 || arrow.type) {
-    return undefined;
-  }
-  return arrow;
-};
-
-const arrowIIFEReturnTypeReplacement = (
-  source: string,
-  sourceFile: ts.SourceFile,
-  declaration: ts.VariableDeclaration,
-): Replacement | undefined => {
-  const arrow = zeroArgArrowIIFE(declaration);
-  if (!arrow) {
-    return undefined;
-  }
-
-  const returnType = arrowIIFEReturnType(source, sourceFile, declaration, arrow);
-  if (!returnType) {
-    return undefined;
-  }
-
-  const insertAt = arrowReturnTypeInsertPosition(source, sourceFile, arrow);
-  return { end: insertAt, start: insertAt, text: `: ${returnType}` };
-};
-
-const initializerReplacement = (
-  source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.VariableStatement,
-  declaration: ts.VariableDeclaration,
-): Replacement | undefined => {
-  const { initializer } = declaration;
-  if (!initializer) {
-    return undefined;
-  }
-  if (!ts.isConditionalExpression(initializer)) {
-    return arrowIIFEReturnTypeReplacement(source, sourceFile, declaration);
-  }
-
-  const text = explicitInitializerText({
-    declaration,
-    expression: initializer,
-    indent: lineIndent(source, node.getStart(sourceFile)),
-    source,
-    sourceFile,
-    statement: node,
-  });
-  if (!text) {
-    return undefined;
-  }
-  return { end: node.getEnd(), start: node.getStart(sourceFile), text };
-};
-
-const variableReplacement = (
-  source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.VariableStatement,
-): Replacement | undefined => {
-  if (node.modifiers?.some((modifier): boolean => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
-    return undefined;
-  }
-  if (node.declarationList.declarations.length !== 1) {
-    return undefined;
-  }
-
-  const [declaration] = node.declarationList.declarations;
-  if (!declaration?.initializer) {
-    return undefined;
-  }
-  return initializerReplacement(source, sourceFile, node, declaration);
+  return lineIndent(source, nodeStart(node));
 };
 
 const arrowReplacement = (
   source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.ArrowFunction,
+  node: ArrowFunctionExpression,
 ): Replacement | undefined => {
-  if (!ts.isConditionalExpression(node.body)) {
+  if (node.body.type !== 'ConditionalExpression') {
     return undefined;
   }
 
-  const baseIndent = arrowBaseIndent(source, sourceFile, node);
+  const baseIndent = arrowBaseIndent(source, node);
   const bodyIndent = `${baseIndent}${INDENT_STEP}`;
-  const branchText = explicitReturnText(source, sourceFile, node.body, bodyIndent);
+  const branchText = explicitReturnText(source, node.body, bodyIndent);
   if (!branchText) {
     return undefined;
   }
 
   return {
-    end: node.body.getEnd(),
-    start: node.body.getStart(sourceFile),
+    end: nodeEnd(node.body),
+    start: nodeStart(node.body),
     text: `{\n${bodyIndent}${branchText}\n${baseIndent}}`,
   };
 };
 
-const collectReplacement = (
-  replacements: Replacement[],
-  replacement: Replacement | undefined,
-): boolean => {
-  if (!replacement) {
-    return false;
-  }
-  replacements.push(replacement);
-  return true;
+const replacementOverlaps = (replacements: readonly Replacement[], candidate: unknown): boolean => {
+  const start = nodeStart(candidate);
+  const end = nodeEnd(candidate);
+  return replacements.some(
+    (replacement): boolean => start >= replacement.start && end <= replacement.end,
+  );
 };
 
-const replacementForNode = (
-  source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.Node,
-): Replacement | undefined => {
-  if (ts.isExpressionStatement(node)) {
-    return assignmentReplacement(source, sourceFile, node);
-  }
-  if (ts.isVariableStatement(node)) {
-    return variableReplacement(source, sourceFile, node);
-  }
-  if (ts.isReturnStatement(node)) {
-    return returnReplacement(source, sourceFile, node);
-  }
-  if (ts.isArrowFunction(node)) {
-    return arrowReplacement(source, sourceFile, node);
-  }
-  return undefined;
+const collectExportedVariableKeys = (source: string): ReadonlySet<string> => {
+  const exported = new Set<string>();
+  codemodAPI(source)
+    .find(codemodAPI.ExportNamedDeclaration)
+    .forEach((path): void => {
+      const { declaration } = path.value;
+      if (declaration?.type === 'VariableDeclaration') {
+        exported.add(`${nodeStart(declaration)}:${nodeEnd(declaration)}`);
+      }
+    });
+  return exported;
+};
+
+const isExportedVariableDeclaration = (
+  exported: ReadonlySet<string>,
+  node: VariableDeclaration,
+): boolean => exported.has(`${nodeStart(node)}:${nodeEnd(node)}`);
+
+const collectStatementReplacements = (source: string, replacements: Replacement[]): void => {
+  const root = codemodAPI(source);
+  const exportedVariables = collectExportedVariableKeys(source);
+
+  root.find(codemodAPI.ExpressionStatement).forEach((path): void => {
+    if (!replacementOverlaps(replacements, path.value)) {
+      const replacement = assignmentReplacement(source, path.value);
+      if (replacement) {
+        replacements.push(replacement);
+      }
+    }
+  });
+
+  root.find(codemodAPI.VariableDeclaration).forEach((path): void => {
+    if (
+      !isExportedVariableDeclaration(exportedVariables, path.value) &&
+      !replacementOverlaps(replacements, path.value)
+    ) {
+      const replacement = variableReplacement(source, path.value);
+      if (replacement) {
+        replacements.push(replacement);
+      }
+    }
+  });
+
+  root.find(codemodAPI.ReturnStatement).forEach((path): void => {
+    if (!replacementOverlaps(replacements, path.value)) {
+      const replacement = returnReplacement(source, path.value);
+      if (replacement) {
+        replacements.push(replacement);
+      }
+    }
+  });
+
+  root.find(codemodAPI.ArrowFunctionExpression).forEach((path): void => {
+    if (!replacementOverlaps(replacements, path.value)) {
+      const replacement = arrowReplacement(source, path.value);
+      if (replacement) {
+        replacements.push(replacement);
+      }
+    }
+  });
 };
 
 /**
@@ -405,19 +282,15 @@ const replacementForNode = (
  * @internal
  */
 export const preferExplicitBranches = (source: string): string => {
-  const sourceFile = ts.createSourceFile('codemod.ts', source, ts.ScriptTarget.Latest, true);
   const replacements: Replacement[] = [];
-
-  const visit = (node: ts.Node): void => {
-    if (ts.isSourceFile(node) || ts.isBlock(node)) {
-      collectBranchInitializerRepairs(source, sourceFile, node.statements, replacements);
-    }
-    if (collectReplacement(replacements, replacementForNode(source, sourceFile, node))) {
-      return;
-    }
-    ts.forEachChild(node, visit);
-  };
-
-  visit(sourceFile);
+  const root = codemodAPI(source);
+  const program = root.find(codemodAPI.Program).paths()[0]?.value;
+  if (program) {
+    collectBranchInitializerRepairs(source, program.body, replacements);
+  }
+  root.find(codemodAPI.BlockStatement).forEach((path): void => {
+    collectBranchInitializerRepairs(source, path.value.body, replacements);
+  });
+  collectStatementReplacements(source, replacements);
   return applyReplacements(source, replacements);
 };

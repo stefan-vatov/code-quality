@@ -1,7 +1,13 @@
 /* -------------------------------------------------------------------------- */
 /*         Conservative codemod for arrow-body-style concise bodies.          */
 /* -------------------------------------------------------------------------- */
-import ts from 'typescript';
+import type {
+  ArrowFunctionExpression,
+  BlockStatement,
+  Expression,
+  ReturnStatement,
+} from 'jscodeshift';
+import jscodeshift from 'jscodeshift';
 
 interface Replacement {
   end: number;
@@ -11,6 +17,10 @@ interface Replacement {
 
 const MAX_LINE_LENGTH = 150;
 const NOT_FOUND_INDEX = -1;
+const codemodAPI = jscodeshift.withParser('ts');
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   [...replacements]
@@ -21,14 +31,42 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
       source,
     );
 
-const hasAttachedComments = (source: string, sourceFile: ts.SourceFile, node: ts.Node): boolean =>
+const nodeStart = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { start } = node;
+    if (typeof start === 'number') {
+      return start;
+    }
+  }
+  throw new Error('jscodeshift node is missing a start offset');
+};
+
+const nodeEnd = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { end } = node;
+    if (typeof end === 'number') {
+      return end;
+    }
+  }
+  throw new Error('jscodeshift node is missing an end offset');
+};
+
+const sourceForNode = (source: string, node: unknown): string =>
+  source.slice(nodeStart(node), nodeEnd(node));
+
+const hasAttachedComments = (node: ReturnStatement): boolean =>
   Boolean(
-    ts.getLeadingCommentRanges(source, node.getFullStart())?.length ||
-    ts.getTrailingCommentRanges(source, node.getEnd())?.length,
+    node.comments?.length ||
+    (isObjectRecord(node) &&
+      Array.isArray(node.leadingComments) &&
+      node.leadingComments.length > 0) ||
+    (isObjectRecord(node) &&
+      Array.isArray(node.trailingComments) &&
+      node.trailingComments.length > 0),
   );
 
-const expressionNeedsParentheses = (expression: ts.Expression): boolean =>
-  ts.isObjectLiteralExpression(expression);
+const expressionNeedsParentheses = (expression: Expression): boolean =>
+  expression.type === 'ObjectExpression';
 
 const lineEndAfter = (source: string, end: number): number => {
   const nextLineBreak = source.indexOf('\n', end);
@@ -53,12 +91,8 @@ const wouldExceedLineLimit = (
   return line.length > MAX_LINE_LENGTH;
 };
 
-const replacementTextForExpression = (
-  source: string,
-  sourceFile: ts.SourceFile,
-  expression: ts.Expression,
-): string => {
-  const expressionText = source.slice(expression.getStart(sourceFile), expression.getEnd());
+const replacementTextForExpression = (source: string, expression: Expression): string => {
+  const expressionText = sourceForNode(source, expression);
   if (expressionNeedsParentheses(expression)) {
     return `(${expressionText})`;
   }
@@ -66,48 +100,49 @@ const replacementTextForExpression = (
 };
 
 interface OnlyReturnStatement {
-  expression: ts.Expression;
-  statement: ts.ReturnStatement;
+  expression: Expression;
+  statement: ReturnStatement;
 }
 
-const onlyReturnStatement = (node: ts.ArrowFunction): OnlyReturnStatement | undefined => {
-  if (!ts.isBlock(node.body) || node.body.statements.length !== 1) {
+const onlyReturnStatement = (body: BlockStatement): OnlyReturnStatement | undefined => {
+  if (body.body.length !== 1) {
     return undefined;
   }
-  const [statement] = node.body.statements;
-  if (statement && ts.isReturnStatement(statement) && statement.expression) {
-    return { expression: statement.expression, statement };
+  const [statement] = body.body;
+  if (statement?.type === 'ReturnStatement' && statement.argument) {
+    return { expression: statement.argument, statement };
   }
   return undefined;
 };
 
 const replacementForReturnExpression = (
   source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.ArrowFunction,
-  expression: ts.Expression,
+  node: ArrowFunctionExpression,
+  expression: Expression,
 ): Replacement | undefined => {
-  const text = replacementTextForExpression(source, sourceFile, expression);
-  if (wouldExceedLineLimit(source, node.body.getStart(sourceFile), node.body.getEnd(), text)) {
+  const text = replacementTextForExpression(source, expression);
+  if (wouldExceedLineLimit(source, nodeStart(node.body), nodeEnd(node.body), text)) {
     return undefined;
   }
-  return { end: node.body.getEnd(), start: node.body.getStart(sourceFile), text };
+  return { end: nodeEnd(node.body), start: nodeStart(node.body), text };
 };
 
 const replacementForArrow = (
   source: string,
-  sourceFile: ts.SourceFile,
-  node: ts.ArrowFunction,
+  node: ArrowFunctionExpression,
 ): Replacement | undefined => {
-  const result = onlyReturnStatement(node);
+  if (node.body.type !== 'BlockStatement') {
+    return undefined;
+  }
+  const result = onlyReturnStatement(node.body);
   if (!result) {
     return undefined;
   }
-  if (hasAttachedComments(source, sourceFile, result.statement)) {
+  if (hasAttachedComments(result.statement)) {
     return undefined;
   }
 
-  return replacementForReturnExpression(source, sourceFile, node, result.expression);
+  return replacementForReturnExpression(source, node, result.expression);
 };
 
 /**
@@ -116,19 +151,16 @@ const replacementForArrow = (
  * @internal
  */
 export const preferConciseArrowBodies = (source: string): string => {
-  const sourceFile = ts.createSourceFile('codemod.ts', source, ts.ScriptTarget.Latest, true);
   const replacements: Replacement[] = [];
 
-  const visit = (node: ts.Node): void => {
-    if (ts.isArrowFunction(node)) {
-      const replacement = replacementForArrow(source, sourceFile, node);
+  codemodAPI(source)
+    .find(codemodAPI.ArrowFunctionExpression)
+    .forEach((path): void => {
+      const replacement = replacementForArrow(source, path.value);
       if (replacement) {
         replacements.push(replacement);
       }
-    }
-    ts.forEachChild(node, visit);
-  };
+    });
 
-  visit(sourceFile);
   return applyReplacements(source, replacements);
 };

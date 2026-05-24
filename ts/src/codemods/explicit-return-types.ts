@@ -1,13 +1,45 @@
 /* -------------------------------------------------------------------------- */
 /*            Conservative codemod for explicit void return types.            */
 /* -------------------------------------------------------------------------- */
-import ts from 'typescript';
+import type {
+  ASTPath,
+  ArrowFunctionExpression,
+  Expression,
+  FunctionDeclaration,
+  FunctionExpression,
+  Identifier,
+  Node,
+  ObjectMethod,
+} from 'jscodeshift';
+import jscodeshift from 'jscodeshift';
 
 interface Replacement {
   end: number;
   start: number;
   text: string;
 }
+
+type FunctionLike =
+  | ArrowFunctionExpression
+  | FunctionDeclaration
+  | FunctionExpression
+  | ObjectMethod;
+
+interface ReturnSearch {
+  isRoot: boolean;
+  seen: WeakSet<object>;
+}
+
+const codemodAPI = jscodeshift.withParser('ts');
+const CHAR_CODE_UPPER_A = 65;
+const CHAR_CODE_UPPER_Z = 90;
+const CAN_PREFIX_LENGTH = 3;
+const HAS_PREFIX_LENGTH = 3;
+const IS_PREFIX_LENGTH = 2;
+const SHOULD_PREFIX_LENGTH = 6;
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   [...replacements]
@@ -18,168 +50,329 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
       source,
     );
 
-const hasReturnValue = (node: ts.Node): boolean => {
-  let hasFoundReturnValue = false;
-
-  const visit = (child: ts.Node): void => {
-    if (hasFoundReturnValue) {
-      return;
+const nodeStart = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { start } = node;
+    if (typeof start === 'number') {
+      return start;
     }
-    if (ts.isFunctionLike(child) && child !== node) {
-      return;
-    }
-    if (ts.isReturnStatement(child) && child.expression) {
-      hasFoundReturnValue = true;
-      return;
-    }
-    ts.forEachChild(child, visit);
-  };
-
-  ts.forEachChild(node, visit);
-  return hasFoundReturnValue;
+  }
+  throw new Error('jscodeshift node is missing a start offset');
 };
 
-const isAsync = (node: ts.FunctionLikeDeclaration): boolean =>
-  ts
-    .getModifiers(node)
-    ?.some((modifier): boolean => modifier.kind === ts.SyntaxKind.AsyncKeyword) ?? false;
+const nodeEnd = (node: unknown): number => {
+  if (isObjectRecord(node)) {
+    const { end } = node;
+    if (typeof end === 'number') {
+      return end;
+    }
+  }
+  throw new Error('jscodeshift node is missing an end offset');
+};
 
-const propertyName = (node: ts.FunctionLikeDeclaration): string | undefined => {
-  const { parent } = node;
-  if (!parent || !ts.isPropertyAssignment(parent)) {
+const sourceForNode = (source: string, node: unknown): string =>
+  source.slice(nodeStart(node), nodeEnd(node));
+
+const isExpressionLike = (value: unknown): value is Expression =>
+  isObjectRecord(value) && typeof value.type === 'string';
+
+const isFunctionLikeNode = (node: unknown): node is FunctionLike =>
+  isObjectRecord(node) &&
+  (node.type === 'ArrowFunctionExpression' ||
+    node.type === 'FunctionDeclaration' ||
+    node.type === 'FunctionExpression' ||
+    node.type === 'ObjectMethod');
+
+const nestedSearch = (search: ReturnSearch): ReturnSearch => ({
+  isRoot: false,
+  seen: search.seen,
+});
+
+const canScanReturnRecord = (value: Record<string, unknown>, search: ReturnSearch): boolean => {
+  if (search.seen.has(value)) {
+    return false;
+  }
+  search.seen.add(value);
+  return search.isRoot || !isFunctionLikeNode(value);
+};
+
+const hasDirectReturnValueInRecord = (
+  value: Record<string, unknown>,
+  search: ReturnSearch,
+): boolean => {
+  if (!canScanReturnRecord(value, search)) {
+    return false;
+  }
+  if (value.type === 'ReturnStatement' && value.argument) {
+    return true;
+  }
+  return Object.values(value).some((entry): boolean =>
+    hasDirectReturnValue(entry, nestedSearch(search)),
+  );
+};
+
+const hasDirectReturnValue = (value: unknown, search: ReturnSearch): boolean => {
+  if (Array.isArray(value)) {
+    return value.some((entry): boolean => hasDirectReturnValue(entry, nestedSearch(search)));
+  }
+  if (!isObjectRecord(value)) {
+    return false;
+  }
+  return hasDirectReturnValueInRecord(value, search);
+};
+
+const hasReturnValue = (node: FunctionLike): boolean =>
+  hasDirectReturnValue(node, { isRoot: true, seen: new WeakSet() });
+
+const isAsync = (node: FunctionLike): boolean => node.async === true;
+
+const isIdentifier = (node: unknown): node is Identifier =>
+  isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
+
+const objectPropertyName = (node: unknown): string | undefined => {
+  if (!isObjectRecord(node) || node.type !== 'ObjectProperty') {
     return undefined;
   }
-  if (ts.isIdentifier(parent.name) || ts.isStringLiteral(parent.name)) {
-    return parent.name.text;
+  const { key } = node;
+  if (isIdentifier(key)) {
+    return key.name;
+  }
+  if (isObjectRecord(key) && key.type === 'StringLiteral' && typeof key.value === 'string') {
+    return key.value;
   }
   return undefined;
 };
 
-const isPredicateCall = (expression: ts.CallExpression): boolean => {
-  if (ts.isPropertyAccessExpression(expression.expression)) {
-    return expression.expression.name.text === 'test';
+const objectPropertyValue = (node: unknown): FunctionLike | undefined => {
+  if (!isObjectRecord(node)) {
+    return undefined;
   }
-  if (ts.isIdentifier(expression.expression)) {
-    return /^(?:has|is|should|can)[A-Z]/u.test(expression.expression.text);
+  const { value } = node;
+  if (isFunctionLikeNode(value)) {
+    return value;
+  }
+  return undefined;
+};
+
+const functionKey = (node: FunctionLike): string => `${nodeStart(node)}:${nodeEnd(node)}`;
+
+const collectObjectPropertyNames = (source: string): ReadonlyMap<string, string> => {
+  const names = new Map<string, string>();
+  codemodAPI(source)
+    .find(codemodAPI.ObjectProperty)
+    .forEach((path): void => {
+      const value = objectPropertyValue(path.value);
+      const name = objectPropertyName(path.value);
+      if (value && name) {
+        names.set(functionKey(value), name);
+      }
+    });
+  return names;
+};
+
+const hasUppercaseAt = (text: string, index: number): boolean => {
+  const code = text.charCodeAt(index);
+  return code >= CHAR_CODE_UPPER_A && code <= CHAR_CODE_UPPER_Z;
+};
+
+const startsWithPredicatePrefix = (text: string): boolean =>
+  (text.startsWith('has') && hasUppercaseAt(text, HAS_PREFIX_LENGTH)) ||
+  (text.startsWith('is') && hasUppercaseAt(text, IS_PREFIX_LENGTH)) ||
+  (text.startsWith('should') && hasUppercaseAt(text, SHOULD_PREFIX_LENGTH)) ||
+  (text.startsWith('can') && hasUppercaseAt(text, CAN_PREFIX_LENGTH));
+
+const isPredicateCall = (expression: unknown): boolean => {
+  if (!isObjectRecord(expression)) {
+    return false;
+  }
+  const { callee } = expression;
+  if (!isObjectRecord(callee)) {
+    return false;
+  }
+  if (callee.type === 'MemberExpression' && isIdentifier(callee.property)) {
+    return callee.property.name === 'test';
+  }
+  if (callee.type === 'Identifier' && typeof callee.name === 'string') {
+    return startsWithPredicatePrefix(callee.name);
   }
   return false;
 };
 
-const isBooleanExpression = (expression: ts.Expression): boolean => {
-  if (
-    expression.kind === ts.SyntaxKind.TrueKeyword ||
-    expression.kind === ts.SyntaxKind.FalseKeyword
-  ) {
-    return true;
+const isComparisonOperator = (operator: string): boolean =>
+  operator === '===' ||
+  operator === '!==' ||
+  operator === '>' ||
+  operator === '>=' ||
+  operator === '<' ||
+  operator === '<=';
+
+const isBooleanLogicalOperator = (operator: string): boolean =>
+  operator === '&&' || operator === '||';
+
+const expressionOperator = (expression: Expression): string | undefined => {
+  if (!isObjectRecord(expression)) {
+    return undefined;
   }
-  if (
-    ts.isPrefixUnaryExpression(expression) &&
-    expression.operator === ts.SyntaxKind.ExclamationToken
-  ) {
-    return true;
+  const { operator } = expression;
+  if (typeof operator === 'string') {
+    return operator;
   }
-  if (ts.isBinaryExpression(expression)) {
-    if (isComparisonOperator(expression.operatorToken.kind)) {
-      return true;
-    }
-    if (isBooleanLogicalOperator(expression.operatorToken.kind)) {
-      return isBooleanExpression(expression.left) && isBooleanExpression(expression.right);
-    }
-  }
-  return ts.isCallExpression(expression) && isPredicateCall(expression);
+  return undefined;
 };
 
-const isComparisonOperator = (kind: ts.SyntaxKind): boolean =>
-  kind === ts.SyntaxKind.EqualsEqualsEqualsToken ||
-  kind === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
-  kind === ts.SyntaxKind.GreaterThanToken ||
-  kind === ts.SyntaxKind.GreaterThanEqualsToken ||
-  kind === ts.SyntaxKind.LessThanToken ||
-  kind === ts.SyntaxKind.LessThanEqualsToken;
+const expressionSide = (expression: Expression, key: 'left' | 'right'): Expression | undefined => {
+  if (!isObjectRecord(expression)) {
+    return undefined;
+  }
+  const value = expression[key];
+  if (isExpressionLike(value)) {
+    return value;
+  }
+  return undefined;
+};
 
-const isBooleanLogicalOperator = (kind: ts.SyntaxKind): boolean =>
-  kind === ts.SyntaxKind.AmpersandAmpersandToken || kind === ts.SyntaxKind.BarBarToken;
+const isBooleanLogicalExpression = (expression: Expression): boolean => {
+  const left = expressionSide(expression, 'left');
+  const right = expressionSide(expression, 'right');
+  const operator = expressionOperator(expression);
+  return Boolean(
+    operator &&
+    isBooleanLogicalOperator(operator) &&
+    left &&
+    right &&
+    isBooleanExpression(left) &&
+    isBooleanExpression(right),
+  );
+};
 
-const primitiveLiteralReturnType = (expression: ts.Expression): string | undefined => {
-  if (ts.isStringLiteralLike(expression)) {
+const isBooleanExpression = (expression: Expression): boolean => {
+  if (expression.type === 'BooleanLiteral') {
+    return true;
+  }
+  if (expression.type === 'UnaryExpression' && expressionOperator(expression) === '!') {
+    return true;
+  }
+  if (expression.type === 'BinaryExpression') {
+    return isComparisonOperator(expressionOperator(expression) ?? '');
+  }
+  if (expression.type === 'LogicalExpression') {
+    return isBooleanLogicalExpression(expression);
+  }
+  return expression.type === 'CallExpression' && isPredicateCall(expression);
+};
+
+const primitiveLiteralReturnType = (expression: Expression): string | undefined => {
+  if (expression.type === 'StringLiteral') {
     return ': string';
   }
-  if (ts.isNumericLiteral(expression)) {
+  if (expression.type === 'NumericLiteral') {
     return ': number';
   }
-  if (
-    expression.kind === ts.SyntaxKind.TrueKeyword ||
-    expression.kind === ts.SyntaxKind.FalseKeyword
-  ) {
+  if (expression.type === 'BooleanLiteral') {
     return ': boolean';
   }
   return undefined;
 };
 
-const parameterTypeText = (parameter: ts.ParameterDeclaration): string | undefined => {
-  if (parameter.type && ts.isIdentifier(parameter.name)) {
-    return parameter.type.getText();
+const parameterTypeText = (source: string, parameter: Node): string | undefined => {
+  if (parameter.type !== 'Identifier' || !isObjectRecord(parameter)) {
+    return undefined;
   }
-  return undefined;
+  const { typeAnnotation } = parameter;
+  if (!typeAnnotation) {
+    return undefined;
+  }
+  return sourceForNode(source, typeAnnotation).trim();
 };
 
-const stringParameterNames = (node: ts.FunctionLikeDeclaration): Set<string> =>
+const stringParameterNames = (source: string, node: FunctionLike): Set<string> =>
   new Set(
-    node.parameters
-      .filter((parameter): boolean => parameterTypeText(parameter) === 'string')
-      .map((parameter): string => parameter.name.getText()),
+    node.params.flatMap((parameter): string[] => {
+      if (isIdentifier(parameter) && parameterTypeText(source, parameter) === ': string') {
+        return [parameter.name];
+      }
+      return [];
+    }),
   );
 
+const stringMethodName = (expression: Expression): string | undefined => {
+  if (expression.type !== 'CallExpression' || !isObjectRecord(expression)) {
+    return undefined;
+  }
+  const { callee } = expression;
+  if (!isObjectRecord(callee) || callee.type !== 'MemberExpression') {
+    return undefined;
+  }
+  const { property } = callee;
+  if (!isIdentifier(property)) {
+    return undefined;
+  }
+  return property.name;
+};
+
+const stringMethodReceiver = (expression: Expression): unknown => {
+  if (expression.type !== 'CallExpression' || !isObjectRecord(expression)) {
+    return undefined;
+  }
+  const { callee } = expression;
+  if (!isObjectRecord(callee) || callee.type !== 'MemberExpression') {
+    return undefined;
+  }
+  return callee.object;
+};
+
+const isStringReturningMethod = (name: string | undefined): boolean =>
+  name === 'slice' || name === 'toLowerCase' || name === 'toUpperCase' || name === 'trim';
+
 const stringMethodReturnType = (
-  node: ts.FunctionLikeDeclaration,
-  expression: ts.Expression,
+  source: string,
+  node: FunctionLike,
+  expression: Expression,
 ): string | undefined => {
-  if (!ts.isCallExpression(expression) || !ts.isPropertyAccessExpression(expression.expression)) {
+  if (!isStringReturningMethod(stringMethodName(expression))) {
     return undefined;
   }
-  if (!['slice', 'toLowerCase', 'toUpperCase', 'trim'].includes(expression.expression.name.text)) {
-    return undefined;
-  }
-  const receiver = expression.expression.expression;
-  if (ts.isIdentifier(receiver) && stringParameterNames(node).has(receiver.text)) {
+  const object = stringMethodReceiver(expression);
+  if (isIdentifier(object) && stringParameterNames(source, node).has(object.name)) {
     return ': string';
   }
   return undefined;
 };
 
-const singleReturnExpression = (node: ts.FunctionLikeDeclaration): ts.Expression | undefined => {
-  if (ts.isArrowFunction(node) && !ts.isBlock(node.body)) {
+const singleReturnExpression = (node: FunctionLike): Expression | undefined => {
+  if (node.type === 'ArrowFunctionExpression' && node.body.type !== 'BlockStatement') {
     return node.body;
   }
-  if (!node.body || !ts.isBlock(node.body) || node.body.statements.length !== 1) {
+  if (node.body.type !== 'BlockStatement' || node.body.body.length !== 1) {
     return undefined;
   }
-  const [statement] = node.body.statements;
-  if (!statement || !ts.isReturnStatement(statement)) {
+  const [statement] = node.body.body;
+  if (statement?.type !== 'ReturnStatement') {
     return undefined;
   }
-  return statement.expression;
+  return statement.argument ?? undefined;
 };
 
-const inferredExpressionReturnTypeText = (node: ts.FunctionLikeDeclaration): string | undefined => {
-  const expression = singleReturnExpression(node);
+const inferredExpressionReturnTypeText = (
+  source: string,
+  path: ASTPath<FunctionLike>,
+  propertyNames: ReadonlyMap<string, string>,
+): string | undefined => {
+  const expression = singleReturnExpression(path.value);
   if (!expression) {
     return undefined;
   }
-  if (
-    (propertyName(node) === 'check' && expression) ||
-    (expression && isBooleanExpression(expression))
-  ) {
+  if (propertyNames.get(functionKey(path.value)) === 'check' || isBooleanExpression(expression)) {
     return ': boolean';
   }
   const primitiveType = primitiveLiteralReturnType(expression);
   if (primitiveType) {
     return primitiveType;
   }
-  return stringMethodReturnType(node, expression);
+  return stringMethodReturnType(source, path.value, expression);
 };
 
-const inferredBodyReturnTypeText = (node: ts.FunctionLikeDeclaration): string | undefined => {
+const inferredBodyReturnTypeText = (node: FunctionLike): string | undefined => {
   if (hasReturnValue(node)) {
     return undefined;
   }
@@ -189,26 +382,23 @@ const inferredBodyReturnTypeText = (node: ts.FunctionLikeDeclaration): string | 
   return ': void';
 };
 
-const inferredReturnTypeText = (node: ts.FunctionLikeDeclaration): string | undefined => {
-  if (propertyName(node) === 'ast') {
+const inferredReturnTypeText = (
+  source: string,
+  path: ASTPath<FunctionLike>,
+  propertyNames: ReadonlyMap<string, string>,
+): string | undefined => {
+  if (propertyNames.get(functionKey(path.value)) === 'ast') {
     return ': Record<string, (node: object) => void>';
   }
 
-  const expressionReturnType = inferredExpressionReturnTypeText(node);
+  const expressionReturnType = inferredExpressionReturnTypeText(source, path, propertyNames);
   if (expressionReturnType) {
     return expressionReturnType;
   }
-  if (singleReturnExpression(node)) {
+  if (singleReturnExpression(path.value)) {
     return undefined;
   }
-  return inferredBodyReturnTypeText(node);
-};
-
-const isSupportedFunctionLike = (node: ts.Node): node is ts.FunctionLikeDeclaration => {
-  if (!ts.isFunctionLike(node)) {
-    return false;
-  }
-  return 'body' in node;
+  return inferredBodyReturnTypeText(path.value);
 };
 
 const previousNonWhitespaceIndex = (source: string, index: number): number => {
@@ -219,26 +409,56 @@ const previousNonWhitespaceIndex = (source: string, index: number): number => {
   return cursor;
 };
 
-const insertionPoint = (source: string, node: ts.FunctionLikeDeclaration): number | undefined => {
-  if (!node.body || node.type) {
+const arrowInsertionPoint = (source: string, node: ArrowFunctionExpression): number => {
+  const bodyStart = nodeStart(node.body);
+  const arrowStart = source.lastIndexOf('=>', bodyStart);
+  if (arrowStart === -1) {
+    return previousNonWhitespaceIndex(source, bodyStart);
+  }
+  return previousNonWhitespaceIndex(source, arrowStart);
+};
+
+const insertionPoint = (source: string, node: FunctionLike): number | undefined => {
+  if (node.returnType || !node.body) {
     return undefined;
   }
-  if (ts.isArrowFunction(node)) {
-    return previousNonWhitespaceIndex(source, node.equalsGreaterThanToken.getStart());
+  if (node.type === 'ArrowFunctionExpression') {
+    return arrowInsertionPoint(source, node);
   }
-  return previousNonWhitespaceIndex(source, node.body.getStart());
+  return previousNonWhitespaceIndex(source, nodeStart(node.body));
 };
 
 const replacementForFunction = (
   source: string,
-  node: ts.FunctionLikeDeclaration,
+  path: ASTPath<FunctionLike>,
+  propertyNames: ReadonlyMap<string, string>,
 ): Replacement | undefined => {
-  const start = insertionPoint(source, node);
-  const returnType = inferredReturnTypeText(node);
+  const start = insertionPoint(source, path.value);
+  const returnType = inferredReturnTypeText(source, path, propertyNames);
   if (start === undefined || !returnType) {
     return undefined;
   }
   return { end: start, start, text: returnType };
+};
+
+const collectFunctionReplacements = (source: string): Replacement[] => {
+  const replacements: Replacement[] = [];
+  const propertyNames = collectObjectPropertyNames(source);
+
+  const collect = (path: ASTPath<FunctionLike>): void => {
+    const replacement = replacementForFunction(source, path, propertyNames);
+    if (replacement) {
+      replacements.push(replacement);
+    }
+  };
+
+  const root = codemodAPI(source);
+  root.find(codemodAPI.ArrowFunctionExpression).forEach(collect);
+  root.find(codemodAPI.ObjectMethod).forEach(collect);
+  root.find(codemodAPI.FunctionDeclaration).forEach(collect);
+  root.find(codemodAPI.FunctionExpression).forEach(collect);
+
+  return replacements;
 };
 
 /**
@@ -246,20 +466,5 @@ const replacementForFunction = (
  *
  * @internal
  */
-export const addVoidReturnTypes = (source: string): string => {
-  const sourceFile = ts.createSourceFile('codemod.ts', source, ts.ScriptTarget.Latest, true);
-  const replacements: Replacement[] = [];
-
-  const visit = (node: ts.Node): void => {
-    if (isSupportedFunctionLike(node)) {
-      const replacement = replacementForFunction(source, node);
-      if (replacement) {
-        replacements.push(replacement);
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-
-  visit(sourceFile);
-  return applyReplacements(source, replacements);
-};
+export const addVoidReturnTypes = (source: string): string =>
+  applyReplacements(source, collectFunctionReplacements(source));

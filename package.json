@@ -45,6 +45,7 @@
     "@stryker-mutator/core": "~9.6.0",
     "@stryker-mutator/vitest-runner": "~9.6.0",
     "@thethracian/oxlint-config": "workspace:*",
+    "@types/jscodeshift": "^17.3.0",
     "@types/node": "^24.10.0",
     "@vitest/coverage-v8": "~4.1.0",
     "husky": "^9.1.7",

@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@oxlint/plugins": "^1.66.0",
+    "jscodeshift": "^17.3.0",
     "oxlint-tsgolint": "^0.22.1"
   },
   "devDependencies": {
