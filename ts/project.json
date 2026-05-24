@@ -19,7 +19,7 @@
       "command": "pnpm exec vitest run --config vitest.config.mts --passWithNoTests ts"
     },
     "pack": {
-      "command": "mkdir -p dist/packages && pnpm --dir ts pack --pack-destination ../dist/packages",
+      "command": "pnpm --dir ts build && mkdir -p dist/packages && pnpm --dir ts pack --pack-destination ../dist/packages",
       "outputs": ["{workspaceRoot}/dist/packages"]
     }
   }

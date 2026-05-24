@@ -38,6 +38,9 @@ importers:
       nx:
         specifier: ^22.7.1
         version: 22.7.1
+      oxc-parser:
+        specifier: 0.128.0
+        version: 0.128.0
       oxfmt:
         specifier: ^0.43.0
         version: 0.43.0
@@ -62,6 +65,9 @@ importers:
       oxlint-plugin-complexity:
         specifier: '>=2.0.0'
         version: 2.1.2(@oxlint/plugins@1.64.0)(estree-walker@3.0.3)(oxc-parser@0.128.0)
+      oxlint-tsgolint:
+        specifier: '>=0.22.1'
+        version: 0.22.1
     devDependencies:
       oxlint:
         specifier: ^1.63.0
