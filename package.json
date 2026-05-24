@@ -59,7 +59,7 @@
   },
   "lint-staged": {
     "*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}": [
-      "oxlint --type-aware --type-check --fix",
+      "oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern",
       "oxfmt"
     ],
     "*.{json,md,yml,yaml,toml,css,scss,html}": [

@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(import.meta.dirname, '..', '..');
+const distPackageTestTimeoutMs = 30_000;
 
 type BuiltConfigFactory = (options?: { effect?: { strict?: boolean } }) => {
   jsPlugins?: string[];
@@ -165,154 +166,172 @@ function runOxlintJson(args: string[], cwd: string): string {
 }
 
 describe('published TypeScript package shape', () => {
-  it('cleans stale renamed build artifacts before packing dist', () => {
-    const stalePath = join(repoRoot, 'ts', 'dist', 'rules', 'effect-agentic.js');
-    mkdirSync(join(repoRoot, 'ts', 'dist', 'rules'), { recursive: true });
-    writeFileSync(stalePath, 'export default {};\n');
+  it(
+    'cleans stale renamed build artifacts before packing dist',
+    () => {
+      const stalePath = join(repoRoot, 'ts', 'dist', 'rules', 'effect-agentic.js');
+      mkdirSync(join(repoRoot, 'ts', 'dist', 'rules'), { recursive: true });
+      writeFileSync(stalePath, 'export default {};\n');
 
-    execFileSync('pnpm', ['--dir', 'ts', 'build'], {
-      cwd: repoRoot,
-      stdio: 'pipe',
-    });
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
 
-    expect(existsSync(stalePath)).toBe(false);
-  });
+      expect(existsSync(stalePath)).toBe(false);
+    },
+    distPackageTestTimeoutMs,
+  );
 
-  it('builds an importable dist config with the package-local plugin and all Effect rules', async () => {
-    execFileSync('pnpm', ['--dir', 'ts', 'build'], {
-      cwd: repoRoot,
-      stdio: 'pipe',
-    });
+  it(
+    'builds an importable dist config with the package-local plugin and all Effect rules',
+    async () => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
 
-    const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
-      join(repoRoot, 'ts', 'dist', 'index.js'),
-    );
-    const { effectDefaultRuleNames, effectStrictRuleNames } = await importFresh<BuiltRuleNames>(
-      join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
-    );
-    const config = theThracianOxlint({ effect: { strict: true } });
-    const pluginPath = config.jsPlugins?.find((path) => path.endsWith('/dist/rules/plugin.js'));
-
-    expect(pluginPath).toBeDefined();
-    expect(existsSync(pluginPath ?? '')).toBe(true);
-
-    const plugin = await importFresh<BuiltPlugin>(pluginPath ?? '');
-    for (const ruleName of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
-      expect(plugin.default.rules, `${ruleName} must be registered in dist`).toHaveProperty(
-        ruleName,
-      );
-    }
-  });
-
-  it('executes built custom Effect rules through the real Oxlint CLI', async () => {
-    execFileSync('pnpm', ['--dir', 'ts', 'build'], {
-      cwd: repoRoot,
-      stdio: 'pipe',
-    });
-
-    const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-dist-'));
-
-    try {
       const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
         join(repoRoot, 'ts', 'dist', 'index.js'),
       );
-      const config = theThracianOxlint({ effect: { strict: true } });
-      const rules = {
-        'thethracian/effect-no-string-errors':
-          config.rules?.['thethracian/effect-no-string-errors'],
-        'thethracian/effect-require-span-external':
-          config.rules?.['thethracian/effect-require-span-external'],
-      };
-      const configPath = join(root, '.oxlintrc.json');
-      const sourcePath = join(root, 'invalid.ts');
-
-      expect(rules['thethracian/effect-no-string-errors']).toBe('error');
-      expect(rules['thethracian/effect-require-span-external']).toBe('error');
-
-      writeFileSync(
-        configPath,
-        JSON.stringify({ jsPlugins: config.jsPlugins, rules }, undefined, 2),
-      );
-      writeFileSync(
-        sourcePath,
-        'const failure = Effect.fail("bad");\nHttpClient.get(url).pipe(Effect.timeout("1 second"));\n',
-      );
-
-      const output = runOxlintJson(
-        [sourcePath, '--config', configPath, '--disable-nested-config', '--format', 'json'],
-        repoRoot,
-      );
-
-      expect(output).toContain('effect-no-string-errors');
-      expect(output).toContain('effect-require-span-external');
-    } finally {
-      rmSync(root, { force: true, recursive: true });
-    }
-  });
-
-  it('executes every AST-backed Effect rule through the real Oxlint CLI', async () => {
-    execFileSync('pnpm', ['--dir', 'ts', 'build'], {
-      cwd: repoRoot,
-      stdio: 'pipe',
-    });
-
-    const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-ast-rules-'));
-
-    try {
-      const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
-        join(repoRoot, 'ts', 'dist', 'index.js'),
+      const { effectDefaultRuleNames, effectStrictRuleNames } = await importFresh<BuiltRuleNames>(
+        join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
       );
       const config = theThracianOxlint({ effect: { strict: true } });
-      const rules = Object.fromEntries(
-        astBackedCliCases.map(({ ruleName }) => [
-          `thethracian/${ruleName}`,
-          config.rules?.[`thethracian/${ruleName}`],
-        ]),
-      );
-      const configPath = join(root, '.oxlintrc.json');
-      const sourcePaths: string[] = [];
+      const pluginPath = config.jsPlugins?.find((path) => path.endsWith('/dist/rules/plugin.js'));
 
-      writeFileSync(
-        configPath,
-        JSON.stringify({ jsPlugins: config.jsPlugins, rules }, undefined, 2),
-      );
+      expect(pluginPath).toBeDefined();
+      expect(existsSync(pluginPath ?? '')).toBe(true);
 
-      for (const testCase of astBackedCliCases) {
-        const sourcePath = join(root, testCase.filename);
-        mkdirSync(join(sourcePath, '..'), { recursive: true });
-        writeFileSync(sourcePath, testCase.source);
-        sourcePaths.push(sourcePath);
+      const plugin = await importFresh<BuiltPlugin>(pluginPath ?? '');
+      for (const ruleName of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
+        expect(plugin.default.rules, `${ruleName} must be registered in dist`).toHaveProperty(
+          ruleName,
+        );
       }
+    },
+    distPackageTestTimeoutMs,
+  );
 
-      const output = runOxlintJson(
-        [...sourcePaths, '--config', configPath, '--disable-nested-config', '--format', 'json'],
-        repoRoot,
-      );
+  it(
+    'executes built custom Effect rules through the real Oxlint CLI',
+    async () => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
 
-      for (const { ruleName } of astBackedCliCases) {
-        expect(output, `${ruleName} should report through real Oxlint`).toContain(ruleName);
+      const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-dist-'));
+
+      try {
+        const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
+          join(repoRoot, 'ts', 'dist', 'index.js'),
+        );
+        const config = theThracianOxlint({ effect: { strict: true } });
+        const rules = {
+          'thethracian/effect-no-string-errors':
+            config.rules?.['thethracian/effect-no-string-errors'],
+          'thethracian/effect-require-span-external':
+            config.rules?.['thethracian/effect-require-span-external'],
+        };
+        const configPath = join(root, '.oxlintrc.json');
+        const sourcePath = join(root, 'invalid.ts');
+
+        expect(rules['thethracian/effect-no-string-errors']).toBe('error');
+        expect(rules['thethracian/effect-require-span-external']).toBe('error');
+
+        writeFileSync(
+          configPath,
+          JSON.stringify({ jsPlugins: config.jsPlugins, rules }, undefined, 2),
+        );
+        writeFileSync(
+          sourcePath,
+          'const failure = Effect.fail("bad");\nHttpClient.get(url).pipe(Effect.timeout("1 second"));\n',
+        );
+
+        const output = runOxlintJson(
+          [sourcePath, '--config', configPath, '--disable-nested-config', '--format', 'json'],
+          repoRoot,
+        );
+
+        expect(output).toContain('effect-no-string-errors');
+        expect(output).toContain('effect-require-span-external');
+      } finally {
+        rmSync(root, { force: true, recursive: true });
       }
-    } finally {
-      rmSync(root, { force: true, recursive: true });
-    }
-  });
+    },
+    distPackageTestTimeoutMs,
+  );
 
-  it('imports the built package through the public npm exports surface', () => {
-    execFileSync('pnpm', ['--dir', 'ts', 'build'], {
-      cwd: repoRoot,
-      stdio: 'pipe',
-    });
+  it(
+    'executes every AST-backed Effect rule through the real Oxlint CLI',
+    async () => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
 
-    const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-package-'));
-    const scopePath = join(root, 'node_modules', '@thethracian');
-    const consumerPath = join(root, 'consumer.mjs');
+      const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-ast-rules-'));
 
-    try {
-      mkdirSync(scopePath, { recursive: true });
-      symlinkSync(join(repoRoot, 'ts'), join(scopePath, 'oxlint-config'), 'dir');
-      writeFileSync(
-        consumerPath,
-        `
+      try {
+        const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
+          join(repoRoot, 'ts', 'dist', 'index.js'),
+        );
+        const config = theThracianOxlint({ effect: { strict: true } });
+        const rules = Object.fromEntries(
+          astBackedCliCases.map(({ ruleName }) => [
+            `thethracian/${ruleName}`,
+            config.rules?.[`thethracian/${ruleName}`],
+          ]),
+        );
+        const configPath = join(root, '.oxlintrc.json');
+        const sourcePaths: string[] = [];
+
+        writeFileSync(
+          configPath,
+          JSON.stringify({ jsPlugins: config.jsPlugins, rules }, undefined, 2),
+        );
+
+        for (const testCase of astBackedCliCases) {
+          const sourcePath = join(root, testCase.filename);
+          mkdirSync(join(sourcePath, '..'), { recursive: true });
+          writeFileSync(sourcePath, testCase.source);
+          sourcePaths.push(sourcePath);
+        }
+
+        const output = runOxlintJson(
+          [...sourcePaths, '--config', configPath, '--disable-nested-config', '--format', 'json'],
+          repoRoot,
+        );
+
+        for (const { ruleName } of astBackedCliCases) {
+          expect(output, `${ruleName} should report through real Oxlint`).toContain(ruleName);
+        }
+      } finally {
+        rmSync(root, { force: true, recursive: true });
+      }
+    },
+    distPackageTestTimeoutMs,
+  );
+
+  it(
+    'imports the built package through the public npm exports surface',
+    () => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
+
+      const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-package-'));
+      const scopePath = join(root, 'node_modules', '@thethracian');
+      const consumerPath = join(root, 'consumer.mjs');
+
+      try {
+        mkdirSync(scopePath, { recursive: true });
+        symlinkSync(join(repoRoot, 'ts'), join(scopePath, 'oxlint-config'), 'dir');
+        writeFileSync(
+          consumerPath,
+          `
           import theThracianOxlint from '@thethracian/oxlint-config';
 
           const config = theThracianOxlint({ effect: { strict: true } });
@@ -330,19 +349,21 @@ describe('published TypeScript package shape', () => {
 
           console.log(JSON.stringify({ effectRuleCount: effectRules.length, pluginPath }));
         `,
-      );
+        );
 
-      const output = execFileSync('node', [consumerPath], {
-        cwd: root,
-        encoding: 'utf-8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
+        const output = execFileSync('node', [consumerPath], {
+          cwd: root,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-      expect(parsed.effectRuleCount).toBe(141);
-      expect(existsSync(parsed.pluginPath)).toBe(true);
-    } finally {
-      rmSync(root, { force: true, recursive: true });
-    }
-  });
+        expect(parsed.effectRuleCount).toBe(141);
+        expect(existsSync(parsed.pluginPath)).toBe(true);
+      } finally {
+        rmSync(root, { force: true, recursive: true });
+      }
+    },
+    distPackageTestTimeoutMs,
+  );
 });
