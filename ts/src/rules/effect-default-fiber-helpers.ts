@@ -1,8 +1,6 @@
-/**
- * Fiber observation predicates for always-on Effect rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*          Fiber observation predicates for always-on Effect rules.          */
+/* -------------------------------------------------------------------------- */
 import { sameFunctionTail, stripCommentsAndStrings } from './effect-source-helpers';
 
 const isUnobservedForkMatch = (source: string, match: RegExpExecArray): boolean => {

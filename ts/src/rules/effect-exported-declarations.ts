@@ -1,8 +1,6 @@
-/**
- * Exported declaration extraction helpers for Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*       Exported declaration extraction helpers for Effect lint rules.       */
+/* -------------------------------------------------------------------------- */
 import { findMatchingBrace, stripCommentsAndStrings } from './effect-source-scan';
 import { findStatementEnd } from './effect-source-navigation';
 

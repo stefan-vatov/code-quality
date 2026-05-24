@@ -1,8 +1,6 @@
-/**
- * Boolean prefix naming helpers for custom Oxlint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*           Boolean prefix naming helpers for custom Oxlint rules.           */
+/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_DIGIT, CLS_UNDER, CLS_UPPER } from './char-class';
 
 const CHAR_CODE_UPPER_A = 65;

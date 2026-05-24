@@ -1,8 +1,6 @@
-/**
- * Effect workflow body and recursion predicates.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*               Effect workflow body and recursion predicates.               */
+/* -------------------------------------------------------------------------- */
 import {
   effectAliasesPattern,
   effectCallBodies,

@@ -1,8 +1,6 @@
-/**
- * AST-backed codemod for correcting repeatable acronym casing violations.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*  AST-backed codemod for correcting repeatable acronym casing violations.   */
+/* -------------------------------------------------------------------------- */
 import findMisCasedAcronyms, { fixAcronymCase } from '../rules/acronym-case';
 import ts from 'typescript';
 

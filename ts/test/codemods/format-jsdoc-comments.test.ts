@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { formatJSDocComments } from '../../src/codemods/format-jsdoc-comments';
 
 describe('formatJSDocComments', () => {
-  it('rewrites single-line file headers into classic block JSDoc', () => {
+  it('rewrites single-line JSDoc into classic block JSDoc', () => {
     const source = `/** @internal Conservative codemod for safe func-style declaration rewrites. */
 import ts from 'typescript';
 `;

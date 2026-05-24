@@ -1,8 +1,6 @@
-/**
- * Shared AST helpers for custom Effect rule modules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*             Shared AST helpers for custom Effect rule modules.             */
+/* -------------------------------------------------------------------------- */
 import { effectFunctionAliases, effectImportAliases } from './effect-rule-core';
 
 interface RuleContext {

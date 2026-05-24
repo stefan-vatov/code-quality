@@ -1,8 +1,6 @@
-/**
- * File-level documentation requirement helper for custom Oxlint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*    File-level documentation requirement helper for custom Oxlint rules.    */
+/* -------------------------------------------------------------------------- */
 // Character code constants
 const CH_HASH = 35;
 const CH_SLASH = 47;
@@ -14,11 +12,14 @@ const CH_ASTERISK = 42;
 const JSDOC_PREFIX_LENGTH = 3;
 const LINE_MARKER_LOOKAHEAD = 20;
 const BLOCK_MARKER_LOOKAHEAD = 15;
-const MAX_HEADER_SEARCH_DISTANCE = 50;
 
 // Pre-computed search strings
-const JSDOC_START = '/**';
 const JSDOC_END = '*/';
+const DIVIDER_PREFIX = '/* ';
+const DIVIDER_SUFFIX = ' */';
+const DIVIDER_LENGTH = 80;
+const DIVIDER_RULE =
+  '/* -------------------------------------------------------------------------- */';
 
 const isWhitespace = (code: number): boolean =>
   code === CH_SPACE || code === CH_NEWLINE || code === CH_RETURN || code === CH_TAB;
@@ -51,6 +52,56 @@ const hasJSDocStartAt = (source: string, pos: number): boolean =>
   source.charCodeAt(pos) === CH_SLASH &&
   source.charCodeAt(pos + 1) === CH_ASTERISK &&
   source.charCodeAt(pos + 2) === CH_ASTERISK;
+
+const lineEndAt = (source: string, start: number): number => {
+  const newline = source.indexOf('\n', start);
+  if (newline === -1) {
+    return source.length;
+  }
+  return newline;
+};
+
+const nextLineStartAt = (source: string, start: number): number => {
+  const newline = source.indexOf('\n', start);
+  if (newline === -1) {
+    return source.length;
+  }
+  return newline + 1;
+};
+
+const isDividerTextLine = (line: string): boolean =>
+  line.length === DIVIDER_LENGTH &&
+  line.startsWith(DIVIDER_PREFIX) &&
+  line.endsWith(DIVIDER_SUFFIX);
+
+const isDividerRuleLine = (line: string): boolean => line === DIVIDER_RULE;
+
+const nextDividerEnd = (source: string, start: number): number | undefined => {
+  let cursor = nextLineStartAt(source, start);
+  while (cursor < source.length) {
+    const end = lineEndAt(source, cursor);
+    if (isDividerRuleLine(source.slice(cursor, end))) {
+      return end;
+    }
+    cursor = nextLineStartAt(source, cursor);
+  }
+  return undefined;
+};
+
+const dividerHeaderEnd = (source: string, pos: number): number | undefined => {
+  const firstEnd = lineEndAt(source, pos);
+  if (!isDividerRuleLine(source.slice(pos, firstEnd))) {
+    return undefined;
+  }
+  const closingDividerEnd = nextDividerEnd(source, firstEnd);
+  if (closingDividerEnd !== undefined) {
+    const body = source.slice(nextLineStartAt(source, firstEnd), closingDividerEnd);
+    if (body.split('\n').every(isDividerTextLine)) {
+      return closingDividerEnd;
+    }
+  }
+  return undefined;
+};
 
 const boundedEnd = (source: string, pos: number, lookahead: number): number => {
   if (pos + lookahead < source.length) {
@@ -95,22 +146,27 @@ export const extractDocHeader = (source: string): string | undefined => {
     return undefined;
   }
 
+  return extractDocHeaderAt(source, pos);
+};
+
+const extractDocHeaderAt = (source: string, pos: number): string | undefined => {
+  const dividerEnd = dividerHeaderEnd(source, pos);
+  if (dividerEnd !== undefined) {
+    return source.slice(pos, dividerEnd);
+  }
   if (!hasJSDocStartAt(source, pos)) {
     return undefined;
   }
-
-  // Find closing */
   const closePOS = source.indexOf(JSDOC_END, pos + JSDOC_PREFIX_LENGTH);
   if (closePOS === -1) {
     return undefined;
   }
-
   return source.slice(pos, closePOS + 2);
 };
 
 /**
- * Returns true if the source file satisfies the file doc requirement. Requires: JSDoc header, opt-out
- * marker, or empty/whitespace-only.
+ * Returns true if the source file satisfies the file doc requirement. Requires: divider header,
+ * opt-out marker, or empty/whitespace-only.
  */
 export default function hasRequiredFileDoc(source: string): boolean {
   const pos = leadingContentPosition(source, source.length);
@@ -122,12 +178,5 @@ export default function hasRequiredFileDoc(source: string): boolean {
     return true;
   }
 
-  // JSDoc header must be at or near file start
-  const jsdocPosition = source.indexOf(JSDOC_START, pos);
-  if (jsdocPosition === -1 || jsdocPosition > pos + MAX_HEADER_SEARCH_DISTANCE) {
-    return false;
-  }
-
-  // Must close
-  return source.includes(JSDOC_END, jsdocPosition + JSDOC_PREFIX_LENGTH);
+  return dividerHeaderEnd(source, pos) !== undefined;
 }

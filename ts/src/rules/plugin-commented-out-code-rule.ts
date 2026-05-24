@@ -1,8 +1,6 @@
-/**
- * Oxlint plugin rule for removing commented-out code.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*            Oxlint plugin rule for removing commented-out code.             */
+/* -------------------------------------------------------------------------- */
 import isCommentedOutCode from './no-commented-out-code';
 import { readCachedSource } from './source-cache';
 

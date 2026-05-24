@@ -1,8 +1,6 @@
-/**
- * Source scanning utilities for Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*              Source scanning utilities for Effect lint rules.              */
+/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class';
 
 const regexPrefixChars = new Set(['(', '[', '{', '=', ':', ',', ';', '!', '?', '&', '|']);

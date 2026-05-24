@@ -195,11 +195,10 @@ export function sub(a: number, b: number): number { return a - b; }`;
     expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
-  it('passes when JSDoc has only tags but no description', () => {
-    // Edge case: @param only, no description text. This is still "documented."
+  it('fails when JSDoc has only tags but no description', () => {
     const src =
       '/**\n * @param a - first number\n * @returns sum\n */\nexport function add(a: number): number { return a + 1; }';
-    expect(hasRequiredFunctionDocs(src)).toBe(true);
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
   // ── fails: mixed documented/undocumented ──────────────────────────────

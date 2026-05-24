@@ -1,8 +1,6 @@
-/**
- * Backward-compatible local runner for TypeScript codemod fixes.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*       Backward-compatible local runner for TypeScript codemod fixes.       */
+/* -------------------------------------------------------------------------- */
 import { codemodFix } from '../codemod-fix/index';
 
 export {

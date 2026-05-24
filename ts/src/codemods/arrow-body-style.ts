@@ -1,8 +1,6 @@
-/**
- * Conservative codemod for arrow-body-style concise bodies.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*         Conservative codemod for arrow-body-style concise bodies.          */
+/* -------------------------------------------------------------------------- */
 import ts from 'typescript';
 
 interface Replacement {

@@ -72,6 +72,68 @@ describe('file-level custom rules', () => {
     expect(reports[0]?.node).toBe(programNode);
   });
 
+  it('reports the exact divider header format for missing file docs', () => {
+    const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
+    const filename = join(root, 'fixture.ts');
+    const reports: Report[] = [];
+
+    writeFileSync(filename, 'export const live = true;\n');
+
+    try {
+      const visitors = plugin.rules['require-file-doc'].create({
+        filename,
+        report(report: Report) {
+          reports.push(report);
+        },
+      });
+
+      visitors.Program?.(programNode);
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+
+    expect(reports[0]?.message)
+      .toBe(`Missing file-purpose header. Add a top-of-file divider header in this exact format:
+/* -------------------------------------------------------------------------- */
+/*                     Describe this file's purpose here.                     */
+/* -------------------------------------------------------------------------- */
+
+The text line must be a real description of what the file is for; declaration JSDoc does not count.`);
+  });
+
+  it('reports the exact public JSDoc shape for undocumented exports', () => {
+    const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
+    const filename = join(root, 'fixture.ts');
+    const reports: Report[] = [];
+
+    writeFileSync(filename, 'export function live(input: string): string { return input; }\n');
+
+    try {
+      const visitors = plugin.rules['require-function-doc'].create({
+        filename,
+        report(report: Report) {
+          reports.push(report);
+        },
+      });
+
+      visitors.Program?.(programNode);
+    } finally {
+      rmSync(root, { force: true, recursive: true });
+    }
+
+    expect(reports[0]?.message)
+      .toBe(`Missing public declaration JSDoc. Add a /** ... */ block immediately above the export in this shape:
+/**
+ * Describe what this exported declaration does.
+ *
+ * @param name - Describe this parameter.
+ * @returns Describe the return value.
+ * @throws Describe expected error conditions, or state that it does not throw.
+ */
+
+The prose must be specific; generated placeholder text does not satisfy the rule.`);
+  });
+
   it('offers a native fix that removes a commented-out line', () => {
     const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
     const filename = join(root, 'fixture.ts');

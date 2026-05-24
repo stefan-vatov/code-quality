@@ -1,8 +1,6 @@
-/**
- * Conservative codemod for return-position no-ternary fixes.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*         Conservative codemod for return-position no-ternary fixes.         */
+/* -------------------------------------------------------------------------- */
 import type { BranchInitializerContext, Replacement } from './no-ternary-helpers';
 import {
   INDENT_STEP,

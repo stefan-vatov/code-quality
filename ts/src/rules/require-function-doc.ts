@@ -1,8 +1,7 @@
-/**
- * Exported-declaration documentation requirement helper for custom Oxlint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*  Exported-declaration documentation requirement helper for custom Oxlint   */
+/*                                   Rules.                                   */
+/* -------------------------------------------------------------------------- */
 import { isDocumentedLocalExportList } from './require-function-doc-local-exports';
 import { isInsideIgnoredText } from './require-function-doc-ignored-text';
 
@@ -13,6 +12,7 @@ const CHAR_CODE_CARRIAGE_RETURN = 13;
 const CHAR_CODE_ASTERISK = 42;
 const CHAR_CODE_SLASH = 47;
 const CHAR_CODE_HASH = 35;
+const CHAR_CODE_AT_SIGN = 64;
 const CHAR_CODE_OPEN_PAREN = 40;
 const CHAR_CODE_OPEN_BRACE = 123;
 const CHAR_CODE_SEMICOLON = 59;
@@ -69,8 +69,14 @@ const skipLinePrefix = (source: string, pos: number, lineEnd: number): number =>
   return cursor;
 };
 
+const isJSDocTagLine = (source: string, pos: number, lineEnd: number): boolean =>
+  pos < lineEnd && source.charCodeAt(pos) === CHAR_CODE_AT_SIGN;
+
 const lineHasDescriptionContent = (source: string, lineStart: number, lineEnd: number): boolean => {
   let pos = skipLinePrefix(source, lineStart, lineEnd);
+  if (isJSDocTagLine(source, pos, lineEnd)) {
+    return false;
+  }
   while (pos < lineEnd) {
     if (!isWhitespace(source.charCodeAt(pos))) {
       return true;

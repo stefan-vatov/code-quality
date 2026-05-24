@@ -1,8 +1,6 @@
-/**
- * AST and source predicates for opt-in strict Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*       AST and source predicates for opt-in strict Effect lint rules.       */
+/* -------------------------------------------------------------------------- */
 import { effectAPIAliases, effectFunctionAliases, effectImportAliases } from './effect-rule-core';
 import {
   exportedDeclarationTexts,

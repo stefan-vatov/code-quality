@@ -1,8 +1,6 @@
-/**
- * Floating Effect expression detection.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*                   Floating Effect expression detection.                    */
+/* -------------------------------------------------------------------------- */
 import { findBalancedCallEnd, stripCommentsAndStrings } from './effect-source-helpers';
 import { effectAliasesPattern } from './effect-default-scan-helpers';
 import { effectImportAliases } from './effect-rule-core';

@@ -1,8 +1,6 @@
-/**
- * Conservative codemod for explicit void return types.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*            Conservative codemod for explicit void return types.            */
+/* -------------------------------------------------------------------------- */
 import ts from 'typescript';
 
 interface Replacement {

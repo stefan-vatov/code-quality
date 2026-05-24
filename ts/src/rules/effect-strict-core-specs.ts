@@ -1,8 +1,6 @@
-/**
- * Core opt-in strict custom Effect lint rule specs.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*             Core opt-in strict custom Effect lint rule specs.              */
+/* -------------------------------------------------------------------------- */
 import { exportedDeclarationTexts, stripCommentsAndStrings } from './effect-source-helpers';
 import {
   hasAsyncPushWithoutBuffer,

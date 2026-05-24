@@ -1,8 +1,6 @@
-/**
- * Maximum source line length helper used by the custom Oxlint plugin.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*    Maximum source line length helper used by the custom Oxlint plugin.     */
+/* -------------------------------------------------------------------------- */
 interface LineLengthViolation {
   line: number;
   length: number;

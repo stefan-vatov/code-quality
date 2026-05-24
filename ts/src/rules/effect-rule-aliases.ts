@@ -1,8 +1,6 @@
-/**
- * Effect import, alias, and runtime-call helpers for source-backed rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*  Effect import, alias, and runtime-call helpers for source-backed rules.   */
+/* -------------------------------------------------------------------------- */
 import { stripComments, stripCommentsAndStrings } from './effect-source-helpers';
 
 /**

@@ -1,8 +1,6 @@
-/**
- * Reusable comment formatting helpers for codemod output.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*          Reusable comment formatting helpers for codemod output.           */
+/* -------------------------------------------------------------------------- */
 
 interface JSDocInput {
   summary: string;
@@ -31,7 +29,16 @@ const centeredText = (text: string, width: number): string => {
   return `${repeat(' ', left)}${text}${repeat(' ', right)}`;
 };
 
-const centeredDividerText = (text: string): string => centeredText(text, dividerInnerWidth());
+const capitalizedDividerText = (text: string): string => {
+  const trimmed = text.trimStart();
+  const indent = text.slice(0, text.length - trimmed.length);
+  return `${indent}${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}`;
+};
+
+const centeredDividerText = (text: string): string =>
+  centeredText(capitalizedDividerText(text), dividerInnerWidth());
+
+const dividerTextLines = (text: string): string[] => wrapTextToWidth(text, dividerInnerWidth());
 
 const nextWrappedLine = (line: string, word: string): string => {
   if (line) {
@@ -40,29 +47,36 @@ const nextWrappedLine = (line: string, word: string): string => {
   return word;
 };
 
-const appendWrappedWord = (lines: string[], line: string, word: string): string => {
-  const nextLine = nextWrappedLine(line, word);
-  if (nextLine.length > jsdocTextWidth && line) {
-    lines.push(line);
-    return word;
-  }
-  return nextLine;
-};
+const wrapText = (text: string): string[] => wrapTextToWidth(text, jsdocTextWidth);
 
-const wrapText = (text: string): string[] => {
-  if (text.length <= jsdocTextWidth) {
+const wrapTextToWidth = (text: string, width: number): string[] => {
+  if (text.length <= width) {
     return [text];
   }
 
   const lines: string[] = [];
   let line = '';
   for (const word of text.split(' ')) {
-    line = appendWrappedWord(lines, line, word);
+    line = appendWrappedWordToWidth(lines, line, word, width);
   }
   if (line) {
     lines.push(line);
   }
   return lines;
+};
+
+const appendWrappedWordToWidth = (
+  lines: string[],
+  line: string,
+  word: string,
+  width: number,
+): string => {
+  const nextLine = nextWrappedLine(line, word);
+  if (nextLine.length > width && line) {
+    lines.push(line);
+    return word;
+  }
+  return nextLine;
 };
 
 const pushJSDocTextLines = (lines: string[], text: string): void => {
@@ -97,7 +111,9 @@ export const formatJSDoc = (input: JSDocInput): string => {
 export const formatMainHeader = (text: string): string =>
   [
     solidDividerLine(),
-    `${blockLeft}${centeredDividerText(text)}${blockRight}`,
+    ...dividerTextLines(text).map(
+      (line): string => `${blockLeft}${centeredDividerText(line)}${blockRight}`,
+    ),
     solidDividerLine(),
   ].join('\n');
 

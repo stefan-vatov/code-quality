@@ -1,8 +1,6 @@
-/**
- * Schema boundary predicates for always-on Effect rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*           Schema boundary predicates for always-on Effect rules.           */
+/* -------------------------------------------------------------------------- */
 import { isInsideCall, stripCommentsAndStrings } from './effect-source-helpers';
 import { localCallSegment, someEffectWorkflowBody } from './effect-default-scan-helpers';
 

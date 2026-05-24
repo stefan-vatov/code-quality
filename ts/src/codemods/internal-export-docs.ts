@@ -1,8 +1,6 @@
-/**
- * Codemod for internal exported declaration documentation.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*          Codemod for internal exported declaration documentation.          */
+/* -------------------------------------------------------------------------- */
 import { formatJSDoc } from './comment-format';
 import ts from 'typescript';
 

@@ -1,6 +1,6 @@
-/**
- * Public Oxlint config factory for The Thracian TypeScript lint package.
- */
+/* -------------------------------------------------------------------------- */
+/*   Public Oxlint config factory for The Thracian TypeScript lint package.   */
+/* -------------------------------------------------------------------------- */
 import { dirname, join } from 'node:path';
 import { effectDefaultRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
 import { defineConfig } from 'oxlint';

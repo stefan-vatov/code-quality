@@ -1,8 +1,6 @@
-/**
- * Shared scan helpers for always-on Effect lint predicates.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*         Shared scan helpers for always-on Effect lint predicates.          */
+/* -------------------------------------------------------------------------- */
 import {
   findBalancedCallEnd,
   findStatementEnd,

@@ -1,9 +1,10 @@
-/**
- * Detection heuristic for commented-out source code. Checks whether a comment's text content looks
- * like code rather than natural language. Uses a scoring approach: each code indicator adds to a
- * score; if the score meets the threshold, the comment is flagged. Optimized: pre-compiled regex, line
- * scanning via indexOf, minimal string allocations.
- */
+/* -------------------------------------------------------------------------- */
+/*    Detection heuristic for commented-out source code. Checks whether a     */
+/* Comment's text content looks like code rather than natural language. Uses  */
+/*   A scoring approach: each code indicator adds to a score; if the score    */
+/*    Meets the threshold, the comment is flagged. Optimized: pre-compiled    */
+/*       Regex, line scanning via indexOf, minimal string allocations.        */
+/* -------------------------------------------------------------------------- */
 
 // Pre-compiled regex patterns
 const RE_ARROW_FN = /\b=>\s*[{(\w]/;

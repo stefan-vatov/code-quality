@@ -1,8 +1,6 @@
-/**
- * Canonical lists of custom Effect rule names exported by the config.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*    Canonical lists of custom Effect rule names exported by the config.     */
+/* -------------------------------------------------------------------------- */
 /**
  * Internal helper exported for package-local composition.
  *

@@ -40,4 +40,15 @@ describe('comment-format', () => {
       '/* ----------------------------- Header comment ----------------------------- */',
     );
   });
+
+  it('wraps long divider comments instead of creating overlong lines', () => {
+    expect(
+      formatMainHeader(
+        'Detection heuristic for commented-out source code. Checks whether a comment text content looks like code rather than natural language.',
+      ),
+    ).toBe(`/* -------------------------------------------------------------------------- */
+/*    Detection heuristic for commented-out source code. Checks whether a     */
+/*     Comment text content looks like code rather than natural language.     */
+/* -------------------------------------------------------------------------- */`);
+  });
 });

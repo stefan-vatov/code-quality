@@ -1,8 +1,6 @@
-/**
- * Oxlint JavaScript plugin entry for The Thracian custom rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*       Oxlint JavaScript plugin entry for The Thracian custom rules.        */
+/* -------------------------------------------------------------------------- */
 import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case';
 import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore';
 import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers';
@@ -414,10 +412,12 @@ const requireFileDocRule = withCreateOnce({
 
         if (!hasRequiredFileDoc(source)) {
           context.report({
-            message:
-              'File must have a JSDoc header comment (' +
-              '/** ... */)' +
-              ' describing its purpose. Use // @internal to opt out for internal modules.',
+            message: `Missing file-purpose header. Add a top-of-file divider header in this exact format:
+/* -------------------------------------------------------------------------- */
+/*                     Describe this file's purpose here.                     */
+/* -------------------------------------------------------------------------- */
+
+The text line must be a real description of what the file is for; declaration JSDoc does not count.`,
             node,
           });
         }
@@ -437,10 +437,16 @@ const requireFunctionDocRule = withCreateOnce({
 
         if (!hasRequiredFunctionDocs(source)) {
           context.report({
-            message:
-              'Missing JSDoc on an exported declaration. Every public function, class, type, ' +
-              'interface, enum, and const must have a non-empty /** ... */ JSDoc comment with ' +
-              'a description of its purpose, parameters, return value, and error conditions.',
+            message: `Missing public declaration JSDoc. Add a /** ... */ block immediately above the export in this shape:
+/**
+ * Describe what this exported declaration does.
+ *
+ * @param name - Describe this parameter.
+ * @returns Describe the return value.
+ * @throws Describe expected error conditions, or state that it does not throw.
+ */
+
+The prose must be specific; generated placeholder text does not satisfy the rule.`,
             node,
           });
         }

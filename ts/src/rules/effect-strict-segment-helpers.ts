@@ -1,8 +1,6 @@
-/**
- * Source segment helpers for opt-in strict Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*        Source segment helpers for opt-in strict Effect lint rules.         */
+/* -------------------------------------------------------------------------- */
 import {
   findBalancedCallEnd,
   findStatementEnd,

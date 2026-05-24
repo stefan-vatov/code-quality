@@ -1,8 +1,6 @@
-/**
- * Conservative codemod for sorting top-level import declarations.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*      Conservative codemod for sorting top-level import declarations.       */
+/* -------------------------------------------------------------------------- */
 import ts from 'typescript';
 
 interface Replacement {

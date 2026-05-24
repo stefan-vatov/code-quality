@@ -1,8 +1,6 @@
-/**
- * Static acronym data chunk for the acronym-case rule.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*            Static acronym data chunk for the acronym-case rule.            */
+/* -------------------------------------------------------------------------- */
 const acronyms3 = [
   'mcp',
   'mcpc',

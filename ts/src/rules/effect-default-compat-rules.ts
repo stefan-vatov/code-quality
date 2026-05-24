@@ -1,8 +1,6 @@
-/**
- * Compatibility and runtime-tail Effect rule specs.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*             Compatibility and runtime-tail Effect rule specs.              */
+/* -------------------------------------------------------------------------- */
 import {
   effectCallPredicate,
   effectServiceSelfName,

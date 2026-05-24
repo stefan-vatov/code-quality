@@ -1,8 +1,6 @@
-/**
- * Boundary-schema predicates for opt-in strict Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*      Boundary-schema predicates for opt-in strict Effect lint rules.       */
+/* -------------------------------------------------------------------------- */
 import {
   findBalancedCallEnd,
   findStatementEnd,

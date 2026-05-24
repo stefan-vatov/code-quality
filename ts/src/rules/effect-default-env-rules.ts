@@ -1,8 +1,6 @@
-/**
- * Environment, schema, resource, and test Effect rule specs.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*         Environment, schema, resource, and test Effect rule specs.         */
+/* -------------------------------------------------------------------------- */
 import {
   hasCastAfterSchemaDecode,
   hasExternalJSONWithoutDecodeUnknown,

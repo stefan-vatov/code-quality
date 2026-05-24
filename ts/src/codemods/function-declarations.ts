@@ -1,8 +1,6 @@
-/**
- * Conservative codemod for safe func-style declaration rewrites.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*       Conservative codemod for safe func-style declaration rewrites.       */
+/* -------------------------------------------------------------------------- */
 import ts from 'typescript';
 
 interface Replacement {

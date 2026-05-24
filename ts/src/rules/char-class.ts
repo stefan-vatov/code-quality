@@ -1,8 +1,6 @@
-/**
- * ASCII character classification table for hot-path lint helpers.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*      ASCII character classification table for hot-path lint helpers.       */
+/* -------------------------------------------------------------------------- */
 const ASCII_TABLE_SIZE = 128;
 const CHAR_CODE_ZERO = 48;
 const CHAR_CODE_NINE = 57;

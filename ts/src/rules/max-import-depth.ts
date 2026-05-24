@@ -1,3 +1,7 @@
+/* -------------------------------------------------------------------------- */
+/*           Import-depth helper for detecting parent path climbs.            */
+/* -------------------------------------------------------------------------- */
+
 /**
  * Count leading `../` segments in an import path. Returns 0 for non-relative imports (no leading
  * `..`).

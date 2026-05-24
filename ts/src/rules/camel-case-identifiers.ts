@@ -1,8 +1,6 @@
-/**
- * CamelCase naming helpers for custom Oxlint identifier rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*        CamelCase naming helpers for custom Oxlint identifier rules.        */
+/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
 
 const CHAR_CODE_ZERO = 48;

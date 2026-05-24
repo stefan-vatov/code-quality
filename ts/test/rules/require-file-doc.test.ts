@@ -15,6 +15,19 @@ describe('extractDocHeader', () => {
     ).toBe('/** @fileoverview CLI entry. */');
   });
 
+  it('extracts divider-style file headers', () => {
+    const source = `/* -------------------------------------------------------------------------- */
+/*                               Header comment                               */
+/* -------------------------------------------------------------------------- */
+import { value } from './value';
+`;
+
+    expect(extractDocHeader(source))
+      .toBe(`/* -------------------------------------------------------------------------- */
+/*                               Header comment                               */
+/* -------------------------------------------------------------------------- */`);
+  });
+
   it('extracts single-line JSDoc at file start', () => {
     expect(
       extractDocHeader('/** @fileoverview Core utilities. */\n\nimport { foo } from "./foo.js";'),
@@ -135,52 +148,52 @@ describe('extractDocHeader', () => {
 // hasRequiredFileDoc — full validation
 // ============================================================================
 describe('hasRequiredFileDoc', () => {
-  // ── passes: JSDoc present ─────────────────────────────────────────────
+  // ── fails: JSDoc is declaration/API documentation, not a file header ──
 
-  it('passes when file has single-line JSDoc header', () => {
-    expect(hasRequiredFileDoc('/** Module docs. */\n\nimport { x } from "./y.js";')).toBe(true);
+  it('fails when file has single-line JSDoc instead of a divider header', () => {
+    expect(hasRequiredFileDoc('/** Module docs. */\n\nimport { x } from "./y.js";')).toBe(false);
   });
 
-  it('passes when file has multi-line JSDoc header', () => {
+  it('fails when file has multi-line JSDoc instead of a divider header', () => {
     expect(
       hasRequiredFileDoc(
         '/**\n * Core utilities.\n * @module shared\n */\n\nimport { foo } from "./foo.js";',
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('passes when file has shebang + multi-line JSDoc', () => {
+  it('fails when file has shebang plus multi-line JSDoc instead of a divider header', () => {
     expect(
       hasRequiredFileDoc('#!/usr/bin/env node\n/**\n * CLI entry point.\n */\n\nparseArgs();'),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('passes with shebang + compact single-line JSDoc', () => {
-    expect(hasRequiredFileDoc('#!/usr/bin/env node\n/** CLI. */\ncode();')).toBe(true);
+  it('fails with shebang plus compact single-line JSDoc', () => {
+    expect(hasRequiredFileDoc('#!/usr/bin/env node\n/** CLI. */\ncode();')).toBe(false);
   });
 
-  it('passes with JSDoc containing @fileoverview tag', () => {
+  it('fails with JSDoc containing @fileoverview tag', () => {
     expect(
       hasRequiredFileDoc(
         '/** @fileoverview Authentication module. */\n\nexport function login() {}',
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('passes with JSDoc containing @module tag', () => {
-    expect(hasRequiredFileDoc('/** @module config */\n\nexport const PORT = 3000;')).toBe(true);
+  it('fails with JSDoc containing @module tag', () => {
+    expect(hasRequiredFileDoc('/** @module config */\n\nexport const PORT = 3000;')).toBe(false);
   });
 
-  it('passes with JSDoc containing @license and @author', () => {
+  it('fails with JSDoc containing @license and @author', () => {
     expect(
       hasRequiredFileDoc(
         '/** @license MIT\n * @author team\n */\n\nexport const VERSION = "1.0.0";',
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('passes with JSDoc followed by code on same line is fine (JSDoc closes properly)', () => {
-    expect(hasRequiredFileDoc('/** docs */ const x = 1;')).toBe(true);
+  it('fails with JSDoc followed by code on the same line', () => {
+    expect(hasRequiredFileDoc('/** docs */ const x = 1;')).toBe(false);
   });
 
   // ── passes: opt-out markers ───────────────────────────────────────────
@@ -249,14 +262,14 @@ describe('hasRequiredFileDoc', () => {
     expect(hasRequiredFileDoc('#!/usr/bin/env node\n   \n  \t\n')).toBe(true);
   });
 
-  // ── passes: JSDoc is JSDoc even with @internal tag ────────────────────
+  // ── fails: JSDoc tags are not file-header opt-outs ────────────────────
 
-  it('passes for /** @internal */ — this IS a JSDoc (not an opt-out comment)', () => {
-    expect(hasRequiredFileDoc('/** @internal */\ncode();')).toBe(true);
+  it('fails for /** @internal */ because it is JSDoc, not an opt-out comment', () => {
+    expect(hasRequiredFileDoc('/** @internal */\ncode();')).toBe(false);
   });
 
-  it('passes for /** @generated */ — JSDoc with generated tag', () => {
-    expect(hasRequiredFileDoc('/** @generated */\ncode();')).toBe(true);
+  it('fails for /** @generated */ because it is JSDoc, not an opt-out comment', () => {
+    expect(hasRequiredFileDoc('/** @generated */\ncode();')).toBe(false);
   });
 
   // ── fails: no documentation ───────────────────────────────────────────
@@ -283,6 +296,12 @@ describe('hasRequiredFileDoc', () => {
 
   it('fails when file starts with interface', () => {
     expect(hasRequiredFileDoc('export interface Config {\n  port: number;\n}\n')).toBe(false);
+  });
+
+  it('fails when file starts with declaration JSDoc instead of a divider file header', () => {
+    expect(
+      hasRequiredFileDoc('/** Documents the exported function. */\nexport function main() {}\n'),
+    ).toBe(false);
   });
 
   // ── fails: wrong comment type ─────────────────────────────────────────
@@ -350,16 +369,11 @@ describe('hasRequiredFileDoc', () => {
     expect(hasRequiredFileDoc('/* eslint-disable */\nimport { x } from "./y.js";')).toBe(false);
   });
 
-  // ── known limitation: string literal false positive ──────────────────
+  // ── false positive prevention ────────────────────────────────────────
 
-  it('KNOWN LIMITATION: detects /** inside string literal as JSDoc', () => {
-    // When /** is within 50 chars of file start and appears in a string,
-    // the rule cannot distinguish string contents from comments.
-    // This is acceptable since real-world string-literals-containing-JSDoc at top-of-file is rare.
+  it('fails when /** appears inside a string literal near the file start', () => {
     const src = 'import { x } from "./y.js";\nconst s = "/** not jsdoc */";\n';
-    // Current behavior: incorrectly passes (thinks the string is a JSDoc header)
-    // Ideal behavior: should fail (no real JSDoc header present)
-    expect(hasRequiredFileDoc(src)).toBe(true); // known limitation
+    expect(hasRequiredFileDoc(src)).toBe(false);
   });
 
   it('fails when /** appears far past 50 chars (even in string literal)', () => {
@@ -368,14 +382,9 @@ describe('hasRequiredFileDoc', () => {
     expect(hasRequiredFileDoc(src)).toBe(false);
   });
 
-  // ── known limitation: string literal false positive ──────────────────
-
-  it('KNOWN LIMITATION: passes when /** appears in string within 50 chars', () => {
-    // The rule reads raw source and cannot distinguish string contents from comments.
-    // When /** is within 50 chars of file start, it is treated as a JSDoc header.
-    // This is acceptable: real-world string-literals-mimicking-JSDoc at file top is vanishingly rare.
+  it('fails when /** appears in a string within 50 chars', () => {
     const src = 'import { x } from "./y.js";\nconst s = "/** not jsdoc */";\n';
-    expect(hasRequiredFileDoc(src)).toBe(true);
+    expect(hasRequiredFileDoc(src)).toBe(false);
   });
 
   // ── fails: unclosed JSDoc ─────────────────────────────────────────────
@@ -405,11 +414,31 @@ describe('hasRequiredFileDoc', () => {
   // ── edge: Windows line endings ────────────────────────────────────────
 
   it('handles CRLF line endings', () => {
-    expect(hasRequiredFileDoc('/** docs */\r\n\r\nimport { x } from "./y.js";')).toBe(true);
+    expect(hasRequiredFileDoc('/** docs */\r\n\r\nimport { x } from "./y.js";')).toBe(false);
+  });
+
+  it('passes for divider-style file headers', () => {
+    const source = `/* -------------------------------------------------------------------------- */
+/*                               Header comment                               */
+/* -------------------------------------------------------------------------- */
+import { value } from './value';
+`;
+
+    expect(hasRequiredFileDoc(source)).toBe(true);
+  });
+
+  it('fails when divider header is not the exact fixed-width format', () => {
+    const source = `/* ------------------------- */
+/* Header comment */
+/* ------------------------- */
+import { value } from './value';
+`;
+
+    expect(hasRequiredFileDoc(source)).toBe(false);
   });
 
   it('handles shebang with CRLF', () => {
-    expect(hasRequiredFileDoc('#!/usr/bin/env node\r\n/** CLI. */\r\ncode();')).toBe(true);
+    expect(hasRequiredFileDoc('#!/usr/bin/env node\r\n/** CLI. */\r\ncode();')).toBe(false);
   });
 
   // ── edge: @generated with shebang ─────────────────────────────────────
@@ -420,8 +449,8 @@ describe('hasRequiredFileDoc', () => {
 
   // ── edge: mix of whitespace types ─────────────────────────────────────
 
-  it('passes for JSDoc after many blank lines', () => {
-    expect(hasRequiredFileDoc('\n\n\n\n\n/** docs */\ncode();')).toBe(true);
+  it('fails for JSDoc after many blank lines', () => {
+    expect(hasRequiredFileDoc('\n\n\n\n\n/** docs */\ncode();')).toBe(false);
   });
 
   it('fails when // @internal appears after non-comment non-ws content', () => {
@@ -439,28 +468,27 @@ describe('hasRequiredFileDoc', () => {
     expect(hasRequiredFileDoc(lines.join('\n'))).toBe(false);
   });
 
-  it('handles large synthetic source with JSDoc at top', () => {
+  it('fails for large synthetic source with only JSDoc at top', () => {
     const lines = ['/** Big module. */', ''];
     for (let i = 0; i < 500; i++) {
       lines.push(`export function fn${i}() { return ${i}; }`);
     }
-    expect(hasRequiredFileDoc(lines.join('\n'))).toBe(true);
+    expect(hasRequiredFileDoc(lines.join('\n'))).toBe(false);
   });
 
   // ── exotic but valid JSDoc forms ──────────────────────────────────────
 
-  it('passes for JSDoc with no space after /** (compact)', () => {
-    expect(hasRequiredFileDoc('/**docs*/\ncode();')).toBe(true);
+  it('fails for JSDoc with no space after /** (compact)', () => {
+    expect(hasRequiredFileDoc('/**docs*/\ncode();')).toBe(false);
   });
 
-  it('passes for JSDoc with only * content (empty docs)', () => {
-    expect(hasRequiredFileDoc('/** */\ncode();')).toBe(true);
+  it('fails for JSDoc with only * content (empty docs)', () => {
+    expect(hasRequiredFileDoc('/** */\ncode();')).toBe(false);
   });
 
-  it('passes for JSDoc at exactly 49 chars offset (within 50 char window)', () => {
-    // 49 chars of whitespace then JSDoc — the first non-ws IS the JSDoc
+  it('fails for JSDoc at exactly 49 chars offset', () => {
     const ws = ' '.repeat(49);
-    expect(hasRequiredFileDoc(`${ws}/** docs */\ncode();`)).toBe(true);
+    expect(hasRequiredFileDoc(`${ws}/** docs */\ncode();`)).toBe(false);
   });
 
   it('fails when code comes first and JSDoc is 51+ chars later', () => {

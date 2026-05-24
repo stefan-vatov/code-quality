@@ -1,9 +1,11 @@
-/**
- * Public API for running The Thracian codemod fixes from package scripts or tools.
- */
+/* -------------------------------------------------------------------------- */
+/* Public API for running The Thracian codemod fixes from package scripts or  */
+/*                                   Tools.                                   */
+/* -------------------------------------------------------------------------- */
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { addInternalExportDocs } from '../codemods/internal-export-docs';
 import { addVoidReturnTypes } from '../codemods/explicit-return-types';
+import { formatFileHeaderComment } from '../codemods/format-file-header';
 import { formatJSDocComments } from '../codemods/format-jsdoc-comments';
 import { inlineLocalExportLists } from '../codemods/inline-export-lists';
 import { preferConciseArrowBodies } from '../codemods/arrow-body-style';
@@ -95,7 +97,7 @@ export const applyCodemodFixToSource = (source: string): string =>
  */
 export const applyCodemodFixToFile = (path: string, dryRun: boolean): boolean => {
   const before = readFileSync(path, 'utf8');
-  const after = applyCodemodFixToSource(before);
+  const after = formatFileHeaderComment(applyCodemodFixToSource(before));
 
   if (after === before) {
     return false;

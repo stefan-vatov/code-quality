@@ -1,8 +1,6 @@
-/**
- * Core runtime for source-backed and AST-backed Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*      Core runtime for source-backed and AST-backed Effect lint rules.      */
+/* -------------------------------------------------------------------------- */
 import { canonicalizeEffectAPIAliases } from './effect-rule-aliases';
 import { readCachedSource } from './source-cache';
 import { stripCommentsAndStrings } from './effect-source-helpers';

@@ -1,8 +1,6 @@
-/**
- * Source text cache shared by custom Oxlint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*              Source text cache shared by custom Oxlint rules.              */
+/* -------------------------------------------------------------------------- */
 import { readFileSync, statSync } from 'node:fs';
 
 /**

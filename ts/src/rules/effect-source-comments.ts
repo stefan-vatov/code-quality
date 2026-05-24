@@ -1,8 +1,6 @@
-/**
- * Comment stripping helper for source-backed Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*       Comment stripping helper for source-backed Effect lint rules.        */
+/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class';
 
 const regexPrefixChars = new Set(['(', '[', '{', '=', ':', ',', ';', '!', '?', '&', '|']);

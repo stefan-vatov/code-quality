@@ -1,8 +1,6 @@
-/**
- * Helper predicates for opt-in strict Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*           Helper predicates for opt-in strict Effect lint rules.           */
+/* -------------------------------------------------------------------------- */
 import { findStatementEnd, stripCommentsAndStrings } from './effect-source-helpers';
 import {
   lineAround,

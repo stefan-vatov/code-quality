@@ -1,8 +1,6 @@
-/**
- * Conservative codemod for local export-list rewrites.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*            Conservative codemod for local export-list rewrites.            */
+/* -------------------------------------------------------------------------- */
 import ts from 'typescript';
 
 interface Replacement {

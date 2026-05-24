@@ -1,8 +1,6 @@
-/**
- * Helpers for Effect test-determinism lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*              Helpers for Effect test-determinism lint rules.               */
+/* -------------------------------------------------------------------------- */
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
 const testStartPattern = /\bit(?:\.effect)?\s*\(/g;

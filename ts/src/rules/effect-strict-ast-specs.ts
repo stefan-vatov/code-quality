@@ -1,8 +1,6 @@
-/**
- * AST-backed opt-in strict custom Effect lint rule specs.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*          AST-backed opt-in strict custom Effect lint rule specs.           */
+/* -------------------------------------------------------------------------- */
 import {
   arrayValue,
   effectCallPredicate,

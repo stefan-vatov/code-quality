@@ -1,8 +1,6 @@
-/**
- * Ignored source-region helpers for exported JSDoc checks.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*          Ignored source-region helpers for exported JSDoc checks.          */
+/* -------------------------------------------------------------------------- */
 
 interface ScanState {
   isBlockComment: boolean;

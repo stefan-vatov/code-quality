@@ -1,8 +1,6 @@
-/**
- * Acronym casing helpers for custom Oxlint identifier rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*         Acronym casing helpers for custom Oxlint identifier rules.         */
+/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
 import acronyms from './acronyms';
 

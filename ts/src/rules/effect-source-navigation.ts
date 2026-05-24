@@ -1,8 +1,6 @@
-/**
- * Source navigation helpers for Effect lint rule implementations.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*      Source navigation helpers for Effect lint rule implementations.       */
+/* -------------------------------------------------------------------------- */
 import {
   findBalancedCallEnd,
   findMatchingBrace,

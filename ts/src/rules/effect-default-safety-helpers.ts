@@ -1,8 +1,6 @@
-/**
- * Error-handling and cleanup predicates for always-on Effect rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*     Error-handling and cleanup predicates for always-on Effect rules.      */
+/* -------------------------------------------------------------------------- */
 import { effectCallBodies, enclosingPipeBody } from './effect-default-scan-helpers';
 import {
   findBalancedCallEnd,

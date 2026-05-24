@@ -1,8 +1,6 @@
-/**
- * Local export-list documentation helpers for exported JSDoc checks.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*     Local export-list documentation helpers for exported JSDoc checks.     */
+/* -------------------------------------------------------------------------- */
 
 const CHAR_CODE_OPEN_BRACE = 123;
 const CHAR_CODE_LOWER_A = 97;

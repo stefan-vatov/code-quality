@@ -1,8 +1,6 @@
-/**
- * Path option schema helpers for strict Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*          Path option schema helpers for strict Effect lint rules.          */
+/* -------------------------------------------------------------------------- */
 import type { Context } from './effect-rule-core';
 
 /**

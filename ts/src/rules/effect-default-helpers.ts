@@ -1,8 +1,6 @@
-/**
- * Re-export hub for always-on Effect helper predicates.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*           Re-export hub for always-on Effect helper predicates.            */
+/* -------------------------------------------------------------------------- */
 export {
   effectAliasesPattern,
   effectCallBodies,

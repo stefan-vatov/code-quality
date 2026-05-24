@@ -1,8 +1,6 @@
-/**
- * External-call predicates for opt-in strict Effect lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*       External-call predicates for opt-in strict Effect lint rules.        */
+/* -------------------------------------------------------------------------- */
 import {
   enclosingEffectWrapperSegment,
   hasTopLevelPipeOperator,

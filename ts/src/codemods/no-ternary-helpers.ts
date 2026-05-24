@@ -1,8 +1,6 @@
-/**
- * Shared no-ternary codemod text helpers.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*                  Shared no-ternary codemod text helpers.                   */
+/* -------------------------------------------------------------------------- */
 import ts from 'typescript';
 
 /**

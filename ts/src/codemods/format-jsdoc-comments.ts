@@ -1,8 +1,6 @@
-/**
- * Codemod for normalizing generated JSDoc comment aesthetics.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*        Codemod for normalizing generated JSDoc comment aesthetics.         */
+/* -------------------------------------------------------------------------- */
 import { formatJSDoc } from './comment-format';
 
 const tagPattern = /^@\S+/;

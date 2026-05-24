@@ -1,8 +1,6 @@
-/**
- * Helpers for Effect resource-lifetime lint rules.
- *
- * @internal
- */
+/* -------------------------------------------------------------------------- */
+/*              Helpers for Effect resource-lifetime lint rules.              */
+/* -------------------------------------------------------------------------- */
 import {
   findBalancedCallEnd,
   isInsideCall,
