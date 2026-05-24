@@ -67,6 +67,85 @@ describe('release planner', () => {
     });
   });
 
+  it('treats code-changing conventional semantic tags as patch releases', () => {
+    const plan = planPackageRelease({
+      commits: [
+        {
+          body: '',
+          hash: '4444444444444444444444444444444444444444',
+          subject: 'perf(ts): optimize Effect rule source scans',
+        },
+        {
+          body: '',
+          hash: '5555555555555555555555555555555555555555',
+          subject: 'refactor(ts): simplify plugin source cache',
+        },
+        {
+          body: '',
+          hash: '6666666666666666666666666666666666666666',
+          subject: 'chore(ts): update package metadata',
+        },
+      ],
+      currentVersion: '0.2.0',
+      date: '2026-05-24',
+      lastTag: '@thethracian/oxlint-config@0.2.0',
+      name: '@thethracian/oxlint-config',
+      tagPrefix: '@thethracian/oxlint-config',
+    });
+
+    expect(plan.bump).toBe('patch');
+    expect(plan.nextVersion).toBe('0.2.1');
+    expect(plan.changelogSections).toEqual({
+      Changes: [
+        'perf(ts): optimize Effect rule source scans (4444444)',
+        'refactor(ts): simplify plugin source cache (5555555)',
+        'chore(ts): update package metadata (6666666)',
+      ],
+    });
+  });
+
+  it('does not release docs test build ci or release-chore commits', () => {
+    const plan = planPackageRelease({
+      commits: [
+        {
+          body: '',
+          hash: '7777777777777777777777777777777777777777',
+          subject: 'docs(ts): clarify type-aware setup',
+        },
+        {
+          body: '',
+          hash: '8888888888888888888888888888888888888888',
+          subject: 'test(ts): cover release planner semantic tags',
+        },
+        {
+          body: '',
+          hash: '9999999999999999999999999999999999999999',
+          subject: 'build(ts): remove stale runtime dependency',
+        },
+        {
+          body: '',
+          hash: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          subject: 'ci(ts): update workflow cache',
+        },
+        {
+          body: '',
+          hash: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          subject: 'chore(release): publish [skip ci]',
+        },
+      ],
+      currentVersion: '0.2.0',
+      date: '2026-05-24',
+      lastTag: '@thethracian/oxlint-config@0.2.0',
+      name: '@thethracian/oxlint-config',
+      tagPrefix: '@thethracian/oxlint-config',
+    });
+
+    expect(plan.bump).toBe('none');
+    expect(plan.release).toBe(false);
+    expect(plan.nextVersion).toBe('0.2.0');
+    expect(plan.changelogSections).toEqual({});
+  });
+
   it('plans a pending publish when the manifest version is newer than the latest tag', () => {
     const plan = planPackageRelease({
       commits: [],

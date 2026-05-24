@@ -142,6 +142,15 @@ function applyReleasePlan({ files, plans }) {
 }
 
 function classifyCommit(commit, currentVersion) {
+  const header = conventionalHeader(commit.subject);
+  if (isNonReleasingConventionalCommit(header)) {
+    return {
+      ...commit,
+      bump: 'none',
+      section: null,
+    };
+  }
+
   if (isBreakingChange(commit)) {
     return {
       ...commit,
@@ -150,7 +159,7 @@ function classifyCommit(commit, currentVersion) {
     };
   }
 
-  const type = conventionalType(commit.subject);
+  const type = header?.type ?? null;
   if (type === 'feat') {
     return {
       ...commit,
@@ -164,6 +173,14 @@ function classifyCommit(commit, currentVersion) {
       ...commit,
       bump: 'patch',
       section: 'Fixes',
+    };
+  }
+
+  if (type === 'chore' || type === 'perf' || type === 'refactor') {
+    return {
+      ...commit,
+      bump: 'patch',
+      section: 'Changes',
     };
   }
 
@@ -181,8 +198,26 @@ function isBreakingChange(commit) {
   );
 }
 
-function conventionalType(subject) {
-  return /^(?<type>[a-z]+)(?:\([^)]+\))?!?: /iu.exec(subject)?.groups?.type ?? null;
+function conventionalHeader(subject) {
+  const match = /^(?<type>[a-z]+)(?:\((?<scope>[^)]+)\))?!?: /iu.exec(subject);
+  if (match?.groups === undefined) {
+    return null;
+  }
+
+  return {
+    scope: match.groups.scope?.toLowerCase() ?? null,
+    type: match.groups.type.toLowerCase(),
+  };
+}
+
+function isNonReleasingConventionalCommit(header) {
+  return (
+    header?.type === 'build' ||
+    header?.type === 'ci' ||
+    header?.type === 'docs' ||
+    header?.type === 'test' ||
+    (header?.type === 'chore' && header.scope === 'release')
+  );
 }
 
 function isPreMajor(version) {
@@ -231,7 +266,7 @@ function parseVersion(version) {
 function changelogSections(commits) {
   const sections = {};
 
-  for (const section of ['Breaking Changes', 'Features', 'Fixes']) {
+  for (const section of ['Breaking Changes', 'Features', 'Fixes', 'Changes']) {
     const entries = commits
       .filter((commit) => commit.section === section)
       .map((commit) => `${commit.subject} (${commit.hash.slice(0, 7)})`);
