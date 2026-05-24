@@ -20,6 +20,7 @@ describe('Effect rule buckets', () => {
     for (const ruleName of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
       expect(plugin.rules, `${ruleName} must be registered`).toHaveProperty(ruleName);
     }
+    expect(plugin.rules).not.toHaveProperty('complexity');
   });
 
   it('keeps published config bucket enablement in exact sync', () => {

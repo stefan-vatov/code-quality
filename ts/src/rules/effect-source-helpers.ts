@@ -8,18 +8,15 @@ import {
 } from './effect-source-scan.js';
 
 const EXPORTED_DECLARATION_CACHE_MAX = 256;
-const exportedDeclarationCache = new Map<string, readonly string[]>();
+const exportedDeclarationCache = new Map<string, string[]>();
+const exportedDeclarationSegmentCache = new Map<string, string[]>();
+const exportedCallableDeclarationSegmentCache = new Map<string, string[]>();
 
-function cachedExportedDeclarations(source: string): readonly string[] | undefined {
-  const value = exportedDeclarationCache.get(source);
-  if (value) {
-    exportedDeclarationCache.delete(source);
-    exportedDeclarationCache.set(source, value);
-  }
-  return value;
+function cachedExportedDeclarations(source: string): string[] | undefined {
+  return exportedDeclarationCache.get(source);
 }
 
-function cacheExportedDeclarations(source: string, declarations: readonly string[]): string[] {
+function cacheExportedDeclarations(source: string, declarations: string[]): string[] {
   if (exportedDeclarationCache.size >= EXPORTED_DECLARATION_CACHE_MAX) {
     const firstKey = exportedDeclarationCache.keys().next().value;
     if (firstKey !== undefined) {
@@ -27,7 +24,29 @@ function cacheExportedDeclarations(source: string, declarations: readonly string
     }
   }
   exportedDeclarationCache.set(source, declarations);
-  return [...declarations];
+  return declarations;
+}
+
+function cacheExportedDeclarationSegments(source: string, segments: string[]): string[] {
+  if (exportedDeclarationSegmentCache.size >= EXPORTED_DECLARATION_CACHE_MAX) {
+    const firstKey = exportedDeclarationSegmentCache.keys().next().value;
+    if (firstKey !== undefined) {
+      exportedDeclarationSegmentCache.delete(firstKey);
+    }
+  }
+  exportedDeclarationSegmentCache.set(source, segments);
+  return segments;
+}
+
+function cacheExportedCallableDeclarationSegments(source: string, segments: string[]): string[] {
+  if (exportedCallableDeclarationSegmentCache.size >= EXPORTED_DECLARATION_CACHE_MAX) {
+    const firstKey = exportedCallableDeclarationSegmentCache.keys().next().value;
+    if (firstKey !== undefined) {
+      exportedCallableDeclarationSegmentCache.delete(firstKey);
+    }
+  }
+  exportedCallableDeclarationSegmentCache.set(source, segments);
+  return segments;
 }
 
 function findEnclosingBraceOpen(source: string, targetIndex: number): number {
@@ -159,7 +178,7 @@ function findStatementEnd(source: string, startIndex: number): number {
 function exportedDeclarationTexts(source: string): string[] {
   const cachedValue = cachedExportedDeclarations(source);
   if (cachedValue) {
-    return [...cachedValue];
+    return cachedValue;
   }
 
   const code = stripCommentsAndStrings(source);
@@ -295,61 +314,77 @@ function findAssignmentEquals(declaration: string): number {
 }
 
 function exportedDeclarationSegments(source: string): string[] {
-  return exportedDeclarationTexts(source).map((declaration) => {
-    if (/^\s*export\s+default\b/.test(declaration)) {
-      const value = declaration.replace(/^\s*export\s+default\s+/, '');
-      const arrowIndex = value.indexOf('=>');
-      if (/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)) {
-        return value.slice(arrowIndex + 2);
-      }
-      return value;
-    }
+  const cachedValue = exportedDeclarationSegmentCache.get(source);
+  if (cachedValue) {
+    return cachedValue;
+  }
 
-    if (/^\s*(?:export\s+)?(?:const|let|var)\b/.test(declaration)) {
-      const equalsIndex = findAssignmentEquals(declaration);
-      const value = equalsIndex === -1 ? declaration : declaration.slice(equalsIndex + 1);
-      const arrowIndex = value.indexOf('=>');
-      if (/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)) {
-        return value.slice(arrowIndex + 2);
+  return cacheExportedDeclarationSegments(
+    source,
+    exportedDeclarationTexts(source).map((declaration) => {
+      if (/^\s*export\s+default\b/.test(declaration)) {
+        const value = declaration.replace(/^\s*export\s+default\s+/, '');
+        const arrowIndex = value.indexOf('=>');
+        if (/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)) {
+          return value.slice(arrowIndex + 2);
+        }
+        return value;
       }
-      return value;
-    }
 
-    const bodyStart = declaration.indexOf('{');
-    return bodyStart === -1 ? declaration : declaration.slice(bodyStart);
-  });
+      if (/^\s*(?:export\s+)?(?:const|let|var)\b/.test(declaration)) {
+        const equalsIndex = findAssignmentEquals(declaration);
+        const value = equalsIndex === -1 ? declaration : declaration.slice(equalsIndex + 1);
+        const arrowIndex = value.indexOf('=>');
+        if (/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)) {
+          return value.slice(arrowIndex + 2);
+        }
+        return value;
+      }
+
+      const bodyStart = declaration.indexOf('{');
+      return bodyStart === -1 ? declaration : declaration.slice(bodyStart);
+    }),
+  );
 }
 
 function exportedCallableDeclarationSegments(source: string): string[] {
-  return exportedDeclarationTexts(source).flatMap((declaration) => {
-    if (/^\s*(?:export\s+)?(?:async\s+)?function\b/.test(declaration)) {
-      const bodyStart = declaration.indexOf('{');
-      return bodyStart === -1 ? [] : [declaration.slice(bodyStart)];
-    }
+  const cachedValue = exportedCallableDeclarationSegmentCache.get(source);
+  if (cachedValue) {
+    return cachedValue;
+  }
 
-    if (/^\s*export\s+default\b/.test(declaration)) {
-      const value = declaration.replace(/^\s*export\s+default\s+/, '');
+  return cacheExportedCallableDeclarationSegments(
+    source,
+    exportedDeclarationTexts(source).flatMap((declaration) => {
+      if (/^\s*(?:export\s+)?(?:async\s+)?function\b/.test(declaration)) {
+        const bodyStart = declaration.indexOf('{');
+        return bodyStart === -1 ? [] : [declaration.slice(bodyStart)];
+      }
+
+      if (/^\s*export\s+default\b/.test(declaration)) {
+        const value = declaration.replace(/^\s*export\s+default\s+/, '');
+        if (!/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)) {
+          return [];
+        }
+
+        const arrowIndex = value.indexOf('=>');
+        return [value.slice(arrowIndex + 2)];
+      }
+
+      if (!/^\s*(?:export\s+)?(?:const|let|var)\b/.test(declaration)) {
+        return [];
+      }
+
+      const equalsIndex = findAssignmentEquals(declaration);
+      const value = equalsIndex === -1 ? declaration : declaration.slice(equalsIndex + 1);
       if (!/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)) {
         return [];
       }
 
       const arrowIndex = value.indexOf('=>');
       return [value.slice(arrowIndex + 2)];
-    }
-
-    if (!/^\s*(?:export\s+)?(?:const|let|var)\b/.test(declaration)) {
-      return [];
-    }
-
-    const equalsIndex = findAssignmentEquals(declaration);
-    const value = equalsIndex === -1 ? declaration : declaration.slice(equalsIndex + 1);
-    if (!/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)) {
-      return [];
-    }
-
-    const arrowIndex = value.indexOf('=>');
-    return [value.slice(arrowIndex + 2)];
-  });
+    }),
+  );
 }
 
 function enclosingEffectCallTail(source: string, targetIndex: number): string | undefined {

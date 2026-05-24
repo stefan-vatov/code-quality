@@ -9,20 +9,99 @@ import {
   stripCommentsAndStrings,
 } from './effect-source-helpers.js';
 
+const EFFECT_PATTERN_CACHE_MAX = 256;
+const effectAliasesPatternCache = new Map<string, string>();
+const effectCallPatternCache = new Map<string, Map<string, RegExp>>();
+const floatingEffectPatternCache = new Map<string, FloatingEffectPatterns>();
+
+type FloatingEffectPatterns = {
+  floatingEffectCall: RegExp;
+  guardedAndEffectCall: RegExp;
+  guardedOrEffectCall: RegExp;
+  inlineIfEffectCall: RegExp;
+  ternaryEffectCall: RegExp;
+};
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function setBoundedCacheValue<Value>(cache: Map<string, Value>, key: string, value: Value): Value {
+  if (cache.size >= EFFECT_PATTERN_CACHE_MAX) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) {
+      cache.delete(firstKey);
+    }
+  }
+  cache.set(key, value);
+  return value;
+}
+
 function effectAliasesPattern(source: string): string {
-  return effectImportAliases(source).map(escapeRegExp).join('|');
+  const cachedPattern = effectAliasesPatternCache.get(source);
+  if (cachedPattern !== undefined) {
+    return cachedPattern;
+  }
+
+  return setBoundedCacheValue(
+    effectAliasesPatternCache,
+    source,
+    effectImportAliases(source).map(escapeRegExp).join('|'),
+  );
 }
 
 function effectCallPattern(source: string, methods: string): RegExp {
-  return new RegExp(`\\b(?:${effectAliasesPattern(source)})\\.(?:${methods})\\s*\\(`, 'g');
+  let sourceCache = effectCallPatternCache.get(source);
+  if (sourceCache === undefined) {
+    sourceCache = setBoundedCacheValue(effectCallPatternCache, source, new Map<string, RegExp>());
+  }
+
+  const cachedPattern = sourceCache.get(methods);
+  if (cachedPattern !== undefined) {
+    return cachedPattern;
+  }
+
+  const pattern = new RegExp(`\\b(?:${effectAliasesPattern(source)})\\.(?:${methods})\\s*\\(`, 'g');
+  sourceCache.set(methods, pattern);
+  return pattern;
+}
+
+function floatingEffectPatterns(aliasPattern: string): FloatingEffectPatterns {
+  const cachedPatterns = floatingEffectPatternCache.get(aliasPattern);
+  if (cachedPatterns !== undefined) {
+    return cachedPatterns;
+  }
+
+  const runtimeMethods = 'runPromise|runPromiseExit|runSync|runSyncExit|runFork';
+  return setBoundedCacheValue(floatingEffectPatternCache, aliasPattern, {
+    floatingEffectCall: new RegExp(
+      `^(?:void\\s+)?\\(*\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    guardedAndEffectCall: new RegExp(
+      `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*&&\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    guardedOrEffectCall: new RegExp(
+      `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*\\|\\|\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    inlineIfEffectCall: new RegExp(
+      `^if\\s*\\([^)]*\\)\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    ternaryEffectCall: new RegExp(
+      `\\?\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+  });
+}
+
+function hasFloatingEffectCandidateLine(line: string, aliasNeedles: readonly string[]): boolean {
+  if (line.includes('.pipe') || line.includes('Schema.decode')) {
+    return true;
+  }
+
+  return aliasNeedles.some((needle) => line.includes(needle));
 }
 
 function hasRuntimeInEffect(source: string): boolean {
-  return effectWorkflowBodies(source).some((body) => hasRuntimeCall(body));
+  return someEffectWorkflowBody(source, (body) => hasRuntimeCall(body));
 }
 
 function hasNestedFlatMap(source: string): boolean {
@@ -148,9 +227,17 @@ function effectCallBodies(source: string, callPattern: RegExp): string[] {
   return bodies;
 }
 
-function effectWorkflowBodies(source: string): string[] {
+function someEffectWorkflowBody(source: string, predicate: (body: string) => boolean): boolean {
   const code = stripCommentsAndStrings(source);
-  const bodies = effectCallBodies(source, effectCallPattern(source, 'gen'));
+  for (const match of code.matchAll(effectCallPattern(source, 'gen'))) {
+    const openParenIndex = source.indexOf('(', match.index);
+    if (openParenIndex === -1) {
+      continue;
+    }
+    if (predicate(source.slice(openParenIndex + 1, findBalancedCallEnd(source, openParenIndex)))) {
+      return true;
+    }
+  }
 
   for (const match of code.matchAll(effectCallPattern(source, 'fn'))) {
     const openParenIndex = source.indexOf('(', match.index);
@@ -161,17 +248,23 @@ function effectWorkflowBodies(source: string): string[] {
     const firstCallEnd = findBalancedCallEnd(source, openParenIndex);
     const nextCallMatch = /^\s*\(/.exec(source.slice(firstCallEnd + 1));
     if (!nextCallMatch) {
-      bodies.push(source.slice(openParenIndex + 1, firstCallEnd));
+      if (predicate(source.slice(openParenIndex + 1, firstCallEnd))) {
+        return true;
+      }
       continue;
     }
 
     const nextOpenParenIndex = firstCallEnd + 1 + nextCallMatch[0].lastIndexOf('(');
-    bodies.push(
-      source.slice(nextOpenParenIndex + 1, findBalancedCallEnd(source, nextOpenParenIndex)),
-    );
+    if (
+      predicate(
+        source.slice(nextOpenParenIndex + 1, findBalancedCallEnd(source, nextOpenParenIndex)),
+      )
+    ) {
+      return true;
+    }
   }
 
-  return bodies;
+  return false;
 }
 
 function hasReturnEffectInGen(source: string): boolean {
@@ -206,7 +299,7 @@ function hasYieldWithoutStarInGen(source: string): boolean | number {
 }
 
 function hasAsyncAwaitInEffect(source: string): boolean {
-  return effectWorkflowBodies(source).some((body) =>
+  return someEffectWorkflowBody(source, (body) =>
     /(?:^|[({,]\s*)async\b|\bawait\b/.test(stripCommentsAndStrings(body)),
   );
 }
@@ -225,37 +318,37 @@ function hasSyncForThrowingOps(source: string): boolean {
 }
 
 function hasThrowInEffect(source: string): boolean {
-  return effectWorkflowBodies(source).some((body) =>
-    /\bthrow\b/.test(stripCommentsAndStrings(body)),
-  );
+  return someEffectWorkflowBody(source, (body) => /\bthrow\b/.test(stripCommentsAndStrings(body)));
 }
 
 function hasFloatingEffect(source: string): boolean {
-  const lines = stripCommentsAndStrings(source).split('\n');
+  const code = stripCommentsAndStrings(source);
+  const aliasNeedles = effectImportAliases(source).map((alias) => `${alias}.`);
   const aliases = effectAliasesPattern(source);
-  const runtimeMethods = 'runPromise|runPromiseExit|runSync|runSyncExit|runFork';
-  const floatingEffectCall = new RegExp(
-    `^(?:void\\s+)?\\(*\\s*(?:${aliases})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-  );
-  const inlineIfEffectCall = new RegExp(
-    `^if\\s*\\([^)]*\\)\\s*(?:${aliases})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-  );
-  const guardedAndEffectCall = new RegExp(
-    `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*&&\\s*(?:${aliases})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-  );
-  const guardedOrEffectCall = new RegExp(
-    `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*\\|\\|\\s*(?:${aliases})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-  );
-  const ternaryEffectCall = new RegExp(
-    `\\?\\s*(?:${aliases})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-  );
-  for (let index = 0; index < lines.length; index++) {
-    const trimmed = lines[index].trim();
-    const previousLine = [...lines.slice(0, index)].reverse().find((line) => line.trim() !== '');
-    const previous = previousLine?.trim() ?? '';
+  let patterns: FloatingEffectPatterns | undefined = undefined;
+  let previous = '';
+  let lineStart = 0;
+  while (lineStart <= code.length) {
+    const newlineIndex = code.indexOf('\n', lineStart);
+    const lineEnd = newlineIndex === -1 ? code.length : newlineIndex;
+    const line = code.slice(lineStart, lineEnd);
 
+    if (!hasFloatingEffectCandidateLine(line, aliasNeedles)) {
+      const trimmed = line.trim();
+      if (trimmed !== '') {
+        previous = trimmed;
+      }
+      if (newlineIndex === -1) {
+        break;
+      }
+      lineStart = newlineIndex + 1;
+      continue;
+    }
+
+    const trimmed = line.trim();
+    patterns ??= floatingEffectPatterns(aliases);
     if (
-      floatingEffectCall.test(trimmed) &&
+      patterns.floatingEffectCall.test(trimmed) &&
       !/[=(:,[]\s*$/.test(previous) &&
       !previous.endsWith('.pipe(') &&
       !trimmed.endsWith(',')
@@ -271,21 +364,27 @@ function hasFloatingEffect(source: string): boolean {
     if (/^Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)\s*;?$/.test(trimmed)) {
       return true;
     }
-    if (inlineIfEffectCall.test(trimmed)) {
+    if (patterns.inlineIfEffectCall.test(trimmed)) {
       return true;
     }
-    if (guardedAndEffectCall.test(trimmed)) {
+    if (patterns.guardedAndEffectCall.test(trimmed)) {
       return true;
     }
-    if (guardedOrEffectCall.test(trimmed)) {
+    if (patterns.guardedOrEffectCall.test(trimmed)) {
       return true;
     }
-    if (ternaryEffectCall.test(trimmed)) {
+    if (patterns.ternaryEffectCall.test(trimmed)) {
       return true;
     }
+    if (trimmed !== '') {
+      previous = trimmed;
+    }
+    if (newlineIndex === -1) {
+      break;
+    }
+    lineStart = newlineIndex + 1;
   }
 
-  const code = stripCommentsAndStrings(source);
   for (const match of code.matchAll(/^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?\.pipe\s*\(/gm)) {
     const statementPrefix = code.slice(code.lastIndexOf(';', match.index) + 1, match.index);
     if (/[=(:,[]\s*$/.test(statementPrefix.trimEnd())) {
@@ -381,7 +480,7 @@ function hasUnsafeLazyEvaluation(source: string): boolean {
 }
 
 function hasSchemaSyncDecodeInEffectWorkflow(source: string): boolean {
-  return effectWorkflowBodies(source).some((body) =>
+  return someEffectWorkflowBody(source, (body) =>
     /Schema\.decode(?:Unknown)?Sync\s*\(/.test(stripCommentsAndStrings(body)),
   );
 }

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { eslintCompatPlugin } from '@oxlint/plugins';
 import isCommentedOutCode from './no-commented-out-code.js';
 import isPascalCase, { toPascalCase } from './pascal-case-types.js';
 import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers.js';
@@ -9,6 +9,7 @@ import findLongLines from './max-line-length.js';
 import countImportDepth from './max-import-depth.js';
 import hasRequiredFileDoc from './require-file-doc.js';
 import hasRequiredFunctionDocs from './require-function-doc.js';
+import { readCachedSource } from './source-cache.js';
 import effectDefaultRules from './effect-default.js';
 import effectStrictRules from './effect-strict.js';
 
@@ -30,53 +31,75 @@ type Context = {
   filename?: string;
 };
 
-const noCommentedOutCodeRule = {
-  create(context: Context) {
+type VisitorMap = Record<string, ((node: never) => void) | undefined>;
+
+function readSource(context: Context): string {
+  return readCachedSource(context);
+}
+
+function withCreateOnce<
+  RuleWithCreateOnce extends { createOnce: (context: Context) => VisitorMap },
+>(rule: RuleWithCreateOnce): RuleWithCreateOnce & { create: RuleWithCreateOnce['createOnce'] } {
+  return Object.assign(rule, { create: rule.createOnce });
+}
+
+function reportCommentedOutCode(context: Context, node: object, source: string): void {
+  let searchStart = 0;
+  while (searchStart < source.length) {
+    const lineCommentStart = source.indexOf('//', searchStart);
+    const blockCommentStart = source.indexOf('/*', searchStart);
+
+    if (lineCommentStart === -1 && blockCommentStart === -1) {
+      return;
+    }
+
+    if (
+      blockCommentStart !== -1 &&
+      (lineCommentStart === -1 || blockCommentStart < lineCommentStart)
+    ) {
+      const bodyStart = blockCommentStart + 2;
+      const bodyEnd = source.indexOf('*/', bodyStart);
+      const commentEnd = bodyEnd === -1 ? source.length : bodyEnd;
+      if (isCommentedOutCode(source.slice(bodyStart, commentEnd))) {
+        context.report({
+          message: 'Remove this commented-out code instead of leaving it dead.',
+          node,
+        });
+      }
+      searchStart = bodyEnd === -1 ? source.length : bodyEnd + 2;
+      continue;
+    }
+
+    const bodyStart = lineCommentStart + 2;
+    const bodyEnd = source.indexOf('\n', bodyStart);
+    const commentEnd = bodyEnd === -1 ? source.length : bodyEnd;
+    if (isCommentedOutCode(source.slice(bodyStart, commentEnd))) {
+      context.report({
+        message: 'Remove this commented-out code instead of leaving it dead.',
+        node,
+      });
+    }
+    searchStart = bodyEnd === -1 ? source.length : bodyEnd + 1;
+  }
+}
+
+const noCommentedOutCodeRule = withCreateOnce({
+  createOnce(context: Context) {
     return {
       Program(node: object) {
-        if (!context.filename) {
-          return;
-        }
-        let source: string | undefined = undefined;
-        try {
-          source = readFileSync(context.filename, 'utf-8');
-        } catch {
-          return;
-        }
+        const source = readSource(context);
         if (!source) {
           return;
         }
 
-        const lines = source.split('\n');
-        const singleLineRe = /\/\/\s*(.+)$/;
-        for (let idx = 0; idx < lines.length; idx++) {
-          const match = singleLineRe.exec(lines[idx]);
-          if (match && isCommentedOutCode(match[1])) {
-            context.report({
-              message: 'Remove this commented-out code instead of leaving it dead.',
-              node,
-            });
-          }
-        }
-
-        const multiLineRe = /\/\*\s*([\s\S]*?)\s*\*\//g;
-        let mm: RegExpExecArray | null = null;
-        while ((mm = multiLineRe.exec(source)) !== null) {
-          const [, body] = mm;
-          if (isCommentedOutCode(body)) {
-            context.report({
-              message: 'Remove this commented-out code instead of leaving it dead.',
-              node,
-            });
-          }
-        }
+        reportCommentedOutCode(context, node, source);
       },
     };
   },
-};
+});
 
-const pascalCaseTypesRule = {
-  create(context: Context) {
+const pascalCaseTypesRule = withCreateOnce({
+  createOnce(context: Context) {
     function reportType(kind: string, name: string, node: object) {
       context.report({
         message: `Rename ${kind} from '${name}' to '${toPascalCase(name)}' (PascalCase required for types).`,
@@ -107,7 +130,7 @@ const pascalCaseTypesRule = {
       },
     };
   },
-};
+});
 
 interface DeclNode extends NamedNode {
   parent?: { kind: string };
@@ -118,8 +141,8 @@ interface DeclNode extends NamedNode {
   value?: { name: string };
 }
 
-const camelCaseIdentifiersRule = {
-  create(context: Context) {
+const camelCaseIdentifiersRule = withCreateOnce({
+  createOnce(context: Context) {
     return {
       VariableDeclarator(node: DeclNode) {
         const name = getIdentifierName(node.id);
@@ -177,10 +200,10 @@ const camelCaseIdentifiersRule = {
       },
     };
   },
-};
+});
 
-const booleanPrefixRule = {
-  create(context: Context) {
+const booleanPrefixRule = withCreateOnce({
+  createOnce(context: Context) {
     function isBooleanVar(node: DeclNode): boolean {
       if (
         node.typeAnnotation &&
@@ -210,10 +233,10 @@ const booleanPrefixRule = {
       },
     };
   },
-};
+});
 
-const privateUnderscoreRule = {
-  create(context: Context) {
+const privateUnderscoreRule = withCreateOnce({
+  createOnce(context: Context) {
     return {
       PropertyDefinition(node: DeclNode) {
         if (node.key && node.accessibility === 'private' && !hasLeadingUnderscore(node.key.name)) {
@@ -233,10 +256,10 @@ const privateUnderscoreRule = {
       },
     };
   },
-};
+});
 
-const acronymCaseRule = {
-  create(context: Context) {
+const acronymCaseRule = withCreateOnce({
+  createOnce(context: Context) {
     function checkAcronyms(name: string, node: object) {
       const violations = findMisCasedAcronyms(name);
       if (violations.length > 0) {
@@ -282,7 +305,7 @@ const acronymCaseRule = {
       },
     };
   },
-};
+});
 
 interface ImportNode {
   source?: { value: string; raw: string } | null;
@@ -290,8 +313,8 @@ interface ImportNode {
   callee?: { name: string };
 }
 
-const maxImportDepthRule = {
-  create(context: Context) {
+const maxImportDepthRule = withCreateOnce({
+  createOnce(context: Context) {
     const MAX_DEPTH = 4;
 
     function checkPath(importPath: string, node: object) {
@@ -322,22 +345,13 @@ const maxImportDepthRule = {
       },
     };
   },
-};
+});
 
-const maxLineLengthRule = {
-  create(context: Context) {
+const maxLineLengthRule = withCreateOnce({
+  createOnce(context: Context) {
     return {
       Program(node: object) {
-        if (!context.filename) {
-          return;
-        }
-
-        let source = '';
-        try {
-          source = readFileSync(context.filename, 'utf-8');
-        } catch {
-          return;
-        }
+        const source = readSource(context);
 
         for (const violation of findLongLines(source)) {
           context.report({
@@ -348,22 +362,13 @@ const maxLineLengthRule = {
       },
     };
   },
-};
+});
 
-const requireFileDocRule = {
-  create(context: Context) {
+const requireFileDocRule = withCreateOnce({
+  createOnce(context: Context) {
     return {
       Program(node: object) {
-        if (!context.filename) {
-          return;
-        }
-
-        let source = '';
-        try {
-          source = readFileSync(context.filename, 'utf-8');
-        } catch {
-          return;
-        }
+        const source = readSource(context);
         if (source === '') {
           return;
         }
@@ -380,22 +385,13 @@ const requireFileDocRule = {
       },
     };
   },
-};
+});
 
-const requireFunctionDocRule = {
-  create(context: Context) {
+const requireFunctionDocRule = withCreateOnce({
+  createOnce(context: Context) {
     return {
       Program(node: object) {
-        if (!context.filename) {
-          return;
-        }
-
-        let source = '';
-        try {
-          source = readFileSync(context.filename, 'utf-8');
-        } catch {
-          return;
-        }
+        const source = readSource(context);
         if (source === '') {
           return;
         }
@@ -412,7 +408,7 @@ const requireFunctionDocRule = {
       },
     };
   },
-};
+});
 
 const plugin = {
   meta: {
@@ -434,4 +430,4 @@ const plugin = {
   },
 };
 
-export default plugin;
+export default eslintCompatPlugin(plugin as never);

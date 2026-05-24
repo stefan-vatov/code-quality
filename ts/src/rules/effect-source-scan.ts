@@ -1,16 +1,28 @@
+import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class.js';
+
 const regexPrefixChars = new Set(['(', '[', '{', '=', ':', ',', ';', '!', '?', '&', '|']);
 const regexPrefixWords = new Set(['case', 'delete', 'return', 'throw', 'typeof', 'void', 'yield']);
 const STRIP_CACHE_MAX = 256;
 const commentCache = new Map<string, string>();
 const codeOnlyCache = new Map<string, string>();
+const IDENTIFIER_MASK = CLS_UPPER | CLS_LOWER | CLS_DIGIT | CLS_UNDER;
+
+function isWhitespaceCode(code: number): boolean {
+  return code === 32 || code === 9 || code === 10 || code === 13 || code === 11 || code === 12;
+}
+
+function isAsciiIdentifierChar(source: string, index: number): boolean {
+  const code = source.charCodeAt(index);
+  return code === 36 || (code < CHAR_CLASS.length && (CHAR_CLASS[code] & IDENTIFIER_MASK) !== 0);
+}
+
+function isAsciiLetter(source: string, index: number): boolean {
+  const code = source.charCodeAt(index);
+  return code < CHAR_CLASS.length && (CHAR_CLASS[code] & (CLS_UPPER | CLS_LOWER)) !== 0;
+}
 
 function cached(cache: Map<string, string>, source: string): string | undefined {
-  const value = cache.get(source);
-  if (value !== undefined) {
-    cache.delete(source);
-    cache.set(source, value);
-  }
-  return value;
+  return cache.get(source);
 }
 
 function cacheResult(cache: Map<string, string>, source: string, value: string): string {
@@ -26,7 +38,7 @@ function cacheResult(cache: Map<string, string>, source: string, value: string):
 
 function previousSignificantIndex(source: string, index: number): number {
   for (let cursor = index - 1; cursor >= 0; cursor--) {
-    if (!/\s/.test(source[cursor])) {
+    if (!isWhitespaceCode(source.charCodeAt(cursor))) {
       return cursor;
     }
   }
@@ -36,12 +48,12 @@ function previousSignificantIndex(source: string, index: number): number {
 
 function wordBefore(source: string, index: number): string {
   const endIndex = previousSignificantIndex(source, index);
-  if (endIndex === -1 || !/[\w$]/.test(source[endIndex])) {
+  if (endIndex === -1 || !isAsciiIdentifierChar(source, endIndex)) {
     return '';
   }
 
   let startIndex = endIndex;
-  while (startIndex > 0 && /[\w$]/.test(source[startIndex - 1])) {
+  while (startIndex > 0 && isAsciiIdentifierChar(source, startIndex - 1)) {
     startIndex--;
   }
 
@@ -90,7 +102,7 @@ function findRegexLiteralEnd(source: string, startIndex: number): number {
     }
     if (char === '/' && !isCharacterClass) {
       let flagsEndIndex = index;
-      while (/[a-z]/i.test(source[flagsEndIndex + 1] ?? '')) {
+      while (isAsciiLetter(source, flagsEndIndex + 1)) {
         flagsEndIndex++;
       }
       return flagsEndIndex;

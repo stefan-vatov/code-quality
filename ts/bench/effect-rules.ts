@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { writeFileSync } from 'node:fs';
 import plugin from '../src/rules/plugin.js';
-import { effectAgenticRuleNames, effectStrictRuleNames } from '../src/rules/effect-rule-names.js';
+import { effectDefaultRuleNames, effectStrictRuleNames } from '../src/rules/effect-rule-names.js';
 
 type BenchFixture = {
   filename: string;
@@ -148,7 +148,7 @@ const fixtures: BenchFixture[] = [
   },
 ];
 
-const effectRuleNames = [...effectAgenticRuleNames, ...effectStrictRuleNames];
+const effectRuleNames = [...effectDefaultRuleNames, ...effectStrictRuleNames];
 
 function runRule(ruleName: string, fixture: BenchFixture): number {
   const rule = plugin.rules[ruleName as keyof typeof plugin.rules];

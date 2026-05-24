@@ -344,4 +344,15 @@ describe('Effect strict rule behavior', () => {
     expect(invalidRuleNames).toContain(testCase.name);
     expect(validRuleNames).not.toContain(testCase.name);
   });
+
+  it.each([
+    ['effect-no-direct-process-env-outside-config-layer', 'process\n.env.API_TOKEN;'],
+    ['effect-no-direct-clock-random-outside-adapters', 'Date\n.now();'],
+    ['effect-no-direct-clock-random-outside-adapters', 'Math\n.random();'],
+  ])(
+    'keeps strict token gates broad enough for valid multiline syntax in %s',
+    (ruleName, source) => {
+      expect(runRule(ruleName, source)).toHaveLength(1);
+    },
+  );
 });

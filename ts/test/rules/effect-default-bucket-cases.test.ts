@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index.js';
 import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names.js';
@@ -451,5 +452,61 @@ describe('Effect always-on rule behavior', () => {
 
     expect(invalidRuleNames).toContain(testCase.name);
     expect(validRuleNames).not.toContain(testCase.name);
+  });
+
+  it.each([
+    [
+      'effect-no-console-log-in-effect-code',
+      'import { Effect } from "effect"; console\n.log("x");',
+    ],
+    [
+      'effect-no-process-env-in-effect-code',
+      'import { Effect } from "effect"; process\n.env.API_TOKEN;',
+    ],
+    ['effect-no-date-now-in-effect-code', 'import { Effect } from "effect"; Date\n.now();'],
+    ['effect-no-math-random-in-effect-code', 'import { Effect } from "effect"; Math\n.random();'],
+    [
+      'effect-no-new-promise',
+      'import { Effect } from "effect"; const task = new\nPromise((resolve) => resolve(1));',
+    ],
+    [
+      'effect-no-native-error-classes',
+      'import { Effect } from "effect"; class UserError extends\nError {}',
+    ],
+  ])('keeps token gates broad enough for valid multiline syntax in %s', (ruleName, source) => {
+    expect(runRule(ruleName, source)).toHaveLength(1);
+  });
+
+  it('keeps effect signal token groups broad enough for namespace imports', () => {
+    expect(
+      runRule(
+        'effect-no-new-promise',
+        'import * as E from "effect"; E.succeed(1); const task = new Promise((resolve) => resolve(1));',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('keeps floating Effect alias detection broad enough for multiline imports', () => {
+    expect(
+      runRule('effect-no-floating-effect', 'import { Effect as E } from\n"effect";\nE.succeed(1);'),
+    ).toHaveLength(1);
+  });
+
+  it('uses precise token gates for common source-scan Effect rules', () => {
+    const source = readFileSync(
+      new URL('../../src/rules/effect-default.ts', import.meta.url),
+      'utf-8',
+    );
+
+    expect(source).toContain("name: 'effect-no-effect-in-promise-callback'");
+    expect(source).toContain("tokens: ['.then', '.catch']");
+    expect(source).toContain("name: 'effect-require-typed-error-in-trypromise'");
+    expect(source).toContain("tokens: ['tryPromise']");
+    expect(source).toContain("name: 'effect-require-scoped-for-acquireRelease'");
+    expect(source).toContain("tokens: ['acquireRelease']");
+    expect(source).toContain("name: 'effect-no-known-fake-api'");
+    expect(source).toContain("tokens: ['fromPromise', 'tryCatch', 'bracket', 'fromEither']");
+    expect(source).toContain("name: 'effect-no-try-catch-in-effect-gen'");
+    expect(source).toContain("tokenGroups: [['gen'], ['try']]");
   });
 });

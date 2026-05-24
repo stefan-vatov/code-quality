@@ -88,16 +88,6 @@ function memberParts(node: unknown): { objectName?: string; propertyName?: strin
   };
 }
 
-function isEffectMember(node: unknown, source: string, methods: ReadonlySet<string>): boolean {
-  const { objectName, propertyName } = memberParts(node);
-  return Boolean(
-    objectName &&
-    propertyName &&
-    effectImportAliases(source).includes(objectName) &&
-    methods.has(propertyName),
-  );
-}
-
 function isMember(node: unknown, objectName: string, propertyName: string): boolean {
   const parts = memberParts(node);
   return parts.objectName === objectName && parts.propertyName === propertyName;
@@ -112,11 +102,25 @@ function isSchemaMember(node: unknown, source: string, propertyName: string): bo
   );
 }
 
-function isEffectFunctionCall(callee: unknown, source: string, functionName: string): boolean {
-  const calleeName = identifierName(callee);
-  return Boolean(
-    calleeName && effectFunctionAliases(source, 'Effect', functionName).includes(calleeName),
+function effectCallPredicate(
+  source: string,
+  names: readonly string[],
+): (callee: unknown) => boolean {
+  const memberNames = new Set(names);
+  const importAliases = new Set(effectImportAliases(source));
+  const functionAliases = new Set(
+    names.flatMap((name) => effectFunctionAliases(source, 'Effect', name)),
   );
+
+  return (callee: unknown): boolean => {
+    const { objectName, propertyName } = memberParts(callee);
+    if (objectName && propertyName) {
+      return importAliases.has(objectName) && memberNames.has(propertyName);
+    }
+
+    const calleeName = identifierName(callee);
+    return Boolean(calleeName && functionAliases.has(calleeName));
+  };
 }
 
 function serviceKeyFromClass(node: AstNode, source: string): { className?: string; key?: string } {
@@ -385,6 +389,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-run-outside-entrypoints',
     message: 'Run Effect programs only from configured entrypoints.',
+    tokens: ['Effect', 'effect', 'runMain'],
     check: (source, context) =>
       hasRuntimeCall(source) &&
       !hasExportedRunPromiseApi(source) &&
@@ -395,6 +400,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-require-platform-runmain-at-entrypoints',
     message: 'Entrypoints should use the platform runMain boundary instead of raw Effect runners.',
+    tokens: ['Effect.run', 'effect/Effect', 'runPromise', 'runSync', 'runFork'],
     check: (source, context) =>
       isConfiguredPath(context, 'entrypoints') &&
       /Effect\.run(?:Promise|Sync|Fork)/.test(stripCommentsAndStrings(source)),
@@ -402,42 +408,49 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-runSync-in-server-request-handlers',
     message: 'Server handlers must not synchronously run Effects.',
+    tokens: ['Effect.runSync'],
     check: hasRunSyncInServerRequestHandler,
   },
   {
     name: 'effect-no-promise-returning-public-api',
     message: 'Public APIs should expose Effect return types instead of Promise.',
+    tokens: ['Promise', 'async'],
     check: hasPromiseReturningPublicApi,
   },
   {
     name: 'effect-no-direct-process-env-outside-config-layer',
     message: 'Read process.env only inside the configured Effect Config layer.',
+    tokens: ['process'],
     check: (source, context) =>
-      /\bprocess\.env\b/.test(stripCommentsAndStrings(source)) &&
+      /\bprocess\s*\.\s*env\b/.test(stripCommentsAndStrings(source)) &&
       !hasEffectSignal(source) &&
       !isConfiguredPath(context, 'configLayers'),
   },
   {
     name: 'effect-no-direct-clock-random-outside-adapters',
     message: 'Use Clock and Random services outside configured adapter modules.',
+    tokens: ['Date', 'Math'],
     check: (source, context) =>
-      /\b(?:Date\.now|Math\.random)\s*\(/.test(stripCommentsAndStrings(source)) &&
+      /\b(?:Date\s*\.\s*now|Math\s*\.\s*random)\s*\(/.test(stripCommentsAndStrings(source)) &&
       !hasEffectSignal(source) &&
       !isConfiguredPath(context, 'adapterLayers'),
   },
   {
     name: 'effect-no-direct-http-fs-outside-platform-services',
     message: 'Use Effect platform services for HTTP and filesystem access outside adapters.',
+    tokens: ['fetch', 'readFileSync', 'writeFileSync', 'createReadStream'],
     check: hasDirectPlatformAccess,
   },
   {
     name: 'effect-require-service-class-pattern',
     message: 'Services must use the configured class-based Effect service pattern.',
+    tokens: ['Context.GenericTag'],
     patterns: [/Context\.GenericTag(?:<[^>]+>)?\s*\(\s*['"`]/],
   },
   {
     name: 'effect-require-tag-identifier',
     message: 'Service tags require stable identifiers.',
+    tokens: ['Context.Tag', 'Context.GenericTag'],
     patterns: [
       /Context\.Tag(?:<[^>]+>)?\s*\(\s*\)/,
       /Context\.GenericTag(?:<[^>]+>)?\s*\(\s*\)/,
@@ -447,17 +460,20 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-leaked-service-dependencies',
     message: 'Domain exports must not leak raw service implementation dependencies.',
+    tokens: ['Layer', 'Live'],
     check: (source, context) =>
       isConfiguredPath(context, 'domain') && /Layer\.|Live\b/.test(stripCommentsAndStrings(source)),
   },
   {
     name: 'effect-no-duplicate-layer-instances',
     message: 'Do not construct the same Layer multiple times in one module.',
+    tokens: ['Layer'],
     check: hasDuplicateLayerInstance,
   },
   {
     name: 'effect-require-centralized-provision',
     message: 'Provide layers only from configured composition roots.',
+    tokens: ['Effect.provide', 'Layer.provide'],
     check: (source, context) =>
       /Effect\.provide|Layer\.provide/.test(stripCommentsAndStrings(source)) &&
       !isConfiguredPath(context, 'compositionRoots'),
@@ -465,6 +481,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-provide-in-domain-modules',
     message: 'Domain modules should declare requirements, not provide concrete layers.',
+    tokens: ['Effect.provide', 'Layer.provide'],
     check: (source, context) =>
       isConfiguredPath(context, 'domain') &&
       /Effect\.provide|Layer\.provide/.test(stripCommentsAndStrings(source)),
@@ -473,11 +490,13 @@ const effectStrictSpecs = [
     name: 'effect-require-layer-memoization-constant',
     message:
       'Shared layers should be memoized constants instead of functions that recreate resources.',
+    tokens: ['Layer'],
     check: hasLayerFactory,
   },
   {
     name: 'effect-require-suspend-for-circular-deps',
     message: 'Circular layer dependencies must be suspended.',
+    tokens: ['Layer'],
     patterns: [
       /Layer\.(?:effect|scoped)\s*\([\s\S]*?Layer\.(?:effect|scoped)\s*\((?![\s\S]*Effect\.suspend)/,
     ],
@@ -485,6 +504,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-avoid-layer-explosion',
     message: 'Avoid tiny one-off Layer declarations that fragment dependency wiring.',
+    tokens: ['Layer'],
     patterns: [
       /const\s+[A-Za-z_$][\w$]*Layer\s*=\s*Layer\.[\s\S]*const\s+[A-Za-z_$][\w$]*Layer\s*=\s*Layer\./,
     ],
@@ -492,16 +512,19 @@ const effectStrictSpecs = [
   {
     name: 'effect-prefer-succeed-for-static-layers',
     message: 'Use Layer.succeed for static pure services.',
+    tokens: ['Layer.effect', 'Effect.succeed'],
     patterns: [/Layer\.effect\s*\([^,]+,\s*Effect\.succeed\s*\(/],
   },
   {
     name: 'effect-require-scoped-for-resource-layers',
     message: 'Layers that allocate resources must be scoped.',
+    tokens: ['Layer'],
     check: hasUnscopedResourceLayer,
   },
   {
     name: 'effect-no-service-construction-outside-layer',
     message: 'Construct services inside Layers, not directly in domain or application logic.',
+    tokens: ['Service', 'Repo', 'Client'],
     check: (source, context) =>
       !isConfiguredPath(context, 'adapterLayers') &&
       !isConfiguredPath(context, 'configLayers') &&
@@ -511,26 +534,31 @@ const effectStrictSpecs = [
   {
     name: 'effect-schema-require-validation-at-input-boundaries',
     message: 'Input boundaries must decode request, command, or message data with Schema.',
+    tokens: ['.body', '.params', '.query', '.payload'],
     check: hasBoundaryDataWithoutSchema,
   },
   {
     name: 'effect-schema-require-validation-at-output-boundaries',
     message: 'Output boundaries should encode or validate public response data.',
+    tokens: ['Response.json', 'return json'],
     check: hasOutputBoundaryWithoutSchema,
   },
   {
     name: 'effect-schema-require-http-client-response-schema',
     message: 'HTTP client responses must be decoded with Schema.',
+    tokens: ['HttpClient.', 'response.json'],
     check: hasHttpClientResponseWithoutSchema,
   },
   {
     name: 'effect-schema-require-http-server-request-schema',
     message: 'HTTP server requests must be decoded with Schema.',
+    tokens: ['HttpRouter.', 'HttpServerRequest'],
     check: hasHttpServerRequestWithoutSchema,
   },
   {
     name: 'effect-schema-require-config-schema',
     message: 'Configuration modules must decode configuration with Schema.',
+    tokens: ['Config'],
     check: (source, context) =>
       isConfiguredPath(context, 'configLayers') &&
       /Config\./.test(stripCommentsAndStrings(source)) &&
@@ -539,16 +567,19 @@ const effectStrictSpecs = [
   {
     name: 'effect-schema-require-persistence-schema',
     message: 'Persistence boundaries must validate loaded records with Schema.',
+    tokens: ['db.', 'database.', 'collection.', 'repository.'],
     check: hasPersistenceReadWithoutSchema,
   },
   {
     name: 'effect-schema-require-public-command-schema',
     message: 'Public command handlers must declare and use input schemas.',
+    tokens: ['handler'],
     check: hasCommandHandlerWithoutSchema,
   },
   {
     name: 'effect-schema-no-unknown-crossing-boundary',
     message: 'unknown values must be decoded before crossing configured boundaries.',
+    tokens: ['unknown'],
     check: (source) =>
       exportedDeclarationTexts(source).some((declaration) =>
         /\bunknown\b/.test(stripCommentsAndStrings(publicApiDeclarationSignature(declaration))),
@@ -557,97 +588,116 @@ const effectStrictSpecs = [
   {
     name: 'effect-require-timeout-on-external-effects',
     message: 'External effects must declare a timeout.',
+    tokens: ['HttpClient.', 'fetch', 'FileSystem.', 'SqlClient.'],
     check: (source) => hasExternalEffectWithoutTimeout(source),
   },
   {
     name: 'effect-require-retry-policy-for-idempotent-external-effects',
     message: 'Idempotent external effects must declare retry policy deliberately.',
+    tokens: ['HttpClient.', 'fetch', 'find', 'lookup', 'read'],
     check: (source) => hasIdempotentExternalEffectWithoutRetry(source),
   },
   {
     name: 'effect-require-schedule-jitter-for-retries',
     message: 'Retry schedules must include jitter.',
+    tokenGroups: [['Effect.retry'], ['Schedule.']],
     check: hasRetryScheduleWithoutJitter,
   },
   {
     name: 'effect-require-span-external',
     message: 'External effects must declare an observability span.',
+    tokens: ['HttpClient.', 'fetch', 'FileSystem.', 'SqlClient.'],
     check: (source) => hasExternalEffectWithoutSpan(source),
   },
   {
     name: 'effect-require-semaphore-for-shared-resources',
     message: 'Shared scarce resources must be guarded by Semaphore.',
+    tokens: ['Effect.forEach'],
     check: hasSharedResourceForEachWithoutSemaphore,
   },
   {
     name: 'effect-require-ref-for-shared-mutable-state',
     message: 'Shared mutable state must use Ref, SynchronizedRef, or scoped services.',
+    tokens: ['let '],
     check: hasSharedMutableStateWithoutRef,
   },
   {
     name: 'effect-require-scoped-in-loops',
     message: 'Loops that acquire resources must scope each acquisition.',
+    tokens: ['open', 'connect', 'subscribe', 'listen'],
     check: hasUnscopedResourceLoop,
   },
   {
     name: 'effect-require-onExit-for-cleanup',
     message: 'Cleanup logic should use onExit so success, failure, and interruption are handled.',
+    tokens: ['Effect.ensuring', 'cleanup'],
     check: hasEnsuringCleanupWithoutOnExit,
   },
   {
     name: 'effect-require-stream-resource-safety',
     message: 'Streams over resources must be scoped or bracketed.',
+    tokens: ['Stream'],
     check: hasUnsafeResourceStream,
   },
   {
     name: 'effect-require-stream-termination',
     message: 'Long-running streams must declare termination or shutdown behavior.',
+    tokens: ['Stream'],
     check: hasUnterminatedLongRunningStream,
   },
   {
     name: 'effect-require-explicit-asyncPush-buffer',
     message: 'Stream.asyncPush must declare an explicit buffer/backpressure policy.',
+    tokens: ['Stream.asyncPush'],
     check: hasAsyncPushWithoutBuffer,
   },
   {
     name: 'effect-require-batching-for-resolver',
     message: 'RequestResolver implementations should batch requests.',
+    tokens: ['RequestResolver'],
     check: hasUnbatchedResolver,
   },
   {
     name: 'effect-use-batched-resolver-for-n-plus-one',
     message: 'Potential N+1 data access should use a batched RequestResolver.',
+    tokens: ['Effect.forEach'],
     check: hasNPlusOneWithoutBatchedResolver,
   },
   {
     name: 'effect-prefer-pubsub-for-broadcast',
     message: 'Use PubSub for broadcast semantics instead of manually fanning out queues.',
+    tokens: ['Queue', 'broadcast', 'subscribers'],
     patterns: [/Queue\.[\s\S]*?\bsubscribers\b|broadcast\s*\([\s\S]*?Queue\./],
   },
   {
     name: 'effect-require-provided-services-in-tests',
     message: 'Effect tests must provide required services explicitly.',
+    tokens: ['Service', 'Repo', 'Client'],
     check: (source, context) =>
       isEffectTestPath(context) && hasUnprovidedServiceInEffectTest(source),
   },
   {
     name: 'effect-prefer-in-memory-implementations',
     message: 'Unit tests should use in-memory service implementations.',
+    tokens: ['real'],
     check: (source, context) => isUnitTestPath(context) && hasRealTestService(source),
   },
   {
     name: 'effect-no-live-services-in-unit-tests',
     message: 'Live services belong in integration tests, not unit tests.',
+    tokens: ['Live', 'Layer.live'],
     check: (source, context) => isUnitTestPath(context) && hasLiveTestService(source),
   },
   {
     name: 'effect-require-testclock-for-time-code',
     message: 'Tests for time-dependent Effect code should use TestClock.',
+    tokens: ['Effect.timeout', 'Effect.delay', 'Clock.'],
     check: (source, context) => isEffectTestPath(context) && hasTimeCodeWithoutTestClock(source),
   },
   {
     name: 'effect-no-test-runtime-leakage',
     message: 'Do not share mutable runtime, layer, or service state across Effect tests.',
+    tokens: ['Runtime', 'Layer', 'Service'],
     check: (source, context) =>
       isEffectTestPath(context) &&
       /const\s+[A-Za-z_$][\w$]*(?:Runtime|Layer|Service)\s*=/.test(source),
@@ -655,11 +705,13 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-ad-hoc-effect-wrapper-abstractions',
     message: 'Do not hide Effect semantics behind local wrapper DSLs.',
+    tokens: ['runEffect', 'makeEffect', 'effectify', 'toEffect'],
     patterns: [/function\s+(?:runEffect|makeEffect|effectify|toEffect)\s*\(/],
   },
   {
     name: 'effect-require-effect-suppression-reason-and-ticket',
     message: 'Effect rule suppressions must name a rule, a reason, and a tracking ticket.',
+    tokens: ['disable', 'effect-'],
     check: (source) =>
       source.split('\n').some((line) => {
         if (!/(?:eslint|oxlint)-disable[^\n]*effect-/.test(line)) {
@@ -672,6 +724,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-crypto-randomUUID',
     message: 'Use Effect Random or an injected UUID service instead of crypto.randomUUID.',
+    tokens: ['crypto.randomUUID'],
     check: hasCryptoRandomUuid,
     ast: (context) => ({
       CallExpression(node) {
@@ -688,6 +741,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-require-schema-is-over-instanceof',
     message: 'Use Schema.is for schema-modeled domain checks instead of instanceof.',
+    tokens: ['instanceof'],
     check: hasSchemaInstanceof,
     ast: (context) => ({
       BinaryExpression(node) {
@@ -710,6 +764,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-prefer-schema-tagged-struct',
     message: 'Use Schema.TaggedStruct or Schema.TaggedClass instead of Struct with _tag.',
+    tokens: ['Schema', '_tag'],
     check: hasSchemaStructWithTag,
     ast: (context, source) => ({
       CallExpression(node) {
@@ -743,6 +798,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-prefer-single-schema-literal-union',
     message: 'Combine literal alternatives into one Schema.Literal call.',
+    tokens: ['Schema.Union', 'Schema.Literal', 'effect'],
     check: hasSchemaUnionOfLiterals,
     ast: (context, source) => ({
       CallExpression(node) {
@@ -760,6 +816,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-require-deterministic-service-keys',
     message: 'Service/tag identifiers must deterministically match the service class.',
+    tokens: ['Context.Tag', 'Effect.Service', 'Effect.Tag'],
     check: hasNonDeterministicServiceKey,
     ast: (context, source) => ({
       ClassDeclaration(node) {
@@ -777,16 +834,19 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-multiple-provide-chain',
     message: 'Avoid chaining Effect.provide calls; compose layers deliberately at the root.',
+    tokens: ['Effect.provide'],
     check: hasMultipleProvideChain,
   },
   {
     name: 'effect-require-layer-scoped-when-scope-required',
     message: 'Use Layer.scoped when a Layer effect requires Scope.',
+    tokens: ['Layer.effect', 'Scope'],
     check: hasLayerEffectWithScope,
   },
   {
     name: 'effect-no-node-builtins-when-effect-platform-exists',
     message: 'Use Effect platform services instead of direct Node built-in imports.',
+    tokens: ['node:'],
     check: hasNodeBuiltinImport,
     ast: (context) => ({
       ImportDeclaration(node) {
@@ -808,6 +868,7 @@ const effectStrictSpecs = [
   {
     name: 'effect-no-global-fetch',
     message: 'Use the Effect HTTP client or an adapter service instead of global fetch.',
+    tokens: ['fetch'],
     check: hasGlobalFetch,
     ast: (context, source) => ({
       CallExpression(node) {
@@ -829,29 +890,34 @@ const effectStrictSpecs = [
   {
     name: 'effect-prefer-effect-void',
     message: 'Use Effect.void instead of Effect.succeed(undefined).',
+    tokens: ['succeed'],
     check: hasEffectSucceedWithVoid,
-    ast: (context, source) => ({
-      CallExpression(node) {
-        const call = node as { arguments?: unknown[]; callee?: unknown };
-        const firstArg = call.arguments?.[0];
-        if (
-          (isEffectMember(call.callee, source, new Set(['succeed'])) ||
-            isEffectFunctionCall(call.callee, source, 'succeed')) &&
-          (!firstArg || identifierName(firstArg) === 'undefined' || isVoidZero(firstArg))
-        ) {
-          reportAst(context, 'Use Effect.void instead of Effect.succeed(undefined).', node);
-        }
-      },
-    }),
+    ast: (context, source) => {
+      const isEffectSucceed = effectCallPredicate(source, ['succeed']);
+      return {
+        CallExpression(node) {
+          const call = node as { arguments?: unknown[]; callee?: unknown };
+          const firstArg = call.arguments?.[0];
+          if (
+            isEffectSucceed(call.callee) &&
+            (!firstArg || identifierName(firstArg) === 'undefined' || isVoidZero(firstArg))
+          ) {
+            reportAst(context, 'Use Effect.void instead of Effect.succeed(undefined).', node);
+          }
+        },
+      };
+    },
   },
   {
     name: 'effect-prefer-asVoid',
     message: 'Use Effect.asVoid instead of mapping to undefined or an empty block.',
+    tokens: ['Effect', 'effect'],
     check: hasMapToVoid,
   },
   {
     name: 'effect-prefer-flatMap-over-map-flatten',
     message: 'Use Effect.flatMap instead of Effect.map followed by Effect.flatten.',
+    tokens: ['Effect', 'effect'],
     check: hasMapFlatten,
   },
 ] satisfies readonly RuleSpec[];

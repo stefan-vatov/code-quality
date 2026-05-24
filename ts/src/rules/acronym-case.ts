@@ -138,8 +138,6 @@ const addToCache = (key: string, value: string[]): void => {
 export default function findMisCasedAcronyms(name: string): string[] {
   const cached = violationCache.get(name);
   if (cached !== undefined) {
-    violationCache.delete(name);
-    violationCache.set(name, cached);
     return cached;
   }
 

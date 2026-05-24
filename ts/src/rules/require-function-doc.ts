@@ -20,19 +20,39 @@ function isWhitespace(code: number): boolean {
 }
 
 function hasDescriptionContent(jsdocBody: string): boolean {
-  const stripped = jsdocBody
-    .split('\n')
-    .map((line) => {
-      let strippedLine = line.trimStart();
-      if (strippedLine.startsWith('*')) {
-        strippedLine = strippedLine.slice(1).trimStart();
-      }
-      return strippedLine;
-    })
-    .join('\n')
-    .trim();
+  let lineStart = 0;
+  const len = jsdocBody.length;
 
-  return stripped.length > 0;
+  while (lineStart <= len) {
+    const newlineIndex = jsdocBody.indexOf('\n', lineStart);
+    const lineEnd = newlineIndex === -1 ? len : newlineIndex;
+    let pos = lineStart;
+
+    while (pos < lineEnd && isWhitespace(jsdocBody.charCodeAt(pos))) {
+      pos++;
+    }
+
+    if (pos < lineEnd && jsdocBody.charCodeAt(pos) === 42) {
+      pos++;
+      while (pos < lineEnd && isWhitespace(jsdocBody.charCodeAt(pos))) {
+        pos++;
+      }
+    }
+
+    while (pos < lineEnd) {
+      if (!isWhitespace(jsdocBody.charCodeAt(pos))) {
+        return true;
+      }
+      pos++;
+    }
+
+    if (newlineIndex === -1) {
+      return false;
+    }
+    lineStart = newlineIndex + 1;
+  }
+
+  return false;
 }
 
 function hasJSDocBefore(source: string, exportPos: number): boolean {
@@ -158,13 +178,15 @@ function isAmbientDeclarationFile(source: string): boolean {
 export default function hasRequiredFunctionDocs(source: string): boolean {
   const len = source.length;
 
+  if (!source.includes('export ')) {
+    return true;
+  }
+
   if (isAmbientDeclarationFile(source)) {
     return true;
   }
 
   let pos = 0;
-
-  const exportPositions: number[] = [];
 
   while (pos < len) {
     const exp = source.indexOf('export ', pos);
@@ -298,20 +320,12 @@ export default function hasRequiredFunctionDocs(source: string): boolean {
           continue;
         }
       }
-      exportPositions.push(exp);
+      if (!hasJSDocBefore(source, exp)) {
+        return false;
+      }
     }
 
     pos = exp + 7;
-  }
-
-  if (exportPositions.length === 0) {
-    return true;
-  }
-
-  for (let idx = 0; idx < exportPositions.length; idx++) {
-    if (!hasJSDocBefore(source, exportPositions[idx])) {
-      return false;
-    }
   }
 
   return true;
