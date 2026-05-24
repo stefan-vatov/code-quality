@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runRule } from './effect-rule-test-utils.js';
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 13 regression coverage', () => {
   it('allows composable acquireRelease resources that are scoped at their use site', () => {

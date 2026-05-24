@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index.js';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils.js';
+import theThracianOxlint from '../../src/index';
+import { runConfiguredRules, runRule } from './effect-rule-test-utils';
 
 describe('Effect strict path options', () => {
   it('does not expose a strict console rule because direct console is globally banned', () => {

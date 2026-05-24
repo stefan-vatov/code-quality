@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { isCamelCase, isUpperCase, toCamelCase } from '../../src/rules/camel-case-identifiers.js';
+import { isCamelCase, isUpperCase, toCamelCase } from '../../src/rules/camel-case-identifiers';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'camel-case-identifiers');
 

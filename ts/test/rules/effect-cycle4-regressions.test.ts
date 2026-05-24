@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index.js';
-import { runAllRules, runConfiguredRules, runRule } from './effect-rule-test-utils.js';
+import theThracianOxlint from '../../src/index';
+import { runAllRules, runConfiguredRules, runRule } from './effect-rule-test-utils';
 
 function reportedEffectRules(source: string): string[] {
   return runAllRules(source)

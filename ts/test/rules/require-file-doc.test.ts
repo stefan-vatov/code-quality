@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import hasRequiredFileDoc, { extractDocHeader } from '../../src/rules/require-file-doc.js';
+import hasRequiredFileDoc, { extractDocHeader } from '../../src/rules/require-file-doc';
 
 // ============================================================================
 // extractDocHeader — JSDoc extraction
@@ -40,47 +40,47 @@ describe('extractDocHeader', () => {
     expect(extractDocHeader(src)).toBe('/** CLI entry. */');
   });
 
-  // ── null returns ──────────────────────────────────────────────────────
+  // ── undefined returns ──────────────────────────────────────────────────────
 
-  it('returns null when no JSDoc present', () => {
-    expect(extractDocHeader('import { foo } from "./foo.js";')).toBeNull();
+  it('returns undefined when no JSDoc present', () => {
+    expect(extractDocHeader('import { foo } from "./foo.js";')).toBeUndefined();
   });
 
-  it('returns null for non-JSDoc block comment', () => {
+  it('returns undefined for non-JSDoc block comment', () => {
     expect(
       extractDocHeader('/* not a JSDoc comment */\nimport { foo } from "./foo.js";'),
-    ).toBeNull();
+    ).toBeUndefined();
   });
 
-  it('returns null for single-line comment', () => {
-    expect(extractDocHeader('// some comment\nimport { foo } from "./foo.js";')).toBeNull();
+  it('returns undefined for single-line comment', () => {
+    expect(extractDocHeader('// some comment\nimport { foo } from "./foo.js";')).toBeUndefined();
   });
 
-  it('returns null for empty source', () => {
-    expect(extractDocHeader('')).toBeNull();
+  it('returns undefined for empty source', () => {
+    expect(extractDocHeader('')).toBeUndefined();
   });
 
-  it('returns null for whitespace-only source', () => {
-    expect(extractDocHeader('   \n  \n  ')).toBeNull();
+  it('returns undefined for whitespace-only source', () => {
+    expect(extractDocHeader('   \n  \n  ')).toBeUndefined();
   });
 
-  it('returns null for source with only shebang', () => {
-    expect(extractDocHeader('#!/usr/bin/env node')).toBeNull();
-    expect(extractDocHeader('#!/usr/bin/env node\n')).toBeNull();
+  it('returns undefined for source with only shebang', () => {
+    expect(extractDocHeader('#!/usr/bin/env node')).toBeUndefined();
+    expect(extractDocHeader('#!/usr/bin/env node\n')).toBeUndefined();
   });
 
-  it('returns null for unclosed JSDoc', () => {
-    expect(extractDocHeader('/** unclosed doc comment\ncode();')).toBeNull();
+  it('returns undefined for unclosed JSDoc', () => {
+    expect(extractDocHeader('/** unclosed doc comment\ncode();')).toBeUndefined();
   });
 
   // ── shebang edge cases ────────────────────────────────────────────────
 
-  it('returns null for shebang-only file (no newline)', () => {
-    expect(extractDocHeader('#!shebang')).toBeNull();
+  it('returns undefined for shebang-only file (no newline)', () => {
+    expect(extractDocHeader('#!shebang')).toBeUndefined();
   });
 
-  it('returns null for shebang followed by code without JSDoc', () => {
-    expect(extractDocHeader('#!/usr/bin/env node\n\nconst x = 1;')).toBeNull();
+  it('returns undefined for shebang followed by code without JSDoc', () => {
+    expect(extractDocHeader('#!/usr/bin/env node\n\nconst x = 1;')).toBeUndefined();
   });
 
   // ── whitespace edge cases ─────────────────────────────────────────────
@@ -93,27 +93,27 @@ describe('extractDocHeader', () => {
     expect(extractDocHeader('  \r\n\t \n  /** doc */\ncode();')).toBe('/** doc */');
   });
 
-  it('returns null when source is too short for JSDoc (len < 3)', () => {
-    expect(extractDocHeader('/')).toBeNull();
-    expect(extractDocHeader('/*')).toBeNull();
+  it('returns undefined when source is too short for JSDoc (len < 3)', () => {
+    expect(extractDocHeader('/')).toBeUndefined();
+    expect(extractDocHeader('/*')).toBeUndefined();
   });
 
-  it('returns null for /** immediately followed by EOF (no */)', () => {
-    expect(extractDocHeader('/**')).toBeNull();
+  it('returns undefined for /** immediately followed by EOF (no */)', () => {
+    expect(extractDocHeader('/**')).toBeUndefined();
   });
 
   // ── character boundary checks ─────────────────────────────────────────
 
-  it('returns null when first non-ws char is / but not /*', () => {
-    expect(extractDocHeader('/foo\ncode();')).toBeNull();
+  it('returns undefined when first non-ws char is / but not /*', () => {
+    expect(extractDocHeader('/foo\ncode();')).toBeUndefined();
   });
 
-  it('returns null when first non-ws char is /* but not /**', () => {
-    expect(extractDocHeader('/* regular */\ncode();')).toBeNull();
+  it('returns undefined when first non-ws char is /* but not /**', () => {
+    expect(extractDocHeader('/* regular */\ncode();')).toBeUndefined();
   });
 
-  it('returns null when JSDoc start /* is followed by non-* third char', () => {
-    expect(extractDocHeader('/*/ something */\ncode();')).toBeNull();
+  it('returns undefined when JSDoc start /* is followed by non-* third char', () => {
+    expect(extractDocHeader('/*/ something */\ncode();')).toBeUndefined();
   });
 
   it('extracts JSDoc with only two asterisks (/** */)', () => {

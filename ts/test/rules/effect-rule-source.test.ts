@@ -2,8 +2,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import plugin from '../../src/rules/plugin.js';
-import type { Report } from './effect-rule-test-utils.js';
+import plugin from '../../src/rules/plugin';
+import type { Report } from './effect-rule-test-utils';
 
 const programNode = { type: 'Program', range: [0, 0] };
 

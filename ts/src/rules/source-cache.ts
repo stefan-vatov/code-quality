@@ -1,24 +1,29 @@
+/** @internal Source text cache shared by custom Oxlint rules. */
 import { readFileSync, statSync } from 'node:fs';
 
-type SourceContext = {
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export interface SourceContext {
   filename?: string;
   sourceCode?: {
     getText?: () => string;
     text?: string;
   };
-};
+}
 
 const SOURCE_CACHE_MAX = 512;
-type CachedFileSource = {
+interface CachedFileSource {
   mtimeMs: number;
   size: number;
   source: string;
-};
+}
 
 const fileSourceCache = new Map<string, CachedFileSource>();
 const sourceCodeTextCache = new WeakMap<NonNullable<SourceContext['sourceCode']>, string>();
 
-function cacheFileSource(filename: string, cachedFileSource: CachedFileSource): string {
+const cacheFileSource = (filename: string, cachedFileSource: CachedFileSource): string => {
   if (fileSourceCache.size >= SOURCE_CACHE_MAX) {
     const firstKey = fileSourceCache.keys().next().value;
     if (firstKey !== undefined) {
@@ -27,28 +32,26 @@ function cacheFileSource(filename: string, cachedFileSource: CachedFileSource): 
   }
   fileSourceCache.set(filename, cachedFileSource);
   return cachedFileSource.source;
-}
+};
 
-function readCachedSource(context: SourceContext): string {
-  if (context.sourceCode?.text !== undefined) {
-    return context.sourceCode.text;
-  }
-  if (context.sourceCode?.getText) {
-    const cachedSource = sourceCodeTextCache.get(context.sourceCode);
-    if (cachedSource !== undefined) {
-      return cachedSource;
-    }
-    const source = context.sourceCode.getText();
-    sourceCodeTextCache.set(context.sourceCode, source);
-    return source;
-  }
-  if (!context.filename) {
-    return '';
+const readSourceCodeText = (sourceCode: NonNullable<SourceContext['sourceCode']>): string => {
+  if (sourceCode.text !== undefined) {
+    return sourceCode.text;
   }
 
+  const cachedSource = sourceCodeTextCache.get(sourceCode);
+  if (cachedSource !== undefined) {
+    return cachedSource;
+  }
+  const source = sourceCode.getText?.() ?? '';
+  sourceCodeTextCache.set(sourceCode, source);
+  return source;
+};
+
+const readFileSource = (filename: string): string => {
   try {
-    const stats = statSync(context.filename);
-    const cachedSource = fileSourceCache.get(context.filename);
+    const stats = statSync(filename);
+    const cachedSource = fileSourceCache.get(filename);
     if (
       cachedSource !== undefined &&
       cachedSource.size === stats.size &&
@@ -56,15 +59,26 @@ function readCachedSource(context: SourceContext): string {
     ) {
       return cachedSource.source;
     }
-    return cacheFileSource(context.filename, {
+    return cacheFileSource(filename, {
       mtimeMs: stats.mtimeMs,
       size: stats.size,
-      source: readFileSync(context.filename, 'utf-8'),
+      source: readFileSync(filename, 'utf8'),
     });
   } catch {
     return '';
   }
-}
+};
 
-export { readCachedSource };
-export type { SourceContext };
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const readCachedSource = (context: SourceContext): string => {
+  if (context.sourceCode) {
+    return readSourceCodeText(context.sourceCode);
+  }
+  if (!context.filename) {
+    return '';
+  }
+  return readFileSource(context.filename);
+};

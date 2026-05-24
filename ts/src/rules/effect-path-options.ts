@@ -1,6 +1,11 @@
-import type { Context } from './effect-rule-core.js';
+/** @internal Path option schema helpers for strict Effect lint rules. */
+import type { Context } from './effect-rule-core';
 
-type StrictPathOptionKey =
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export type StrictPathOptionKey =
   | 'adapterLayers'
   | 'compositionRoots'
   | 'configLayers'
@@ -9,9 +14,17 @@ type StrictPathOptionKey =
   | 'integrationTests'
   | 'unitTests';
 
-type StrictPathOptions = Partial<Record<StrictPathOptionKey, readonly string[]>>;
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export type StrictPathOptions = Partial<Record<StrictPathOptionKey, readonly string[]>>;
 
-const strictPathOptionKeys = [
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const strictPathOptionKeys = [
   'adapterLayers',
   'compositionRoots',
   'configLayers',
@@ -21,7 +34,11 @@ const strictPathOptionKeys = [
   'unitTests',
 ] as const satisfies readonly StrictPathOptionKey[];
 
-const strictPathOptionsSchema = [
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const strictPathOptionsSchema = [
   {
     additionalProperties: false,
     properties: {
@@ -49,66 +66,80 @@ const defaultPathOptions = {
 
 const testFilePattern = /\.(?:test|spec)\.tsx?$/;
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 const globCache = new Map<string, RegExp>();
 
-function globToRegExp(pattern: string): RegExp {
+const globToken = (pattern: string, index: number): { index: number; text: string } => {
+  const char = pattern[index];
+  const nextChar = pattern[index + 1];
+  const afterNextChar = pattern[index + 2];
+
+  if (char === '*' && nextChar === '*' && afterNextChar === '/') {
+    return { index: index + 2, text: '(?:.*/)?' };
+  }
+  if (char === '*' && nextChar === '*') {
+    return { index: index + 1, text: '.*' };
+  }
+  if (char === '*') {
+    return { index, text: '[^/]*' };
+  }
+  return { index, text: escapeRegExp(char ?? '') };
+};
+
+const globBody = (normalizedPattern: string): string => {
+  let body = '';
+  for (let index = 0; index < normalizedPattern.length; index++) {
+    const token = globToken(normalizedPattern, index);
+    const { index: nextIndex, text } = token;
+    body += text;
+    index = nextIndex;
+  }
+  return body;
+};
+
+const globPrefix = (normalizedPattern: string): string => {
+  if (normalizedPattern.startsWith('/')) {
+    return '^';
+  }
+  return '(?:^|/)';
+};
+
+const globToRegExp = (pattern: string): RegExp => {
   const cached = globCache.get(pattern);
   if (cached) {
     return cached;
   }
 
   const normalizedPattern = pattern.replace(/\\/g, '/').replace(/^\.\//, '');
-  let body = '';
-  for (let index = 0; index < normalizedPattern.length; index++) {
-    const char = normalizedPattern[index];
-    const nextChar = normalizedPattern[index + 1];
-    const afterNextChar = normalizedPattern[index + 2];
-
-    if (char === '*' && nextChar === '*' && afterNextChar === '/') {
-      body += '(?:.*/)?';
-      index += 2;
-      continue;
-    }
-    if (char === '*' && nextChar === '*') {
-      body += '.*';
-      index++;
-      continue;
-    }
-    if (char === '*') {
-      body += '[^/]*';
-      continue;
-    }
-
-    body += escapeRegExp(char);
-  }
-  const prefix = normalizedPattern.startsWith('/') ? '^' : '(?:^|/)';
-  const matcher = new RegExp(`${prefix}${body}$`);
+  const matcher = new RegExp(`${globPrefix(normalizedPattern)}${globBody(normalizedPattern)}$`);
   globCache.set(pattern, matcher);
   return matcher;
-}
+};
 
-function matchesPath(filename: string | undefined, pattern: string): boolean {
+const matchesPath = (filename: string | undefined, pattern: string): boolean => {
   if (!filename) {
     return false;
   }
   return globToRegExp(pattern).test(filename.replace(/\\/g, '/'));
-}
+};
 
-function getStrictOptions(context: Pick<Context, 'options'>): StrictPathOptions {
+const getStrictOptions = (context: Pick<Context, 'options'>): StrictPathOptions => {
   const options = context.options?.[0];
   if (!options || typeof options !== 'object') {
     return {};
   }
   return options as StrictPathOptions;
-}
+};
 
-function sanitizeStrictPathOptions(
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const sanitizeStrictPathOptions = (
   options: StrictPathOptions | undefined,
-): StrictPathOptions | undefined {
+): StrictPathOptions | undefined => {
   if (!options) {
     return undefined;
   }
@@ -120,45 +151,42 @@ function sanitizeStrictPathOptions(
     }
   }
 
-  return Object.keys(sanitized).length === 0 ? undefined : sanitized;
-}
+  if (Object.keys(sanitized).length === 0) {
+    return undefined;
+  }
+  return sanitized;
+};
 
-function isConfiguredPath(
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const isConfiguredPath = (
   context: Pick<Context, 'filename' | 'options'>,
   key: StrictPathOptionKey,
-): boolean {
+): boolean => {
   const configuredPatterns = getStrictOptions(context)[key];
   const patterns = configuredPatterns ?? defaultPathOptions[key];
 
   return patterns.some((pattern) => matchesPath(context.filename, pattern));
-}
-
-function isTestFile(filename: string | undefined): boolean {
-  return Boolean(filename && testFilePattern.test(filename));
-}
-
-function isUnitTestPath(context: Pick<Context, 'filename' | 'options'>): boolean {
-  return (
-    (isTestFile(context.filename) || isConfiguredPath(context, 'unitTests')) &&
-    !isConfiguredPath(context, 'integrationTests')
-  );
-}
-
-function isEffectTestPath(context: Pick<Context, 'filename' | 'options'>): boolean {
-  return (
-    isTestFile(context.filename) ||
-    isConfiguredPath(context, 'unitTests') ||
-    isConfiguredPath(context, 'integrationTests')
-  );
-}
-
-export {
-  isConfiguredPath,
-  isEffectTestPath,
-  isUnitTestPath,
-  sanitizeStrictPathOptions,
-  strictPathOptionKeys,
-  strictPathOptionsSchema,
 };
 
-export type { StrictPathOptionKey, StrictPathOptions };
+const isTestFile = (filename: string | undefined): boolean =>
+  Boolean(filename && testFilePattern.test(filename));
+
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const isUnitTestPath = (context: Pick<Context, 'filename' | 'options'>): boolean =>
+  (isTestFile(context.filename) || isConfiguredPath(context, 'unitTests')) &&
+  !isConfiguredPath(context, 'integrationTests');
+
+/** Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const isEffectTestPath = (context: Pick<Context, 'filename' | 'options'>): boolean =>
+  isTestFile(context.filename) ||
+  isConfiguredPath(context, 'unitTests') ||
+  isConfiguredPath(context, 'integrationTests');

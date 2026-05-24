@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import hasBooleanPrefix, { suggestBooleanName } from '../../src/rules/boolean-prefix.js';
+import hasBooleanPrefix, { suggestBooleanName } from '../../src/rules/boolean-prefix';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'boolean-prefix');
 

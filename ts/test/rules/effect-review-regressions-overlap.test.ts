@@ -2,9 +2,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import plugin from '../../src/rules/plugin.js';
-import { runAllRules, runRule, runRuleAtPath } from './effect-rule-test-utils.js';
-import type { Report } from './effect-rule-test-utils.js';
+import plugin from '../../src/rules/plugin';
+import { runAllRules, runRule, runRuleAtPath } from './effect-rule-test-utils';
+import type { Report } from './effect-rule-test-utils';
 
 describe('Effect review overlap regressions', () => {
   function reportedEffectRules(source: string, filename?: string): string[] {

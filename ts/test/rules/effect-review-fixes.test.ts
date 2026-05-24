@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index.js';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils.js';
+import theThracianOxlint from '../../src/index';
+import { runConfiguredRules, runRule } from './effect-rule-test-utils';
 
 describe('Effect review fix regressions', () => {
   it('recognizes aliased Effect imports for default and strict rules', () => {

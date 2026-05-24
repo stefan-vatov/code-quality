@@ -47,6 +47,29 @@ Run Oxlint:
 pnpm oxlint .
 ```
 
+Add fix scripts when you want the packaged codemods and native Oxlint fixes to run together:
+
+```json
+{
+  "scripts": {
+    "lint": "oxlint .",
+    "lint:fix": "thx-codemod-fix src && oxlint . --fix && thx-codemod-fix src"
+  }
+}
+```
+
+`thx-codemod-fix` is intentionally separate from `oxlint --fix` because Oxlint owns native rule fixes and the package CLI owns larger AST codemods. Running it before and after Oxlint is safe because the codemods are idempotent. The CLI defaults to `src`, but you can pass any files or directories your project wants fixed.
+
+Programmatic consumers can use the same codemod runner:
+
+```ts
+import { codemodFix } from '@thethracian/oxlint-config/codemod-fix';
+
+codemodFix({
+  paths: ['src', 'scripts'],
+});
+```
+
 ## Type-Aware Mode
 
 Type-aware mode enables Oxlint's semantic TypeScript checks and the matching strict rules from this config.

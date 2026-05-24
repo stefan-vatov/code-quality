@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runRule } from './effect-rule-test-utils.js';
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 19 regression coverage', () => {
   it('does not let unrelated later Schema text satisfy boundary validation rules', () => {

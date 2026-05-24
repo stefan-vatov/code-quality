@@ -13,8 +13,8 @@ describe('first-party rule source cache sharing', () => {
     const pluginSource = readFileSync(pluginPath, 'utf-8');
     const effectCoreSource = readFileSync(effectCorePath, 'utf-8');
 
-    expect(pluginSource).toContain("from './source-cache.js'");
-    expect(effectCoreSource).toContain("from './source-cache.js'");
+    expect(pluginSource).toContain("from './source-cache'");
+    expect(effectCoreSource).toContain("from './source-cache'");
   });
 
   it('does not mutate the file-source LRU map on hot cache hits', () => {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index.js';
-import { effectStrictRuleNames } from '../../src/rules/effect-rule-names.js';
-import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils.js';
-import type { RuleCase } from './effect-rule-test-utils.js';
+import theThracianOxlint from '../../src/index';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
+import type { RuleCase } from './effect-rule-test-utils';
 
 const strictCases: RuleCase[] = [
   {

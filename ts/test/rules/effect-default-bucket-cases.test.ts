@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index.js';
-import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names.js';
-import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils.js';
-import type { RuleCase } from './effect-rule-test-utils.js';
+import theThracianOxlint from '../../src/index';
+import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
+import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
+import type { RuleCase } from './effect-rule-test-utils';
 
 const defaultCases: RuleCase[] = [
   {
@@ -493,10 +493,13 @@ describe('Effect always-on rule behavior', () => {
   });
 
   it('uses precise token gates for common source-scan Effect rules', () => {
-    const source = readFileSync(
-      new URL('../../src/rules/effect-default.ts', import.meta.url),
-      'utf-8',
-    );
+    const source = [
+      '../../src/rules/effect-default.ts',
+      '../../src/rules/effect-default-compat-rules.ts',
+      '../../src/rules/effect-default-env-rules.ts',
+    ]
+      .map((path): string => readFileSync(new URL(path, import.meta.url), 'utf-8'))
+      .join('\n');
 
     expect(source).toContain("name: 'effect-no-effect-in-promise-callback'");
     expect(source).toContain("tokens: ['.then', '.catch']");

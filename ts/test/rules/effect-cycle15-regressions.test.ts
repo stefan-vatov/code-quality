@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runRule } from './effect-rule-test-utils.js';
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 15 regression coverage', () => {
   it('ignores Effect imports that appear only in comments when detecting Effect modules', () => {

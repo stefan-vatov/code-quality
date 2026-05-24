@@ -20,6 +20,9 @@ importers:
       '@stryker-mutator/vitest-runner':
         specifier: ~9.6.0
         version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.12.3))(vitest@4.1.5)
+      '@thethracian/oxlint-config':
+        specifier: workspace:*
+        version: link:ts
       '@types/node':
         specifier: ^24.10.0
         version: 24.12.3

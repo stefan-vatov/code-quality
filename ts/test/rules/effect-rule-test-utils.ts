@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { parseSync } from 'oxc-parser';
 import { expect } from 'vitest';
-import plugin from '../../src/rules/plugin.js';
-import type theThracianOxlint from '../../src/index.js';
+import plugin from '../../src/rules/plugin';
+import type theThracianOxlint from '../../src/index';
 
 type Report = {
   loc?: { column: number; line: number };

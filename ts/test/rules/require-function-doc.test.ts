@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import hasRequiredFunctionDocs from '../../src/rules/require-function-doc.js';
+import hasRequiredFunctionDocs from '../../src/rules/require-function-doc';
 
 // ============================================================================
 // hasRequiredFunctionDocs — checks exported declarations have non-empty JSDoc
@@ -170,6 +170,17 @@ export function sub(a: number, b: number): number { return a - b; }`;
   it('fails when exported enum has no JSDoc', () => {
     const src = 'export enum Color { Red, Blue }';
     expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('fails when a local export list hides an undocumented declaration', () => {
+    const src = 'const hidden = () => true;\nexport { hidden };';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes when a local export list points to a documented declaration', () => {
+    const src =
+      '/**\n * Hidden implementation export.\n * @internal\n */\nconst hidden = () => true;\nexport { hidden };';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
   });
 
   // ── fails: empty JSDoc ────────────────────────────────────────────────
@@ -490,9 +501,9 @@ export function b() {}`;
 
   // ── inline type-only exports ─────────────────────────────────────────
 
-  it('skips export { type A, type B }', () => {
+  it('fails for local export type lists without documented declarations', () => {
     const src = 'export { type A, type B };';
-    expect(hasRequiredFunctionDocs(src)).toBe(true);
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
   it('skips export type * from (wildcard type re-export)', () => {

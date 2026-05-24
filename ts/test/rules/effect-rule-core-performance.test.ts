@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { makeRules, type Context, type RuleSpec } from '../../src/rules/effect-rule-core.js';
+import { makeRules, type Context, type RuleSpec } from '../../src/rules/effect-rule-core';
+
+const sourceText = (path: string): string =>
+  readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf-8');
+
+const joinedSourceText = (...paths: string[]): string =>
+  paths.map((path): string => sourceText(path)).join('\n');
 
 describe('Effect rule core performance invariants', () => {
   it('reuses source text across rules that share the same source object', () => {
@@ -37,68 +43,56 @@ describe('Effect rule core performance invariants', () => {
   });
 
   it('uses cached line indexes instead of rescanning from the file start for each report', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
-    );
+    const source = sourceText('../../src/rules/effect-rule-core.ts');
 
-    expect(sourceText).not.toContain('for (let position = 0; position < index; position++)');
+    expect(source).not.toContain('for (let position = 0; position < index; position++)');
   });
 
   it('caches global regex variants instead of reallocating them for every file', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
-    );
+    const source = sourceText('../../src/rules/effect-rule-core.ts');
 
-    expect(sourceText).toContain('globalPatternCache');
-    expect(sourceText).not.toContain('return new RegExp(\n    pattern.source');
+    expect(source).toContain('globalPatternCache');
+    expect(source).not.toContain('return new RegExp(\n    pattern.source');
   });
 
   it('caches whole-file Effect signal checks used by AST visitors', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
-    );
+    const source = sourceText('../../src/rules/effect-rule-aliases.ts');
 
-    expect(sourceText).toContain('effectSignalCache');
-    expect(sourceText).toMatch(/cacheBoolean\(\s*effectSignalCache/);
+    expect(source).toContain('effectSignalCache');
+    expect(source).toMatch(/cacheBoolean\(\s*effectSignalCache/);
   });
 
   it('uses a cheap Effect signal prefilter before stripping or alias parsing', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
-    );
+    const source = sourceText('../../src/rules/effect-rule-aliases.ts');
 
-    expect(sourceText).toContain("!source.includes('Effect')");
-    expect(sourceText).toContain("!source.includes('effect')");
+    expect(source).toContain("!source.includes('Effect')");
+    expect(source).toContain("!source.includes('effect')");
   });
 
   it('does not mutate LRU maps on hot cache hits', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
+    const source = joinedSourceText(
+      '../../src/rules/effect-rule-core.ts',
+      '../../src/rules/effect-rule-aliases.ts',
+      '../../src/rules/effect-default-scan-helpers.ts',
+      '../../src/rules/effect-default-floating-helpers.ts',
     );
 
-    expect(sourceText).not.toContain('lineStartCache.delete(source)');
-    expect(sourceText).not.toContain('cache.delete(source)');
-    expect(sourceText).not.toContain('canonicalSourceCache.delete(source)');
+    expect(source).not.toContain('lineStartCache.delete(source)');
+    expect(source).not.toContain('cache.delete(source)');
+    expect(source).not.toContain('canonicalSourceCache.delete(source)');
   });
 
   it('does not allocate copied alias arrays on cache hits', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
-    );
+    const source = sourceText('../../src/rules/effect-rule-aliases.ts');
 
-    expect(sourceText).not.toContain('return [...cachedValue]');
+    expect(source).not.toContain('return [...cachedValue]');
   });
 
   it('does not repeat file-level Effect signal checks inside AST visitor hot paths', () => {
-    const defaultRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default.ts', import.meta.url)),
-      'utf-8',
+    const defaultRulesSource = joinedSourceText(
+      '../../src/rules/effect-default.ts',
+      '../../src/rules/effect-default-env-rules.ts',
+      '../../src/rules/effect-default-compat-rules.ts',
     );
 
     expect(
@@ -109,51 +103,46 @@ describe('Effect rule core performance invariants', () => {
   });
 
   it('does not use a bare lowercase effect token that matches React useEffect files', () => {
-    const defaultRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default.ts', import.meta.url)),
-      'utf-8',
+    const defaultRulesSource = joinedSourceText(
+      '../../src/rules/effect-default.ts',
+      '../../src/rules/effect-default-env-rules.ts',
+      '../../src/rules/effect-default-compat-rules.ts',
     );
 
     expect(defaultRulesSource).not.toContain("'effect',");
   });
 
   it('caches token gate decisions by shared token array and source', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
-    );
+    const source = sourceText('../../src/rules/effect-rule-core.ts');
 
-    expect(sourceText).toContain('tokenGateCache');
-    expect(sourceText).toContain('WeakMap<readonly string[], Map<string, boolean>>');
+    expect(source).toContain('tokenGateCache');
+    expect(source).toContain('WeakMap<readonly string[], Map<string, boolean>>');
   });
 
   it('caches individual token presence by source so overlapping rule gates do not rescan files', () => {
-    const sourceText = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-rule-core.ts', import.meta.url)),
-      'utf-8',
-    );
+    const source = sourceText('../../src/rules/effect-rule-core.ts');
 
-    expect(sourceText).toContain('sourceTokenPresenceCache');
-    expect(sourceText).toContain('function hasTokenInSourceCached');
-    expect(sourceText).toContain('tokens.some((token) => hasTokenInSourceCached(source, token))');
+    expect(source).toContain('sourceTokenPresenceCache');
+    expect(source).toContain('const hasTokenInSourceCached');
+    expect(source).toMatch(
+      /tokens\.some\(\(token\)(?:: boolean)? => hasTokenInSourceCached\(source, token\)\)/,
+    );
   });
 
   it('hoists Effect call predicates out of hot CallExpression visitors', () => {
-    const defaultRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default.ts', import.meta.url)),
-      'utf-8',
+    const defaultRulesSource = joinedSourceText(
+      '../../src/rules/effect-default-ast.ts',
+      '../../src/rules/effect-default.ts',
+      '../../src/rules/effect-default-compat-rules.ts',
     );
 
-    expect(defaultRulesSource).toContain('function effectCallPredicate');
+    expect(defaultRulesSource).toContain('const effectCallPredicate');
     expect(defaultRulesSource).not.toContain("new Set(['fail'])");
     expect(defaultRulesSource).not.toContain("new Set(['fn', 'fnUntraced', 'fnUntracedEager'])");
   });
 
   it('caches default helper Effect alias patterns and call regexes by source', () => {
-    const defaultHelpersSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default-helpers.ts', import.meta.url)),
-      'utf-8',
-    );
+    const defaultHelpersSource = sourceText('../../src/rules/effect-default-scan-helpers.ts');
 
     expect(defaultHelpersSource).toContain('effectAliasesPatternCache');
     expect(defaultHelpersSource).toContain('effectCallPatternCache');
@@ -162,20 +151,18 @@ describe('Effect rule core performance invariants', () => {
   });
 
   it('caches floating Effect regex bundles by alias pattern', () => {
-    const defaultHelpersSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default-helpers.ts', import.meta.url)),
-      'utf-8',
-    );
+    const defaultHelpersSource = sourceText('../../src/rules/effect-default-floating-helpers.ts');
 
     expect(defaultHelpersSource).toContain('floatingEffectPatternCache');
-    expect(defaultHelpersSource).toContain('function floatingEffectPatterns');
+    expect(defaultHelpersSource).toContain('const floatingEffectPatterns');
     expect(defaultHelpersSource).not.toContain('floatingEffectPatternCache.delete(aliasPattern)');
   });
 
   it('uses per-rule tokens for default AST rules with necessary call syntax', () => {
-    const defaultRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default.ts', import.meta.url)),
-      'utf-8',
+    const defaultRulesSource = joinedSourceText(
+      '../../src/rules/effect-default.ts',
+      '../../src/rules/effect-default-env-rules.ts',
+      '../../src/rules/effect-default-compat-rules.ts',
     );
 
     expect(defaultRulesSource).toContain("name: 'effect-no-promise-then-in-effect',");
@@ -186,19 +173,17 @@ describe('Effect rule core performance invariants', () => {
   });
 
   it('uses token groups for Effect.fn IIFE visitor startup', () => {
-    const defaultRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default.ts', import.meta.url)),
-      'utf-8',
-    );
+    const defaultRulesSource = sourceText('../../src/rules/effect-default-compat-rules.ts');
 
     expect(defaultRulesSource).toContain("name: 'effect-no-effect-fn-iife',");
     expect(defaultRulesSource).toContain("tokenGroups: [['fn'], ['Effect', 'effect']],");
   });
 
   it('uses per-rule tokens for expensive Program-only Effect checks', () => {
-    const defaultRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default.ts', import.meta.url)),
-      'utf-8',
+    const defaultRulesSource = joinedSourceText(
+      '../../src/rules/effect-default.ts',
+      '../../src/rules/effect-default-env-rules.ts',
+      '../../src/rules/effect-default-compat-rules.ts',
     );
 
     for (const [ruleName, tokenLine] of [
@@ -228,18 +213,15 @@ describe('Effect rule core performance invariants', () => {
   });
 
   it('checks floating Effect lines without splitting the whole source', () => {
-    const defaultHelpersSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default-helpers.ts', import.meta.url)),
-      'utf-8',
-    );
+    const defaultHelpersSource = sourceText('../../src/rules/effect-default-floating-helpers.ts');
 
     expect(defaultHelpersSource).not.toContain("code.split('\\n')");
   });
 
   it('uses per-rule tokens for expensive strict Program-only checks', () => {
-    const strictRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-strict.ts', import.meta.url)),
-      'utf-8',
+    const strictRulesSource = joinedSourceText(
+      '../../src/rules/effect-strict-core-specs.ts',
+      '../../src/rules/effect-strict-ast-specs.ts',
     );
 
     for (const [ruleName, tokenLine] of [
@@ -299,9 +281,10 @@ describe('Effect rule core performance invariants', () => {
   });
 
   it('uses identifier tokens for default environment escape-hatch AST rules', () => {
-    const defaultRulesSource = readFileSync(
-      fileURLToPath(new URL('../../src/rules/effect-default.ts', import.meta.url)),
-      'utf-8',
+    const defaultRulesSource = joinedSourceText(
+      '../../src/rules/effect-default.ts',
+      '../../src/rules/effect-default-env-rules.ts',
+      '../../src/rules/effect-default-compat-rules.ts',
     );
 
     expect(defaultRulesSource).toContain("tokens: ['console'],");

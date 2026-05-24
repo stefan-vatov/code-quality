@@ -2,7 +2,7 @@
  * Stress test: natural language comments that start with keywords must NOT be flagged.
  */
 import { describe, expect, it } from 'vitest';
-import isCommentedOutCode from '../../src/rules/no-commented-out-code.js';
+import isCommentedOutCode from '../../src/rules/no-commented-out-code';
 
 describe('false positive stress test', () => {
   const naturalLanguageStartingWithKeywords = [

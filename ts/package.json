@@ -8,6 +8,9 @@
     "url": "git+https://github.com/stefan-vatov/code-quality.git",
     "directory": "ts"
   },
+  "bin": {
+    "thx-codemod-fix": "./dist/codemod-fix/cli.js"
+  },
   "files": [
     "dist",
     "README.md",
@@ -20,13 +23,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./codemod-fix": {
+      "types": "./dist/codemod-fix/index.d.ts",
+      "default": "./dist/codemod-fix/index.js"
     }
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+    "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node ../scripts/add-js-extensions.mjs",
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

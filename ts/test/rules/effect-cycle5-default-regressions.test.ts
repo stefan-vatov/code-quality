@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runRule } from './effect-rule-test-utils.js';
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 5 default regression coverage', () => {
   it('does not treat unrelated JSON.parse and Schema usage as JSON string decoding', () => {

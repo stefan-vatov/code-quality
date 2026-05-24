@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runAllRules, runRule } from './effect-rule-test-utils.js';
+import { runAllRules, runRule } from './effect-rule-test-utils';
 
 function reportedEffectRules(source: string, filename = 'src/domain/user.ts'): string[] {
   return runAllRules(source, filename)
@@ -20,6 +20,18 @@ describe('Effect cycle 18 regression coverage', () => {
     expect(runRule('effect-no-direct-http-fs-outside-platform-services', source)).toHaveLength(0);
     expect(runRule('effect-no-run-outside-entrypoints', source)).toHaveLength(0);
     expect(runRule('effect-prefer-gen-over-do', source)).toHaveLength(0);
+  });
+
+  it('does not treat non-Effect helper calls as idempotent external Effect work', () => {
+    const source = `
+      function readSource(context: Context): string {
+        return readCachedSource(context);
+      }
+    `;
+
+    expect(
+      runRule('effect-require-retry-policy-for-idempotent-external-effects', source),
+    ).toHaveLength(0);
   });
 
   it('keeps balanced Effect call parsing stable across regex literals', () => {

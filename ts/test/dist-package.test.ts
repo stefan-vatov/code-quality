@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -325,6 +333,7 @@ describe('published TypeScript package shape', () => {
       const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-package-'));
       const scopePath = join(root, 'node_modules', '@thethracian');
       const consumerPath = join(root, 'consumer.mjs');
+      const packagePath = join(repoRoot, 'ts', 'package.json');
 
       try {
         mkdirSync(scopePath, { recursive: true });
@@ -333,6 +342,7 @@ describe('published TypeScript package shape', () => {
           consumerPath,
           `
           import theThracianOxlint from '@thethracian/oxlint-config';
+          import { codemodFix } from '@thethracian/oxlint-config/codemod-fix';
 
           const config = theThracianOxlint({ effect: { strict: true } });
           const effectRules = Object.keys(config.rules ?? {}).filter((ruleName) =>
@@ -345,6 +355,9 @@ describe('published TypeScript package shape', () => {
           }
           if (config.rules?.['thethracian/effect-no-global-fetch'] !== 'error') {
             throw new Error('missing strict Effect rule through package export');
+          }
+          if (typeof codemodFix !== 'function') {
+            throw new Error('missing codemod-fix package export');
           }
 
           console.log(JSON.stringify({ effectRuleCount: effectRules.length, pluginPath }));
@@ -360,6 +373,10 @@ describe('published TypeScript package shape', () => {
 
         expect(parsed.effectRuleCount).toBe(141);
         expect(existsSync(parsed.pluginPath)).toBe(true);
+        const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+          bin?: Record<string, string>;
+        };
+        expect(packageJson.bin?.['thx-codemod-fix']).toBe('./dist/codemod-fix/cli.js');
       } finally {
         rmSync(root, { force: true, recursive: true });
       }
