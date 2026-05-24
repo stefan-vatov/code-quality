@@ -45,3 +45,53 @@ describe('file-level custom rules', () => {
     expect(reports[0]?.node).toBe(programNode);
   });
 });
+
+describe('identifier naming custom rules', () => {
+  it('ignores destructuring variable declarators without crashing', () => {
+    const reports: Report[] = [];
+    const visitors = plugin.rules['camel-case-identifiers'].create({
+      report(report: Report) {
+        reports.push(report);
+      },
+    });
+
+    expect(() => {
+      visitors.VariableDeclarator?.({
+        type: 'VariableDeclarator',
+        id: {
+          type: 'ObjectPattern',
+          properties: [],
+        },
+        parent: {
+          kind: 'const',
+        },
+      });
+    }).not.toThrow();
+
+    expect(reports).toEqual([]);
+  });
+
+  it('ignores destructuring declarators in acronym checks without crashing', () => {
+    const reports: Report[] = [];
+    const visitors = plugin.rules['acronym-case'].create({
+      report(report: Report) {
+        reports.push(report);
+      },
+    });
+
+    expect(() => {
+      visitors.VariableDeclarator?.({
+        type: 'VariableDeclarator',
+        id: {
+          type: 'ArrayPattern',
+          elements: [],
+        },
+        parent: {
+          kind: 'const',
+        },
+      });
+    }).not.toThrow();
+
+    expect(reports).toEqual([]);
+  });
+});

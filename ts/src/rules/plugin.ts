@@ -9,6 +9,8 @@ import findLongLines from './max-line-length.js';
 import countImportDepth from './max-import-depth.js';
 import hasRequiredFileDoc from './require-file-doc.js';
 import hasRequiredFunctionDocs from './require-function-doc.js';
+import effectDefaultRules from './effect-default.js';
+import effectStrictRules from './effect-strict.js';
 
 /**
  * Oxlint plugin for The Thracian custom rules.
@@ -17,6 +19,10 @@ import hasRequiredFunctionDocs from './require-function-doc.js';
 interface NamedNode {
   id?: { name: string } | null;
   key?: { name: string };
+}
+
+function getIdentifierName(node: { name?: unknown } | null | undefined): string | undefined {
+  return typeof node?.name === 'string' ? node.name : undefined;
 }
 
 type Context = {
@@ -116,10 +122,10 @@ const camelCaseIdentifiersRule = {
   create(context: Context) {
     return {
       VariableDeclarator(node: DeclNode) {
-        if (!node.id) {
+        const name = getIdentifierName(node.id);
+        if (!name) {
           return;
         }
-        const { name } = node.id;
         const isConst = node.parent && node.parent.kind === 'const';
         if (isConst) {
           if (!isCamelCase(name) && !isUpperCase(name)) {
@@ -191,12 +197,13 @@ const booleanPrefixRule = {
 
     return {
       VariableDeclarator(node: DeclNode) {
-        if (!node.id) {
+        const name = getIdentifierName(node.id);
+        if (!name) {
           return;
         }
-        if (isBooleanVar(node) && !hasBooleanPrefix(node.id.name)) {
+        if (isBooleanVar(node) && !hasBooleanPrefix(name)) {
           context.report({
-            message: `Rename boolean '${node.id.name}' to '${suggestBooleanName(node.id.name)}' (is_/has_/should_ prefix required for boolean variables).`,
+            message: `Rename boolean '${name}' to '${suggestBooleanName(name)}' (is_/has_/should_ prefix required for boolean variables).`,
             node,
           });
         }
@@ -243,8 +250,9 @@ const acronymCaseRule = {
 
     return {
       VariableDeclarator(node: NamedNode) {
-        if (node.id) {
-          checkAcronyms(node.id.name, node);
+        const name = getIdentifierName(node.id);
+        if (name) {
+          checkAcronyms(name, node);
         }
       },
       FunctionDeclaration(node: NamedNode) {
@@ -421,6 +429,8 @@ const plugin = {
     'max-line-length': maxLineLengthRule,
     'require-file-doc': requireFileDocRule,
     'require-function-doc': requireFunctionDocRule,
+    ...effectDefaultRules,
+    ...effectStrictRules,
   },
 };
 

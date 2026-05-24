@@ -49,6 +49,7 @@
     "knip": "^6.3.0",
     "lint-staged": "^16.4.0",
     "nx": "^22.7.1",
+    "oxc-parser": "0.128.0",
     "oxfmt": "^0.43.0",
     "oxlint": "^1.63.0",
     "oxlint-tsgolint": "^0.22.1",
@@ -58,7 +59,7 @@
   },
   "lint-staged": {
     "*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}": [
-      "oxlint --type-aware --type-check --fix",
+      "oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern",
       "oxfmt"
     ],
     "*.{json,md,yml,yaml,toml,css,scss,html}": [
