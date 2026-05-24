@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 - 2026-05-24
+
+### Changes
+
+- perf: optimize effect oxlint rules (#3) (3efe102)
+
 ## 0.2.0 - 2026-05-24
 
 ### Features
