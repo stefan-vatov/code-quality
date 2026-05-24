@@ -70,9 +70,11 @@ describe('file-level custom rules', () => {
     }
 
     expect(reports[0]?.node).toBe(programNode);
+    expect(reports[0]?.message).toContain('Fix:');
+    expect(reports[0]?.message).toContain('Example:');
   });
 
-  it('reports the exact divider header format for missing file docs', () => {
+  it('reports the divider header format for missing file docs', () => {
     const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
     const filename = join(root, 'fixture.ts');
     const reports: Report[] = [];
@@ -93,15 +95,16 @@ describe('file-level custom rules', () => {
     }
 
     expect(reports[0]?.message)
-      .toBe(`Missing file-purpose header. Add a top-of-file divider header in this exact format:
+      .toContain(`Fix: Add a top-of-file divider header in this exact format:
 /* -------------------------------------------------------------------------- */
 /*                     Describe this file's purpose here.                     */
 /* -------------------------------------------------------------------------- */
 
 The text line must be a real description of what the file is for; declaration JSDoc does not count.`);
+    expect(reports[0]?.message).toContain('Example:');
   });
 
-  it('reports the exact public JSDoc shape for undocumented exports', () => {
+  it('reports the public JSDoc shape for undocumented exports', () => {
     const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
     const filename = join(root, 'fixture.ts');
     const reports: Report[] = [];
@@ -122,7 +125,7 @@ The text line must be a real description of what the file is for; declaration JS
     }
 
     expect(reports[0]?.message)
-      .toBe(`Missing public declaration JSDoc. Add a /** ... */ block immediately above the export in this shape:
+      .toContain(`Fix: Add a /** ... */ block immediately above the export in this shape:
 /**
  * Describe what this exported declaration does.
  *
@@ -132,6 +135,7 @@ The text line must be a real description of what the file is for; declaration JS
  */
 
 The prose must be specific; generated placeholder text does not satisfy the rule.`);
+    expect(reports[0]?.message).toContain('Example:');
   });
 
   it('offers a native fix that removes a commented-out line', () => {
@@ -201,13 +205,10 @@ The prose must be specific; generated placeholder text does not satisfy the rule
 
     visitors.ImportExpression?.(importNode);
 
-    expect(reports).toStrictEqual([
-      {
-        message:
-          "Use extensionless TypeScript module specifiers instead of emitted JavaScript extension './feature.js'.",
-        node: importNode,
-      },
-    ]);
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.node).toBe(importNode);
+    expect(reports[0]?.message).toContain("Fix: Remove the emitted .js suffix from './feature.js'");
+    expect(reports[0]?.message).toContain("import { helper } from './feature'");
   });
 
   it('reports package-subpath dynamic imports with emitted JavaScript extensions', () => {
@@ -268,6 +269,26 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports).toStrictEqual([]);
   });
 
+  it('reports deep imports with an agent-readable remediation example', () => {
+    const reports: Report[] = [];
+    const visitors = plugin.rules['max-import-depth'].create({
+      report(report: Report) {
+        reports.push(report);
+      },
+    });
+    const importNode = {
+      type: 'ImportDeclaration',
+      source: { value: '../../../../../shared/domain/users' },
+    };
+
+    visitors.ImportDeclaration?.(importNode);
+
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.node).toBe(importNode);
+    expect(reports[0]?.message).toContain('Fix: Flatten the module boundary');
+    expect(reports[0]?.message).toContain("import { helper } from '@/shared/helper'");
+  });
+
   it('reports local export lists', () => {
     const reports: Report[] = [];
     const visitors = plugin.rules['no-local-export-list'].create({
@@ -284,13 +305,10 @@ The prose must be specific; generated placeholder text does not satisfy the rule
 
     visitors.ExportNamedDeclaration?.(exportNode);
 
-    expect(reports).toStrictEqual([
-      {
-        message:
-          'Export declarations inline at their definition instead of using a local export list.',
-        node: exportNode,
-      },
-    ]);
+    expect(reports).toHaveLength(1);
+    expect(reports[0]?.node).toBe(exportNode);
+    expect(reports[0]?.message).toContain('Fix: Move each local export modifier');
+    expect(reports[0]?.message).toContain('export const helper');
   });
 
   it('allows re-export lists from another module', () => {

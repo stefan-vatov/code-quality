@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*            Oxlint plugin rule for removing commented-out code.             */
 /* -------------------------------------------------------------------------- */
+import { diagnosticMessage } from './diagnostic-guidance';
 import isCommentedOutCode from './no-commented-out-code';
 import { readCachedSource } from './source-cache';
 
@@ -139,7 +140,11 @@ const reportBlockCommentedOutCode = (
   if (isCommentedOutCode(source.slice(bodyStart, commentEnd))) {
     context.report({
       fix: removeRangeFix([start, rangeEndForComment(bodyEnd, source.length, 2)]),
-      message: 'Remove this commented-out code instead of leaving it dead.',
+      message: diagnosticMessage({
+        example: 'const live = computeValue();',
+        fix: 'Delete the commented code. If it is still needed, restore it as live code with tests.',
+        summary: 'Commented-out code is dead code and wastes agent context.',
+      }),
       node,
     });
   }
@@ -158,7 +163,11 @@ const reportLineCommentedOutCode = (
   if (isCommentedOutCode(source.slice(bodyStart, commentEnd))) {
     context.report({
       fix: removeRangeFix([start, rangeEndForComment(bodyEnd, source.length, 1)]),
-      message: 'Remove this commented-out code instead of leaving it dead.',
+      message: diagnosticMessage({
+        example: 'const live = computeValue();',
+        fix: 'Delete the commented code. If it is still needed, restore it as live code with tests.',
+        summary: 'Commented-out code is dead code and wastes agent context.',
+      }),
       node,
     });
   }

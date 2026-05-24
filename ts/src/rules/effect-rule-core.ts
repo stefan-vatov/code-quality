@@ -2,6 +2,7 @@
 /*      Core runtime for source-backed and AST-backed Effect lint rules.      */
 /* -------------------------------------------------------------------------- */
 import { canonicalizeEffectAPIAliases } from './effect-rule-aliases';
+import { effectDiagnosticMessage } from './diagnostic-guidance';
 import { readCachedSource } from './source-cache';
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
@@ -31,6 +32,9 @@ export interface Context {
  */
 export interface SourceRule {
   meta?: {
+    docs?: {
+      description: string;
+    };
     schema?: object;
     type: 'problem';
   };
@@ -195,23 +199,29 @@ interface ReportPatternMatchesInput {
 
 const reportPatternMatches = (input: ReportPatternMatchesInput): void => {
   const { context, node, source, spec } = input;
+  const message = effectDiagnosticMessage(spec.name, spec.message);
   if (!spec.countPatterns) {
     context.report({
       loc: firstPatternLOC(source, spec.patterns ?? []),
-      message: spec.message,
+      message,
       node,
     });
     return;
   }
 
+  reportCountedPatternMatches(input, message);
+};
+
+const reportCountedPatternMatches = (input: ReportPatternMatchesInput, message: string): void => {
+  const { context, node, source, spec } = input;
   let strippedSource: string | undefined = undefined;
-  for (const pattern of spec.countPatterns) {
+  for (const pattern of spec.countPatterns ?? []) {
     for (const match of source.matchAll(toGlobalRegExp(pattern))) {
       strippedSource ??= stripCommentsAndStrings(source);
       if (isCodeAt(strippedSource, match.index)) {
         context.report({
           loc: locFromIndex(source, match.index),
-          message: spec.message,
+          message,
           node,
         });
       }
@@ -331,10 +341,28 @@ const reportCheckResult = (
 ): void => {
   context.report({
     loc: checkResultLOC(source, spec, checkResult),
-    message: spec.message,
+    message: effectDiagnosticMessage(spec.name, spec.message),
     node,
   });
 };
+
+const guidedContext = (context: Context, spec: RuleSpec): Context => ({
+  get filename(): string | undefined {
+    return context.filename;
+  },
+  get options(): object[] | undefined {
+    return context.options;
+  },
+  report(descriptor): void {
+    context.report({
+      ...descriptor,
+      message: effectDiagnosticMessage(spec.name, descriptor.message),
+    });
+  },
+  get sourceCode(): Context['sourceCode'] {
+    return context.sourceCode;
+  },
+});
 
 interface RunProgramRuleInput {
   context: Context;
@@ -404,7 +432,8 @@ const makeASTCapableRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRu
         };
       }
 
-      const astVisitors = spec.ast?.(context, source) ?? {};
+      const astContext = guidedContext(context, spec);
+      const astVisitors = spec.ast?.(astContext, source) ?? {};
       return {
         ...astVisitors,
         Program(node: object): void {
@@ -416,6 +445,9 @@ const makeASTCapableRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRu
       };
     },
     meta: {
+      docs: {
+        description: effectDiagnosticMessage(spec.name, spec.message),
+      },
       schema: options.schema,
       type: 'problem',
     },

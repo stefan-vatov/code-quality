@@ -201,6 +201,13 @@ describe('Effect strict path options', () => {
         ignoredFile: 'platform/adapters/http.ts',
       },
       {
+        ruleName: 'effect-no-node-builtins-when-effect-platform-exists',
+        options: { adapterLayers: ['platform/adapters/**'] },
+        source: "import { readFileSync } from 'node:fs';",
+        reportedFile: 'src/domain/files.ts',
+        ignoredFile: 'platform/adapters/files.ts',
+      },
+      {
         ruleName: 'effect-no-leaked-service-dependencies',
         options: { domain: ['features/domain/**'] },
         source: 'export const Live = Layer.succeed(UserRepo, service);',

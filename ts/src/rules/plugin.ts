@@ -1,6 +1,20 @@
 /* -------------------------------------------------------------------------- */
 /*       Oxlint JavaScript plugin entry for The Thracian custom rules.        */
 /* -------------------------------------------------------------------------- */
+import {
+  acronymDiagnosticMessage,
+  booleanDiagnosticMessage,
+  constantDiagnosticMessage,
+  fileDocDiagnosticMessage,
+  functionDocDiagnosticMessage,
+  importDepthDiagnosticMessage,
+  jsExtensionDiagnosticMessage,
+  lineLengthDiagnosticMessage,
+  localExportListDiagnosticMessage,
+  privateMemberDiagnosticMessage,
+  renameDiagnosticMessage,
+  typeDiagnosticMessage,
+} from './diagnostic-guidance';
 import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case';
 import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore';
 import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers';
@@ -15,10 +29,6 @@ import hasRequiredFileDoc from './require-file-doc';
 import hasRequiredFunctionDocs from './require-function-doc';
 import noCommentedOutCodeRule from './plugin-commented-out-code-rule';
 import { readCachedSource } from './source-cache';
-
-/**
- * Oxlint plugin for The Thracian custom rules.
- */
 
 interface NamedNode {
   id?: IdentifierNode | null;
@@ -49,9 +59,7 @@ interface Context {
 
 type VisitorMap = Record<string, ((node: never) => void) | undefined>;
 type OxlintPlugin = Parameters<typeof eslintCompatPlugin>[0];
-
 const readSource = (context: Context): string => readCachedSource(context);
-
 const isBooleanVar = (node: DeclNode): boolean => {
   if (
     node.typeAnnotation &&
@@ -77,7 +85,7 @@ const pascalCaseTypesRule = withCreateOnce({
   createOnce(context: Context) {
     const reportType = (kind: string, name: string, node: object): void => {
       context.report({
-        message: `Rename ${kind} from '${name}' to '${toPascalCase(name)}' (PascalCase required for types).`,
+        message: typeDiagnosticMessage(kind, name, toPascalCase(name)),
         node,
       });
     };
@@ -122,7 +130,7 @@ const camelCaseIdentifiersRule = withCreateOnce({
       FunctionDeclaration(node: NamedNode): void {
         if (node.id && !isCamelCase(node.id.name)) {
           context.report({
-            message: `Rename function '${node.id.name}' to '${toCamelCase(node.id.name)}' (camelCase required).`,
+            message: renameDiagnosticMessage('function', node.id.name, toCamelCase(node.id.name)),
             node,
           });
         }
@@ -130,7 +138,7 @@ const camelCaseIdentifiersRule = withCreateOnce({
       MethodDefinition(node: NamedNode): void {
         if (node.key && !isCamelCase(node.key.name)) {
           context.report({
-            message: `Rename method '${node.key.name}' to '${toCamelCase(node.key.name)}' (camelCase required).`,
+            message: renameDiagnosticMessage('method', node.key.name, toCamelCase(node.key.name)),
             node,
           });
         }
@@ -138,7 +146,11 @@ const camelCaseIdentifiersRule = withCreateOnce({
       Parameter(node: DeclNode): void {
         if (node.type === 'Identifier' && node.value && !isCamelCase(node.value.name)) {
           context.report({
-            message: `Rename parameter '${node.value.name}' to '${toCamelCase(node.value.name)}' (camelCase required).`,
+            message: renameDiagnosticMessage(
+              'parameter',
+              node.value.name,
+              toCamelCase(node.value.name),
+            ),
             node,
           });
         }
@@ -146,7 +158,7 @@ const camelCaseIdentifiersRule = withCreateOnce({
       PropertyDefinition(node: NamedNode): void {
         if (node.key && !isCamelCase(node.key.name)) {
           context.report({
-            message: `Rename property '${node.key.name}' to '${toCamelCase(node.key.name)}' (camelCase required).`,
+            message: renameDiagnosticMessage('property', node.key.name, toCamelCase(node.key.name)),
             node,
           });
         }
@@ -160,14 +172,14 @@ const camelCaseIdentifiersRule = withCreateOnce({
         if (isConst) {
           if (!isCamelCase(name) && !isUpperCase(name)) {
             context.report({
-              message: `Rename constant '${name}' to '${toCamelCase(name)}' for camelCase, or '${name.toUpperCase()}' for UPPER_CASE convention.`,
+              message: constantDiagnosticMessage(name, toCamelCase(name)),
               node,
             });
           }
         } else {
           if (!isCamelCase(name)) {
             context.report({
-              message: `Rename variable '${name}' to '${toCamelCase(name)}' (camelCase required).`,
+              message: renameDiagnosticMessage('variable', name, toCamelCase(name)),
               node,
             });
           }
@@ -187,7 +199,7 @@ const booleanPrefixRule = withCreateOnce({
         }
         if (isBooleanVar(node) && !hasBooleanPrefix(name)) {
           context.report({
-            message: `Rename boolean '${name}' with an is_/has_/should_ prefix.`,
+            message: booleanDiagnosticMessage(name),
             node,
           });
         }
@@ -203,9 +215,7 @@ const privateUnderscoreRule = withCreateOnce({
         if (node.key && node.accessibility === 'private' && !hasLeadingUnderscore(node.key.name)) {
           const replacement = suggestPrivateName(node.key.name);
           context.report({
-            message:
-              `Rename private method '${node.key.name}' to '${replacement}' ` +
-              '(leading underscore required for private members).',
+            message: privateMemberDiagnosticMessage('method', node.key.name, replacement),
             node,
           });
         }
@@ -214,9 +224,7 @@ const privateUnderscoreRule = withCreateOnce({
         if (node.key && node.accessibility === 'private' && !hasLeadingUnderscore(node.key.name)) {
           const replacement = suggestPrivateName(node.key.name);
           context.report({
-            message:
-              `Rename private property '${node.key.name}' to '${replacement}' ` +
-              '(leading underscore required for private members).',
+            message: privateMemberDiagnosticMessage('property', node.key.name, replacement),
             node,
           });
         }
@@ -230,16 +238,9 @@ const acronymCaseRule = withCreateOnce({
     const checkAcronyms = (name: string, node: object): void => {
       const violations = findMisCasedAcronyms(name);
       if (violations.length > 0) {
-        const listed = violations.map((acr) => `'${acr}'`).join(', ');
         const replacement = fixAcronymCase(name);
-        const pluralSuffix = ((): string => {
-          if (violations.length > 1) {
-            return 's';
-          }
-          return '';
-        })();
         context.report({
-          message: `Rename '${name}' to '${replacement}' — acronym${pluralSuffix} ${listed} must be uppercase.`,
+          message: acronymDiagnosticMessage(name, replacement, violations),
           node,
         });
       }
@@ -298,7 +299,7 @@ const isJavaScriptSpecifier = (specifier: unknown): specifier is string =>
 
 const reportJavaScriptSpecifier = (context: Context, node: object, specifier: string): void => {
   context.report({
-    message: `Use extensionless TypeScript module specifiers instead of emitted JavaScript extension '${specifier}'.`,
+    message: jsExtensionDiagnosticMessage(specifier),
     node,
   });
 };
@@ -339,8 +340,7 @@ const noLocalExportListRule = withCreateOnce({
           return;
         }
         context.report({
-          message:
-            'Export declarations inline at their definition instead of using a local export list.',
+          message: localExportListDiagnosticMessage(),
           node,
         });
       },
@@ -356,9 +356,7 @@ const maxImportDepthRule = withCreateOnce({
       const depth = countImportDepth(importPath);
       if (depth > MAX_DEPTH) {
         context.report({
-          message:
-            `Import path depth ${depth} exceeds maximum of ${MAX_DEPTH} ` +
-            `(found '${importPath}'). Use a flatter directory structure or path alias.`,
+          message: importDepthDiagnosticMessage(depth, MAX_DEPTH, importPath),
           node,
         });
       }
@@ -392,7 +390,7 @@ const maxLineLengthRule = withCreateOnce({
 
         for (const violation of findLongLines(source)) {
           context.report({
-            message: `Line ${violation.line} has ${violation.length} characters, exceeding the maximum of 150.`,
+            message: lineLengthDiagnosticMessage(violation.line, violation.length),
             node,
           });
         }
@@ -412,12 +410,7 @@ const requireFileDocRule = withCreateOnce({
 
         if (!hasRequiredFileDoc(source)) {
           context.report({
-            message: `Missing file-purpose header. Add a top-of-file divider header in this exact format:
-/* -------------------------------------------------------------------------- */
-/*                     Describe this file's purpose here.                     */
-/* -------------------------------------------------------------------------- */
-
-The text line must be a real description of what the file is for; declaration JSDoc does not count.`,
+            message: fileDocDiagnosticMessage(),
             node,
           });
         }
@@ -437,16 +430,7 @@ const requireFunctionDocRule = withCreateOnce({
 
         if (!hasRequiredFunctionDocs(source)) {
           context.report({
-            message: `Missing public declaration JSDoc. Add a /** ... */ block immediately above the export in this shape:
-/**
- * Describe what this exported declaration does.
- *
- * @param name - Describe this parameter.
- * @returns Describe the return value.
- * @throws Describe expected error conditions, or state that it does not throw.
- */
-
-The prose must be specific; generated placeholder text does not satisfy the rule.`,
+            message: functionDocDiagnosticMessage(),
             node,
           });
         }
@@ -485,15 +469,9 @@ const isPlugin = (value: unknown): value is OxlintPlugin => {
   return typeof rules === 'object' && rules !== null;
 };
 
-const pluginInput: unknown = plugin;
-
-if (!isPlugin(pluginInput)) {
+if (!isPlugin(plugin)) {
   throw new TypeError('Invalid The Thracian Oxlint plugin shape.');
 }
 
-/**
- * Oxlint-compatible JavaScript plugin containing The Thracian custom rules.
- *
- * @internal
- */
-export default eslintCompatPlugin(pluginInput);
+/** @internal Oxlint-compatible JavaScript plugin containing The Thracian custom rules. */
+export default eslintCompatPlugin(plugin);

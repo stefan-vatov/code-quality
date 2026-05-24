@@ -12,7 +12,6 @@ import {
   hasMapFlatten,
   hasMapToVoid,
   hasMultipleProvideChain,
-  hasNodeBuiltinImport,
   hasNonDeterministicServiceKey,
   hasSchemaInstanceof,
   hasSchemaStructWithTag,
@@ -176,7 +175,6 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = [
         }
       },
     }),
-    check: hasNodeBuiltinImport,
     message: 'Use Effect platform services instead of direct Node built-in imports.',
     name: 'effect-no-node-builtins-when-effect-platform-exists',
     tokens: ['node:'],
