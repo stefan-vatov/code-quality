@@ -1,4 +1,8 @@
-/** @internal Error-handling and cleanup predicates for always-on Effect rules. */
+/**
+ * Error-handling and cleanup predicates for always-on Effect rules.
+ *
+ * @internal
+ */
 import { effectCallBodies, enclosingPipeBody } from './effect-default-scan-helpers';
 import {
   findBalancedCallEnd,
@@ -8,7 +12,8 @@ import {
 
 const LOCAL_PREFIX_SCAN_WINDOW = 160;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -25,7 +30,8 @@ export const hasUnsafeLazyEvaluation = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -47,7 +53,8 @@ export const hasUnloggedIgnore = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -67,7 +74,8 @@ export const hasMultipleCatchTagsInOnePipe = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -104,7 +112,8 @@ const hasErrorWithoutCause = (callBody: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -126,7 +135,8 @@ export const hasErrorMappingWithoutCause = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -136,7 +146,8 @@ export const hasForkDaemonWithoutCleanup = (source: string): boolean =>
       !/\b(?:Effect\.)?(?:ensuring|onExit|onInterrupt|supervised)\b|Supervisor\./.test(body),
   );
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

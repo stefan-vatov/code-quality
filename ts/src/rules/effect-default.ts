@@ -1,4 +1,8 @@
-/** @internal Always-on custom Effect lint rule definitions. */
+/**
+ * Always-on custom Effect lint rule definitions.
+ *
+ * @internal
+ */
 import {
   arrayValue,
   effectCallPredicate,

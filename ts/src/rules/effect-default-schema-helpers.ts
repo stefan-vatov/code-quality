@@ -1,10 +1,15 @@
-/** @internal Schema boundary predicates for always-on Effect rules. */
+/**
+ * Schema boundary predicates for always-on Effect rules.
+ *
+ * @internal
+ */
 import { isInsideCall, stripCommentsAndStrings } from './effect-source-helpers';
 import { localCallSegment, someEffectWorkflowBody } from './effect-default-scan-helpers';
 
 const SCHEMA_ASSERTION_SCAN_WINDOW = 240;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -13,14 +18,16 @@ export const hasSchemaSyncDecodeInEffectWorkflow = (source: string): boolean =>
     /Schema\.decode(?:Unknown)?Sync\s*\(/.test(stripCommentsAndStrings(body)),
   );
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const hasSchemaPromiseDecode = (source: string): boolean =>
   /Schema\.decode[A-Za-z]*Promise\s*\(/.test(stripCommentsAndStrings(source));
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -85,7 +92,8 @@ const hasCastAfterSchemaDecodeBinding = (code: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -100,7 +108,8 @@ export const hasCastAfterSchemaDecode = (source: string): boolean => {
   return hasCastAfterSchemaDecodeBinding(code);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -124,7 +133,8 @@ export const hasUnhandledSchemaEffectDecode = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

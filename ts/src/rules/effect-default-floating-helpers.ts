@@ -1,4 +1,8 @@
-/** @internal Floating Effect expression detection. */
+/**
+ * Floating Effect expression detection.
+ *
+ * @internal
+ */
 import { findBalancedCallEnd, stripCommentsAndStrings } from './effect-source-helpers';
 import { effectAliasesPattern } from './effect-default-scan-helpers';
 import { effectImportAliases } from './effect-rule-core';
@@ -161,7 +165,8 @@ const hasFloatingPipeStatement = (code: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

@@ -1,4 +1,8 @@
-/** @internal Boundary-schema predicates for opt-in strict Effect lint rules. */
+/**
+ * Boundary-schema predicates for opt-in strict Effect lint rules.
+ *
+ * @internal
+ */
 import {
   findBalancedCallEnd,
   findStatementEnd,
@@ -33,7 +37,8 @@ const boundaryAccessNeedsSchema = (code: string, match: RegExpMatchArray): boole
   !isInsideCall(code, match.index ?? 0, /Schema\.decode[A-Za-z]*\s*\(/g) &&
   !/Schema\.decode/.test(boundaryAccessSegment(code, match));
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -78,7 +83,8 @@ const requestBindingNeedsSchema = (code: string, match: RegExpMatchArray): boole
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -101,7 +107,8 @@ export const hasHTTPServerRequestWithoutSchema = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -139,7 +146,8 @@ export const hasPersistenceReadWithoutSchema = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

@@ -1,7 +1,10 @@
-/** Public API for running The Thracian codemod fixes from package scripts or tools. */
+/**
+ * Public API for running The Thracian codemod fixes from package scripts or tools.
+ */
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { addInternalExportDocs } from '../codemods/internal-export-docs';
 import { addVoidReturnTypes } from '../codemods/explicit-return-types';
+import { formatJSDocComments } from '../codemods/format-jsdoc-comments';
 import { inlineLocalExportLists } from '../codemods/inline-export-lists';
 import { preferConciseArrowBodies } from '../codemods/arrow-body-style';
 import { preferExplicitBranches } from '../codemods/no-ternary';
@@ -14,7 +17,8 @@ const defaultPaths = ['src'] as const;
 const sourceExtensions = new Set(['.ts', '.tsx', '.mts', '.cts']);
 const ignoredDirectories = new Set(['bench', 'dist', 'fixtures', 'node_modules', 'test']);
 
-/** Options for running The Thracian codemod fixer.
+/**
+ * Options for running The Thracian codemod fixer.
  *
  * @public
  */
@@ -24,7 +28,8 @@ export interface CodemodFixOptions {
   paths?: readonly string[];
 }
 
-/** Summary returned after scanning and optionally rewriting source files.
+/**
+ * Summary returned after scanning and optionally rewriting source files.
  *
  * @public
  */
@@ -36,7 +41,8 @@ export interface CodemodFixResult {
 const hasSourceExtension = (path: string): boolean =>
   [...sourceExtensions].some((extension) => path.endsWith(extension));
 
-/** Lists TypeScript source files under a root directory.
+/**
+ * Lists TypeScript source files under a root directory.
  *
  * @public
  */
@@ -62,24 +68,28 @@ export const sourceFilesUnder = (root: string): string[] => {
   return files;
 };
 
-/** Applies all safe codemod fixes to a single source string.
+/**
+ * Applies all safe codemod fixes to a single source string.
  *
  * @public
  */
 export const applyCodemodFixToSource = (source: string): string =>
-  addInternalExportDocs(
-    inlineLocalExportLists(
-      addVoidReturnTypes(
-        preferConciseArrowBodies(
-          preferExplicitBranches(
-            preferFunctionExpressions(sortImportDeclarations(renameMisCasedAcronyms(source))),
+  formatJSDocComments(
+    addInternalExportDocs(
+      inlineLocalExportLists(
+        addVoidReturnTypes(
+          preferConciseArrowBodies(
+            preferExplicitBranches(
+              preferFunctionExpressions(sortImportDeclarations(renameMisCasedAcronyms(source))),
+            ),
           ),
         ),
       ),
     ),
   );
 
-/** Applies all safe codemod fixes to one file.
+/**
+ * Applies all safe codemod fixes to one file.
  *
  * @public
  */
@@ -105,7 +115,8 @@ const candidateFiles = (path: string): string[] => {
   return [path];
 };
 
-/** Runs The Thracian codemod fixer across configured paths.
+/**
+ * Runs The Thracian codemod fixer across configured paths.
  *
  * @public
  */

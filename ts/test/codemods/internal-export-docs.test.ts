@@ -10,13 +10,15 @@ export function run(): void {}
 `;
 
     expect(addInternalExportDocs(source)).toBe(`/** @internal Helper module. */
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const value = 1;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

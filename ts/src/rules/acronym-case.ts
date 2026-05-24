@@ -1,4 +1,8 @@
-/** @internal Acronym casing helpers for custom Oxlint identifier rules. */
+/**
+ * Acronym casing helpers for custom Oxlint identifier rules.
+ *
+ * @internal
+ */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
 import acronyms from './acronyms';
 
@@ -62,7 +66,9 @@ const nextSplitState = (
   return lowerSplitState(name, idx, words, state);
 };
 
-/** Split a mixedCase identifier into word segments (character-class accelerated). */
+/**
+ * Split a mixedCase identifier into word segments (character-class accelerated).
+ */
 const splitMixedCase = (name: string): string[] => {
   const len = name.length;
   if (len === 0) {
@@ -84,7 +90,9 @@ const splitMixedCase = (name: string): string[] => {
   return words;
 };
 
-/** Check if entire string is all uppercase A-Z. */
+/**
+ * Check if entire string is all uppercase A-Z.
+ */
 const isAllUpper = (str: string, len: number): boolean => {
   for (let idx = 0; idx < len; idx++) {
     if (!isUp(str.charCodeAt(idx))) {
@@ -94,7 +102,9 @@ const isAllUpper = (str: string, len: number): boolean => {
   return true;
 };
 
-/** Check if entire string is all lowercase a-z. */
+/**
+ * Check if entire string is all lowercase a-z.
+ */
 const isAllLower = (str: string, len: number): boolean => {
   for (let idx = 0; idx < len; idx++) {
     if (!isLo(str.charCodeAt(idx))) {
@@ -104,7 +114,9 @@ const isAllLower = (str: string, len: number): boolean => {
   return true;
 };
 
-/** Strip trailing digits, return alpha length (inlined into callers). */
+/**
+ * Strip trailing digits, return alpha length (inlined into callers).
+ */
 const alphaLen = (word: string): number => {
   let end = word.length;
   while (end > 0) {
@@ -117,7 +129,9 @@ const alphaLen = (word: string): number => {
   return end;
 };
 
-/** Check if a word is a mis-cased acronym. */
+/**
+ * Check if a word is a mis-cased acronym.
+ */
 const hasMisCasedAcronym = (word: string): boolean => {
   const wlen = word.length;
   if (wlen < 2) {
@@ -189,7 +203,9 @@ const addToCache = (key: string, value: string[]): void => {
   violationCache.set(key, value);
 };
 
-/** Check if an identifier contains mis-cased acronyms. LRU-cached. */
+/**
+ * Check if an identifier contains mis-cased acronyms. LRU-cached.
+ */
 export default function findMisCasedAcronyms(name: string): string[] {
   const cached = violationCache.get(name);
   if (cached !== undefined) {
@@ -233,7 +249,9 @@ const fixedAcronymWords = (words: readonly string[]): string[] | undefined => {
   return undefined;
 };
 
-/** Fix mis-cased acronyms in an identifier. */
+/**
+ * Fix mis-cased acronyms in an identifier.
+ */
 export const fixAcronymCase = (name: string): string => {
   if (!hasMixedCase(name)) {
     return name;

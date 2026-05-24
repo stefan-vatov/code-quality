@@ -1,4 +1,8 @@
-/** @internal Source scanning utilities for Effect lint rules. */
+/**
+ * Source scanning utilities for Effect lint rules.
+ *
+ * @internal
+ */
 import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class';
 
 const regexPrefixChars = new Set(['(', '[', '{', '=', ':', ',', ';', '!', '?', '&', '|']);
@@ -287,7 +291,8 @@ const wordBefore = (source: string, index: number): string => {
   return source.slice(startIndex, endIndex + 1);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -362,7 +367,8 @@ const scanREGEXLiteralChar = (
   return scanREGEXCharacterClass(char, isCharacterClass);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -455,7 +461,8 @@ const nextBalancedCallScan = (
   return { depth: depth - 1, index, isEnd: depth - 1 === 0, quoteState };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -494,7 +501,8 @@ const nextBraceScan = (
   return { depth: depth - 1, index, isEnd: depth - 1 === 0, quoteState };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -513,7 +521,8 @@ export const stripCommentsAndStrings = (source: string): string => {
   return cacheResult(codeOnlyCache, source, state.stripped);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

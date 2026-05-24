@@ -1,4 +1,8 @@
-/** @internal Local export-list documentation helpers for exported JSDoc checks. */
+/**
+ * Local export-list documentation helpers for exported JSDoc checks.
+ *
+ * @internal
+ */
 
 const CHAR_CODE_OPEN_BRACE = 123;
 const CHAR_CODE_LOWER_A = 97;
@@ -120,7 +124,8 @@ const localDeclarationPosition = (
   return bestPosition;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

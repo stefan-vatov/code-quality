@@ -1,9 +1,7 @@
 /**
- * Programming acronyms for the acronym-case naming rule.
- *
- * 1570 entries from computing standards, protocols, vendor names,
- * programming terms, and common source code abbreviations.
- * Stored lowercase for case-insensitive Set lookup.
+ * Programming acronyms for the acronym-case naming rule. 1570 entries from computing standards,
+ * protocols, vendor names, programming terms, and common source code abbreviations. Stored lowercase
+ * for case-insensitive Set lookup.
  */
 import acronyms1 from './acronyms-1';
 import acronyms2 from './acronyms-2';

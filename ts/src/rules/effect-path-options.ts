@@ -1,7 +1,12 @@
-/** @internal Path option schema helpers for strict Effect lint rules. */
+/**
+ * Path option schema helpers for strict Effect lint rules.
+ *
+ * @internal
+ */
 import type { Context } from './effect-rule-core';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -14,13 +19,15 @@ export type StrictPathOptionKey =
   | 'integrationTests'
   | 'unitTests';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export type StrictPathOptions = Partial<Record<StrictPathOptionKey, readonly string[]>>;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -34,7 +41,8 @@ export const strictPathOptionKeys = [
   'unitTests',
 ] as const satisfies readonly StrictPathOptionKey[];
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -133,7 +141,8 @@ const getStrictOptions = (context: Pick<Context, 'options'>): StrictPathOptions 
   return options as StrictPathOptions;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -157,7 +166,8 @@ export const sanitizeStrictPathOptions = (
   return sanitized;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -174,7 +184,8 @@ export const isConfiguredPath = (
 const isTestFile = (filename: string | undefined): boolean =>
   Boolean(filename && testFilePattern.test(filename));
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -182,7 +193,8 @@ export const isUnitTestPath = (context: Pick<Context, 'filename' | 'options'>): 
   (isTestFile(context.filename) || isConfiguredPath(context, 'unitTests')) &&
   !isConfiguredPath(context, 'integrationTests');
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

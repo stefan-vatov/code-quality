@@ -1,17 +1,23 @@
-/** @internal Shared AST helpers for custom Effect rule modules. */
+/**
+ * Shared AST helpers for custom Effect rule modules.
+ *
+ * @internal
+ */
 import { effectFunctionAliases, effectImportAliases } from './effect-rule-core';
 
 interface RuleContext {
   report: (descriptor: { message: string; node: object }) => void;
 }
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export type ASTValue = boolean | null | number | object | string | undefined;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -24,7 +30,8 @@ const isASTValue = (value: unknown): value is ASTValue =>
   value === null ||
   ['boolean', 'number', 'object', 'string'].includes(typeof value);
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -39,7 +46,8 @@ export const objectValue = (node: ASTValue, key: string): ASTValue => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -50,7 +58,8 @@ export const arrayValue = (node: ASTValue): ASTValue[] => {
   return [];
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -62,7 +71,8 @@ export const nodeType = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -76,7 +86,8 @@ export const identifierName = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -87,7 +98,8 @@ export const literalValue = (node: ASTValue): ASTValue => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -105,7 +117,8 @@ export const isStringLikeLiteral = (node: ASTValue): boolean => {
   return expressions.length === 0;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -119,7 +132,8 @@ export const memberParts = (node: ASTValue): { objectName?: string; propertyName
   };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -156,7 +170,8 @@ const typeReferenceQualifiedName = (typeName: ASTValue): string | undefined => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -172,7 +187,8 @@ export const propertyKeyName = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -213,7 +229,8 @@ const effectServiceSelfFromInnerCall = (
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

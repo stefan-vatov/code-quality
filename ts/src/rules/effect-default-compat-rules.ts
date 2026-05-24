@@ -1,4 +1,8 @@
-/** @internal Compatibility and runtime-tail Effect rule specs. */
+/**
+ * Compatibility and runtime-tail Effect rule specs.
+ *
+ * @internal
+ */
 import {
   effectCallPredicate,
   effectServiceSelfName,
@@ -128,7 +132,8 @@ const hasEffectFnIIFE = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

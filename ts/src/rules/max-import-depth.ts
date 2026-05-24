@@ -1,6 +1,6 @@
 /**
- * Count leading `../` segments in an import path.
- * Returns 0 for non-relative imports (no leading `..`).
+ * Count leading `../` segments in an import path. Returns 0 for non-relative imports (no leading
+ * `..`).
  */
 export default function countImportDepth(path: string): number {
   if (!isParentRelativePath(path)) {

@@ -1,4 +1,8 @@
-/** @internal File-level documentation requirement helper for custom Oxlint rules. */
+/**
+ * File-level documentation requirement helper for custom Oxlint rules.
+ *
+ * @internal
+ */
 // Character code constants
 const CH_HASH = 35;
 const CH_SLASH = 47;
@@ -82,8 +86,7 @@ const hasOptOutMarker = (source: string, pos: number): boolean => {
 };
 
 /**
- * Extract the JSDoc file header comment from source text.
- * Skips leading shebang lines and whitespace.
+ * Extract the JSDoc file header comment from source text. Skips leading shebang lines and whitespace.
  * Returns the full JSDoc block or undefined.
  */
 export const extractDocHeader = (source: string): string | undefined => {
@@ -106,8 +109,8 @@ export const extractDocHeader = (source: string): string | undefined => {
 };
 
 /**
- * Returns true if the source file satisfies the file doc requirement.
- * Requires: JSDoc header, opt-out marker, or empty/whitespace-only.
+ * Returns true if the source file satisfies the file doc requirement. Requires: JSDoc header, opt-out
+ * marker, or empty/whitespace-only.
  */
 export default function hasRequiredFileDoc(source: string): boolean {
   const pos = leadingContentPosition(source, source.length);

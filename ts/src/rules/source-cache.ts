@@ -1,7 +1,12 @@
-/** @internal Source text cache shared by custom Oxlint rules. */
+/**
+ * Source text cache shared by custom Oxlint rules.
+ *
+ * @internal
+ */
 import { readFileSync, statSync } from 'node:fs';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -69,7 +74,8 @@ const readFileSource = (filename: string): string => {
   }
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

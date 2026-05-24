@@ -1,4 +1,8 @@
-/** @internal Shared source helpers used by Effect lint rule implementations. */
+/**
+ * Shared source helpers used by Effect lint rule implementations.
+ *
+ * @internal
+ */
 export { stripComments } from './effect-source-comments';
 export {
   findBalancedCallEnd,

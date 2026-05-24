@@ -1,4 +1,8 @@
-/** @internal Fiber observation predicates for always-on Effect rules. */
+/**
+ * Fiber observation predicates for always-on Effect rules.
+ *
+ * @internal
+ */
 import { sameFunctionTail, stripCommentsAndStrings } from './effect-source-helpers';
 
 const isUnobservedForkMatch = (source: string, match: RegExpExecArray): boolean => {
@@ -18,7 +22,8 @@ const isUnobservedForkMatch = (source: string, match: RegExpExecArray): boolean 
   return !observedFiberPattern.test(sameFunctionTail(source, match.index + match[0].length));
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -76,7 +81,8 @@ const hasUnobservedAssignedRunFork = (code: string, assignedForks: RegExpMatchAr
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

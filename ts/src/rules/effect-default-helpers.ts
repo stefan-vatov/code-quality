@@ -1,4 +1,8 @@
-/** @internal Re-export hub for always-on Effect helper predicates. */
+/**
+ * Re-export hub for always-on Effect helper predicates.
+ *
+ * @internal
+ */
 export {
   effectAliasesPattern,
   effectCallBodies,

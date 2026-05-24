@@ -1,4 +1,8 @@
-/** @internal Source segment helpers for opt-in strict Effect lint rules. */
+/**
+ * Source segment helpers for opt-in strict Effect lint rules.
+ *
+ * @internal
+ */
 import {
   findBalancedCallEnd,
   findStatementEnd,
@@ -39,7 +43,8 @@ const sourceIndexCache = <Value>(
   return indexCache;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -68,7 +73,8 @@ const isIdentifierPart = (character: string | undefined): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -86,7 +92,8 @@ export const testSegments = (source: string): string[] => {
   return starts.map((start, index) => code.slice(start, starts[index + 1] ?? code.length));
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -104,7 +111,8 @@ export const hasLayerFactory = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -128,7 +136,8 @@ export const hasUnscopedResourceLayer = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -156,7 +165,8 @@ export const hasUnscopedResourceLoop = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -185,7 +195,8 @@ export const hasUnsafeResourceStream = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -197,7 +208,8 @@ export const hasLiveTestService = (source: string): boolean => {
   return /(?:\bLive\b|[A-Za-z_$][\w$]*Live\b|Layer\.live)/.test(stripCommentsAndStrings(source));
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -209,7 +221,8 @@ export const hasRealTestService = (source: string): boolean => {
   return /\breal[A-Z]/.test(stripCommentsAndStrings(source));
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -256,7 +269,8 @@ const uncachedLocalEffectCallSegment = (source: string, targetIndex: number): st
   return source.slice(targetIndex, endIndex);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -272,7 +286,8 @@ export const localEffectCallSegment = (source: string, targetIndex: number): str
   return segment;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -304,7 +319,8 @@ const uncachedEnclosingEffectWrapperSegment = (
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -359,7 +375,8 @@ const pipeBodyHasTopLevelOperator = (pipeBody: string, operatorNeedle: string): 
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

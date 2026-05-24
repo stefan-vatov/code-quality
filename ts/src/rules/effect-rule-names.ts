@@ -1,5 +1,10 @@
-/** @internal Canonical lists of custom Effect rule names exported by the config. */
-/** Internal helper exported for package-local composition.
+/**
+ * Canonical lists of custom Effect rule names exported by the config.
+ *
+ * @internal
+ */
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -87,7 +92,8 @@ export const effectDefaultRuleNames = [
   'effect-no-effect-fn-iife',
 ] as const;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

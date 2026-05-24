@@ -1,4 +1,8 @@
-/** @internal AST-backed opt-in strict custom Effect lint rule specs. */
+/**
+ * AST-backed opt-in strict custom Effect lint rule specs.
+ *
+ * @internal
+ */
 import {
   arrayValue,
   effectCallPredicate,
@@ -29,7 +33,8 @@ import type { RuleSpec } from './effect-rule-core';
 import { isConfiguredPath } from './effect-path-options';
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

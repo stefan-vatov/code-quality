@@ -1,4 +1,8 @@
-/** @internal Helper predicates for opt-in strict Effect lint rules. */
+/**
+ * Helper predicates for opt-in strict Effect lint rules.
+ *
+ * @internal
+ */
 import { findStatementEnd, stripCommentsAndStrings } from './effect-source-helpers';
 import {
   lineAround,
@@ -31,7 +35,8 @@ export {
 
 const RESOURCE_CONTEXT_WINDOW = 180;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -52,7 +57,8 @@ export const hasOutputBoundaryWithoutSchema = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -72,7 +78,8 @@ export const hasHTTPClientResponseWithoutSchema = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -96,7 +103,8 @@ export const hasSharedResourceForEachWithoutSemaphore = (source: string): boolea
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -116,7 +124,8 @@ export const hasEnsuringCleanupWithoutOnExit = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -136,7 +145,8 @@ export const hasUnterminatedLongRunningStream = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -156,7 +166,8 @@ export const hasAsyncPushWithoutBuffer = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -176,7 +187,8 @@ export const hasUnbatchedResolver = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -199,7 +211,8 @@ export const hasNPlusOneWithoutBatchedResolver = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -215,7 +228,8 @@ export const hasUnprovidedServiceInEffectTest = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -234,7 +248,8 @@ export const hasTimeCodeWithoutTestClock = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -256,7 +271,8 @@ export const hasMutableStateWithoutRef = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

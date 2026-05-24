@@ -1,11 +1,16 @@
-/** @internal Helpers for Effect resource-lifetime lint rules. */
+/**
+ * Helpers for Effect resource-lifetime lint rules.
+ *
+ * @internal
+ */
 import {
   findBalancedCallEnd,
   isInsideCall,
   stripCommentsAndStrings,
 } from './effect-source-helpers';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -60,7 +65,8 @@ const hasScopedPipeAfterCall = (source: string, callEndIndex: number): boolean =
   return /\b(?:Effect|Layer)\.scoped\b/.test(pipeBody);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -82,7 +88,8 @@ export const hasUnscopedAcquireRelease = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

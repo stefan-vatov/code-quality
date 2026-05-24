@@ -1,4 +1,8 @@
-/** @internal Source navigation helpers for Effect lint rule implementations. */
+/**
+ * Source navigation helpers for Effect lint rule implementations.
+ *
+ * @internal
+ */
 import {
   findBalancedCallEnd,
   findMatchingBrace,
@@ -114,7 +118,8 @@ const findEnclosingBraceOpen = (source: string, targetIndex: number): number => 
   return stack.at(-1) ?? -1;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -133,7 +138,8 @@ export const isInsideCall = (source: string, targetIndex: number, callPattern: R
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -230,7 +236,8 @@ const nextStatementScan = (
   return { depth: updateStatementDepth(depth, char), index, isEnd: false, quoteState };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -291,7 +298,8 @@ const tailUntilNextFunction = (source: string, targetIndex: number): string => {
   return tail.slice(0, nextFunction + 1);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

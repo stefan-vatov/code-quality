@@ -1,4 +1,8 @@
-/** @internal Core opt-in strict custom Effect lint rule specs. */
+/**
+ * Core opt-in strict custom Effect lint rule specs.
+ *
+ * @internal
+ */
 import { exportedDeclarationTexts, stripCommentsAndStrings } from './effect-source-helpers';
 import {
   hasAsyncPushWithoutBuffer,
@@ -41,7 +45,8 @@ import { isConfiguredPath, isEffectTestPath, isUnitTestPath } from './effect-pat
 import type { RuleSpec } from './effect-rule-core';
 import { hasRunForkWithoutObserver } from './effect-default-helpers';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

@@ -21,7 +21,11 @@ const output = [formatName('Ada'), parseJson('{ }'), label(true)].join(':');
 export { output };
 `;
 
-    expect(applyCodemodFixToSource(source)).toBe(`/** @internal sample. */
+    expect(applyCodemodFixToSource(source)).toBe(`/**
+ * sample.
+ *
+ * @internal
+ */
 const formatName = (name: string): string => name.trim();
 
 const parseJSON = (jsonValue: string): string => jsonValue;
@@ -33,7 +37,8 @@ const label = (enabled: boolean): string => {
   return 'off';
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -59,8 +64,13 @@ const output = 'ready';
 export { output };
 `;
 
-    expect(applyCodemodFixToSource(source)).toBe(`/** @internal sample. */
-/** Internal helper exported for package-local composition.
+    expect(applyCodemodFixToSource(source)).toBe(`/**
+ * sample.
+ *
+ * @internal
+ */
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-/** @internal CLI entry point for running The Thracian codemod fixes. */
+/**
+ * CLI entry point for running The Thracian codemod fixes.
+ *
+ * @internal
+ */
 import { codemodFix } from './index';
 
 const dryRunFlag = '--dry-run';

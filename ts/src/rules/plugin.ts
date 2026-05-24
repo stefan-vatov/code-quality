@@ -1,4 +1,8 @@
-/** @internal Oxlint JavaScript plugin entry for The Thracian custom rules. */
+/**
+ * Oxlint JavaScript plugin entry for The Thracian custom rules.
+ *
+ * @internal
+ */
 import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case';
 import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore';
 import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers';
@@ -481,7 +485,8 @@ if (!isPlugin(pluginInput)) {
   throw new TypeError('Invalid The Thracian Oxlint plugin shape.');
 }
 
-/** Oxlint-compatible JavaScript plugin containing The Thracian custom rules.
+/**
+ * Oxlint-compatible JavaScript plugin containing The Thracian custom rules.
  *
  * @internal
  */

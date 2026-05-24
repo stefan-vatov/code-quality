@@ -1,4 +1,8 @@
-/** @internal Opt-in strict custom Effect lint rule definitions. */
+/**
+ * Opt-in strict custom Effect lint rule definitions.
+ *
+ * @internal
+ */
 import { effectStrictASTSpecs } from './effect-strict-ast-specs';
 import { effectStrictCoreSpecs } from './effect-strict-core-specs';
 import { makeRules } from './effect-rule-core';

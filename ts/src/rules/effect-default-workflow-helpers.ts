@@ -1,4 +1,8 @@
-/** @internal Effect workflow body and recursion predicates. */
+/**
+ * Effect workflow body and recursion predicates.
+ *
+ * @internal
+ */
 import {
   effectAliasesPattern,
   effectCallBodies,
@@ -16,14 +20,16 @@ import {
 } from './effect-source-helpers';
 import { hasRuntimeCall } from './effect-rule-core';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const hasRuntimeInEffect = (source: string): boolean =>
   someEffectWorkflowBody(source, (body): boolean => hasRuntimeCall(body));
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -37,7 +43,8 @@ export const hasNestedFlatMap = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -56,7 +63,8 @@ export const hasUnboundedEffectConcurrency = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -75,7 +83,8 @@ export const hasUnboundedFlatMapConcurrency = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -112,21 +121,24 @@ const hasEffectInCallbackCall = (source: string, callPattern: RegExp): boolean =
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const hasEffectInArrayForEach = (source: string): boolean =>
   hasEffectInCallbackCall(source, /\b(?!Effect\b)[A-Za-z_$][\w$]*\.forEach\s*\(/g);
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const hasEffectInPromiseCallback = (source: string): boolean =>
   hasEffectInCallbackCall(source, /\.(?:then|catch)\s*\(/g);
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -156,7 +168,8 @@ const yieldWithoutStarIndex = (source: string, matchIndex: number): number | und
   return bodyStart + yieldMatch.index + yieldMatch[0].indexOf(yieldMatch[1]);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -172,7 +185,8 @@ export const hasYieldWithoutStarInGen = (source: string): boolean | number => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -181,7 +195,8 @@ export const hasAsyncAwaitInEffect = (source: string): boolean =>
     /(?:^|[({,]\s*)async\b|\bawait\b/.test(stripCommentsAndStrings(body)),
   );
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -191,7 +206,8 @@ export const hasSyncForPromise = (source: string): boolean =>
     return /^\s*async\b/.test(code) || /\b(?:fetch|Promise\.)\s*\(/.test(code);
   });
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -200,7 +216,8 @@ export const hasSyncForThrowingOPS = (source: string): boolean =>
     /\b(?:throw\b|JSON\.parse\s*\()/.test(stripCommentsAndStrings(body)),
   );
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -243,7 +260,8 @@ const hasUnsafeTryPromiseObjectBody = (body: string, rawBody: string): boolean =
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -315,7 +333,8 @@ const hasUnsafeRecursiveArrow = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

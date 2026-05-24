@@ -1,4 +1,8 @@
-/** @internal Conservative codemod for sorting top-level import declarations. */
+/**
+ * Conservative codemod for sorting top-level import declarations.
+ *
+ * @internal
+ */
 import ts from 'typescript';
 
 interface Replacement {
@@ -280,7 +284,8 @@ const importSortReplacement = (source: string): Replacement | undefined => {
   return replacementForSortedImports(source, imports, { ...span, text: '' });
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

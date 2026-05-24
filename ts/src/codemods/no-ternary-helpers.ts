@@ -1,7 +1,12 @@
-/** @internal Shared no-ternary codemod text helpers. */
+/**
+ * Shared no-ternary codemod text helpers.
+ *
+ * @internal
+ */
 import ts from 'typescript';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -11,7 +16,8 @@ export interface Replacement {
   text: string;
 }
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -24,7 +30,8 @@ export interface InitializerTextInput {
   statement: ts.VariableStatement;
 }
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -39,7 +46,8 @@ export interface BranchTextInput {
   typeText: string;
 }
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -52,18 +60,21 @@ export interface BranchInitializerContext {
   statements: ts.NodeArray<ts.Statement>;
 }
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const INDENT_STEP = '  ';
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const NOT_FOUND_INDEX = -1;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -76,7 +87,8 @@ export const applyReplacements = (source: string, replacements: readonly Replace
       source,
     );
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -93,7 +105,8 @@ export const lineIndent = (source: string, index: number): string => {
   return source.slice(lineStart, cursor);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -119,7 +132,8 @@ export const containsConditionalExpression = (node: ts.Node): boolean => {
   return hasNestedConditional;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -158,7 +172,8 @@ export const explicitReturnText = (
   ].join('\n');
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -179,7 +194,8 @@ export const returnReplacement = (
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -221,7 +237,8 @@ export const explicitAssignmentText = (
   ].join('\n');
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -244,7 +261,8 @@ export const primitiveTypeOf = (expression: ts.Expression): string | undefined =
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -300,7 +318,8 @@ const commonPrimitiveReturnType = (body: ts.Block): string | undefined => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -319,7 +338,8 @@ export const arrowIIFEReturnType = (
   return primitiveTypeOf(arrow.body);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -340,7 +360,8 @@ const declarationKind = (statement: ts.VariableStatement): 'const' | 'let' => {
   return 'let';
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -409,7 +430,8 @@ const explicitBranchInitializerText = (
   return branchInitializerText(branchInput);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -429,7 +451,8 @@ export const explicitInitializerText = (input: InitializerTextInput): string | u
   return explicitBranchInitializerText(input, returnType);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

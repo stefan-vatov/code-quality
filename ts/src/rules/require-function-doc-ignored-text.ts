@@ -1,4 +1,8 @@
-/** @internal Ignored source-region helpers for exported JSDoc checks. */
+/**
+ * Ignored source-region helpers for exported JSDoc checks.
+ *
+ * @internal
+ */
 
 interface ScanState {
   isBlockComment: boolean;
@@ -73,7 +77,8 @@ const nextIgnoredState = (
   return unquotedState(state, char, nextChar);
 };
 
-/** Checks whether a source offset is inside a comment or string literal.
+/**
+ * Checks whether a source offset is inside a comment or string literal.
  *
  * @internal
  */

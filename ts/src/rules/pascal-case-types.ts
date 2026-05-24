@@ -1,4 +1,8 @@
-/** @internal PascalCase naming helpers for type-like declarations. */
+/**
+ * PascalCase naming helpers for type-like declarations.
+ *
+ * @internal
+ */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
 
 const CHAR_CODE_UNDERSCORE = 95;

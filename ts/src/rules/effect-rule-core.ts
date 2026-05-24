@@ -1,9 +1,14 @@
-/** @internal Core runtime for source-backed and AST-backed Effect lint rules. */
+/**
+ * Core runtime for source-backed and AST-backed Effect lint rules.
+ *
+ * @internal
+ */
 import { canonicalizeEffectAPIAliases } from './effect-rule-aliases';
 import { readCachedSource } from './source-cache';
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -21,7 +26,8 @@ export interface Context {
   };
 }
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -43,7 +49,8 @@ export interface SourceRule {
 
 type VisitorMap = Record<string, ((node: object) => void) | undefined>;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -426,7 +433,8 @@ const makeProgramRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRule 
   return makeProgramOnlyRule(spec, options);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

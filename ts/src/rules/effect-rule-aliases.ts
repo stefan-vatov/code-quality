@@ -1,7 +1,12 @@
-/** @internal Effect import, alias, and runtime-call helpers for source-backed rules. */
+/**
+ * Effect import, alias, and runtime-call helpers for source-backed rules.
+ *
+ * @internal
+ */
 import { stripComments, stripCommentsAndStrings } from './effect-source-helpers';
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -146,7 +151,8 @@ const hasEffectValueImport = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -169,7 +175,8 @@ export const effectImportAliases = (source: string): string[] => {
   return cacheAliases(effectAliasCache, source, [...aliases]);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -196,7 +203,8 @@ export const effectAPIAliases = (source: string, APIName: string): string[] => {
   return [...aliases];
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -282,7 +290,8 @@ const evictCanonicalSourceCache = (): void => {
   }
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -323,7 +332,8 @@ const effectRuntimeFunctionAliases = (source: string): string[] => {
   return cacheAliases(runtimeFunctionAliasCache, source, [...aliases]);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -352,7 +362,8 @@ export const hasRuntimeCall = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -377,14 +388,16 @@ export const hasEffectSignal = (source: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const isBoundaryFile = (filename: string | undefined): boolean =>
   Boolean(filename && boundaryFilePattern.test(filename));
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

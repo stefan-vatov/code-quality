@@ -1,4 +1,8 @@
-/** @internal Comment stripping helper for source-backed Effect lint rules. */
+/**
+ * Comment stripping helper for source-backed Effect lint rules.
+ *
+ * @internal
+ */
 import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class';
 
 const regexPrefixChars = new Set(['(', '[', '{', '=', ':', ',', ';', '!', '?', '&', '|']);
@@ -268,7 +272,8 @@ const initialStripCommentState = (): StripCommentState => ({
   stripped: '',
 });
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

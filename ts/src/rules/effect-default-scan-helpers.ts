@@ -1,4 +1,8 @@
-/** @internal Shared scan helpers for always-on Effect lint predicates. */
+/**
+ * Shared scan helpers for always-on Effect lint predicates.
+ *
+ * @internal
+ */
 import {
   findBalancedCallEnd,
   findStatementEnd,
@@ -29,7 +33,8 @@ const setBoundedCacheValue = <Value>(
   return value;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -46,7 +51,8 @@ export const effectAliasesPattern = (source: string): string => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -66,7 +72,8 @@ export const effectCallPattern = (source: string, methods: string): RegExp => {
   return pattern;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -78,7 +85,8 @@ export const localCallSegment = (source: string, targetIndex: number): string =>
   return source.slice(targetIndex, findBalancedCallEnd(source, openParenIndex) + 1);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -142,7 +150,8 @@ const effectFnHasBody = (
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -154,7 +163,8 @@ export const someEffectWorkflowBody = (
   return effectGenHasBody(source, code, predicate) || effectFnHasBody(source, code, predicate);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -172,7 +182,8 @@ export const enclosingPipeBody = (source: string, targetIndex: number): string |
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

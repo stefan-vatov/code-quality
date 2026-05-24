@@ -1,4 +1,8 @@
-/** @internal Environment, schema, resource, and test Effect rule specs. */
+/**
+ * Environment, schema, resource, and test Effect rule specs.
+ *
+ * @internal
+ */
 import {
   hasCastAfterSchemaDecode,
   hasExternalJSONWithoutDecodeUnknown,
@@ -50,7 +54,8 @@ interface RuleSpec {
   tokens?: readonly string[];
 }
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

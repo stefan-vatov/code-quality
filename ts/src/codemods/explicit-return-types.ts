@@ -1,4 +1,8 @@
-/** @internal Conservative codemod for explicit void return types. */
+/**
+ * Conservative codemod for explicit void return types.
+ *
+ * @internal
+ */
 import ts from 'typescript';
 
 interface Replacement {
@@ -239,7 +243,8 @@ const replacementForFunction = (
   return { end: start, start, text: returnType };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

@@ -1,4 +1,8 @@
-/** @internal AST and source predicates for opt-in strict Effect lint rules. */
+/**
+ * AST and source predicates for opt-in strict Effect lint rules.
+ *
+ * @internal
+ */
 import { effectAPIAliases, effectFunctionAliases, effectImportAliases } from './effect-rule-core';
 import {
   exportedDeclarationTexts,
@@ -24,7 +28,8 @@ interface RuleContext {
 
 type ASTValue = boolean | null | number | object | string | undefined;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -37,7 +42,8 @@ const isASTValue = (value: unknown): value is ASTValue =>
   value === null ||
   ['boolean', 'number', 'object', 'string'].includes(typeof value);
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -52,7 +58,8 @@ export const objectValue = (node: ASTValue, key: string): ASTValue => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -63,7 +70,8 @@ export const arrayValue = (node: ASTValue): ASTValue[] => {
   return [];
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -75,7 +83,8 @@ export const nodeType = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -90,7 +99,8 @@ export const identifierName = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -101,7 +111,8 @@ export const literalValue = (node: ASTValue): ASTValue => {
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -124,7 +135,8 @@ const memberParts = (node: ASTValue): { objectName?: string; propertyName?: stri
   };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -133,7 +145,8 @@ export const isMember = (node: ASTValue, objectName: string, propertyName: strin
   return parts.objectName === objectName && parts.propertyName === propertyName;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -146,7 +159,8 @@ export const isSchemaMember = (node: ASTValue, source: string, propertyName: str
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -232,7 +246,8 @@ const serviceClassSuperCallParts = (
   return { className, inner, outerArguments: objectValue(superClass, 'arguments') };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -256,7 +271,8 @@ export const serviceKeyFromClass = (
   return { className };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -280,7 +296,8 @@ const declarationBeforeBody = (declaration: string): string => {
   return declaration.slice(0, bodyStart);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -323,7 +340,8 @@ const hasClassPromiseReturningPublicMember = (declaration: string): boolean => {
   );
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -341,7 +359,8 @@ export const hasPromiseReturningPublicAPI = (source: string): boolean =>
     );
   });
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -362,7 +381,8 @@ const functionBodySegment = (code: string, matchIndex: number): string | undefin
   return code.slice(bodyStart, bodyEnd + 1);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -385,7 +405,8 @@ export const hasRunSyncInServerRequestHandler = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -394,7 +415,8 @@ export const hasCryptoRandomUUID = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -404,7 +426,8 @@ export const hasSchemaInstanceof = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -415,7 +438,8 @@ export const hasSchemaStructWithTag = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -437,7 +461,8 @@ const nonDeterministicServiceKeyIndex = (code: string, pattern: RegExp): number 
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -455,7 +480,8 @@ export const hasNonDeterministicServiceKey = (source: string): number | false =>
   return nonDeterministicServiceKeyIndex(code, servicePattern) ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -465,7 +491,8 @@ export const hasMultipleProvideChain = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -475,7 +502,8 @@ export const hasLayerEffectWithScope = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -487,7 +515,8 @@ export const hasNodeBuiltinImport = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -507,7 +536,8 @@ export const hasGlobalFetch = (source: string, context: RuleContext): number | f
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -518,7 +548,8 @@ export const hasEffectSucceedWithVoid = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -529,7 +560,8 @@ export const hasMapToVoid = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -541,7 +573,8 @@ export const hasMapFlatten = (source: string): number | false => {
   return match?.index ?? false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -558,7 +591,8 @@ export const effectWrapperStatement = (source: string, targetIndex: number): str
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

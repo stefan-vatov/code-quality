@@ -1,4 +1,8 @@
-/** @internal Conservative codemod for arrow-body-style concise bodies. */
+/**
+ * Conservative codemod for arrow-body-style concise bodies.
+ *
+ * @internal
+ */
 import ts from 'typescript';
 
 interface Replacement {
@@ -108,7 +112,8 @@ const replacementForArrow = (
   return replacementForReturnExpression(source, sourceFile, node, result.expression);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

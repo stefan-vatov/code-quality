@@ -1,4 +1,8 @@
-/** @internal External-call predicates for opt-in strict Effect lint rules. */
+/**
+ * External-call predicates for opt-in strict Effect lint rules.
+ *
+ * @internal
+ */
 import {
   enclosingEffectWrapperSegment,
   hasTopLevelPipeOperator,
@@ -51,7 +55,8 @@ const hasExternalEffectMissingOperator = (
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -64,7 +69,8 @@ const shouldReportMissingSpan = (source: string, index: number, segment: string)
   !isInsideCall(source, index, /Effect\.withSpan\s*\(/g) &&
   !hasTopLevelPipeOperator(segment, 'withSpan');
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -104,7 +110,8 @@ const retryScanInput = (
   };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

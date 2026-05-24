@@ -1,11 +1,14 @@
-/** Public Oxlint config factory for The Thracian TypeScript lint package. */
+/**
+ * Public Oxlint config factory for The Thracian TypeScript lint package.
+ */
 import { dirname, join } from 'node:path';
 import { effectDefaultRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
 import { defineConfig } from 'oxlint';
 import { fileURLToPath } from 'node:url';
 import { sanitizeStrictPathOptions } from './rules/effect-path-options';
 
-/** Options for composing The Thracian Oxlint config.
+/**
+ * Options for composing The Thracian Oxlint config.
  *
  * @public
  */
@@ -14,7 +17,8 @@ export interface TheThracianOxlintOptions {
   effect?: boolean | TheThracianEffectOptions;
 }
 
-/** Options for enabling and configuring Effect-specific lint rules.
+/**
+ * Options for enabling and configuring Effect-specific lint rules.
  *
  * @public
  */
@@ -23,7 +27,8 @@ export interface TheThracianEffectOptions {
   strict?: boolean | TheThracianEffectStrictOptions;
 }
 
-/** Opt-in strict Effect path groups used by project-aware rules.
+/**
+ * Opt-in strict Effect path groups used by project-aware rules.
  *
  * @public
  */

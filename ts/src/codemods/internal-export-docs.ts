@@ -1,4 +1,9 @@
-/** @internal Codemod for internal exported declaration documentation. */
+/**
+ * Codemod for internal exported declaration documentation.
+ *
+ * @internal
+ */
+import { formatJSDoc } from './comment-format';
 import ts from 'typescript';
 
 interface Insertion {
@@ -6,11 +11,10 @@ interface Insertion {
   text: string;
 }
 
-const internalExportDoc = `/** Internal helper exported for package-local composition.
- *
- * @internal
- */
-`;
+const internalExportDoc = formatJSDoc({
+  summary: 'Internal helper exported for package-local composition.',
+  tags: ['@internal'],
+});
 const internalHeaderScanLength = 240;
 
 const hasInternalFileHeader = (source: string): boolean => {

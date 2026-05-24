@@ -1,4 +1,8 @@
-/** @internal ASCII character classification table for hot-path lint helpers. */
+/**
+ * ASCII character classification table for hot-path lint helpers.
+ *
+ * @internal
+ */
 const ASCII_TABLE_SIZE = 128;
 const CHAR_CODE_ZERO = 48;
 const CHAR_CODE_NINE = 57;
@@ -12,7 +16,8 @@ const CLASS_LOWER_BIT = 2;
 const CLASS_DIGIT_BIT = 4;
 const CLASS_UNDERSCORE_BIT = 8;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -34,22 +39,26 @@ for (let idx = CHAR_CODE_ZERO; idx <= CHAR_CODE_NINE; idx++) {
 // Underscore.
 CHAR_CLASS[CHAR_CODE_UNDERSCORE] = CLASS_UNDERSCORE_BIT;
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const CLS_UPPER = CLASS_UPPER_BIT;
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const CLS_LOWER = CLASS_LOWER_BIT;
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const CLS_DIGIT = CLASS_DIGIT_BIT;
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

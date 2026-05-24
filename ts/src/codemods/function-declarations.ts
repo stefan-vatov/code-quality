@@ -1,4 +1,8 @@
-/** @internal Conservative codemod for safe func-style declaration rewrites. */
+/**
+ * Conservative codemod for safe func-style declaration rewrites.
+ *
+ * @internal
+ */
 import ts from 'typescript';
 
 interface Replacement {
@@ -158,7 +162,8 @@ const replacementForDeclaration = (
   return { end: node.getEnd(), start, text: declarationText(source, node, node.name.text) };
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

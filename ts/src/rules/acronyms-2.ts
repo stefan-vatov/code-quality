@@ -1,4 +1,8 @@
-/** @internal Static acronym data chunk for the acronym-case rule. */
+/**
+ * Static acronym data chunk for the acronym-case rule.
+ *
+ * @internal
+ */
 const acronyms2 = [
   'elm',
   'elt',

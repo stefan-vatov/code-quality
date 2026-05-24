@@ -1,4 +1,8 @@
-/** @internal Exported-declaration documentation requirement helper for custom Oxlint rules. */
+/**
+ * Exported-declaration documentation requirement helper for custom Oxlint rules.
+ *
+ * @internal
+ */
 import { isDocumentedLocalExportList } from './require-function-doc-local-exports';
 import { isInsideIgnoredText } from './require-function-doc-ignored-text';
 

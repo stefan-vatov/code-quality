@@ -1,4 +1,8 @@
-/** @internal Boolean prefix naming helpers for custom Oxlint rules. */
+/**
+ * Boolean prefix naming helpers for custom Oxlint rules.
+ *
+ * @internal
+ */
 import { CHAR_CLASS, CLS_DIGIT, CLS_UNDER, CLS_UPPER } from './char-class';
 
 const CHAR_CODE_UPPER_A = 65;
@@ -29,7 +33,9 @@ const isUnder = (code: number): boolean => (CHAR_CLASS[code] & CLS_UNDER) !== 0;
  * Check if a variable name has a boolean prefix (is_, has_, should_).
  */
 
-/** Check if char at pos is the given lowercase letter (case-insensitive). */
+/**
+ * Check if char at pos is the given lowercase letter (case-insensitive).
+ */
 const isCharCI = (str: string, pos: number, lowerCode: number): boolean => {
   const ch = str.charCodeAt(pos);
   return ch === lowerCode || ch === lowerCode - (CHAR_CODE_LOWER_A - CHAR_CODE_UPPER_A);
@@ -84,7 +90,9 @@ const hasShouldLetters = (name: string): boolean =>
   isCharCI(name, FIFTH_CHAR_INDEX, CHAR_CODE_LOWER_L) &&
   isCharCI(name, SIXTH_CHAR_INDEX, CHAR_CODE_LOWER_D);
 
-/** Check if string consists only of uppercase letters (and optionally digits/underscores). */
+/**
+ * Check if string consists only of uppercase letters (and optionally digits/underscores).
+ */
 const isAllCaps = (name: string): boolean => {
   for (let idx = 0; idx < name.length; idx++) {
     const code = name.charCodeAt(idx);

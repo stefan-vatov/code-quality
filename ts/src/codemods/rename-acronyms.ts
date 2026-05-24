@@ -1,4 +1,8 @@
-/** @internal AST-backed codemod for correcting repeatable acronym casing violations. */
+/**
+ * AST-backed codemod for correcting repeatable acronym casing violations.
+ *
+ * @internal
+ */
 import findMisCasedAcronyms, { fixAcronymCase } from '../rules/acronym-case';
 import ts from 'typescript';
 
@@ -192,7 +196,8 @@ const collectIdentifierReplacements = (source: string): Replacement[] => {
   return replacements;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

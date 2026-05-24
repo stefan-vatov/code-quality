@@ -1,4 +1,8 @@
-/** @internal Exported declaration extraction helpers for Effect lint rules. */
+/**
+ * Exported declaration extraction helpers for Effect lint rules.
+ *
+ * @internal
+ */
 import { findMatchingBrace, stripCommentsAndStrings } from './effect-source-scan';
 import { findStatementEnd } from './effect-source-navigation';
 
@@ -192,7 +196,8 @@ const addNamedExportLists = (source: string, code: string, declarations: string[
   }
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -263,7 +268,8 @@ const exportedDeclarationSegment = (declaration: string): string => {
   return declaration.slice(bodyStart);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -316,7 +322,8 @@ const exportedCallableDeclarationSegment = (declaration: string): string[] => {
   return [];
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

@@ -1,4 +1,8 @@
-/** @internal Conservative codemod for return-position no-ternary fixes. */
+/**
+ * Conservative codemod for return-position no-ternary fixes.
+ *
+ * @internal
+ */
 import type { BranchInitializerContext, Replacement } from './no-ternary-helpers';
 import {
   INDENT_STEP,
@@ -397,7 +401,8 @@ const replacementForNode = (
   return undefined;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */

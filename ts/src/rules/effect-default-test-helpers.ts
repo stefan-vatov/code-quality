@@ -1,4 +1,8 @@
-/** @internal Helpers for Effect test-determinism lint rules. */
+/**
+ * Helpers for Effect test-determinism lint rules.
+ *
+ * @internal
+ */
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
 const testStartPattern = /\bit(?:\.effect)?\s*\(/g;
@@ -13,7 +17,8 @@ const enclosingTestBody = (code: string, testStarts: readonly number[], index: n
   return code.slice(testStart, nextTestStart);
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -39,7 +44,8 @@ export const hasForkBeforeTestClockAdjust = (source: string): boolean => {
   });
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
@@ -57,7 +63,8 @@ export const hasRealSleepWithoutTestClock = (source: string): boolean => {
   return false;
 };
 
-/** Internal helper exported for package-local composition.
+/**
+ * Internal helper exported for package-local composition.
  *
  * @internal
  */
