@@ -5,5 +5,6 @@ pnpm run lint:ci
 pnpm run knip:ci
 pnpm run check
 pnpm run test:projects
+pnpm run performance:gate
 pnpm run build
 pnpm exec prek run --stage pre-push --all-files --skip thx-linting-pre-push-lint-ci --skip thx-knip-pre-push

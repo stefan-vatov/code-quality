@@ -37,7 +37,9 @@
     "test:mutation:incremental": "stryker run --incremental",
     "knip": "knip --cache --strict",
     "knip:watch": "knip --watch --strict",
-    "knip:ci": "knip --cache --strict"
+    "knip:ci": "knip --cache --strict",
+    "performance:gate": "tsx ts/bench/performance-gate.ts --check",
+    "performance:calibrate": "tsx ts/bench/performance-gate.ts --update --runs 20"
   },
   "devDependencies": {
     "@j178/prek": "^0.3.8",
