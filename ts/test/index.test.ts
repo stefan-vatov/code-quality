@@ -26,6 +26,15 @@ describe('theThracianOxlint', () => {
     expect(config.rules).toHaveProperty('thethracian/max-line-length', 'error');
   });
 
+  it('uses Oxlint native complexity instead of a JavaScript plugin rule', () => {
+    const config = theThracianOxlint();
+
+    expect(config.jsPlugins).not.toContain('oxlint-plugin-complexity');
+    expect(config.rules).not.toHaveProperty('complexity/complexity');
+    expect(config.rules).not.toHaveProperty('thethracian/complexity');
+    expect(config.rules).toHaveProperty('complexity', ['error', { max: 10 }]);
+  });
+
   it('enables the default Effect bucket by default', () => {
     const config = theThracianOxlint();
 

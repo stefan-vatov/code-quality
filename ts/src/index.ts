@@ -119,9 +119,9 @@ export default function theThracianOxlint(options: TheThracianOxlintOptions = {}
       style: 'error',
     },
     plugins: ['typescript', 'oxc', 'import', 'promise', 'unicorn'],
-    jsPlugins: ['oxlint-plugin-complexity', pluginPath],
+    jsPlugins: [pluginPath],
     rules: {
-      'complexity/complexity': ['error', { cyclomatic: 10 }],
+      complexity: ['error', { max: 10 }],
       'thethracian/no-commented-out-code': 'error',
       'thethracian/pascal-case-types': 'error',
       'thethracian/camel-case-identifiers': 'error',

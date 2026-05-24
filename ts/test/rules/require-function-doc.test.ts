@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import hasRequiredFunctionDocs from '../../src/rules/require-function-doc.js';
 
 // ============================================================================
@@ -6,6 +8,24 @@ import hasRequiredFunctionDocs from '../../src/rules/require-function-doc.js';
 // ============================================================================
 
 describe('hasRequiredFunctionDocs', () => {
+  it('checks for exported declarations before scanning ambient declaration headers', () => {
+    const source = readFileSync(
+      new URL('../../src/rules/require-function-doc.ts', import.meta.url),
+      'utf-8',
+    );
+
+    expect(source).toContain("if (!source.includes('export '))");
+  });
+
+  it('validates exported declarations without allocating an export position list', () => {
+    const source = readFileSync(
+      new URL('../../src/rules/require-function-doc.ts', import.meta.url),
+      'utf-8',
+    );
+
+    expect(source).not.toContain('const exportPositions: number[] = []');
+  });
+
   // ── passes: documented exported functions ─────────────────────────────
 
   it('passes for exported function with JSDoc', () => {
@@ -683,5 +703,14 @@ export function parse(input: string, options?: Options): AST {
   it('does not confuse interface with identifier starting with i', () => {
     const src = 'export default item;';
     expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('checks JSDoc content without splitting the whole comment into line arrays', () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../../src/rules/require-function-doc.ts', import.meta.url)),
+      'utf-8',
+    );
+
+    expect(source).not.toContain(".split('\\n')");
   });
 });

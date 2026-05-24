@@ -29,17 +29,14 @@
     "build": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "@oxlint/plugins": "^1.66.0",
+    "oxlint-tsgolint": "^0.22.1"
+  },
   "devDependencies": {
     "oxlint": "^1.63.0"
   },
   "peerDependencies": {
-    "oxlint": ">=1.63.0",
-    "oxlint-plugin-complexity": ">=2.0.0",
-    "oxlint-tsgolint": ">=0.22.1"
-  },
-  "peerDependenciesMeta": {
-    "oxlint-tsgolint": {
-      "optional": true
-    }
+    "oxlint": ">=1.63.0"
   }
 }
