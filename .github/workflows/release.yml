@@ -109,6 +109,8 @@ jobs:
       - name: Commit release metadata
         id: commit
         if: steps.plan.outputs.has_releases == 'true'
+        env:
+          HUSKY: '0'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -119,7 +121,7 @@ jobs:
             fi
           done
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): publish [skip ci]"
+            git commit --no-verify -m "chore(release): publish [skip ci]"
             git push origin HEAD:main
           fi
           echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
