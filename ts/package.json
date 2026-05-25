@@ -1,6 +1,6 @@
 {
   "name": "@thethracian/oxlint-config",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "The Thracian Oxlint configuration.",
   "license": "MIT",
   "repository": {
