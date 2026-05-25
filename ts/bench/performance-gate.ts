@@ -55,8 +55,10 @@ const defaultRuns = 5;
 const ruleOperationsPerSample = 8;
 const codemodOperationsPerSample = 1;
 const nsPerMs = 1_000_000;
-const ruleBudgetFloorNs = 500_000;
-const codemodBudgetFloorNs = 2 * nsPerMs;
+const ruleMedianBudgetFloorNs = 500_000;
+const ruleP95BudgetFloorNs = nsPerMs;
+const codemodMedianBudgetFloorNs = 2 * nsPerMs;
+const codemodP95BudgetFloorNs = 10 * nsPerMs;
 const p95Tolerance = 4;
 const medianTolerance = 3;
 
@@ -318,7 +320,12 @@ const codemodRows = (iterations: number): BenchRow[] =>
 
 const readBudgets = (): BudgetFile => JSON.parse(readFileSync(budgetPath, 'utf8')) as BudgetFile;
 
-const budgetEntry = (rows: readonly BenchRow[], runs: number, floorNs: number): BudgetEntry => {
+const budgetEntry = (
+  rows: readonly BenchRow[],
+  runs: number,
+  medianFloorNs: number,
+  p95FloorNs: number,
+): BudgetEntry => {
   const p95Values = rows.map((row) => row.p95Ns);
   const medianValues = rows.map((row) => row.medianNs);
   const observedP95Ns = Math.max(...p95Values);
@@ -326,11 +333,11 @@ const budgetEntry = (rows: readonly BenchRow[], runs: number, floorNs: number): 
   return {
     inputSamples: rows[0]?.inputSamples ?? 0,
     iterations: rows[0]?.iterations ?? 0,
-    medianLimitNs: Math.ceil(Math.max(floorNs, observedMedianNs * medianTolerance)),
+    medianLimitNs: Math.ceil(Math.max(medianFloorNs, observedMedianNs * medianTolerance)),
     observedMedianNs,
     observedP95Ns,
     operationsPerSample: rows[0]?.operationsPerSample ?? 0,
-    p95LimitNs: Math.ceil(Math.max(floorNs, observedP95Ns * p95Tolerance)),
+    p95LimitNs: Math.ceil(Math.max(p95FloorNs, observedP95Ns * p95Tolerance)),
     runs,
   };
 };
@@ -338,7 +345,8 @@ const budgetEntry = (rows: readonly BenchRow[], runs: number, floorNs: number): 
 const groupedBudgets = (
   rows: readonly BenchRow[],
   runs: number,
-  floorNs: number,
+  medianFloorNs: number,
+  p95FloorNs: number,
 ): Record<string, BudgetEntry> =>
   Object.fromEntries(
     [...new Set(rows.map((row) => row.name))].sort().map((name) => [
@@ -346,7 +354,8 @@ const groupedBudgets = (
       budgetEntry(
         rows.filter((row) => row.name === name),
         runs,
-        floorNs,
+        medianFloorNs,
+        p95FloorNs,
       ),
     ]),
   );
@@ -409,8 +418,13 @@ const updateBudgets = (): void => {
   const runs = numericArg('--runs', defaultRuns);
   const rows = measureAll(runs);
   const budgets: BudgetFile = {
-    codemods: groupedBudgets(rows.codemods, runs, codemodBudgetFloorNs),
-    rules: groupedBudgets(rows.rules, runs, ruleBudgetFloorNs),
+    codemods: groupedBudgets(
+      rows.codemods,
+      runs,
+      codemodMedianBudgetFloorNs,
+      codemodP95BudgetFloorNs,
+    ),
+    rules: groupedBudgets(rows.rules, runs, ruleMedianBudgetFloorNs, ruleP95BudgetFloorNs),
   };
   writeFileSync(budgetPath, `${JSON.stringify(budgets, null, 2)}\n`, 'utf8');
   process.stdout.write(

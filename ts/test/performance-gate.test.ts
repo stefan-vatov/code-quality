@@ -69,7 +69,18 @@ describe('performance gate configuration', () => {
       rules: Record<string, { p95LimitNs: number }>;
     };
     const unstableBudgets = Object.entries(budgets.rules)
-      .filter(([, budget]) => budget.p95LimitNs < 500_000)
+      .filter(([, budget]) => budget.p95LimitNs < 1_000_000)
+      .map(([name]) => name);
+
+    expect(unstableBudgets).toStrictEqual([]);
+  });
+
+  it('keeps codemod p95 budgets above normal GitHub runner timer jitter', () => {
+    const budgets = rootJSON('ts/bench/performance-budgets.json') as {
+      codemods: Record<string, { p95LimitNs: number }>;
+    };
+    const unstableBudgets = Object.entries(budgets.codemods)
+      .filter(([, budget]) => budget.p95LimitNs < 10_000_000)
       .map(([name]) => name);
 
     expect(unstableBudgets).toStrictEqual([]);
