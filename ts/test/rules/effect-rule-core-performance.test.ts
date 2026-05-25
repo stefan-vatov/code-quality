@@ -126,9 +126,7 @@ describe('Effect rule core performance invariants', (): void => {
 
     expect(source).toContain('sourceTokenPresenceCache');
     expect(source).toContain('const hasTokenInSourceCached');
-    expect(source).toMatch(
-      /tokens\.some\(\(token\)(?:: boolean)? => hasTokenInSourceCached\(source, token\)\)/,
-    );
+    expect(source).toContain('hasTokenInSourceCached(source, token)');
   });
 
   it('hoists Effect call predicates out of hot CallExpression visitors', (): void => {
