@@ -1,29 +1,31 @@
 /* -------------------------------------------------------------------------- */
 /*           Import-depth helper for detecting parent path climbs.            */
 /* -------------------------------------------------------------------------- */
+import { Match, Predicate } from 'effect';
+
+interface ImportDepthState {
+  depth: number;
+  index: number;
+  path: string;
+}
 
 /**
  * Count leading `../` segments in an import path. Returns 0 for non-relative imports (no leading
  * `..`).
  */
-export default function countImportDepth(path: string): number {
-  if (!isParentRelativePath(path)) {
-    return NO_PARENT_IMPORT_DEPTH;
-  }
-  let depth = 0;
-  let index = 0;
+const countImportDepth = (path: string): number =>
+  Match.value(path).pipe(
+    Match.when(Predicate.not(isParentRelativePath), () => NO_PARENT_IMPORT_DEPTH),
+    Match.orElse((parentPath) =>
+      countParentDirectorySegments({
+        depth: NO_PARENT_IMPORT_DEPTH,
+        index: FIRST_CHAR_INDEX,
+        path: parentPath,
+      }),
+    ),
+  );
 
-  while (hasParentDirectorySegment(path, index)) {
-    depth++;
-    index += PARENT_DIRECTORY_SEGMENT_LENGTH;
-  }
-
-  if (hasTrailingParentDirectory(path, index)) {
-    depth++;
-  }
-
-  return depth;
-}
+export default countImportDepth;
 
 const CHAR_DOT = 46;
 const CHAR_SLASH = 47;
@@ -33,6 +35,25 @@ const THIRD_CHAR_INDEX = 2;
 const NO_PARENT_IMPORT_DEPTH = 0;
 const PARENT_DIRECTORY_SEGMENT_LENGTH = 3;
 const PARENT_DIRECTORY_TOKEN_LENGTH = 2;
+
+const nextParentDirectorySegment = (state: ImportDepthState): ImportDepthState => ({
+  ...state,
+  depth: state.depth + 1,
+  index: state.index + PARENT_DIRECTORY_SEGMENT_LENGTH,
+});
+
+const countParentDirectorySegments = (state: ImportDepthState): number =>
+  Match.value(state).pipe(
+    Match.when(
+      ({ index, path }): boolean => hasParentDirectorySegment(path, index),
+      (currentState) => countParentDirectorySegments(nextParentDirectorySegment(currentState)),
+    ),
+    Match.when(
+      ({ index, path }): boolean => hasTrailingParentDirectory(path, index),
+      ({ depth }) => depth + 1,
+    ),
+    Match.orElse(({ depth }) => depth),
+  );
 
 const isParentRelativePath = (path: string): boolean => {
   if (path.length < PARENT_DIRECTORY_TOKEN_LENGTH) {
