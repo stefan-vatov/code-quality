@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 - 2026-05-25
+
+### Changes
+
+- chore: keep performance gates local (#12) (08ab247)
+- chore: migrate ts rules and codemods to effect (#11) (0ee131b)
+
 ## 0.3.1 - 2026-05-25
 
 ### Changes
