@@ -74,6 +74,23 @@ describe('quality threshold configuration', () => {
     expect(typeScriptCommands[0]).toContain('"$@"');
   });
 
+  it('documents a clean consumer lint-staged setup for packaged TypeScript fixes', () => {
+    const readme = rootText('ts/README.md');
+
+    expect(readme).toContain(
+      '"lint:fix": "thx-codemod-fix src && oxlint src --fix && thx-codemod-fix src"',
+    );
+    expect(readme).toContain(
+      '"lint:fix:type-aware": "thx-codemod-fix src && oxlint src --type-aware --type-check --fix && thx-codemod-fix src"',
+    );
+    expect(readme).toContain('"lint-staged": {');
+    expect(readme).toContain('"*.{ts,tsx,mts,cts}": [');
+    expect(readme).toContain('"thx-codemod-fix"');
+    expect(readme).toContain(
+      '"oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern"',
+    );
+  });
+
   it('enforces coverage watermarks for the TypeScript package source', () => {
     const config = rootText('vitest.config.mts');
 

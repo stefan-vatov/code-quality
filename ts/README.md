@@ -47,18 +47,36 @@ Run Oxlint:
 pnpm oxlint .
 ```
 
-Add fix scripts when you want the packaged codemods and native Oxlint fixes to run together:
+Add package scripts for normal linting, type-aware linting, and the combined fixer:
 
 ```json
 {
   "scripts": {
-    "lint": "oxlint .",
-    "lint:fix": "thx-codemod-fix src && oxlint . --fix && thx-codemod-fix src"
+    "lint": "oxlint src",
+    "lint:fix": "thx-codemod-fix src && oxlint src --fix && thx-codemod-fix src",
+    "lint:type-aware": "oxlint src --type-aware --type-check",
+    "lint:fix:type-aware": "thx-codemod-fix src && oxlint src --type-aware --type-check --fix && thx-codemod-fix src"
   }
 }
 ```
 
 `thx-codemod-fix` is intentionally separate from `oxlint --fix` because Oxlint owns native rule fixes and the package CLI owns larger AST codemods. Running it before and after Oxlint is safe because the codemods are idempotent. The CLI defaults to `src`, but you can pass any files or directories your project wants fixed.
+
+For staged files, wire the same package tools through `lint-staged`:
+
+```json
+{
+  "lint-staged": {
+    "*.{ts,tsx,mts,cts}": [
+      "thx-codemod-fix",
+      "oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern",
+      "thx-codemod-fix"
+    ]
+  }
+}
+```
+
+That is the consumer setup. This monorepo has an extra local package build step only because it dogfoods the workspace copy of `@thethracian/oxlint-config` before publication; downstream projects should not need that shell wrapper.
 
 Programmatic consumers can use the same codemod runner:
 
