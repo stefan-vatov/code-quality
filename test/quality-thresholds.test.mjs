@@ -86,6 +86,31 @@ describe('quality threshold configuration', () => {
     ]);
   });
 
+  it('keeps workspace TypeScript config checks behind explicit local development scripts', () => {
+    const packageJSON = rootJSON('package.json');
+    const publishedConfig = rootText('oxlint.config.mjs');
+    const localConfig = rootText('oxlint.workspace.config.mjs');
+
+    expect(packageJSON.scripts['codemod:ts:local']).toBe('tsx ts/src/codemod-fix/cli.ts ts/src');
+    expect(packageJSON.scripts['lint:local']).toBe(
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts',
+    );
+    expect(packageJSON.scripts['lint:local:type-aware']).toBe(
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check',
+    );
+    expect(packageJSON.scripts['lint:local:fix']).toBe(
+      'pnpm run codemod:ts:local && pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --fix && pnpm run codemod:ts:local',
+    );
+    expect(packageJSON.scripts['lint:local:type-aware:fix']).toBe(
+      'pnpm run codemod:ts:local && pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check --fix && pnpm run codemod:ts:local',
+    );
+    expect(localConfig).toContain("from './ts/dist/index.js'");
+    expect(localConfig).not.toContain("from '@thethracian/oxlint-config'");
+    expect(publishedConfig).toContain("'oxlint.workspace.config.mjs'");
+    expect(packageJSON.scripts.lint).toBe('oxlint -c oxlint.config.mjs ts');
+    expect(packageJSON.scripts['lint:ci']).not.toContain('local');
+  });
+
   it('documents a clean consumer lint-staged setup for packaged TypeScript fixes', () => {
     const readme = rootText('ts/README.md');
 

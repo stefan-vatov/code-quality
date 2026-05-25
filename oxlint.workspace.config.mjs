@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
-/* Repository Oxlint configuration using the published TypeScript package.    */
+/* Local Oxlint configuration for validating unpublished TypeScript changes.  */
 /* -------------------------------------------------------------------------- */
-import theThracian from '@thethracian/oxlint-config';
+import theThracian from './ts/dist/index.js';
 
 const config = theThracian({
   effect: {
@@ -13,10 +13,9 @@ const config = theThracian({
   typeAware: true,
 });
 
-const repositoryConfig = {
+const localRepositoryConfig = {
   ...config,
   ignorePatterns: [
-    'oxlint.workspace.config.mjs',
     '**/node_modules/**',
     '**/dist/**',
     '**/build/**',
@@ -42,4 +41,4 @@ const repositoryConfig = {
   },
 };
 
-export default repositoryConfig;
+export default localRepositoryConfig;
