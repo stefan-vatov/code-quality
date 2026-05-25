@@ -134,6 +134,20 @@ describe('quality threshold configuration', () => {
     expect(readme).not.toMatch(/workspace copy|monorepo has an extra local package build step/u);
   });
 
+  it('opens a CI-running PR after publishing the TypeScript package', () => {
+    const releaseWorkflow = rootText('.github/workflows/release.yml');
+
+    expect(releaseWorkflow).toContain('verify-published-npm-consumption:');
+    expect(releaseWorkflow).toContain('- publish-npm');
+    expect(releaseWorkflow).toContain('pull-requests: write');
+    expect(releaseWorkflow).toContain('PUBLISHED_CONFIG_PR_TOKEN');
+    expect(releaseWorkflow).toContain('codex/verify-published-oxlint-config');
+    expect(releaseWorkflow).toContain('ci(ts): verify published oxlint config');
+    expect(releaseWorkflow).toContain('https://x-access-token:$GH_TOKEN@github.com');
+    expect(releaseWorkflow).toContain('gh pr create');
+    expect(releaseWorkflow).not.toContain('ci(ts): verify published oxlint config [skip ci]');
+  });
+
   it('enforces coverage watermarks for the TypeScript package source', () => {
     const config = rootText('vitest.config.mts');
 

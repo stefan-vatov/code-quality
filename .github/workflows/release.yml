@@ -175,6 +175,75 @@ jobs:
           cd ts
           npm publish --access public
 
+  verify-published-npm-consumption:
+    name: verify published npm consumption
+    needs:
+      - prepare
+      - publish-npm
+    if: needs.publish-npm.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Check out release commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.release_sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+          registry-url: https://registry.npmjs.org
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+
+      - name: Update root consumer dependency to the published package
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.ts_version }}
+        run: |
+          npm view "@thethracian/oxlint-config@$PACKAGE_VERSION" version
+          pnpm add --save-dev --lockfile-only "@thethracian/oxlint-config@npm:@thethracian/oxlint-config@$PACKAGE_VERSION"
+
+      - name: Open published package verification PR
+        env:
+          GH_TOKEN: ${{ secrets.PUBLISHED_CONFIG_PR_TOKEN }}
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.ts_version }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "PUBLISHED_CONFIG_PR_TOKEN is required so the PR triggers normal CI checks."
+            exit 1
+          fi
+
+          branch="codex/verify-published-oxlint-config-$PACKAGE_VERSION"
+          title="ci(ts): verify published oxlint config"
+          body="Updates the repository's consumer-style TypeScript lint dependency to @thethracian/oxlint-config@$PACKAGE_VERSION so normal PR checks verify the package exactly as downstream projects consume it."
+
+          if gh pr view "$branch" --json url --jq .url >/dev/null 2>&1; then
+            gh pr view "$branch" --json url --jq .url
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add package.json pnpm-lock.yaml
+
+          if git diff --cached --quiet; then
+            echo "Root consumer dependency already points at @thethracian/oxlint-config@$PACKAGE_VERSION."
+            exit 0
+          fi
+
+          git commit -m "$title"
+          git push "https://x-access-token:$GH_TOKEN@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+          gh pr create --base main --head "$branch" --title "$title" --body "$body"
+
   publish-crate:
     name: publish crate
     needs: prepare
