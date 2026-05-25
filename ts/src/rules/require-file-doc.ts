@@ -1,6 +1,8 @@
 /* -------------------------------------------------------------------------- */
 /*    File-level documentation requirement helper for custom Oxlint rules.    */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
+
 // Character code constants
 const CH_HASH = 35;
 const CH_SLASH = 47;
@@ -24,25 +26,29 @@ const DIVIDER_RULE =
 const isWhitespace = (code: number): boolean =>
   code === CH_SPACE || code === CH_NEWLINE || code === CH_RETURN || code === CH_TAB;
 
-const skipShebangLines = (source: string, emptyResult: number): number => {
-  let pos = 0;
-  while (pos < source.length && source.charCodeAt(pos) === CH_HASH) {
-    const nextLine = source.indexOf('\n', pos);
-    if (nextLine === -1) {
-      return emptyResult;
-    }
-    pos = nextLine + 1;
-  }
-  return pos;
-};
+const skipShebangLinesFrom = (source: string, emptyResult: number, pos: number): number =>
+  Match.value(pos < source.length && source.charCodeAt(pos) === CH_HASH).pipe(
+    Match.when(false, (): number => pos),
+    Match.orElse((): number => {
+      const nextLine = source.indexOf('\n', pos);
+      return Match.value(nextLine).pipe(
+        Match.when(-1, (): number => emptyResult),
+        Match.orElse((lineEnd): number => skipShebangLinesFrom(source, emptyResult, lineEnd + 1)),
+      );
+    }),
+  );
 
-const skipLeadingWhitespace = (source: string, start: number): number => {
-  let pos = start;
-  while (pos < source.length && isWhitespace(source.charCodeAt(pos))) {
-    pos++;
-  }
-  return pos;
-};
+const skipShebangLines = (source: string, emptyResult: number): number =>
+  skipShebangLinesFrom(source, emptyResult, 0);
+
+const skipLeadingWhitespace = (source: string, start: number): number =>
+  Match.value(start).pipe(
+    Match.when(
+      (pos): boolean => pos >= source.length || !isWhitespace(source.charCodeAt(pos)),
+      (pos): number => pos,
+    ),
+    Match.orElse((pos): number => skipLeadingWhitespace(source, pos + 1)),
+  );
 
 const leadingContentPosition = (source: string, emptyResult: number): number =>
   skipLeadingWhitespace(source, skipShebangLines(source, emptyResult));
@@ -53,21 +59,17 @@ const hasJSDocStartAt = (source: string, pos: number): boolean =>
   source.charCodeAt(pos + 1) === CH_ASTERISK &&
   source.charCodeAt(pos + 2) === CH_ASTERISK;
 
-const lineEndAt = (source: string, start: number): number => {
-  const newline = source.indexOf('\n', start);
-  if (newline === -1) {
-    return source.length;
-  }
-  return newline;
-};
+const lineEndAt = (source: string, start: number): number =>
+  Match.value(source.indexOf('\n', start)).pipe(
+    Match.when(-1, (): number => source.length),
+    Match.orElse((newline): number => newline),
+  );
 
-const nextLineStartAt = (source: string, start: number): number => {
-  const newline = source.indexOf('\n', start);
-  if (newline === -1) {
-    return source.length;
-  }
-  return newline + 1;
-};
+const nextLineStartAt = (source: string, start: number): number =>
+  Match.value(source.indexOf('\n', start)).pipe(
+    Match.when(-1, (): number => source.length),
+    Match.orElse((newline): number => newline + 1),
+  );
 
 const isDividerTextLine = (line: string): boolean =>
   line.length === DIVIDER_LENGTH &&
@@ -76,39 +78,51 @@ const isDividerTextLine = (line: string): boolean =>
 
 const isDividerRuleLine = (line: string): boolean => line === DIVIDER_RULE;
 
-const nextDividerEnd = (source: string, start: number): number | undefined => {
-  let cursor = nextLineStartAt(source, start);
-  while (cursor < source.length) {
-    const end = lineEndAt(source, cursor);
-    if (isDividerRuleLine(source.slice(cursor, end))) {
-      return end;
-    }
-    cursor = nextLineStartAt(source, cursor);
-  }
-  return undefined;
-};
+const nextDividerEndFrom = (source: string, cursor: number): number | undefined =>
+  Match.value(cursor).pipe(
+    Match.when(
+      (position): boolean => position >= source.length,
+      (): undefined => undefined,
+    ),
+    Match.orElse((position): number | undefined => {
+      const end = lineEndAt(source, position);
+      return Match.value(isDividerRuleLine(source.slice(position, end))).pipe(
+        Match.when(true, (): number => end),
+        Match.orElse((): number | undefined =>
+          nextDividerEndFrom(source, nextLineStartAt(source, position)),
+        ),
+      );
+    }),
+  );
+
+const nextDividerEnd = (source: string, start: number): number | undefined =>
+  nextDividerEndFrom(source, nextLineStartAt(source, start));
 
 const dividerHeaderEnd = (source: string, pos: number): number | undefined => {
   const firstEnd = lineEndAt(source, pos);
-  if (!isDividerRuleLine(source.slice(pos, firstEnd))) {
-    return undefined;
-  }
-  const closingDividerEnd = nextDividerEnd(source, firstEnd);
-  if (closingDividerEnd !== undefined) {
-    const body = source.slice(nextLineStartAt(source, firstEnd), closingDividerEnd);
-    if (body.split('\n').every(isDividerTextLine)) {
-      return closingDividerEnd;
-    }
-  }
-  return undefined;
+  return Match.value(isDividerRuleLine(source.slice(pos, firstEnd))).pipe(
+    Match.when(false, (): undefined => undefined),
+    Match.orElse((): number | undefined =>
+      pipe(
+        Option.fromNullable(nextDividerEnd(source, firstEnd)),
+        Option.filter((closingDividerEnd): boolean => {
+          const body = source.slice(nextLineStartAt(source, firstEnd), closingDividerEnd);
+          return pipe(body.split('\n'), Array.every(isDividerTextLine));
+        }),
+        Option.getOrUndefined,
+      ),
+    ),
+  );
 };
 
-const boundedEnd = (source: string, pos: number, lookahead: number): number => {
-  if (pos + lookahead < source.length) {
-    return pos + lookahead;
-  }
-  return source.length;
-};
+const boundedEnd = (source: string, pos: number, lookahead: number): number =>
+  Match.value(pos + lookahead).pipe(
+    Match.when(
+      (end): boolean => end < source.length,
+      (end): number => end,
+    ),
+    Match.orElse((): number => source.length),
+  );
 
 const hasLineOptOutMarker = (source: string, pos: number): boolean => {
   const end = boundedEnd(source, pos, LINE_MARKER_LOOKAHEAD);
@@ -121,20 +135,17 @@ const hasBlockOptOutMarker = (source: string, pos: number): boolean =>
   source.charCodeAt(pos + 2) !== CH_ASTERISK &&
   source.slice(pos, boundedEnd(source, pos, BLOCK_MARKER_LOOKAHEAD)).startsWith('/* @internal');
 
-const hasOptOutMarker = (source: string, pos: number): boolean => {
-  if (source.charCodeAt(pos) !== CH_SLASH || pos + 1 >= source.length) {
-    return false;
-  }
-
-  const next = source.charCodeAt(pos + 1);
-  if (next === CH_SLASH) {
-    return hasLineOptOutMarker(source, pos);
-  }
-  if (next === CH_ASTERISK) {
-    return hasBlockOptOutMarker(source, pos);
-  }
-  return false;
-};
+const hasOptOutMarker = (source: string, pos: number): boolean =>
+  Match.value(source.charCodeAt(pos) === CH_SLASH && pos + 1 < source.length).pipe(
+    Match.when(false, (): boolean => false),
+    Match.orElse((): boolean =>
+      Match.value(source.charCodeAt(pos + 1)).pipe(
+        Match.when(CH_SLASH, (): boolean => hasLineOptOutMarker(source, pos)),
+        Match.when(CH_ASTERISK, (): boolean => hasBlockOptOutMarker(source, pos)),
+        Match.orElse((): boolean => false),
+      ),
+    ),
+  );
 
 /**
  * Extract the JSDoc file header comment from source text. Skips leading shebang lines and whitespace.
@@ -142,26 +153,34 @@ const hasOptOutMarker = (source: string, pos: number): boolean => {
  */
 export const extractDocHeader = (source: string): string | undefined => {
   const pos = leadingContentPosition(source, source.length);
-  if (pos >= source.length) {
-    return undefined;
-  }
-
-  return extractDocHeaderAt(source, pos);
+  return Match.value(pos).pipe(
+    Match.when(
+      (position): boolean => position >= source.length,
+      (): undefined => undefined,
+    ),
+    Match.orElse((position): string | undefined => extractDocHeaderAt(source, position)),
+  );
 };
 
 const extractDocHeaderAt = (source: string, pos: number): string | undefined => {
   const dividerEnd = dividerHeaderEnd(source, pos);
-  if (dividerEnd !== undefined) {
-    return source.slice(pos, dividerEnd);
-  }
-  if (!hasJSDocStartAt(source, pos)) {
-    return undefined;
-  }
-  const closePOS = source.indexOf(JSDOC_END, pos + JSDOC_PREFIX_LENGTH);
-  if (closePOS === -1) {
-    return undefined;
-  }
-  return source.slice(pos, closePOS + 2);
+  return pipe(
+    Option.fromNullable(dividerEnd),
+    Option.match({
+      onNone: (): string | undefined =>
+        Match.value(hasJSDocStartAt(source, pos)).pipe(
+          Match.when(false, (): undefined => undefined),
+          Match.orElse((): string | undefined => {
+            const closePOS = source.indexOf(JSDOC_END, pos + JSDOC_PREFIX_LENGTH);
+            return Match.value(closePOS).pipe(
+              Match.when(-1, (): undefined => undefined),
+              Match.orElse((closePosition): string => source.slice(pos, closePosition + 2)),
+            );
+          }),
+        ),
+      onSome: (end): string => source.slice(pos, end),
+    }),
+  );
 };
 
 /**
@@ -170,13 +189,15 @@ const extractDocHeaderAt = (source: string, pos: number): string | undefined => 
  */
 export default function hasRequiredFileDoc(source: string): boolean {
   const pos = leadingContentPosition(source, source.length);
-  if (pos >= source.length) {
-    return true;
-  }
-
-  if (hasOptOutMarker(source, pos)) {
-    return true;
-  }
-
-  return dividerHeaderEnd(source, pos) !== undefined;
+  return Match.value(pos).pipe(
+    Match.when(
+      (position): boolean => position >= source.length,
+      (): boolean => true,
+    ),
+    Match.when(
+      (position): boolean => hasOptOutMarker(source, position),
+      (): boolean => true,
+    ),
+    Match.orElse((position): boolean => dividerHeaderEnd(source, position) !== undefined),
+  );
 }
