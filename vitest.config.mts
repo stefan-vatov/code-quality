@@ -1,4 +1,6 @@
-/** @internal Shared Vitest config for repository unit tests and coverage thresholds. */
+/* -------------------------------------------------------------------------- */
+/*  Shared Vitest config for repository unit tests and coverage thresholds.   */
+/* -------------------------------------------------------------------------- */
 import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -33,6 +35,8 @@ export default defineConfig({
       '**/.nuxt/**',
       '**/out/**',
       '**/out-tsc/**',
+      '**/*benchmark*.test.ts',
+      '**/*performance*.test.ts',
     ],
     globals: true,
     setupFiles: ['./test/setup.ts'],
