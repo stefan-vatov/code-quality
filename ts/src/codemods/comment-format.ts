@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*          Reusable comment formatting helpers for codemod output.           */
 /* -------------------------------------------------------------------------- */
+import { Array, Number, Option, pipe } from 'effect';
 
 interface JSDocInput {
   summary: string;
@@ -15,7 +16,7 @@ const blockRight = ' */';
 const jsdocOpen = '/**';
 const jsdocClose = ' */';
 
-const repeat = (value: string, count: number): string => value.repeat(Math.max(0, count));
+const repeat = (value: string, count: number): string => value.repeat(Number.max(0, count));
 
 const dividerInnerWidth = (): number => dividerLength - blockLeft.length - blockRight.length;
 
@@ -23,7 +24,7 @@ const solidDividerLine = (): string =>
   `${blockLeft}${repeat(dividerFiller, dividerInnerWidth())}${blockRight}`;
 
 const centeredText = (text: string, width: number): string => {
-  const remaining = Math.max(0, width - text.length);
+  const remaining = Number.max(0, width - text.length);
   const left = Math.floor(remaining / 2);
   const right = remaining - left;
   return `${repeat(' ', left)}${text}${repeat(' ', right)}`;
@@ -40,12 +41,14 @@ const centeredDividerText = (text: string): string =>
 
 const dividerTextLines = (text: string): string[] => wrapTextToWidth(text, dividerInnerWidth());
 
-const nextWrappedLine = (line: string, word: string): string => {
-  if (line) {
-    return `${line} ${word}`;
-  }
-  return word;
-};
+const nextWrappedLine = (line: string, word: string): string =>
+  pipe(
+    Option.fromNullable(line || undefined),
+    Option.match({
+      onNone: (): string => word,
+      onSome: (value): string => `${value} ${word}`,
+    }),
+  );
 
 const wrapText = (text: string): string[] => wrapTextToWidth(text, jsdocTextWidth);
 
@@ -54,35 +57,40 @@ const wrapTextToWidth = (text: string, width: number): string[] => {
     return [text];
   }
 
-  const lines: string[] = [];
-  let line = '';
-  for (const word of text.split(' ')) {
-    line = appendWrappedWordToWidth(lines, line, word, width);
-  }
-  if (line) {
-    lines.push(line);
-  }
-  return lines;
+  const wrapped = pipe(
+    text.split(' '),
+    Array.reduce(
+      { line: '', lines: [] as string[] },
+      (state, word): { line: string; lines: string[] } =>
+        appendWrappedWordToWidth(state, word, width),
+    ),
+  );
+  return pipe(
+    Option.fromNullable(wrapped.line || undefined),
+    Option.match({
+      onNone: (): string[] => wrapped.lines,
+      onSome: (line): string[] => Array.append(wrapped.lines, line),
+    }),
+  );
 };
 
 const appendWrappedWordToWidth = (
-  lines: string[],
-  line: string,
+  state: { line: string; lines: string[] },
   word: string,
   width: number,
-): string => {
-  const nextLine = nextWrappedLine(line, word);
-  if (nextLine.length > width && line) {
-    lines.push(line);
-    return word;
+): { line: string; lines: string[] } => {
+  const nextLine = nextWrappedLine(state.line, word);
+  if (nextLine.length > width && state.line) {
+    return { line: word, lines: Array.append(state.lines, state.line) };
   }
-  return nextLine;
+  return { ...state, line: nextLine };
 };
 
 const pushJSDocTextLines = (lines: string[], text: string): void => {
-  for (const wrappedLine of wrapText(text)) {
-    lines.push(` * ${wrappedLine}`);
-  }
+  pipe(
+    wrapText(text),
+    Array.map((wrappedLine): number => lines.push(` * ${wrappedLine}`)),
+  );
 };
 
 /**
@@ -93,12 +101,17 @@ const pushJSDocTextLines = (lines: string[], text: string): void => {
 export const formatJSDoc = (input: JSDocInput): string => {
   const lines = [jsdocOpen];
   pushJSDocTextLines(lines, input.summary);
-  if (input.tags && input.tags.length > 0) {
-    lines.push(' *');
-    for (const tag of input.tags) {
-      pushJSDocTextLines(lines, tag);
-    }
-  }
+  pipe(
+    Option.fromNullable(input.tags),
+    Option.filter((tags): boolean => tags.length > 0),
+    Option.map((tags): void => {
+      lines.push(' *');
+      pipe(
+        tags,
+        Array.map((tag): void => pushJSDocTextLines(lines, tag)),
+      );
+    }),
+  );
   lines.push(jsdocClose);
   return `${lines.join('\n')}\n`;
 };
@@ -124,7 +137,7 @@ export const formatMainHeader = (text: string): string =>
  */
 export const formatSubheader = (text: string): string => {
   const words = ` ${text} `;
-  const remaining = Math.max(0, dividerInnerWidth() - words.length);
+  const remaining = Number.max(0, dividerInnerWidth() - words.length);
   const left = Math.floor(remaining / 2);
   const right = remaining - left;
   return `${blockLeft}${repeat(dividerFiller, left)}${words}${repeat(dividerFiller, right)}${blockRight}`;
