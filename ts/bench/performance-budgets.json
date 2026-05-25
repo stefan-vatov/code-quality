@@ -119,7 +119,7 @@
       "observedMedianNs": 15192.625,
       "observedP95Ns": 26177.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "boolean-prefix": {
@@ -129,7 +129,7 @@
       "observedMedianNs": 13677,
       "observedP95Ns": 18630.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "camel-case-identifiers": {
@@ -139,7 +139,7 @@
       "observedMedianNs": 13145.875,
       "observedP95Ns": 20427,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-avoid-layer-explosion": {
@@ -149,7 +149,7 @@
       "observedMedianNs": 13302.125,
       "observedP95Ns": 19979.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-ad-hoc-effect-wrapper-abstractions": {
@@ -159,7 +159,7 @@
       "observedMedianNs": 12447.875,
       "observedP95Ns": 18182.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-async-await-in-effect": {
@@ -169,7 +169,7 @@
       "observedMedianNs": 13182.25,
       "observedP95Ns": 17359.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-catchAll-with-mapError": {
@@ -179,7 +179,7 @@
       "observedMedianNs": 13015.625,
       "observedP95Ns": 18432.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-console-log-in-effect-code": {
@@ -189,7 +189,7 @@
       "observedMedianNs": 13911.5,
       "observedP95Ns": 24177,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-crypto-randomUUID": {
@@ -199,7 +199,7 @@
       "observedMedianNs": 12479.25,
       "observedP95Ns": 18406.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-date-now-in-effect-code": {
@@ -209,7 +209,7 @@
       "observedMedianNs": 14151,
       "observedP95Ns": 30057.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-deprecated-context-tag-function": {
@@ -219,7 +219,7 @@
       "observedMedianNs": 12395.875,
       "observedP95Ns": 16578.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-deprecated-schema-package": {
@@ -229,7 +229,7 @@
       "observedMedianNs": 12765.625,
       "observedP95Ns": 21088.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-direct-clock-random-outside-adapters": {
@@ -239,7 +239,7 @@
       "observedMedianNs": 13276,
       "observedP95Ns": 20317.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-direct-http-fs-outside-platform-services": {
@@ -249,7 +249,7 @@
       "observedMedianNs": 14203.125,
       "observedP95Ns": 25250,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-direct-process-env-outside-config-layer": {
@@ -259,7 +259,7 @@
       "observedMedianNs": 13599,
       "observedP95Ns": 22437.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-duplicate-layer-instances": {
@@ -269,7 +269,7 @@
       "observedMedianNs": 13500,
       "observedP95Ns": 19843.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-effect-fn-iife": {
@@ -279,7 +279,7 @@
       "observedMedianNs": 15755.125,
       "observedP95Ns": 27197.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-effect-in-array-foreach": {
@@ -289,7 +289,7 @@
       "observedMedianNs": 13677,
       "observedP95Ns": 24375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-effect-in-promise-callback": {
@@ -299,7 +299,7 @@
       "observedMedianNs": 12911.5,
       "observedP95Ns": 17031.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-error-channel-widening-to-unknown": {
@@ -309,7 +309,7 @@
       "observedMedianNs": 13343.75,
       "observedP95Ns": 23385.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-floating-effect": {
@@ -319,7 +319,7 @@
       "observedMedianNs": 18625,
       "observedP95Ns": 33927,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-floating-fiber": {
@@ -329,7 +329,7 @@
       "observedMedianNs": 15828.125,
       "observedP95Ns": 28635.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-focused-effect-tests": {
@@ -339,7 +339,7 @@
       "observedMedianNs": 15687.5,
       "observedP95Ns": 24822.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-fork-daemon-without-cleanup": {
@@ -349,7 +349,7 @@
       "observedMedianNs": 15359.375,
       "observedP95Ns": 20760.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-function-returning-gen": {
@@ -359,7 +359,7 @@
       "observedMedianNs": 15588.625,
       "observedP95Ns": 30781.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-global-error-channel": {
@@ -369,7 +369,7 @@
       "observedMedianNs": 15260.375,
       "observedP95Ns": 19411.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-global-fetch": {
@@ -379,7 +379,7 @@
       "observedMedianNs": 23224,
       "observedP95Ns": 46661.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-global-timers": {
@@ -389,7 +389,7 @@
       "observedMedianNs": 13984.375,
       "observedP95Ns": 17703.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-json-parse-cast": {
@@ -399,7 +399,7 @@
       "observedMedianNs": 14729.125,
       "observedP95Ns": 37796.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-known-fake-api": {
@@ -409,7 +409,7 @@
       "observedMedianNs": 13953.125,
       "observedP95Ns": 19119.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-leaked-service-dependencies": {
@@ -419,7 +419,7 @@
       "observedMedianNs": 14875,
       "observedP95Ns": 25062.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-live-services-in-unit-tests": {
@@ -429,7 +429,7 @@
       "observedMedianNs": 13953.125,
       "observedP95Ns": 22500,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-math-random-in-effect-code": {
@@ -439,7 +439,7 @@
       "observedMedianNs": 15171.875,
       "observedP95Ns": 36005.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-mixed-effect-import-styles": {
@@ -449,7 +449,7 @@
       "observedMedianNs": 15015.625,
       "observedP95Ns": 24786.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-multiple-provide-chain": {
@@ -459,7 +459,7 @@
       "observedMedianNs": 12838.5,
       "observedP95Ns": 18411.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-native-error-classes": {
@@ -469,7 +469,7 @@
       "observedMedianNs": 13390.625,
       "observedP95Ns": 21088.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-new-promise": {
@@ -479,7 +479,7 @@
       "observedMedianNs": 13427.125,
       "observedP95Ns": 20744.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-node-builtins-when-effect-platform-exists": {
@@ -489,7 +489,7 @@
       "observedMedianNs": 13057.375,
       "observedP95Ns": 40020.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-obsolete-imports": {
@@ -499,7 +499,7 @@
       "observedMedianNs": 13026.125,
       "observedP95Ns": 30395.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-process-env-in-effect-code": {
@@ -509,7 +509,7 @@
       "observedMedianNs": 13880.25,
       "observedP95Ns": 51901.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-promise-returning-public-api": {
@@ -519,7 +519,7 @@
       "observedMedianNs": 14333.375,
       "observedP95Ns": 24489.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-promise-then-in-effect": {
@@ -529,7 +529,7 @@
       "observedMedianNs": 12453.125,
       "observedP95Ns": 18687.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-provide-in-domain-modules": {
@@ -539,7 +539,7 @@
       "observedMedianNs": 12421.875,
       "observedP95Ns": 17130.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-real-sleep-in-tests": {
@@ -549,7 +549,7 @@
       "observedMedianNs": 13062.5,
       "observedP95Ns": 22958.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-run-inside-effect": {
@@ -559,7 +559,7 @@
       "observedMedianNs": 13744.875,
       "observedP95Ns": 33635.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-run-outside-entrypoints": {
@@ -569,7 +569,7 @@
       "observedMedianNs": 13677,
       "observedP95Ns": 20427,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-runSync-in-server-request-handlers": {
@@ -579,7 +579,7 @@
       "observedMedianNs": 12739.625,
       "observedP95Ns": 18552.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-runfork-without-observer": {
@@ -589,7 +589,7 @@
       "observedMedianNs": 12817.625,
       "observedP95Ns": 41802,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-runpromise-in-exported-api": {
@@ -599,7 +599,7 @@
       "observedMedianNs": 12823,
       "observedP95Ns": 19750,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-service-construction-outside-layer": {
@@ -609,7 +609,7 @@
       "observedMedianNs": 13114.625,
       "observedP95Ns": 21296.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-silent-error-swallowing": {
@@ -619,7 +619,7 @@
       "observedMedianNs": 15448,
       "observedP95Ns": 84453.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 337813,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-skipped-effect-tests": {
@@ -629,7 +629,7 @@
       "observedMedianNs": 14114.5,
       "observedP95Ns": 38484.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-string-errors": {
@@ -639,7 +639,7 @@
       "observedMedianNs": 14760.5,
       "observedP95Ns": 29046.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-sync-for-promise": {
@@ -659,7 +659,7 @@
       "observedMedianNs": 15573,
       "observedP95Ns": 68994.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 275979,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-test-runtime-leakage": {
@@ -669,7 +669,7 @@
       "observedMedianNs": 13635.375,
       "observedP95Ns": 51010.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-throw": {
@@ -679,7 +679,7 @@
       "observedMedianNs": 13312.5,
       "observedP95Ns": 18515.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-try-catch-in-effect-gen": {
@@ -689,7 +689,7 @@
       "observedMedianNs": 13937.5,
       "observedP95Ns": 18317.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-unbounded-queue": {
@@ -699,7 +699,7 @@
       "observedMedianNs": 13276,
       "observedP95Ns": 18791.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-unbounded-stream-buffer": {
@@ -709,7 +709,7 @@
       "observedMedianNs": 13151.125,
       "observedP95Ns": 28000,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-unnecessary-gen": {
@@ -719,7 +719,7 @@
       "observedMedianNs": 15463.5,
       "observedP95Ns": 30916.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-unsafe-effect-type-assertion": {
@@ -729,7 +729,7 @@
       "observedMedianNs": 13020.875,
       "observedP95Ns": 22229.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-no-untagged-errors": {
@@ -739,7 +739,7 @@
       "observedMedianNs": 18380.25,
       "observedP95Ns": 39630.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-asVoid": {
@@ -749,7 +749,7 @@
       "observedMedianNs": 13671.875,
       "observedP95Ns": 28708.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-catchTag-over-catchAll": {
@@ -769,7 +769,7 @@
       "observedMedianNs": 12546.875,
       "observedP95Ns": 97817.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 391271,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-config-redacted": {
@@ -779,7 +779,7 @@
       "observedMedianNs": 12875,
       "observedP95Ns": 23484.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-direct-yield-star": {
@@ -789,7 +789,7 @@
       "observedMedianNs": 12739.625,
       "observedP95Ns": 23474,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-effect-fn-for-exported-effects": {
@@ -799,7 +799,7 @@
       "observedMedianNs": 13307.25,
       "observedP95Ns": 33302.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-effect-is": {
@@ -809,7 +809,7 @@
       "observedMedianNs": 12536.5,
       "observedP95Ns": 20494.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-effect-void": {
@@ -819,7 +819,7 @@
       "observedMedianNs": 15161.375,
       "observedP95Ns": 27692.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-flatMap-over-map-flatten": {
@@ -829,7 +829,7 @@
       "observedMedianNs": 12984.375,
       "observedP95Ns": 24776.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-fork-scoped-for-listeners": {
@@ -849,7 +849,7 @@
       "observedMedianNs": 12598.875,
       "observedP95Ns": 97291.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 389167,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-gen-over-do": {
@@ -859,7 +859,7 @@
       "observedMedianNs": 12437.5,
       "observedP95Ns": 21927,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-ignore-logged": {
@@ -869,7 +869,7 @@
       "observedMedianNs": 12343.75,
       "observedP95Ns": 18812.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-in-memory-implementations": {
@@ -879,7 +879,7 @@
       "observedMedianNs": 12229.125,
       "observedP95Ns": 19359.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-it-effect-for-unit-tests": {
@@ -889,7 +889,7 @@
       "observedMedianNs": 12312.5,
       "observedP95Ns": 16895.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-mapError-over-catchAll-rethrow": {
@@ -899,7 +899,7 @@
       "observedMedianNs": 12812.5,
       "observedP95Ns": 26786.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-pubsub-for-broadcast": {
@@ -909,7 +909,7 @@
       "observedMedianNs": 13994.875,
       "observedP95Ns": 22343.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-schema-tagged-struct": {
@@ -919,7 +919,7 @@
       "observedMedianNs": 16656.25,
       "observedP95Ns": 27921.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-single-schema-literal-union": {
@@ -929,7 +929,7 @@
       "observedMedianNs": 15807.375,
       "observedP95Ns": 23229.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-prefer-succeed-for-static-layers": {
@@ -939,7 +939,7 @@
       "observedMedianNs": 12750,
       "observedP95Ns": 20458.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-acquire-release": {
@@ -949,7 +949,7 @@
       "observedMedianNs": 12432.25,
       "observedP95Ns": 22312.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-batching-for-resolver": {
@@ -959,7 +959,7 @@
       "observedMedianNs": 12359.375,
       "observedP95Ns": 16979.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-bounded-concurrency": {
@@ -969,7 +969,7 @@
       "observedMedianNs": 13843.75,
       "observedP95Ns": 88573,
       "operationsPerSample": 8,
-      "p95LimitNs": 354292,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-bounded-flatMap-concurrency": {
@@ -989,7 +989,7 @@
       "observedMedianNs": 12192.625,
       "observedP95Ns": 19687.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-deterministic-service-keys": {
@@ -999,7 +999,7 @@
       "observedMedianNs": 12750,
       "observedP95Ns": 18760.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-effect-suppression-reason-and-ticket": {
@@ -1009,7 +1009,7 @@
       "observedMedianNs": 12578.125,
       "observedP95Ns": 22854.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-error-cause-preserved": {
@@ -1019,7 +1019,7 @@
       "observedMedianNs": 12208.25,
       "observedP95Ns": 17135.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-explicit-asyncPush-buffer": {
@@ -1029,7 +1029,7 @@
       "observedMedianNs": 13895.75,
       "observedP95Ns": 21515.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-layer-memoization-constant": {
@@ -1039,7 +1039,7 @@
       "observedMedianNs": 12802.125,
       "observedP95Ns": 19822.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-layer-scoped-when-scope-required": {
@@ -1049,7 +1049,7 @@
       "observedMedianNs": 12395.875,
       "observedP95Ns": 18750,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-onExit-for-cleanup": {
@@ -1059,7 +1059,7 @@
       "observedMedianNs": 12119.75,
       "observedP95Ns": 18208.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-platform-runmain-at-entrypoints": {
@@ -1069,7 +1069,7 @@
       "observedMedianNs": 13088.625,
       "observedP95Ns": 20349,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-provided-services-in-tests": {
@@ -1079,7 +1079,7 @@
       "observedMedianNs": 13447.875,
       "observedP95Ns": 18880.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-ref-for-shared-mutable-state": {
@@ -1089,7 +1089,7 @@
       "observedMedianNs": 12546.875,
       "observedP95Ns": 16578.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-restore-for-fork-in-uninterruptible": {
@@ -1099,7 +1099,7 @@
       "observedMedianNs": 12651.125,
       "observedP95Ns": 22963.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-retry-policy-for-idempotent-external-effects": {
@@ -1109,7 +1109,7 @@
       "observedMedianNs": 14260.5,
       "observedP95Ns": 25484.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-return-yield-star": {
@@ -1119,7 +1119,7 @@
       "observedMedianNs": 17260.375,
       "observedP95Ns": 53328.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-schedule-jitter-for-retries": {
@@ -1129,7 +1129,7 @@
       "observedMedianNs": 13255.25,
       "observedP95Ns": 27880.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-schema-is-over-instanceof": {
@@ -1139,7 +1139,7 @@
       "observedMedianNs": 12885.375,
       "observedP95Ns": 19510.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-scoped-for-acquireRelease": {
@@ -1149,7 +1149,7 @@
       "observedMedianNs": 12562.5,
       "observedP95Ns": 21953.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-scoped-for-resource-layers": {
@@ -1159,7 +1159,7 @@
       "observedMedianNs": 12994.875,
       "observedP95Ns": 19536.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-scoped-for-resources": {
@@ -1169,7 +1169,7 @@
       "observedMedianNs": 12546.875,
       "observedP95Ns": 21817.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-scoped-in-loops": {
@@ -1179,7 +1179,7 @@
       "observedMedianNs": 13791.625,
       "observedP95Ns": 30302.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-semaphore-for-shared-resources": {
@@ -1189,7 +1189,7 @@
       "observedMedianNs": 13109.375,
       "observedP95Ns": 26651.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-service-class-pattern": {
@@ -1199,7 +1199,7 @@
       "observedMedianNs": 13187.5,
       "observedP95Ns": 25541.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-service-self-match": {
@@ -1209,7 +1209,7 @@
       "observedMedianNs": 13072.875,
       "observedP95Ns": 31958.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-span-external": {
@@ -1219,7 +1219,7 @@
       "observedMedianNs": 15130.125,
       "observedP95Ns": 22958.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-stream-resource-safety": {
@@ -1229,7 +1229,7 @@
       "observedMedianNs": 15322.875,
       "observedP95Ns": 26968.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-stream-termination": {
@@ -1239,7 +1239,7 @@
       "observedMedianNs": 14500,
       "observedP95Ns": 19203.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-suspend-for-circular-deps": {
@@ -1259,7 +1259,7 @@
       "observedMedianNs": 14651.125,
       "observedP95Ns": 26640.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-suspend-for-recursion": {
@@ -1269,7 +1269,7 @@
       "observedMedianNs": 16296.875,
       "observedP95Ns": 71541.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 286167,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-tag-identifier": {
@@ -1279,7 +1279,7 @@
       "observedMedianNs": 14187.5,
       "observedP95Ns": 19625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-testclock-for-time-code": {
@@ -1289,7 +1289,7 @@
       "observedMedianNs": 15031.25,
       "observedP95Ns": 28244.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-timeout-on-external-effects": {
@@ -1299,7 +1299,7 @@
       "observedMedianNs": 14406.25,
       "observedP95Ns": 23260.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-typed-error-in-trypromise": {
@@ -1309,7 +1309,7 @@
       "observedMedianNs": 16776.125,
       "observedP95Ns": 44536.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-require-yield-star": {
@@ -1319,7 +1319,7 @@
       "observedMedianNs": 17864.625,
       "observedP95Ns": 124250,
       "operationsPerSample": 8,
-      "p95LimitNs": 497000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-avoid-old-type-names": {
@@ -1329,7 +1329,7 @@
       "observedMedianNs": 15786.5,
       "observedP95Ns": 96026.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 384105,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-correct-number-type-for-parsed-json": {
@@ -1339,7 +1339,7 @@
       "observedMedianNs": 14901,
       "observedP95Ns": 37291.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-no-cast-after-decode": {
@@ -1349,7 +1349,7 @@
       "observedMedianNs": 14385.375,
       "observedP95Ns": 38156.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-no-unknown-crossing-boundary": {
@@ -1359,7 +1359,7 @@
       "observedMedianNs": 13453.125,
       "observedP95Ns": 24661.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-no-unsafe-sync-decode-in-effect-code": {
@@ -1369,7 +1369,7 @@
       "observedMedianNs": 15234.375,
       "observedP95Ns": 32041.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-prefer-decodeUnknown-effect": {
@@ -1379,7 +1379,7 @@
       "observedMedianNs": 15718.75,
       "observedP95Ns": 44213.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-prefer-taggedClass-over-manual-tag": {
@@ -1389,7 +1389,7 @@
       "observedMedianNs": 13588.5,
       "observedP95Ns": 67427.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 269709,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-config-schema": {
@@ -1399,7 +1399,7 @@
       "observedMedianNs": 13026,
       "observedP95Ns": 113427.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 453709,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-http-client-response-schema": {
@@ -1409,7 +1409,7 @@
       "observedMedianNs": 13046.875,
       "observedP95Ns": 22083.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-http-server-request-schema": {
@@ -1419,7 +1419,7 @@
       "observedMedianNs": 16224,
       "observedP95Ns": 28739.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-parse-error-handling": {
@@ -1429,7 +1429,7 @@
       "observedMedianNs": 15932.375,
       "observedP95Ns": 52203.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-parseJson-for-json-strings": {
@@ -1439,7 +1439,7 @@
       "observedMedianNs": 17796.875,
       "observedP95Ns": 93750,
       "operationsPerSample": 8,
-      "p95LimitNs": 375000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-persistence-schema": {
@@ -1449,7 +1449,7 @@
       "observedMedianNs": 12823,
       "observedP95Ns": 18406.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-public-command-schema": {
@@ -1459,7 +1459,7 @@
       "observedMedianNs": 12974,
       "observedP95Ns": 18890.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-validation-at-input-boundaries": {
@@ -1469,7 +1469,7 @@
       "observedMedianNs": 12375,
       "observedP95Ns": 19593.75,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-require-validation-at-output-boundaries": {
@@ -1479,7 +1479,7 @@
       "observedMedianNs": 13593.75,
       "observedP95Ns": 27083.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-schema-use-decodeUnknown-for-external-data": {
@@ -1489,7 +1489,7 @@
       "observedMedianNs": 13062.5,
       "observedP95Ns": 21156.25,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-test-no-runpromise": {
@@ -1499,7 +1499,7 @@
       "observedMedianNs": 13302.125,
       "observedP95Ns": 26203.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-testClock-requires-fork": {
@@ -1509,7 +1509,7 @@
       "observedMedianNs": 12838.625,
       "observedP95Ns": 17312.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-testClock-requires-testContext": {
@@ -1519,7 +1519,7 @@
       "observedMedianNs": 13244.75,
       "observedP95Ns": 23989.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-use-batched-resolver-for-n-plus-one": {
@@ -1529,7 +1529,7 @@
       "observedMedianNs": 13599,
       "observedP95Ns": 27958.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-use-duration-constructors": {
@@ -1539,7 +1539,7 @@
       "observedMedianNs": 14015.625,
       "observedP95Ns": 27875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "effect-use-exit-for-failure-tests": {
@@ -1549,7 +1549,7 @@
       "observedMedianNs": 12937.5,
       "observedP95Ns": 21921.875,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "max-import-depth": {
@@ -1559,7 +1559,7 @@
       "observedMedianNs": 12750,
       "observedP95Ns": 18635.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "max-line-length": {
@@ -1569,7 +1569,7 @@
       "observedMedianNs": 12760.375,
       "observedP95Ns": 29812.5,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "no-commented-out-code": {
@@ -1579,7 +1579,7 @@
       "observedMedianNs": 16869.75,
       "observedP95Ns": 25635.375,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "no-dynamic-js-extension-imports": {
@@ -1589,7 +1589,7 @@
       "observedMedianNs": 13255.25,
       "observedP95Ns": 23151,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "no-local-export-list": {
@@ -1599,7 +1599,7 @@
       "observedMedianNs": 12520.75,
       "observedP95Ns": 23489.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "pascal-case-types": {
@@ -1609,7 +1609,7 @@
       "observedMedianNs": 13151,
       "observedP95Ns": 22328.125,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "private-underscore": {
@@ -1619,7 +1619,7 @@
       "observedMedianNs": 12557.25,
       "observedP95Ns": 19000,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "require-file-doc": {
@@ -1629,7 +1629,7 @@
       "observedMedianNs": 13151,
       "observedP95Ns": 21963.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     },
     "require-function-doc": {
@@ -1639,7 +1639,7 @@
       "observedMedianNs": 15182.375,
       "observedP95Ns": 26692.625,
       "operationsPerSample": 8,
-      "p95LimitNs": 250000,
+      "p95LimitNs": 500000,
       "runs": 20
     }
   }

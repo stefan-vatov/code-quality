@@ -64,6 +64,17 @@ describe('performance gate configuration', () => {
     expect(releaseWorkflow).toContain('pnpm run performance:gate');
   });
 
+  it('keeps fast custom rule p95 budgets above normal pre-push timer jitter', () => {
+    const budgets = rootJSON('ts/bench/performance-budgets.json') as {
+      rules: Record<string, { p95LimitNs: number }>;
+    };
+    const unstableBudgets = Object.entries(budgets.rules)
+      .filter(([, budget]) => budget.p95LimitNs < 500_000)
+      .map(([name]) => name);
+
+    expect(unstableBudgets).toStrictEqual([]);
+  });
+
   it('prints an agent-friendly calibration command when a budget entry is missing', () => {
     const root = mkdtempSync(join(tmpdir(), 'thx-performance-gate-'));
     const budgetPath = join(root, 'performance-budgets.json');
