@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*        Branch-initializer repairs for the no-ternary codemod only.         */
 /* -------------------------------------------------------------------------- */
+import { Array, Option, Predicate, pipe } from 'effect';
 import type {
   AssignmentExpression,
   Expression,
@@ -40,27 +41,25 @@ interface BranchReplacementInput {
 const INDENT_STEP = '  ';
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
 const sourceForNode = (source: string, node: unknown): string =>
   source.slice(nodeStart(node), nodeEnd(node));
@@ -96,62 +95,75 @@ const lineIndent = (source: string, index: number): string => {
   return source.slice(lineStart, cursor);
 };
 
-const primitiveTypeOf = (expression: Expression): string | undefined => {
-  if (expression.type === 'StringLiteral') {
-    return 'string';
-  }
-  if (expression.type === 'NumericLiteral') {
-    return 'number';
-  }
-  if (expression.type === 'BooleanLiteral') {
-    return 'boolean';
-  }
-  if (expression.type === 'NullLiteral') {
-    return 'null';
-  }
-  return undefined;
-};
+const primitiveTypeOf = (expression: Expression): string | undefined =>
+  pipe(
+    Option.some(expression.type),
+    Option.flatMap((type) => {
+      if (type === 'StringLiteral') {
+        return Option.some('string');
+      }
+      if (type === 'NumericLiteral') {
+        return Option.some('number');
+      }
+      if (type === 'BooleanLiteral') {
+        return Option.some('boolean');
+      }
+      if (type === 'NullLiteral') {
+        return Option.some('null');
+      }
+      return Option.none<string>();
+    }),
+    Option.getOrUndefined,
+  );
 
-const declaredTypeText = (source: string, declaration: VariableDeclarator): string | undefined => {
-  if (!isIdentifier(declaration.id) || !declaration.id.typeAnnotation) {
-    return undefined;
-  }
-  const raw = sourceForNode(source, declaration.id.typeAnnotation).trim();
-  if (raw.startsWith(':')) {
-    return raw.slice(1).trim();
-  }
-  return raw;
-};
+const declaredTypeText = (source: string, declaration: VariableDeclarator): string | undefined =>
+  pipe(
+    Option.some(declaration.id),
+    Option.filter(isIdentifier),
+    Option.flatMapNullable((identifier) => identifier.typeAnnotation),
+    Option.map((annotation): string => {
+      const raw = sourceForNode(source, annotation).trim();
+      if (raw.startsWith(':')) {
+        return raw.slice(1).trim();
+      }
+      return raw;
+    }),
+    Option.getOrUndefined,
+  );
 
 const initializerReturnType = (
   source: string,
   declaration: VariableDeclarator,
   whenTrue: Expression,
   whenFalse: Expression,
-): string | undefined => {
-  const declared = declaredTypeText(source, declaration);
-  if (declared) {
-    return declared;
-  }
-
-  const trueType = primitiveTypeOf(whenTrue);
-  const falseType = primitiveTypeOf(whenFalse);
-  if (trueType && trueType === falseType) {
-    return trueType;
-  }
-  return undefined;
-};
+): string | undefined =>
+  pipe(
+    Option.fromNullable(declaredTypeText(source, declaration)),
+    Option.orElse(() =>
+      pipe(
+        Option.all({
+          falseType: Option.fromNullable(primitiveTypeOf(whenFalse)),
+          trueType: Option.fromNullable(primitiveTypeOf(whenTrue)),
+        }),
+        Option.filter(({ falseType, trueType }): boolean => trueType === falseType),
+        Option.map(({ trueType }): string => trueType),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const optionalTypeText = (
   source: string,
   declaration: VariableDeclarator,
   returnType: string,
-): string => {
-  if (declaredTypeText(source, declaration)) {
-    return `: ${returnType}`;
-  }
-  return '';
-};
+): string =>
+  pipe(
+    Option.fromNullable(declaredTypeText(source, declaration)),
+    Option.match({
+      onNone: (): string => '',
+      onSome: (): string => `: ${returnType}`,
+    }),
+  );
 
 const branchInitializerText = (input: BranchTextInput): string => {
   const bodyIndent = `${input.indent}${INDENT_STEP}`;
@@ -166,42 +178,41 @@ const branchInitializerText = (input: BranchTextInput): string => {
   ].join('\n');
 };
 
-const statementFromBlock = (statement: Statement): Statement | undefined => {
-  if (!isObjectRecord(statement) || statement.type !== 'BlockStatement') {
-    return undefined;
-  }
-  const { body } = statement;
-  if (!Array.isArray(body) || body.length !== 1 || !isStatement(body[0])) {
-    return undefined;
-  }
-  return body[0];
-};
+const statementFromBlock = (statement: Statement): Statement | undefined =>
+  pipe(
+    Option.some(statement as unknown),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'BlockStatement'),
+    Option.flatMapNullable((value) => value.body),
+    Option.filter(globalThis.Array.isArray),
+    Option.filter((body): boolean => body.length === 1),
+    Option.flatMap(Array.head),
+    Option.filter(isStatement),
+    Option.getOrUndefined,
+  );
 
 const normalizedStatement = (statement: Statement): Statement | undefined =>
   statementFromBlock(statement) ?? statement;
 
-const assignmentExpression = (
-  statement: Statement | undefined,
-): AssignmentExpression | undefined => {
-  if (!isObjectRecord(statement) || statement.type !== 'ExpressionStatement') {
-    return undefined;
-  }
-  const { expression } = statement;
-  if (!isAssignmentExpression(expression)) {
-    return undefined;
-  }
-  if (expression.operator !== '=') {
-    return undefined;
-  }
-  return expression;
-};
+const assignmentExpression = (statement: Statement | undefined): AssignmentExpression | undefined =>
+  pipe(
+    Option.fromNullable(statement as unknown),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'ExpressionStatement'),
+    Option.flatMapNullable((value) => value.expression),
+    Option.filter(isAssignmentExpression),
+    Option.filter((expression): boolean => expression.operator === '='),
+    Option.getOrUndefined,
+  );
 
 const assignedExpression = (statement: Statement, name: string): Expression | undefined => {
   const expression = assignmentExpression(normalizedStatement(statement));
-  if (!expression || !isIdentifier(expression.left) || expression.left.name !== name) {
-    return undefined;
-  }
-  return expression.right;
+  return pipe(
+    Option.fromNullable(expression),
+    Option.filter((value): boolean => isIdentifier(value.left) && value.left.name === name),
+    Option.map((value): Expression => value.right),
+    Option.getOrUndefined,
+  );
 };
 
 interface WriteSearch {
@@ -220,12 +231,18 @@ const writesIdentifierInRecord = (node: Record<string, unknown>, search: WriteSe
   if (node.type === 'UpdateExpression' && isIdentifier(node.argument)) {
     return node.argument.name === search.name;
   }
-  return Object.values(node).some((value) => writesIdentifierInValue(value, search));
+  return pipe(
+    Object.values(node),
+    Array.some((value): boolean => writesIdentifierInValue(value, search)),
+  );
 };
 
 const writesIdentifierInValue = (node: unknown, search: WriteSearch): boolean => {
-  if (Array.isArray(node)) {
-    return node.some((entry) => writesIdentifierInValue(entry, search));
+  if (globalThis.Array.isArray(node)) {
+    return pipe(
+      node,
+      Array.some((entry): boolean => writesIdentifierInValue(entry, search)),
+    );
   }
   if (!isObjectRecord(node)) {
     return false;
@@ -240,49 +257,63 @@ const hasLaterWrite = (
   statements: readonly Statement[],
   startIndex: number,
   name: string,
-): boolean => {
-  for (let idx = startIndex; idx < statements.length; idx += 1) {
-    if (writesIdentifier(statements[idx], name)) {
-      return true;
-    }
-  }
-  return false;
-};
+): boolean =>
+  pipe(
+    statements,
+    Array.drop(startIndex),
+    Array.some((statement): boolean => writesIdentifier(statement, name)),
+  );
 
 const branchAssignmentExpressions = (
   ifStatement: IfStatement,
   declaration: VariableDeclarator,
-): { name: string; whenFalse: Expression; whenTrue: Expression } | undefined => {
-  if (!isIdentifier(declaration.id) || !ifStatement.alternate) {
-    return undefined;
-  }
-  const { name } = declaration.id;
-  const whenTrue = assignedExpression(ifStatement.consequent, name);
-  const whenFalse = assignedExpression(ifStatement.alternate, name);
-  if (!whenTrue || !whenFalse) {
-    return undefined;
-  }
-  return { name, whenFalse, whenTrue };
-};
+): { name: string; whenFalse: Expression; whenTrue: Expression } | undefined =>
+  pipe(
+    Option.all({
+      alternate: Option.fromNullable(ifStatement.alternate),
+      identifier: pipe(Option.some(declaration.id), Option.filter(isIdentifier)),
+    }),
+    Option.flatMap(({ alternate, identifier }) =>
+      pipe(
+        Option.all({
+          whenFalse: Option.fromNullable(assignedExpression(alternate, identifier.name)),
+          whenTrue: Option.fromNullable(
+            assignedExpression(ifStatement.consequent, identifier.name),
+          ),
+        }),
+        Option.map(({ whenFalse, whenTrue }) => ({
+          name: identifier.name,
+          whenFalse,
+          whenTrue,
+        })),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const declarationKeyword = (
   statements: readonly Statement[],
   index: number,
   name: string,
-): 'const' | 'let' => {
-  if (hasLaterWrite(statements, index + 2, name)) {
-    return 'let';
-  }
-  return 'const';
-};
+): 'const' | 'let' =>
+  pipe(
+    Option.some(hasLaterWrite(statements, index + 2, name)),
+    Option.filter(Boolean),
+    Option.match({
+      onNone: (): 'const' => 'const',
+      onSome: (): 'let' => 'let',
+    }),
+  );
 
-const singleEmptyDeclarator = (node: VariableDeclaration): VariableDeclarator | undefined => {
-  const [declaration] = node.declarations;
-  if (node.declarations.length !== 1 || !isVariableDeclarator(declaration) || declaration.init) {
-    return undefined;
-  }
-  return declaration;
-};
+const singleEmptyDeclarator = (node: VariableDeclaration): VariableDeclarator | undefined =>
+  pipe(
+    node.declarations,
+    Option.liftPredicate((declarations): boolean => declarations.length === 1),
+    Option.flatMap(Array.head),
+    Option.filter(isVariableDeclarator),
+    Option.filter((declaration): boolean => !declaration.init),
+    Option.getOrUndefined,
+  );
 
 const branchInitializerReplacement = (
   source: string,
@@ -291,52 +322,65 @@ const branchInitializerReplacement = (
 ): Replacement | undefined => {
   const declarationStatement = statements[index];
   const ifStatement = statements[index + 1];
-  if (!isVariableDeclaration(declarationStatement) || !isIfStatement(ifStatement)) {
-    return undefined;
-  }
-  const declaration = singleEmptyDeclarator(declarationStatement);
-  if (!declaration) {
-    return undefined;
-  }
-  return replacementFromBranches({
-    declaration,
-    declarationStatement,
-    ifStatement,
-    index,
-    source,
-    statements,
-  });
+  return pipe(
+    Option.all({
+      declarationStatement: pipe(
+        Option.fromNullable(declarationStatement),
+        Option.filter(isVariableDeclaration),
+      ),
+      ifStatement: pipe(Option.fromNullable(ifStatement), Option.filter(isIfStatement)),
+    }),
+    Option.flatMap(
+      ({ declarationStatement: checkedDeclarationStatement, ifStatement: checkedIfStatement }) =>
+        pipe(
+          Option.fromNullable(singleEmptyDeclarator(checkedDeclarationStatement)),
+          Option.flatMap((declaration) =>
+            Option.fromNullable(
+              replacementFromBranches({
+                declaration,
+                declarationStatement: checkedDeclarationStatement,
+                ifStatement: checkedIfStatement,
+                index,
+                source,
+                statements,
+              }),
+            ),
+          ),
+        ),
+    ),
+    Option.getOrUndefined,
+  );
 };
 
 const replacementFromBranches = (input: BranchReplacementInput): Replacement | undefined => {
   const { declaration, declarationStatement, ifStatement, source } = input;
-  const branches = branchAssignmentExpressions(ifStatement, declaration);
-  if (!branches) {
-    return undefined;
-  }
-  const returnType = initializerReturnType(
-    source,
-    declaration,
-    branches.whenTrue,
-    branches.whenFalse,
+  return pipe(
+    Option.fromNullable(branchAssignmentExpressions(ifStatement, declaration)),
+    Option.flatMap((branches) =>
+      pipe(
+        Option.fromNullable(
+          initializerReturnType(source, declaration, branches.whenTrue, branches.whenFalse),
+        ),
+        Option.map(
+          (returnType): Replacement => ({
+            end: nodeEnd(ifStatement),
+            start: nodeStart(declarationStatement),
+            text: branchInitializerText({
+              condition: sourceForNode(source, ifStatement.test),
+              falseText: sourceForNode(source, branches.whenFalse),
+              indent: lineIndent(source, nodeStart(declarationStatement)),
+              keyword: declarationKeyword(input.statements, input.index, branches.name),
+              name: branches.name,
+              returnType,
+              trueText: sourceForNode(source, branches.whenTrue),
+              typeText: optionalTypeText(source, declaration, returnType),
+            }),
+          }),
+        ),
+      ),
+    ),
+    Option.getOrUndefined,
   );
-  if (!returnType) {
-    return undefined;
-  }
-  return {
-    end: nodeEnd(ifStatement),
-    start: nodeStart(declarationStatement),
-    text: branchInitializerText({
-      condition: sourceForNode(source, ifStatement.test),
-      falseText: sourceForNode(source, branches.whenFalse),
-      indent: lineIndent(source, nodeStart(declarationStatement)),
-      keyword: declarationKeyword(input.statements, input.index, branches.name),
-      name: branches.name,
-      returnType,
-      trueText: sourceForNode(source, branches.whenTrue),
-      typeText: optionalTypeText(source, declaration, returnType),
-    }),
-  };
 };
 
 /**
@@ -349,11 +393,22 @@ export const collectBranchInitializerRepairs = (
   statements: readonly Statement[],
   replacements: Replacement[],
 ): void => {
-  for (let idx = 0; idx < statements.length - 1; idx += 1) {
-    const replacement = branchInitializerReplacement(source, statements, idx);
-    if (replacement) {
-      replacements.push(replacement);
-      idx += 1;
-    }
-  }
+  pipe(
+    Array.range(0, Math.max(0, statements.length - 2)),
+    Array.reduce(0, (skipUntil, idx): number => {
+      if (idx < skipUntil) {
+        return skipUntil;
+      }
+      return pipe(
+        Option.fromNullable(branchInitializerReplacement(source, statements, idx)),
+        Option.match({
+          onNone: (): number => skipUntil,
+          onSome: (replacement): number => {
+            replacements.push(replacement);
+            return idx + 2;
+          },
+        }),
+      );
+    }),
+  );
 };
