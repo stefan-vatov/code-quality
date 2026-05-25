@@ -1,4 +1,6 @@
-/** @internal Repository dogfooding Oxlint config for The Thracian TypeScript package. */
+/* -------------------------------------------------------------------------- */
+/* Repository Oxlint configuration using the published TypeScript package.    */
+/* -------------------------------------------------------------------------- */
 import theThracian from '@thethracian/oxlint-config';
 
 const config = theThracian({
@@ -11,7 +13,7 @@ const config = theThracian({
   typeAware: true,
 });
 
-const dogfoodConfig = {
+const repositoryConfig = {
   ...config,
   ignorePatterns: [
     '**/node_modules/**',
@@ -39,4 +41,4 @@ const dogfoodConfig = {
   },
 };
 
-export default dogfoodConfig;
+export default repositoryConfig;

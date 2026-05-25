@@ -57,21 +57,33 @@ describe('quality threshold configuration', () => {
     expect(offenders).toStrictEqual([]);
   });
 
-  it('dogfoods the published TypeScript package entrypoint without local dist imports', () => {
+  it('uses the published TypeScript package entrypoint like a consumer project', () => {
     const packageJSON = rootJSON('package.json');
     const oxlintConfig = rootText('oxlint.config.mjs');
 
-    expect(packageJSON.devDependencies['@thethracian/oxlint-config']).toBe('workspace:*');
+    expect(packageJSON.devDependencies['@thethracian/oxlint-config']).toBe(
+      'npm:@thethracian/oxlint-config@0.3.0',
+    );
     expect(oxlintConfig).toContain("from '@thethracian/oxlint-config'");
+    expect(oxlintConfig).not.toMatch(/workspace copy|local dist/u);
     expect(oxlintConfig).not.toContain('./ts/dist');
   });
 
-  it('builds the workspace package before staged Oxlint package imports', () => {
+  it('uses the published package CLI and Oxlint directly for staged TypeScript fixes', () => {
     const packageJSON = rootJSON('package.json');
     const typeScriptCommands = packageJSON['lint-staged']['*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'];
 
-    expect(typeScriptCommands[0]).toContain("sh -c 'pnpm --dir ts build && oxlint");
-    expect(typeScriptCommands[0]).toContain('"$@"');
+    expect(packageJSON.scripts['codemod:ts']).toBe('thx-codemod-fix ts/src');
+    expect(packageJSON.scripts.lint).toBe('oxlint -c oxlint.config.mjs ts');
+    expect(packageJSON.scripts['lint:type-aware']).toBe(
+      'oxlint -c oxlint.config.mjs ts --type-aware --type-check',
+    );
+    expect(typeScriptCommands).toStrictEqual([
+      'thx-codemod-fix',
+      'oxlint -c oxlint.config.mjs --type-aware --type-check --fix --no-error-on-unmatched-pattern',
+      'thx-codemod-fix',
+      'oxfmt',
+    ]);
   });
 
   it('documents a clean consumer lint-staged setup for packaged TypeScript fixes', () => {
@@ -91,12 +103,10 @@ describe('quality threshold configuration', () => {
     );
   });
 
-  it('keeps published TypeScript README focused on consumers, not monorepo dogfooding', () => {
+  it('keeps published TypeScript README focused on consumers, not repository internals', () => {
     const readme = rootText('ts/README.md');
 
-    expect(readme).not.toMatch(
-      /dogfood|workspace copy|monorepo has an extra local package build step/u,
-    );
+    expect(readme).not.toMatch(/workspace copy|monorepo has an extra local package build step/u);
   });
 
   it('enforces coverage watermarks for the TypeScript package source', () => {
