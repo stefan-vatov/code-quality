@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - 2026-05-25
+
+### Changes
+
+- chore(ts): consume published oxlint config (#8) (5a1b72a)
+
 ## 0.3.0 - 2026-05-25
 
 ### Features
