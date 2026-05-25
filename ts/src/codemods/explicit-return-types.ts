@@ -11,6 +11,7 @@ import type {
   Node,
   ObjectMethod,
 } from 'jscodeshift';
+import { Array, HashMap, Option, Order, Predicate, pipe } from 'effect';
 import jscodeshift from 'jscodeshift';
 
 interface Replacement {
@@ -39,36 +40,36 @@ const IS_PREFIX_LENGTH = 2;
 const SHOULD_PREFIX_LENGTH = 6;
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
-  [...replacements]
-    .sort((left, right) => right.start - left.start)
-    .reduce(
+  pipe(
+    replacements,
+    Array.sortWith((replacement) => -replacement.start, Order.number),
+    Array.reduce(
+      source,
       (current, replacement) =>
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
-      source,
-    );
+    ),
+  );
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
 const sourceForNode = (source: string, node: unknown): string =>
   source.slice(nodeStart(node), nodeEnd(node));
@@ -106,14 +107,18 @@ const hasDirectReturnValueInRecord = (
   if (value.type === 'ReturnStatement' && value.argument) {
     return true;
   }
-  return Object.values(value).some((entry): boolean =>
-    hasDirectReturnValue(entry, nestedSearch(search)),
+  return pipe(
+    Object.values(value),
+    Array.some((entry): boolean => hasDirectReturnValue(entry, nestedSearch(search))),
   );
 };
 
 const hasDirectReturnValue = (value: unknown, search: ReturnSearch): boolean => {
-  if (Array.isArray(value)) {
-    return value.some((entry): boolean => hasDirectReturnValue(entry, nestedSearch(search)));
+  if (globalThis.Array.isArray(value)) {
+    return pipe(
+      value,
+      Array.some((entry): boolean => hasDirectReturnValue(entry, nestedSearch(search))),
+    );
   }
   if (!isObjectRecord(value)) {
     return false;
@@ -129,42 +134,44 @@ const isAsync = (node: FunctionLike): boolean => node.async === true;
 const isIdentifier = (node: unknown): node is Identifier =>
   isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
 
-const objectPropertyName = (node: unknown): string | undefined => {
-  if (!isObjectRecord(node) || node.type !== 'ObjectProperty') {
-    return undefined;
-  }
-  const { key } = node;
-  if (isIdentifier(key)) {
-    return key.name;
-  }
-  if (isObjectRecord(key) && key.type === 'StringLiteral' && typeof key.value === 'string') {
-    return key.value;
-  }
-  return undefined;
-};
+const objectPropertyName = (node: unknown): string | undefined =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'ObjectProperty'),
+    Option.flatMapNullable((value) => value.key),
+    Option.flatMap((key) => {
+      if (isIdentifier(key)) {
+        return Option.some(key.name);
+      }
+      if (isObjectRecord(key) && key.type === 'StringLiteral' && typeof key.value === 'string') {
+        return Option.some(key.value);
+      }
+      return Option.none<string>();
+    }),
+    Option.getOrUndefined,
+  );
 
-const objectPropertyValue = (node: unknown): FunctionLike | undefined => {
-  if (!isObjectRecord(node)) {
-    return undefined;
-  }
-  const { value } = node;
-  if (isFunctionLikeNode(value)) {
-    return value;
-  }
-  return undefined;
-};
+const objectPropertyValue = (node: unknown): FunctionLike | undefined =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.value),
+    Option.filter(isFunctionLikeNode),
+    Option.getOrUndefined,
+  );
 
 const functionKey = (node: FunctionLike): string => `${nodeStart(node)}:${nodeEnd(node)}`;
 
-const collectObjectPropertyNames = (source: string): ReadonlyMap<string, string> => {
-  const names = new Map<string, string>();
+const collectObjectPropertyNames = (source: string): HashMap.HashMap<string, string> => {
+  let names = HashMap.empty<string, string>();
   codemodAPI(source)
     .find(codemodAPI.ObjectProperty)
     .forEach((path): void => {
       const value = objectPropertyValue(path.value);
       const name = objectPropertyName(path.value);
       if (value && name) {
-        names.set(functionKey(value), name);
+        names = HashMap.set(names, functionKey(value), name);
       }
     });
   return names;
@@ -181,22 +188,22 @@ const startsWithPredicatePrefix = (text: string): boolean =>
   (text.startsWith('should') && hasUppercaseAt(text, SHOULD_PREFIX_LENGTH)) ||
   (text.startsWith('can') && hasUppercaseAt(text, CAN_PREFIX_LENGTH));
 
-const isPredicateCall = (expression: unknown): boolean => {
-  if (!isObjectRecord(expression)) {
-    return false;
-  }
-  const { callee } = expression;
-  if (!isObjectRecord(callee)) {
-    return false;
-  }
-  if (callee.type === 'MemberExpression' && isIdentifier(callee.property)) {
-    return callee.property.name === 'test';
-  }
-  if (callee.type === 'Identifier' && typeof callee.name === 'string') {
-    return startsWithPredicatePrefix(callee.name);
-  }
-  return false;
-};
+const isPredicateCall = (expression: unknown): boolean =>
+  pipe(
+    Option.some(expression),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.callee),
+    Option.filter(isObjectRecord),
+    Option.exists((callee): boolean => {
+      if (callee.type === 'MemberExpression' && isIdentifier(callee.property)) {
+        return callee.property.name === 'test';
+      }
+      if (callee.type === 'Identifier' && typeof callee.name === 'string') {
+        return startsWithPredicatePrefix(callee.name);
+      }
+      return false;
+    }),
+  );
 
 const isComparisonOperator = (operator: string): boolean =>
   operator === '===' ||
@@ -209,27 +216,23 @@ const isComparisonOperator = (operator: string): boolean =>
 const isBooleanLogicalOperator = (operator: string): boolean =>
   operator === '&&' || operator === '||';
 
-const expressionOperator = (expression: Expression): string | undefined => {
-  if (!isObjectRecord(expression)) {
-    return undefined;
-  }
-  const { operator } = expression;
-  if (typeof operator === 'string') {
-    return operator;
-  }
-  return undefined;
-};
+const expressionOperator = (expression: Expression): string | undefined =>
+  pipe(
+    Option.some(expression as unknown),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.operator),
+    Option.filter(Predicate.isString),
+    Option.getOrUndefined,
+  );
 
-const expressionSide = (expression: Expression, key: 'left' | 'right'): Expression | undefined => {
-  if (!isObjectRecord(expression)) {
-    return undefined;
-  }
-  const value = expression[key];
-  if (isExpressionLike(value)) {
-    return value;
-  }
-  return undefined;
-};
+const expressionSide = (expression: Expression, key: 'left' | 'right'): Expression | undefined =>
+  pipe(
+    Option.some(expression as unknown),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value[key]),
+    Option.filter(isExpressionLike),
+    Option.getOrUndefined,
+  );
 
 const isBooleanLogicalExpression = (expression: Expression): boolean => {
   const left = expressionSide(expression, 'left');
@@ -261,65 +264,72 @@ const isBooleanExpression = (expression: Expression): boolean => {
   return expression.type === 'CallExpression' && isPredicateCall(expression);
 };
 
-const primitiveLiteralReturnType = (expression: Expression): string | undefined => {
-  if (expression.type === 'StringLiteral') {
-    return ': string';
-  }
-  if (expression.type === 'NumericLiteral') {
-    return ': number';
-  }
-  if (expression.type === 'BooleanLiteral') {
-    return ': boolean';
-  }
-  return undefined;
-};
-
-const parameterTypeText = (source: string, parameter: Node): string | undefined => {
-  if (parameter.type !== 'Identifier' || !isObjectRecord(parameter)) {
-    return undefined;
-  }
-  const { typeAnnotation } = parameter;
-  if (!typeAnnotation) {
-    return undefined;
-  }
-  return sourceForNode(source, typeAnnotation).trim();
-};
-
-const stringParameterNames = (source: string, node: FunctionLike): Set<string> =>
-  new Set(
-    node.params.flatMap((parameter): string[] => {
-      if (isIdentifier(parameter) && parameterTypeText(source, parameter) === ': string') {
-        return [parameter.name];
+const primitiveLiteralReturnType = (expression: Expression): string | undefined =>
+  pipe(
+    Option.some(expression.type),
+    Option.flatMap((type) => {
+      if (type === 'StringLiteral') {
+        return Option.some(': string');
       }
-      return [];
+      if (type === 'NumericLiteral') {
+        return Option.some(': number');
+      }
+      if (type === 'BooleanLiteral') {
+        return Option.some(': boolean');
+      }
+      return Option.none<string>();
     }),
+    Option.getOrUndefined,
   );
 
-const stringMethodName = (expression: Expression): string | undefined => {
-  if (expression.type !== 'CallExpression' || !isObjectRecord(expression)) {
-    return undefined;
-  }
-  const { callee } = expression;
-  if (!isObjectRecord(callee) || callee.type !== 'MemberExpression') {
-    return undefined;
-  }
-  const { property } = callee;
-  if (!isIdentifier(property)) {
-    return undefined;
-  }
-  return property.name;
-};
+const parameterTypeText = (source: string, parameter: Node): string | undefined =>
+  pipe(
+    Option.some(parameter as unknown),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'Identifier'),
+    Option.flatMapNullable((value) => value.typeAnnotation),
+    Option.map((typeAnnotation): string => sourceForNode(source, typeAnnotation).trim()),
+    Option.getOrUndefined,
+  );
 
-const stringMethodReceiver = (expression: Expression): unknown => {
-  if (expression.type !== 'CallExpression' || !isObjectRecord(expression)) {
-    return undefined;
-  }
-  const { callee } = expression;
-  if (!isObjectRecord(callee) || callee.type !== 'MemberExpression') {
-    return undefined;
-  }
-  return callee.object;
-};
+const stringParameterNames = (source: string, node: FunctionLike): ReadonlySet<string> =>
+  new Set(
+    pipe(
+      node.params,
+      Array.filterMap((parameter) => {
+        if (isIdentifier(parameter) && parameterTypeText(source, parameter) === ': string') {
+          return Option.some(parameter.name);
+        }
+        return Option.none<string>();
+      }),
+    ),
+  );
+
+const stringMethodName = (expression: Expression): string | undefined =>
+  pipe(
+    Option.some(expression as unknown),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'CallExpression'),
+    Option.flatMapNullable((value) => value.callee),
+    Option.filter(isObjectRecord),
+    Option.filter((callee): boolean => callee.type === 'MemberExpression'),
+    Option.flatMapNullable((callee) => callee.property),
+    Option.filter(isIdentifier),
+    Option.map((property): string => property.name),
+    Option.getOrUndefined,
+  );
+
+const stringMethodReceiver = (expression: Expression): unknown =>
+  pipe(
+    Option.some(expression as unknown),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'CallExpression'),
+    Option.flatMapNullable((value) => value.callee),
+    Option.filter(isObjectRecord),
+    Option.filter((callee): boolean => callee.type === 'MemberExpression'),
+    Option.flatMapNullable((callee) => callee.object),
+    Option.getOrUndefined,
+  );
 
 const isStringReturningMethod = (name: string | undefined): boolean =>
   name === 'slice' || name === 'toLowerCase' || name === 'toUpperCase' || name === 'trim';
@@ -328,41 +338,60 @@ const stringMethodReturnType = (
   source: string,
   node: FunctionLike,
   expression: Expression,
-): string | undefined => {
-  if (!isStringReturningMethod(stringMethodName(expression))) {
-    return undefined;
-  }
-  const object = stringMethodReceiver(expression);
-  if (isIdentifier(object) && stringParameterNames(source, node).has(object.name)) {
-    return ': string';
-  }
-  return undefined;
-};
+): string | undefined =>
+  pipe(
+    Option.some(expression),
+    Option.filter((value): boolean => isStringReturningMethod(stringMethodName(value))),
+    Option.flatMap((value) =>
+      pipe(
+        Option.some(stringMethodReceiver(value)),
+        Option.filter(isIdentifier),
+        Option.filter((object): boolean => stringParameterNames(source, node).has(object.name)),
+        Option.map((): string => ': string'),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const singleReturnExpression = (node: FunctionLike): Expression | undefined => {
   if (node.type === 'ArrowFunctionExpression' && node.body.type !== 'BlockStatement') {
     return node.body;
   }
-  if (node.body.type !== 'BlockStatement' || node.body.body.length !== 1) {
-    return undefined;
-  }
-  const [statement] = node.body.body;
-  if (statement?.type !== 'ReturnStatement') {
-    return undefined;
-  }
-  return statement.argument ?? undefined;
+  return pipe(
+    Option.some(node.body as unknown),
+    Option.filter(isObjectRecord),
+    Option.filter((body): boolean => body.type === 'BlockStatement'),
+    Option.flatMapNullable((body) => body.body),
+    Option.filter(globalThis.Array.isArray),
+    Option.filter((body): boolean => body.length === 1),
+    Option.flatMap(Array.head),
+    Option.filter(
+      (statement): boolean => isObjectRecord(statement) && statement.type === 'ReturnStatement',
+    ),
+    Option.flatMapNullable((statement) => {
+      if (isObjectRecord(statement)) {
+        return statement.argument;
+      }
+      return undefined;
+    }),
+    Option.filter(isExpressionLike),
+    Option.getOrUndefined,
+  );
 };
 
 const inferredExpressionReturnTypeText = (
   source: string,
   path: ASTPath<FunctionLike>,
-  propertyNames: ReadonlyMap<string, string>,
+  propertyNames: HashMap.HashMap<string, string>,
 ): string | undefined => {
   const expression = singleReturnExpression(path.value);
   if (!expression) {
     return undefined;
   }
-  if (propertyNames.get(functionKey(path.value)) === 'check' || isBooleanExpression(expression)) {
+  if (
+    pipe(HashMap.get(propertyNames, functionKey(path.value)), Option.contains('check')) ||
+    isBooleanExpression(expression)
+  ) {
     return ': boolean';
   }
   const primitiveType = primitiveLiteralReturnType(expression);
@@ -372,22 +401,25 @@ const inferredExpressionReturnTypeText = (
   return stringMethodReturnType(source, path.value, expression);
 };
 
-const inferredBodyReturnTypeText = (node: FunctionLike): string | undefined => {
-  if (hasReturnValue(node)) {
-    return undefined;
-  }
-  if (isAsync(node)) {
-    return ': Promise<void>';
-  }
-  return ': void';
-};
+const inferredBodyReturnTypeText = (node: FunctionLike): string | undefined =>
+  pipe(
+    Option.some(node),
+    Option.filter((value): boolean => !hasReturnValue(value)),
+    Option.map((value): string => {
+      if (isAsync(value)) {
+        return ': Promise<void>';
+      }
+      return ': void';
+    }),
+    Option.getOrUndefined,
+  );
 
 const inferredReturnTypeText = (
   source: string,
   path: ASTPath<FunctionLike>,
-  propertyNames: ReadonlyMap<string, string>,
+  propertyNames: HashMap.HashMap<string, string>,
 ): string | undefined => {
-  if (propertyNames.get(functionKey(path.value)) === 'ast') {
+  if (pipe(HashMap.get(propertyNames, functionKey(path.value)), Option.contains('ast'))) {
     return ': Record<string, (node: object) => void>';
   }
 
@@ -418,38 +450,42 @@ const arrowInsertionPoint = (source: string, node: ArrowFunctionExpression): num
   return previousNonWhitespaceIndex(source, arrowStart);
 };
 
-const insertionPoint = (source: string, node: FunctionLike): number | undefined => {
-  if (node.returnType || !node.body) {
-    return undefined;
-  }
-  if (node.type === 'ArrowFunctionExpression') {
-    return arrowInsertionPoint(source, node);
-  }
-  return previousNonWhitespaceIndex(source, nodeStart(node.body));
-};
+const insertionPoint = (source: string, node: FunctionLike): number | undefined =>
+  pipe(
+    Option.some(node),
+    Option.filter((value): boolean => !value.returnType && Boolean(value.body)),
+    Option.map((value): number => {
+      if (value.type === 'ArrowFunctionExpression') {
+        return arrowInsertionPoint(source, value);
+      }
+      return previousNonWhitespaceIndex(source, nodeStart(value.body));
+    }),
+    Option.getOrUndefined,
+  );
 
 const replacementForFunction = (
   source: string,
   path: ASTPath<FunctionLike>,
-  propertyNames: ReadonlyMap<string, string>,
-): Replacement | undefined => {
-  const start = insertionPoint(source, path.value);
-  const returnType = inferredReturnTypeText(source, path, propertyNames);
-  if (start === undefined || !returnType) {
-    return undefined;
-  }
-  return { end: start, start, text: returnType };
-};
+  propertyNames: HashMap.HashMap<string, string>,
+): Replacement | undefined =>
+  pipe(
+    Option.all({
+      returnType: Option.fromNullable(inferredReturnTypeText(source, path, propertyNames)),
+      start: Option.fromNullable(insertionPoint(source, path.value)),
+    }),
+    Option.map(({ returnType, start }): Replacement => ({ end: start, start, text: returnType })),
+    Option.getOrUndefined,
+  );
 
 const collectFunctionReplacements = (source: string): Replacement[] => {
   const replacements: Replacement[] = [];
   const propertyNames = collectObjectPropertyNames(source);
 
   const collect = (path: ASTPath<FunctionLike>): void => {
-    const replacement = replacementForFunction(source, path, propertyNames);
-    if (replacement) {
-      replacements.push(replacement);
-    }
+    pipe(
+      Option.fromNullable(replacementForFunction(source, path, propertyNames)),
+      Option.map((replacement): number => replacements.push(replacement)),
+    );
   };
 
   const root = codemodAPI(source);
