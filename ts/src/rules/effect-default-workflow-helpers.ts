@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*               Effect workflow body and recursion predicates.               */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
 import {
   effectAliasesPattern,
   effectCallBodies,
@@ -33,11 +34,12 @@ export const hasRuntimeInEffect = (source: string): boolean =>
  */
 export const hasNestedFlatMap = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  return (
-    /Effect\.flatMap\s*\([\s\S]*?=>[\s\S]*?\.pipe\s*\(\s*Effect\.flatMap/s.test(code) ||
-    /Effect\.flatMap\s*\([^,]+,\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>[\s\S]*?Effect\.flatMap\s*\(/s.test(
-      code,
-    )
+  return pipe(
+    [
+      /Effect\.flatMap\s*\([\s\S]*?=>[\s\S]*?\.pipe\s*\(\s*Effect\.flatMap/s,
+      /Effect\.flatMap\s*\([^,]+,\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>[\s\S]*?Effect\.flatMap\s*\(/s,
+    ],
+    Array.some((pattern): boolean => pattern.test(code)),
   );
 };
 
@@ -48,17 +50,14 @@ export const hasNestedFlatMap = (source: string): boolean => {
  */
 export const hasUnboundedEffectConcurrency = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bEffect\.(?:forEach|all)\s*\(/g)) {
-    if (
+  return pipe(
+    Array.fromIterable(code.matchAll(/\bEffect\.(?:forEach|all)\s*\(/g)),
+    Array.some((match): boolean =>
       /\{[\s\S]*?\bconcurrency\s*:\s*['"]unbounded['"]/.test(
         strippedCallSegment(source, match.index),
-      )
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+      ),
+    ),
+  );
 };
 
 /**
@@ -68,17 +67,14 @@ export const hasUnboundedEffectConcurrency = (source: string): boolean => {
  */
 export const hasUnboundedFlatMapConcurrency = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bEffect\.flatMap\s*\(/g)) {
-    if (
+  return pipe(
+    Array.fromIterable(code.matchAll(/\bEffect\.flatMap\s*\(/g)),
+    Array.some((match): boolean =>
       /\{[\s\S]*?\bconcurrency\s*:\s*['"]unbounded['"]/.test(
         strippedCallSegment(source, match.index),
-      )
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+      ),
+    ),
+  );
 };
 
 /**
@@ -88,35 +84,34 @@ export const hasUnboundedFlatMapConcurrency = (source: string): boolean => {
  */
 export const hasParsedJSONNumberFromString = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bJSON\.parse\s*\(/g)) {
-    const statementStart = Math.max(
-      code.lastIndexOf(';', match.index) + 1,
-      code.lastIndexOf('\n', match.index) + 1,
-    );
-    const statementEnd = findStatementEnd(code, statementStart);
-    if (
-      /\b(?:[A-Za-z_$][\w$]*NumberFromString|Schema\.NumberFromString)\b/.test(
+  return pipe(
+    Array.fromIterable(code.matchAll(/\bJSON\.parse\s*\(/g)),
+    Array.some((match): boolean => {
+      const statementStart = Math.max(
+        code.lastIndexOf(';', match.index) + 1,
+        code.lastIndexOf('\n', match.index) + 1,
+      );
+      const statementEnd = findStatementEnd(code, statementStart);
+      return /\b(?:[A-Za-z_$][\w$]*NumberFromString|Schema\.NumberFromString)\b/.test(
         code.slice(statementStart, statementEnd + 1),
-      )
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+      );
+    }),
+  );
 };
 
 const hasEffectInCallbackCall = (source: string, callPattern: RegExp): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(callPattern)) {
-    const openParenIndex = source.indexOf('(', match.index);
-    const callBody = source.slice(openParenIndex + 1, findBalancedCallEnd(source, openParenIndex));
-    if (/(?:=>|function\b)[\s\S]*?\bEffect\./.test(stripCommentsAndStrings(callBody))) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    Array.fromIterable(code.matchAll(callPattern)),
+    Array.some((match): boolean => {
+      const openParenIndex = source.indexOf('(', match.index);
+      const callBody = source.slice(
+        openParenIndex + 1,
+        findBalancedCallEnd(source, openParenIndex),
+      );
+      return /(?:=>|function\b)[\s\S]*?\bEffect\./.test(stripCommentsAndStrings(callBody));
+    }),
+  );
 };
 
 /**
@@ -144,26 +139,35 @@ export const hasReturnEffectInGen = (source: string): boolean => {
   const returnEffectPattern = new RegExp(
     `\\breturn\\s+(?:${effectAliasesPattern(source)})\\.(?!isEffect\\b|serviceFunction\\b)`,
   );
-  return effectCallBodies(source, effectCallPattern(source, 'gen')).some((body): boolean =>
-    returnEffectPattern.test(stripCommentsAndStrings(body)),
+  return pipe(
+    effectCallBodies(source, effectCallPattern(source, 'gen')),
+    Array.some((body): boolean => returnEffectPattern.test(stripCommentsAndStrings(body))),
   );
 };
 
 const yieldWithoutStarIndex = (source: string, matchIndex: number): number | undefined => {
   const openParenIndex = source.indexOf('(', matchIndex);
-  if (openParenIndex === -1) {
-    return undefined;
-  }
-
-  const bodyStart = openParenIndex + 1;
-  const body = source.slice(bodyStart, findBalancedCallEnd(source, openParenIndex));
-  const yieldMatch = /(?:^|[^\w$])(yield\s+(?!\*)[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)/.exec(
-    stripCommentsAndStrings(body),
+  return Match.value(openParenIndex).pipe(
+    Match.when(-1, (): undefined => undefined),
+    Match.orElse((parenIndex): number | undefined => {
+      const bodyStart = parenIndex + 1;
+      const body = source.slice(bodyStart, findBalancedCallEnd(source, parenIndex));
+      return pipe(
+        Option.fromNullable(
+          /(?:^|[^\w$])(yield\s+(?!\*)[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)/.exec(
+            stripCommentsAndStrings(body),
+          ),
+        ),
+        Option.flatMap((yieldMatch) =>
+          pipe(
+            Option.fromNullable(yieldMatch.index),
+            Option.map((index): number => bodyStart + index + yieldMatch[0].indexOf(yieldMatch[1])),
+          ),
+        ),
+        Option.getOrUndefined,
+      );
+    }),
   );
-  if (yieldMatch?.index === undefined) {
-    return undefined;
-  }
-  return bodyStart + yieldMatch.index + yieldMatch[0].indexOf(yieldMatch[1]);
 };
 
 /**
@@ -173,14 +177,12 @@ const yieldWithoutStarIndex = (source: string, matchIndex: number): number | und
  */
 export const hasYieldWithoutStarInGen = (source: string): boolean | number => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(effectCallPattern(source, 'gen'))) {
-    const index = yieldWithoutStarIndex(source, match.index);
-    if (index !== undefined) {
-      return index;
-    }
-  }
-
-  return false;
+  return pipe(
+    Array.fromIterable(code.matchAll(effectCallPattern(source, 'gen'))),
+    Array.findFirst((match): boolean => yieldWithoutStarIndex(source, match.index) !== undefined),
+    Option.flatMap((match) => Option.fromNullable(yieldWithoutStarIndex(source, match.index))),
+    Option.getOrElse((): false => false),
+  );
 };
 
 /**
@@ -199,10 +201,13 @@ export const hasAsyncAwaitInEffect = (source: string): boolean =>
  * @internal
  */
 export const hasSyncForPromise = (source: string): boolean =>
-  effectCallBodies(source, effectCallPattern(source, 'sync')).some((body) => {
-    const code = stripCommentsAndStrings(body);
-    return /^\s*async\b/.test(code) || /\b(?:fetch|Promise\.)\s*\(/.test(code);
-  });
+  pipe(
+    effectCallBodies(source, effectCallPattern(source, 'sync')),
+    Array.some((body): boolean => {
+      const code = stripCommentsAndStrings(body);
+      return /^\s*async\b/.test(code) || /\b(?:fetch|Promise\.)\s*\(/.test(code);
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -210,8 +215,11 @@ export const hasSyncForPromise = (source: string): boolean =>
  * @internal
  */
 export const hasSyncForThrowingOPS = (source: string): boolean =>
-  effectCallBodies(source, effectCallPattern(source, 'sync')).some((body): boolean =>
-    /\b(?:throw\b|JSON\.parse\s*\()/.test(stripCommentsAndStrings(body)),
+  pipe(
+    effectCallBodies(source, effectCallPattern(source, 'sync')),
+    Array.some((body): boolean =>
+      /\b(?:throw\b|JSON\.parse\s*\()/.test(stripCommentsAndStrings(body)),
+    ),
   );
 
 /**
@@ -230,33 +238,37 @@ const tryPromiseObjectBody = (
   start: number,
 ): { body: string; rawBody: string } | undefined => {
   const objectEnd = findMatchingBrace(code, start);
-  if (objectEnd === -1) {
-    return undefined;
-  }
-  return {
-    body: code.slice(start + 1, objectEnd),
-    rawBody: source.slice(start + 1, objectEnd),
-  };
+  return Match.value(objectEnd).pipe(
+    Match.when(-1, (): undefined => undefined),
+    Match.orElse((end): { body: string; rawBody: string } => ({
+      body: code.slice(start + 1, end),
+      rawBody: source.slice(start + 1, end),
+    })),
+  );
 };
 
 const catchTailFor = (body: string, rawBody: string): string => {
   const catchIndex = body.search(/\bcatch\s*:/);
-  if (catchIndex === -1) {
-    return '';
-  }
-  return stripComments(rawBody.slice(catchIndex));
-};
-
-const hasUnsafeTryPromiseObjectBody = (body: string, rawBody: string): boolean => {
-  if (/\btry\s*:/.test(body) && !/\bcatch\s*:/.test(body)) {
-    return true;
-  }
-  const catchTail = catchTailFor(body, rawBody);
-  return (
-    /^\s*catch\s*:[\s\S]*?=>\s*(?:new\s+Error\s*\(|['"`])/.test(catchTail) ||
-    /^\s*catch\s*:[\s\S]*?=>\s*\(\s*{(?![\s\S]*\b_tag\s*:)/.test(catchTail)
+  return Match.value(catchIndex).pipe(
+    Match.when(-1, (): string => ''),
+    Match.orElse((index): string => stripComments(rawBody.slice(index))),
   );
 };
+
+const hasUnsafeTryPromiseObjectBody = (body: string, rawBody: string): boolean =>
+  Match.value(/\btry\s*:/.test(body) && !/\bcatch\s*:/.test(body)).pipe(
+    Match.when(true, (): boolean => true),
+    Match.orElse((): boolean => {
+      const catchTail = catchTailFor(body, rawBody);
+      return pipe(
+        [
+          /^\s*catch\s*:[\s\S]*?=>\s*(?:new\s+Error\s*\(|['"`])/,
+          /^\s*catch\s*:[\s\S]*?=>\s*\(\s*{(?![\s\S]*\b_tag\s*:)/,
+        ],
+        Array.some((pattern): boolean => pattern.test(catchTail)),
+      );
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -265,71 +277,80 @@ const hasUnsafeTryPromiseObjectBody = (body: string, rawBody: string): boolean =
  */
 export const hasTryPromiseWithoutTypedCatch = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  if (/\bEffect\.tryPromise\s*\(\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(code)) {
-    return true;
-  }
-
-  for (const match of code.matchAll(/Effect\.tryPromise\s*\(\s*{/g)) {
-    const objectStart = code.indexOf('{', match.index);
-    const objectBody = tryPromiseObjectBody(code, source, objectStart);
-    if (objectBody && hasUnsafeTryPromiseObjectBody(objectBody.body, objectBody.rawBody)) {
-      return true;
-    }
-  }
-
-  return false;
+  return Match.value(
+    /\bEffect\.tryPromise\s*\(\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(code),
+  ).pipe(
+    Match.when(true, (): boolean => true),
+    Match.orElse((): boolean =>
+      pipe(
+        Array.fromIterable(code.matchAll(/Effect\.tryPromise\s*\(\s*{/g)),
+        Array.some((match): boolean => {
+          const objectStart = code.indexOf('{', match.index);
+          return pipe(
+            Option.fromNullable(tryPromiseObjectBody(code, source, objectStart)),
+            Option.exists((objectBody): boolean =>
+              hasUnsafeTryPromiseObjectBody(objectBody.body, objectBody.rawBody),
+            ),
+          );
+        }),
+      ),
+    ),
+  );
 };
 
 const hasUnsafeRecursiveBody = (name: string, body: string): boolean => {
   const code = stripCommentsAndStrings(body);
-  if (!/\bEffect\.(?:flatMap|forEach|gen)\b/.test(code)) {
-    return false;
-  }
-
-  const recursiveCallPattern = new RegExp(`\\b${name}\\s*\\(`, 'g');
-  for (const match of code.matchAll(recursiveCallPattern)) {
-    if (!isInsideCall(code, match.index, /Effect\.suspend\s*\(/g)) {
-      return true;
-    }
-  }
-
-  return false;
+  return Match.value(/\bEffect\.(?:flatMap|forEach|gen)\b/.test(code)).pipe(
+    Match.when(false, (): boolean => false),
+    Match.orElse((): boolean => {
+      const recursiveCallPattern = new RegExp(`\\b${name}\\s*\\(`, 'g');
+      return pipe(
+        Array.fromIterable(code.matchAll(recursiveCallPattern)),
+        Array.some((match): boolean => !isInsideCall(code, match.index, /Effect\.suspend\s*\(/g)),
+      );
+    }),
+  );
 };
 
-const hasUnsafeRecursiveFunction = (source: string): boolean => {
-  for (const match of source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*{/g)) {
-    const [, name] = match;
-    const bodyStart = source.indexOf('{', match.index);
-    const bodyEnd = findMatchingBrace(source, bodyStart);
-    if (bodyEnd !== -1 && hasUnsafeRecursiveBody(name, source.slice(bodyStart + 1, bodyEnd))) {
-      return true;
-    }
-  }
-  return false;
-};
+const hasUnsafeRecursiveFunction = (source: string): boolean =>
+  pipe(
+    Array.fromIterable(source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*{/g)),
+    Array.some((match): boolean => {
+      const [, name] = match;
+      const bodyStart = source.indexOf('{', match.index);
+      const bodyEnd = findMatchingBrace(source, bodyStart);
+      return bodyEnd !== -1 && hasUnsafeRecursiveBody(name, source.slice(bodyStart + 1, bodyEnd));
+    }),
+  );
 
 const recursiveArrowBody = (source: string, bodyStart: number): string => {
   const expressionEnd = source.indexOf(';', bodyStart);
-  if (source[bodyStart] === '{') {
-    return source.slice(bodyStart + 1, findMatchingBrace(source, bodyStart));
-  }
-  if (expressionEnd === -1) {
-    return source.slice(bodyStart, source.length);
-  }
-  return source.slice(bodyStart, expressionEnd);
+  return Match.value(source[bodyStart]).pipe(
+    Match.when('{', (): string =>
+      source.slice(bodyStart + 1, findMatchingBrace(source, bodyStart)),
+    ),
+    Match.orElse((): string =>
+      Match.value(expressionEnd).pipe(
+        Match.when(-1, (): string => source.slice(bodyStart, source.length)),
+        Match.orElse((end): string => source.slice(bodyStart, end)),
+      ),
+    ),
+  );
 };
 
-const hasUnsafeRecursiveArrow = (source: string): boolean => {
-  for (const match of source.matchAll(
-    /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*/g,
-  )) {
-    const [, name] = match;
-    if (hasUnsafeRecursiveBody(name, recursiveArrowBody(source, match.index + match[0].length))) {
-      return true;
-    }
-  }
-  return false;
-};
+const hasUnsafeRecursiveArrow = (source: string): boolean =>
+  pipe(
+    Array.fromIterable(
+      source.matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*/g),
+    ),
+    Array.some((match): boolean => {
+      const [, name] = match;
+      return hasUnsafeRecursiveBody(
+        name,
+        recursiveArrowBody(source, match.index + match[0].length),
+      );
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
