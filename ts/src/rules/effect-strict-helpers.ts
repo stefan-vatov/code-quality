@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*           Helper predicates for opt-in strict Effect lint rules.           */
 /* -------------------------------------------------------------------------- */
+import { Array, String, pipe } from 'effect';
 import { findStatementEnd, stripCommentsAndStrings } from './effect-source-helpers';
 import {
   lineAround,
@@ -33,26 +34,33 @@ export {
 
 const RESOURCE_CONTEXT_WINDOW = 180;
 
+const sourceIncludes =
+  (needle: string) =>
+  (source: string): boolean =>
+    pipe(source, String.includes(needle));
+
+const matchesIn = (source: string, pattern: RegExp): readonly RegExpExecArray[] =>
+  pipe(source.matchAll(pattern), Array.fromIterable);
+
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const hasOutputBoundaryWithoutSchema = (source: string): boolean => {
-  if (!source.includes('Response.json') && !source.includes('return json')) {
+  if (!sourceIncludes('Response.json')(source) && !sourceIncludes('return json')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\breturn\s+(?:Response\.json|json)\s*\(/g)) {
-    const callOffset = match[0].search(/(?:Response\.json|json)\s*\(/);
-    const segment = localEffectCallSegment(source, match.index + callOffset);
-    if (!/Schema\.(?:encode|decode)/.test(segment)) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\breturn\s+(?:Response\.json|json)\s*\(/g),
+    Array.some((match): boolean => {
+      const callOffset = match[0].search(/(?:Response\.json|json)\s*\(/);
+      const segment = localEffectCallSegment(source, match.index + callOffset);
+      return !/Schema\.(?:encode|decode)/.test(segment);
+    }),
+  );
 };
 
 /**
@@ -61,19 +69,18 @@ export const hasOutputBoundaryWithoutSchema = (source: string): boolean => {
  * @internal
  */
 export const hasHTTPClientResponseWithoutSchema = (source: string): boolean => {
-  if (!source.includes('HttpClient.') || !source.includes('response.json')) {
+  if (!sourceIncludes('HttpClient.')(source) || !sourceIncludes('response.json')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bHttpClient\.[\s\S]*?\bresponse\.json\s*\(/g)) {
-    const segment = localStatementSegment(source, match.index);
-    if (!/Schema\.decode/.test(segment)) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\bHttpClient\.[\s\S]*?\bresponse\.json\s*\(/g),
+    Array.some((match): boolean => {
+      const segment = localStatementSegment(source, match.index);
+      return !/Schema\.decode/.test(segment);
+    }),
+  );
 };
 
 /**
@@ -82,23 +89,22 @@ export const hasHTTPClientResponseWithoutSchema = (source: string): boolean => {
  * @internal
  */
 export const hasSharedResourceForEachWithoutSemaphore = (source: string): boolean => {
-  if (!source.includes('Effect.forEach')) {
+  if (!sourceIncludes('Effect.forEach')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bEffect\.forEach\s*\(/g)) {
-    const localStart = Math.max(0, match.index - RESOURCE_CONTEXT_WINDOW);
-    const segment = code.slice(localStart, findStatementEnd(code, match.index) + 1);
-    if (
-      /\b(?:pool|connection|client|browser|worker)\b/.test(segment) &&
-      !/\bSemaphore\b/.test(segment)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\bEffect\.forEach\s*\(/g),
+    Array.some((match): boolean => {
+      const localStart = Math.max(0, match.index - RESOURCE_CONTEXT_WINDOW);
+      const segment = code.slice(localStart, findStatementEnd(code, match.index) + 1);
+      return (
+        /\b(?:pool|connection|client|browser|worker)\b/.test(segment) &&
+        !/\bSemaphore\b/.test(segment)
+      );
+    }),
+  );
 };
 
 /**
@@ -107,19 +113,18 @@ export const hasSharedResourceForEachWithoutSemaphore = (source: string): boolea
  * @internal
  */
 export const hasEnsuringCleanupWithoutOnExit = (source: string): boolean => {
-  if (!source.includes('Effect.ensuring') || !source.includes('cleanup')) {
+  if (!sourceIncludes('Effect.ensuring')(source) || !sourceIncludes('cleanup')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bEffect\.ensuring\s*\(/g)) {
-    const segment = localEffectCallSegment(source, match.index);
-    if (/\bcleanup\b/.test(segment) && !/\bonExit\b/.test(segment)) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\bEffect\.ensuring\s*\(/g),
+    Array.some((match): boolean => {
+      const segment = localEffectCallSegment(source, match.index);
+      return /\bcleanup\b/.test(segment) && !/\bonExit\b/.test(segment);
+    }),
+  );
 };
 
 /**
@@ -128,19 +133,18 @@ export const hasEnsuringCleanupWithoutOnExit = (source: string): boolean => {
  * @internal
  */
 export const hasUnterminatedLongRunningStream = (source: string): boolean => {
-  if (!source.includes('Stream.')) {
+  if (!sourceIncludes('Stream.')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bStream\.(?:repeat|forever|async|fromQueue)\s*\(/g)) {
-    const segment = localEffectCallSegment(source, match.index);
-    if (!/\b(?:takeUntil|interruptWhen|timeout)\b/.test(segment)) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\bStream\.(?:repeat|forever|async|fromQueue)\s*\(/g),
+    Array.some((match): boolean => {
+      const segment = localEffectCallSegment(source, match.index);
+      return !/\b(?:takeUntil|interruptWhen|timeout)\b/.test(segment);
+    }),
+  );
 };
 
 /**
@@ -149,19 +153,18 @@ export const hasUnterminatedLongRunningStream = (source: string): boolean => {
  * @internal
  */
 export const hasAsyncPushWithoutBuffer = (source: string): boolean => {
-  if (!source.includes('Stream.asyncPush')) {
+  if (!sourceIncludes('Stream.asyncPush')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bStream\.asyncPush\s*\(/g)) {
-    const segment = localEffectCallSegment(source, match.index);
-    if (!/\b(?:buffer|Queue\.bounded|Queue\.sliding)\b/.test(segment)) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\bStream\.asyncPush\s*\(/g),
+    Array.some((match): boolean => {
+      const segment = localEffectCallSegment(source, match.index);
+      return !/\b(?:buffer|Queue\.bounded|Queue\.sliding)\b/.test(segment);
+    }),
+  );
 };
 
 /**
@@ -170,19 +173,18 @@ export const hasAsyncPushWithoutBuffer = (source: string): boolean => {
  * @internal
  */
 export const hasUnbatchedResolver = (source: string): boolean => {
-  if (!source.includes('RequestResolver.make')) {
+  if (!sourceIncludes('RequestResolver.make')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bRequestResolver\.make\s*\(/g)) {
-    const segment = localEffectCallSegment(source, match.index);
-    if (!/\b(?:makeBatched|batchN|grouped)\b/.test(segment)) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\bRequestResolver\.make\s*\(/g),
+    Array.some((match): boolean => {
+      const segment = localEffectCallSegment(source, match.index);
+      return !/\b(?:makeBatched|batchN|grouped)\b/.test(segment);
+    }),
+  );
 };
 
 /**
@@ -191,22 +193,20 @@ export const hasUnbatchedResolver = (source: string): boolean => {
  * @internal
  */
 export const hasNPlusOneWithoutBatchedResolver = (source: string): boolean => {
-  if (!source.includes('Effect.forEach')) {
+  if (!sourceIncludes('Effect.forEach')(source)) {
     return false;
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\bEffect\.forEach\s*\(/g)) {
-    const segment = localEffectCallSegment(source, match.index);
-    if (
-      /\b(?:findById|getById|loadById)\s*\(/.test(segment) &&
-      !/\bRequestResolver\b/.test(segment)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(code, /\bEffect\.forEach\s*\(/g),
+    Array.some((match): boolean => {
+      const segment = localEffectCallSegment(source, match.index);
+      return (
+        /\b(?:findById|getById|loadById)\s*\(/.test(segment) && !/\bRequestResolver\b/.test(segment)
+      );
+    }),
+  );
 };
 
 /**
@@ -215,14 +215,21 @@ export const hasNPlusOneWithoutBatchedResolver = (source: string): boolean => {
  * @internal
  */
 export const hasUnprovidedServiceInEffectTest = (source: string): boolean => {
-  if (!source.includes('Service') && !source.includes('Repo') && !source.includes('Client')) {
+  if (
+    !sourceIncludes('Service')(source) &&
+    !sourceIncludes('Repo')(source) &&
+    !sourceIncludes('Client')(source)
+  ) {
     return false;
   }
 
-  return testSegments(source).some(
-    (segment): boolean =>
-      /yield\*\s+[A-Z][\w$]*(?:Service|Repo|Client)\b/.test(segment) &&
-      !/\b(?:Effect\.)?provide[A-Za-z_$]*\s*\(/.test(segment),
+  return pipe(
+    testSegments(source),
+    Array.some(
+      (segment): boolean =>
+        /yield\*\s+[A-Z][\w$]*(?:Service|Repo|Client)\b/.test(segment) &&
+        !/\b(?:Effect\.)?provide[A-Za-z_$]*\s*\(/.test(segment),
+    ),
   );
 };
 
@@ -233,16 +240,19 @@ export const hasUnprovidedServiceInEffectTest = (source: string): boolean => {
  */
 export const hasTimeCodeWithoutTestClock = (source: string): boolean => {
   if (
-    !source.includes('Effect.timeout') &&
-    !source.includes('Effect.delay') &&
-    !source.includes('Clock.')
+    !sourceIncludes('Effect.timeout')(source) &&
+    !sourceIncludes('Effect.delay')(source) &&
+    !sourceIncludes('Clock.')(source)
   ) {
     return false;
   }
 
-  return testSegments(source).some(
-    (segment): boolean =>
-      /Effect\.(?:timeout|delay)|Clock\./.test(segment) && !/TestClock/.test(segment),
+  return pipe(
+    testSegments(source),
+    Array.some(
+      (segment): boolean =>
+        /Effect\.(?:timeout|delay)|Clock\./.test(segment) && !/TestClock/.test(segment),
+    ),
   );
 };
 
@@ -252,7 +262,7 @@ export const hasTimeCodeWithoutTestClock = (source: string): boolean => {
  * @internal
  */
 export const hasMutableStateWithoutRef = (source: string): boolean => {
-  if (!source.includes('let ')) {
+  if (!sourceIncludes('let ')(source)) {
     return false;
   }
 
@@ -260,13 +270,10 @@ export const hasMutableStateWithoutRef = (source: string): boolean => {
     return false;
   }
 
-  for (const match of source.matchAll(/\blet\s+[A-Za-z_$][\w$]*\s*=/g)) {
-    if (!/\bRef\./.test(lineAround(source, match.index))) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    matchesIn(source, /\blet\s+[A-Za-z_$][\w$]*\s*=/g),
+    Array.some((match): boolean => !/\bRef\./.test(lineAround(source, match.index))),
+  );
 };
 
 /**
