@@ -25,9 +25,9 @@ import effectDefaultRules from './effect-default';
 import effectStrictRules from './effect-strict';
 import { eslintCompatPlugin } from '@oxlint/plugins';
 import findLongLines from './max-line-length';
+import { findRequiredFunctionDocFailure } from './require-function-doc';
 import hasBooleanPrefix from './boolean-prefix';
 import hasRequiredFileDoc from './require-file-doc';
-import hasRequiredFunctionDocs from './require-function-doc';
 import noCommentedOutCodeRule from './plugin-commented-out-code-rule';
 import { readCachedSource } from './source-cache';
 
@@ -436,9 +436,10 @@ const requireFunctionDocRule = withCreateOnce({
           return;
         }
 
-        if (!hasRequiredFunctionDocs(source)) {
+        const failure = findRequiredFunctionDocFailure(source);
+        if (failure !== undefined) {
           context.report({
-            message: functionDocDiagnosticMessage(),
+            message: functionDocDiagnosticMessage(failure),
             node,
           });
         }

@@ -529,26 +529,47 @@ const isUndocumentedExportAt = (source: string, exp: number): boolean => {
   return isDocumentedExportDeclaration(source, exp) === false;
 };
 
-const hasUndocumentedExport = (source: string): boolean =>
-  pipe(
-    matchesIn(source, /\bexport\s/g),
-    Array.some((match): boolean => isUndocumentedExportAt(source, match.index)),
-  );
+/**
+ * Location details for the first exported declaration missing JSDoc.
+ */
+export interface RequiredFunctionDocFailure {
+  line: number;
+  snippet: string;
+}
+
+const failureAt = (source: string, pos: number): RequiredFunctionDocFailure => {
+  const snippetEnd = (source.indexOf('\n', pos) + 1 || source.length + 1) - 1;
+  return {
+    line: matchesIn(source.slice(0, pos), /\n/g).length + 1,
+    snippet: source.slice(source.lastIndexOf('\n', pos - 1) + 1, snippetEnd).trim(),
+  };
+};
 
 /**
- * Checks whether exported declarations have meaningful JSDoc comments.
- *
- * @param source - TypeScript source text to inspect.
- * @returns True when every public declaration is documented or no public declarations exist.
+ * Finds the first public exported declaration that lacks declaration JSDoc.
  */
-export default function hasRequiredFunctionDocs(source: string): boolean {
+export const findRequiredFunctionDocFailure = (
+  source: string,
+): RequiredFunctionDocFailure | undefined => {
   if (!sourceIncludes('export ')(source)) {
-    return true;
+    return undefined;
   }
 
   if (isAmbientDeclarationFile(source)) {
-    return true;
+    return undefined;
   }
 
-  return !hasUndocumentedExport(source);
+  return pipe(
+    matchesIn(source, /\bexport\s/g),
+    Array.findFirst((match): boolean => isUndocumentedExportAt(source, match.index)),
+    Option.map((match): RequiredFunctionDocFailure => failureAt(source, match.index)),
+    Option.getOrUndefined,
+  );
+};
+
+/**
+ * Checks whether exported declarations have meaningful JSDoc comments.
+ */
+export default function hasRequiredFunctionDocs(source: string): boolean {
+  return findRequiredFunctionDocFailure(source) === undefined;
 }

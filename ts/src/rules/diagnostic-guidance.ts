@@ -271,12 +271,25 @@ The text line must be a real description of what the file is for; declaration JS
     summary: 'Missing file-purpose header.',
   });
 
+interface FunctionDocDiagnosticContext {
+  line: number;
+  snippet: string;
+}
+
+const functionDocTargetText = (context: FunctionDocDiagnosticContext | undefined): string => {
+  if (context === undefined) {
+    return '';
+  }
+
+  return `Detected undocumented export near line ${context.line}: ${context.snippet}\n\n`;
+};
+
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const functionDocDiagnosticMessage = (): string =>
+export const functionDocDiagnosticMessage = (context?: FunctionDocDiagnosticContext): string =>
   diagnosticMessage({
     example: `/**
  * Parse user input into a validated command.
@@ -285,7 +298,7 @@ export const functionDocDiagnosticMessage = (): string =>
  * @returns A typed command ready for the domain layer.
  * @throws Does not throw; validation failures are returned in the Effect error channel.
  */`,
-    fix: `Add a /** ... */ block immediately above the export in this shape:
+    fix: `${functionDocTargetText(context)}Add a /** ... */ block immediately above the export in this shape:
 /**
  * Describe what this exported declaration does.
  *

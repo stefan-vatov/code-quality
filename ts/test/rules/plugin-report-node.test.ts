@@ -127,8 +127,11 @@ The text line must be a real description of what the file is for; declaration JS
       rmSync(root, { force: true, recursive: true });
     }
 
+    expect(reports[0]?.message).toContain(
+      'Detected undocumented export near line 1: export function live(input: string): string { return input; }',
+    );
     expect(reports[0]?.message)
-      .toContain(`Fix: Add a /** ... */ block immediately above the export in this shape:
+      .toContain(`Add a /** ... */ block immediately above the export in this shape:
 /**
  * Describe what this exported declaration does.
  *
