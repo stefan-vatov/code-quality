@@ -161,7 +161,7 @@ const camelCaseIdentifiersRule = withCreateOnce({
         }
         const isConst = node.parent && node.parent.kind === 'const';
         if (isConst) {
-          if (!isCamelCase(name) && !isUpperCase(name)) {
+          if (!isCamelCase(name) && !isUpperCase(name) && !isPascalCase(name)) {
             context.report({
               message: constantDiagnosticMessage(name, toCamelCase(name)),
               node,
@@ -327,6 +327,9 @@ interface ExportNamedNode {
   specifiers?: object[];
 }
 
+const isIndexModule = (filename: string | undefined): boolean =>
+  filename !== undefined && /(?:^|\/)index\.[cm]?[jt]sx?$/u.test(filename);
+
 const noLocalExportListRule = withCreateOnce({
   createOnce(context: Context) {
     return {
@@ -335,7 +338,9 @@ const noLocalExportListRule = withCreateOnce({
           node.source ||
           node.declaration ||
           !node.specifiers ||
-          Array.isEmptyReadonlyArray(node.specifiers)
+          Array.isEmptyReadonlyArray(node.specifiers) ||
+          node.specifiers.length === 1 ||
+          isIndexModule(context.filename)
         ) {
           return;
         }
