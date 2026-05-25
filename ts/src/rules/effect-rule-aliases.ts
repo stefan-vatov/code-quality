@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*  Effect import, alias, and runtime-call helpers for source-backed rules.   */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Option, pipe } from 'effect';
 import { stripComments, stripCommentsAndStrings } from './effect-source-helpers';
 
 /**
@@ -21,28 +22,28 @@ const effectSignalCache = new Map<string, boolean>();
 const runtimeCallCache = new Map<string, boolean>();
 
 const cachedAliases = (cache: Map<string, string[]>, source: string): string[] | undefined =>
-  cache.get(source);
+  pipe(Option.fromNullable(cache.get(source)), Option.getOrUndefined);
 
 const cacheAliases = (cache: Map<string, string[]>, source: string, value: string[]): string[] => {
   if (cache.size >= ALIAS_CACHE_MAX) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey !== undefined) {
-      cache.delete(firstKey);
-    }
+    pipe(
+      Option.fromNullable(cache.keys().next().value),
+      Option.map((firstKey): boolean => cache.delete(firstKey)),
+    );
   }
   cache.set(source, value);
   return value;
 };
 
 const cachedBoolean = (cache: Map<string, boolean>, source: string): boolean | undefined =>
-  cache.get(source);
+  pipe(Option.fromNullable(cache.get(source)), Option.getOrUndefined);
 
 const cacheBoolean = (cache: Map<string, boolean>, source: string, value: boolean): boolean => {
   if (cache.size >= BOOLEAN_CACHE_MAX) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey !== undefined) {
-      cache.delete(firstKey);
-    }
+    pipe(
+      Option.fromNullable(cache.keys().next().value),
+      Option.map((firstKey): boolean => cache.delete(firstKey)),
+    );
   }
   cache.set(source, value);
   return value;
@@ -58,16 +59,20 @@ const importSpecifierNames = (
   specifier: string,
 ): { importedName: string; localName: string } | undefined => {
   const trimmed = specifier.trim();
-  if (trimmed.startsWith('type ')) {
-    return undefined;
-  }
-  const parts = trimmed.split(/\s+as\s+/);
-  const importedName = parts[0]?.trim();
-  const localName = parts[1]?.trim() ?? importedName;
-  if (importedName && localName) {
-    return { importedName, localName };
-  }
-  return undefined;
+  return pipe(
+    Option.some(trimmed),
+    Option.filter((value): boolean => !value.startsWith('type ')),
+    Option.flatMap((value) => {
+      const parts = value.split(/\s+as\s+/);
+      const importedName = parts[0]?.trim();
+      const localName = parts[1]?.trim() ?? importedName;
+      if (importedName && localName) {
+        return Option.some({ importedName, localName });
+      }
+      return Option.none<{ importedName: string; localName: string }>();
+    }),
+    Option.getOrUndefined,
+  );
 };
 
 const namedEffectImportLists = (source: string, modulePath = 'effect'): string[] => {
@@ -79,7 +84,12 @@ const namedEffectImportLists = (source: string, modulePath = 'effect'): string[]
         'g',
       ),
     ),
-  ].map((match): string => match[1] ?? '');
+  ].map((match): string =>
+    pipe(
+      Option.fromNullable(match[1]),
+      Option.getOrElse((): string => ''),
+    ),
+  );
 };
 
 const addMatchingNamedImports = (
@@ -87,12 +97,12 @@ const addMatchingNamedImports = (
   importList: string,
   predicate: (names: { importedName: string; localName: string }) => boolean,
 ): void => {
-  for (const specifier of importList.split(',')) {
-    const names = importSpecifierNames(specifier);
-    if (names && predicate(names)) {
-      aliases.add(names.localName);
-    }
-  }
+  pipe(
+    importList.split(','),
+    Array.filterMap((specifier) => Option.fromNullable(importSpecifierNames(specifier))),
+    Array.filter(predicate),
+    Array.map((names): Set<string> => aliases.add(names.localName)),
+  );
 };
 
 const effectNamespaceImportPattern = (APIName: string): RegExp =>
@@ -102,25 +112,34 @@ const effectNamespaceImportPattern = (APIName: string): RegExp =>
   );
 
 const addRootEffectAliases = (aliases: Set<string>, source: string): void => {
-  for (const importList of namedEffectImportLists(source)) {
-    addMatchingNamedImports(
-      aliases,
-      importList,
-      (names): boolean => names.importedName === 'Effect',
-    );
-    if (aliases.size > 0) {
-      aliases.add('Effect');
-    }
-  }
+  pipe(
+    namedEffectImportLists(source),
+    Array.map((importList): Set<string> => {
+      addMatchingNamedImports(
+        aliases,
+        importList,
+        (names): boolean => names.importedName === 'Effect',
+      );
+      if (aliases.size > 0) {
+        return aliases.add('Effect');
+      }
+      return aliases;
+    }),
+  );
 };
 
 const addNamespaceEffectAliases = (aliases: Set<string>, source: string): void => {
-  for (const match of source.matchAll(
-    /(?:^|\n)\s*import\s+(?!type\b)\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s*['"]effect(?:\/Effect)?['"]/g,
-  )) {
-    aliases.add('Effect');
-    aliases.add(match[1]);
-  }
+  pipe(
+    Array.fromIterable(
+      source.matchAll(
+        /(?:^|\n)\s*import\s+(?!type\b)\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s*['"]effect(?:\/Effect)?['"]/g,
+      ),
+    ),
+    Array.map((match): Set<string> => {
+      aliases.add('Effect');
+      return aliases.add(match[1]);
+    }),
+  );
 };
 
 const hasAnyEffectImport = (source: string): boolean =>
@@ -130,22 +149,28 @@ const hasAnyEffectImport = (source: string): boolean =>
 
 const hasEffectValueImport = (source: string): boolean => {
   const commentFreeSource = stripComments(source);
-  for (const match of commentFreeSource.matchAll(
-    /(?:^|\n)\s*import\s+(?!type\b)\s*{([^}]+)}\s*from\s*['"]effect['"]/g,
-  )) {
-    if (
-      match[1]
-        .split(',')
-        .some((specifier): boolean => importSpecifierNames(specifier)?.importedName === 'Effect')
-    ) {
-      return true;
-    }
-  }
+  const hasNamedEffectImport = pipe(
+    Array.fromIterable(
+      commentFreeSource.matchAll(
+        /(?:^|\n)\s*import\s+(?!type\b)\s*{([^}]+)}\s*from\s*['"]effect['"]/g,
+      ),
+    ),
+    Array.some((match): boolean =>
+      pipe(
+        (match[1] ?? '').split(','),
+        Array.some(
+          (specifier): boolean => importSpecifierNames(specifier)?.importedName === 'Effect',
+        ),
+      ),
+    ),
+  );
 
   return (
+    hasNamedEffectImport ||
     /(?:^|\n)\s*import\s+(?!type\b)\*\s+as\s+[A-Za-z_$][\w$]*\s+from\s*['"]effect(?:\/Effect)?['"]/.test(
       commentFreeSource,
-    ) || effectFunctionAliases(source, 'Effect').length > 0
+    ) ||
+    effectFunctionAliases(source, 'Effect').length > 0
   );
 };
 
@@ -182,17 +207,21 @@ export const effectAPIAliases = (source: string, APIName: string): string[] => {
   const aliases = new Set<string>();
   const commentFreeSource = stripComments(source);
 
-  for (const importList of namedEffectImportLists(commentFreeSource)) {
-    addMatchingNamedImports(
-      aliases,
-      importList,
-      (names): boolean => names.importedName === APIName,
-    );
-  }
+  pipe(
+    namedEffectImportLists(commentFreeSource),
+    Array.map((importList): void =>
+      addMatchingNamedImports(
+        aliases,
+        importList,
+        (names): boolean => names.importedName === APIName,
+      ),
+    ),
+  );
 
-  for (const match of commentFreeSource.matchAll(effectNamespaceImportPattern(APIName))) {
-    aliases.add(match[1]);
-  }
+  pipe(
+    Array.fromIterable(commentFreeSource.matchAll(effectNamespaceImportPattern(APIName))),
+    Array.map((match): Set<string> => aliases.add(match[1])),
+  );
 
   if (aliases.size === 0 && !hasAnyEffectImport(source)) {
     aliases.add(APIName);
@@ -214,18 +243,21 @@ export const effectFunctionAliases = (
   const aliases = new Set<string>();
   const commentFreeSource = stripComments(source);
 
-  for (const importList of namedEffectImportLists(commentFreeSource, `effect/${moduleName}`)) {
-    addMatchingNamedImports(
-      aliases,
-      importList,
-      (names): boolean => !functionName || names.importedName === functionName,
-    );
-  }
+  pipe(
+    namedEffectImportLists(commentFreeSource, `effect/${moduleName}`),
+    Array.map((importList): void =>
+      addMatchingNamedImports(
+        aliases,
+        importList,
+        (names): boolean => !functionName || names.importedName === functionName,
+      ),
+    ),
+  );
 
   return [...aliases];
 };
 
-const canonicalNames = new Set([
+const canonicalNames = HashSet.make(
   'Config',
   'Context',
   'Effect',
@@ -237,42 +269,49 @@ const canonicalNames = new Set([
   'Scope',
   'Stream',
   'TestClock',
-]);
+);
 
 const addCanonicalNamedImportAliases = (aliases: Map<string, string>, importList: string): void => {
-  for (const specifier of importList.split(',')) {
-    const names = importSpecifierNames(specifier);
-    const importedName = names?.importedName;
-    const localName = names?.localName;
-    if (
-      importedName &&
-      localName &&
-      canonicalNames.has(importedName) &&
-      localName !== importedName
-    ) {
-      aliases.set(localName, importedName);
-    }
-  }
+  pipe(
+    importList.split(','),
+    Array.filterMap((specifier) => Option.fromNullable(importSpecifierNames(specifier))),
+    Array.filter(
+      (names): boolean =>
+        HashSet.has(canonicalNames, names.importedName) && names.localName !== names.importedName,
+    ),
+    Array.map((names): Map<string, string> => aliases.set(names.localName, names.importedName)),
+  );
 };
 
 const addCanonicalNamespaceAliases = (aliases: Map<string, string>, source: string): void => {
-  for (const match of source.matchAll(
-    /(?:^|\n)\s*import\s+(?!type\b)\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s*['"]effect\/([A-Za-z]+)['"]/g,
-  )) {
-    const [, localName, moduleName] = match;
-    if (canonicalNames.has(moduleName) && localName !== moduleName) {
-      aliases.set(localName, moduleName);
-    }
-  }
+  pipe(
+    Array.fromIterable(
+      source.matchAll(
+        /(?:^|\n)\s*import\s+(?!type\b)\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s*['"]effect\/([A-Za-z]+)['"]/g,
+      ),
+    ),
+    Array.map((match): { localName: string; moduleName: string } => ({
+      localName: match[1],
+      moduleName: match[2],
+    })),
+    Array.filter(
+      ({ localName, moduleName }): boolean =>
+        HashSet.has(canonicalNames, moduleName) && localName !== moduleName,
+    ),
+    Array.map(
+      ({ localName, moduleName }): Map<string, string> => aliases.set(localName, moduleName),
+    ),
+  );
 };
 
 const canonicalImportAliases = (source: string): Map<string, string> => {
   const aliases = new Map<string, string>();
   const commentFreeSource = stripComments(source);
 
-  for (const importList of namedEffectImportLists(commentFreeSource)) {
-    addCanonicalNamedImportAliases(aliases, importList);
-  }
+  pipe(
+    namedEffectImportLists(commentFreeSource),
+    Array.map((importList): void => addCanonicalNamedImportAliases(aliases, importList)),
+  );
   addCanonicalNamespaceAliases(aliases, commentFreeSource);
 
   return aliases;
@@ -282,10 +321,10 @@ const evictCanonicalSourceCache = (): void => {
   if (canonicalSourceCache.size < ALIAS_CACHE_MAX) {
     return;
   }
-  const firstKey = canonicalSourceCache.keys().next().value;
-  if (firstKey !== undefined) {
-    canonicalSourceCache.delete(firstKey);
-  }
+  pipe(
+    Option.fromNullable(canonicalSourceCache.keys().next().value),
+    Option.map((firstKey): boolean => canonicalSourceCache.delete(firstKey)),
+  );
 };
 
 /**
@@ -293,26 +332,33 @@ const evictCanonicalSourceCache = (): void => {
  *
  * @internal
  */
-export const canonicalizeEffectAPIAliases = (source: string): string => {
-  const cachedValue = canonicalSourceCache.get(source);
-  if (cachedValue !== undefined) {
-    return cachedValue;
-  }
+export const canonicalizeEffectAPIAliases = (source: string): string =>
+  pipe(
+    Option.fromNullable(canonicalSourceCache.get(source)),
+    Option.getOrElse((): string => {
+      const canonicalSource = pipe(
+        Array.fromIterable(canonicalImportAliases(source)),
+        Array.reduce(source, (currentSource, [localName, canonicalName]): string =>
+          currentSource.replace(
+            new RegExp(`\\b${escapeRegExp(localName)}\\.`, 'g'),
+            `${canonicalName}.`,
+          ),
+        ),
+      );
 
-  let canonicalSource = source;
-  for (const [localName, canonicalName] of canonicalImportAliases(source)) {
-    canonicalSource = canonicalSource.replace(
-      new RegExp(`\\b${escapeRegExp(localName)}\\.`, 'g'),
-      `${canonicalName}.`,
-    );
-  }
+      evictCanonicalSourceCache();
+      canonicalSourceCache.set(source, canonicalSource);
+      return canonicalSource;
+    }),
+  );
 
-  evictCanonicalSourceCache();
-  canonicalSourceCache.set(source, canonicalSource);
-  return canonicalSource;
-};
-
-const runtimeNames = new Set(['runFork', 'runPromise', 'runPromiseExit', 'runSync', 'runSyncExit']);
+const runtimeNames = HashSet.make(
+  'runFork',
+  'runPromise',
+  'runPromiseExit',
+  'runSync',
+  'runSyncExit',
+);
 
 const effectRuntimeFunctionAliases = (source: string): string[] => {
   const cachedValue = cachedAliases(runtimeFunctionAliasCache, source);
@@ -323,9 +369,14 @@ const effectRuntimeFunctionAliases = (source: string): string[] => {
   const aliases = new Set<string>();
   const commentFreeSource = stripComments(source);
 
-  for (const importList of namedEffectImportLists(commentFreeSource, 'effect/Effect')) {
-    addMatchingNamedImports(aliases, importList, (names) => runtimeNames.has(names.importedName));
-  }
+  pipe(
+    namedEffectImportLists(commentFreeSource, 'effect/Effect'),
+    Array.map((importList): void =>
+      addMatchingNamedImports(aliases, importList, (names) =>
+        HashSet.has(runtimeNames, names.importedName),
+      ),
+    ),
+  );
 
   return cacheAliases(runtimeFunctionAliasCache, source, [...aliases]);
 };
