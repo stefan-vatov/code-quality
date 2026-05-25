@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*    Codemod for rendering module-level file comments as divider headers.    */
 /* -------------------------------------------------------------------------- */
+import { Array, Option, pipe } from 'effect';
 import { formatMainHeader } from './comment-format';
 
 const jsdocOpenLength = '/**'.length;
@@ -21,24 +22,37 @@ interface DividerHeader {
   text: string;
 }
 
-const skipWhitespace = (source: string, start: number): number => {
-  let cursor = start;
-  while (cursor < source.length && /\s/u.test(source[cursor] ?? '')) {
-    cursor++;
-  }
-  return cursor;
-};
+const skipWhitespace = (source: string, start: number): number =>
+  pipe(
+    Array.range(start, source.length),
+    Array.reduce(
+      { cursor: start, isDone: false },
+      (state, cursor): { cursor: number; isDone: boolean } => {
+        if (state.isDone) {
+          return state;
+        }
+        if (cursor >= source.length || !/\s/u.test(source[cursor] ?? '')) {
+          return { cursor, isDone: true };
+        }
+        return { cursor: cursor + 1, isDone: false };
+      },
+    ),
+    (state): number => state.cursor,
+  );
 
-const skipShebang = (source: string): number => {
-  if (!source.startsWith('#!')) {
-    return 0;
-  }
-  const newline = source.indexOf('\n');
-  if (newline === -1) {
-    return source.length;
-  }
-  return newline + 1;
-};
+const skipShebang = (source: string): number =>
+  pipe(
+    Option.some(source),
+    Option.filter((value): boolean => value.startsWith('#!')),
+    Option.map((value): number => value.indexOf('\n')),
+    Option.map((newline): number => {
+      if (newline === -1) {
+        return source.length;
+      }
+      return newline + 1;
+    }),
+    Option.getOrElse((): number => 0),
+  );
 
 const leadingContentPosition = (source: string): number =>
   skipWhitespace(source, skipShebang(source));
@@ -50,35 +64,41 @@ const cleanJSDocLine = (line: string): string =>
     .trim();
 
 const headerText = (body: string): string | undefined => {
-  const lines = body
-    .split('\n')
-    .map(cleanJSDocLine)
-    .filter((line): boolean => line.length > 0 && !tagPattern.test(line));
+  const lines = pipe(
+    body.split('\n'),
+    Array.map(cleanJSDocLine),
+    Array.filter((line): boolean => line.length > 0 && !tagPattern.test(line)),
+  );
   const summary = lines.join(' ');
-  if (!summary) {
-    return undefined;
-  }
-  return summary;
+  return pipe(Option.fromNullable(summary || undefined), Option.getOrUndefined);
 };
 
 const isDeclarationAfterHeader = (source: string, headerEnd: number): boolean =>
   declarationStartPattern.test(source.slice(headerEnd).trimStart());
 
-const lineEnd = (source: string, start: number): number => {
-  const newline = source.indexOf('\n', start);
-  if (newline === -1) {
-    return source.length;
-  }
-  return newline;
-};
+const lineEnd = (source: string, start: number): number =>
+  pipe(
+    Option.some(source.indexOf('\n', start)),
+    Option.map((newline): number => {
+      if (newline === -1) {
+        return source.length;
+      }
+      return newline;
+    }),
+    Option.getOrElse((): number => source.length),
+  );
 
-const nextLineStart = (source: string, start: number): number => {
-  const newline = source.indexOf('\n', start);
-  if (newline === -1) {
-    return source.length;
-  }
-  return newline + 1;
-};
+const nextLineStart = (source: string, start: number): number =>
+  pipe(
+    Option.some(source.indexOf('\n', start)),
+    Option.map((newline): number => {
+      if (newline === -1) {
+        return source.length;
+      }
+      return newline + 1;
+    }),
+    Option.getOrElse((): number => source.length),
+  );
 
 const dividerTextLine = (line: string): string =>
   line.slice(dividerTextPrefix.length, -dividerTextSuffix.length).trim();
@@ -91,14 +111,12 @@ const isSOLIDDividerLine = (line: string): boolean => {
   return inner.length > 0 && isDividerFiller(inner);
 };
 
-const isDividerFiller = (text: string): boolean => {
-  for (let index = 0; index < text.length; index++) {
-    if (text.charAt(index) !== '-') {
-      return false;
-    }
-  }
-  return true;
-};
+const isDividerFiller = (text: string): boolean =>
+  text.length === 0 ||
+  pipe(
+    Array.range(0, text.length - 1),
+    Array.every((index): boolean => text.charAt(index) === '-'),
+  );
 
 const dividerLineAt = (
   source: string,
@@ -140,17 +158,18 @@ const collectDividerHeader = (source: string, start: number): DividerHeader | un
   return collectDividerBody(source, first.next, []);
 };
 
-const dividerHeaderReplacement = (source: string, start: number): Replacement | undefined => {
-  const header = collectDividerHeader(source, start);
-  if (!header?.text) {
-    return undefined;
-  }
-
-  return {
-    end: header.end,
-    text: formatMainHeader(header.text),
-  };
-};
+const dividerHeaderReplacement = (source: string, start: number): Replacement | undefined =>
+  pipe(
+    Option.fromNullable(collectDividerHeader(source, start)),
+    Option.filter((header): boolean => header.text.length > 0),
+    Option.map(
+      (header): Replacement => ({
+        end: header.end,
+        text: formatMainHeader(header.text),
+      }),
+    ),
+    Option.getOrUndefined,
+  );
 
 const jsdocHeaderReplacement = (source: string, start: number): Replacement | undefined => {
   if (!source.startsWith('/**', start)) {
@@ -162,29 +181,33 @@ const jsdocHeaderReplacement = (source: string, start: number): Replacement | un
     return undefined;
   }
 
-  const text = headerText(source.slice(start + jsdocOpenLength, close));
-  if (!text) {
-    return undefined;
-  }
-
-  return {
-    end: close + jsdocCloseLength,
-    text: formatMainHeader(text),
-  };
+  return pipe(
+    Option.fromNullable(headerText(source.slice(start + jsdocOpenLength, close))),
+    Option.map(
+      (text): Replacement => ({
+        end: close + jsdocCloseLength,
+        text: formatMainHeader(text),
+      }),
+    ),
+    Option.getOrUndefined,
+  );
 };
 
 const generatedHeaderReplacement = (
   text: string | undefined,
   start: number,
-): Replacement | undefined => {
-  if (!text) {
-    return undefined;
-  }
-  return {
-    end: start,
-    text: `${formatMainHeader(text)}\n`,
-  };
-};
+): Replacement | undefined =>
+  pipe(
+    Option.fromNullable(text),
+    Option.filter((value): boolean => value.length > 0),
+    Option.map(
+      (value): Replacement => ({
+        end: start,
+        text: `${formatMainHeader(value)}\n`,
+      }),
+    ),
+    Option.getOrUndefined,
+  );
 
 const applyHeaderReplacement = (source: string, start: number, replacement: Replacement): string =>
   `${source.slice(0, start)}${replacement.text}${source.slice(replacement.end)}`;
@@ -193,16 +216,15 @@ const headerReplacement = (
   source: string,
   start: number,
   generatedDescription: string | undefined,
-): Replacement | undefined => {
-  const replacement =
-    dividerHeaderReplacement(source, start) ??
-    jsdocHeaderReplacement(source, start) ??
-    generatedHeaderReplacement(generatedDescription, start);
-  if (!replacement) {
-    return undefined;
-  }
-  return replacement;
-};
+): Replacement | undefined =>
+  pipe(
+    Option.fromNullable(dividerHeaderReplacement(source, start)),
+    Option.orElse(() => Option.fromNullable(jsdocHeaderReplacement(source, start))),
+    Option.orElse(() =>
+      Option.fromNullable(generatedHeaderReplacement(generatedDescription, start)),
+    ),
+    Option.getOrUndefined,
+  );
 
 /**
  * Rewrites or inserts the file-level purpose header in the project divider style.
@@ -211,9 +233,11 @@ const headerReplacement = (
  */
 export const formatFileHeaderComment = (source: string, generatedDescription?: string): string => {
   const start = leadingContentPosition(source);
-  const replacement = headerReplacement(source, start, generatedDescription);
-  if (!replacement) {
-    return source;
-  }
-  return applyHeaderReplacement(source, start, replacement);
+  return pipe(
+    Option.fromNullable(headerReplacement(source, start, generatedDescription)),
+    Option.match({
+      onNone: (): string => source,
+      onSome: (replacement): string => applyHeaderReplacement(source, start, replacement),
+    }),
+  );
 };
