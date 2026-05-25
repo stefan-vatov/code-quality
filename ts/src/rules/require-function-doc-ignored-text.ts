@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*          Ignored source-region helpers for exported JSDoc checks.          */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Match, pipe } from 'effect';
 
 interface ScanState {
   isBlockComment: boolean;
@@ -16,7 +17,7 @@ const initialState: ScanState = {
   quote: undefined,
 };
 
-const quoteCharacters = new Set(['"', "'", '`']);
+const quoteCharacters = HashSet.make('"', "'", '`');
 
 const lineCommentState = (state: ScanState, char: string): ScanState => ({
   ...state,
@@ -52,7 +53,7 @@ const unquotedState = (state: ScanState, char: string, nextChar: string | undefi
   if (char === '/' && nextChar === '*') {
     return { ...state, isBlockComment: true };
   }
-  if (quoteCharacters.has(char)) {
+  if (HashSet.has(quoteCharacters, char)) {
     return { ...state, quote: char };
   }
   return state;
@@ -75,15 +76,30 @@ const nextIgnoredState = (
   return unquotedState(state, char, nextChar);
 };
 
+const scanIndexesBefore = (pos: number): readonly number[] =>
+  Match.value(pos).pipe(
+    Match.when(
+      (position): boolean => position <= 0,
+      () => [],
+    ),
+    Match.orElse((position) => Array.range(0, position - 1)),
+  );
+
+const scanStateBefore = (source: string, pos: number): ScanState =>
+  pipe(
+    scanIndexesBefore(pos),
+    Array.reduce(initialState, (state, index) =>
+      nextIgnoredState(state, source[index] ?? '', source[index + 1]),
+    ),
+  );
+
 /**
  * Checks whether a source offset is inside a comment or string literal.
  *
  * @internal
  */
-export const isInsideIgnoredText = (source: string, pos: number): boolean => {
-  let state = initialState;
-  for (let index = 0; index < pos; index++) {
-    state = nextIgnoredState(state, source[index] ?? '', source[index + 1]);
-  }
-  return state.isBlockComment || state.isLineComment || state.quote !== undefined;
-};
+export const isInsideIgnoredText = (source: string, pos: number): boolean =>
+  pipe(
+    scanStateBefore(source, pos),
+    (state) => state.isBlockComment || state.isLineComment || state.quote !== undefined,
+  );
