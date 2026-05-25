@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*         Conservative codemod for return-position no-ternary fixes.         */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Option, Order, Predicate, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
   AssignmentExpression,
@@ -24,36 +25,36 @@ const NOT_FOUND_INDEX = -1;
 const codemodAPI = jscodeshift.withParser('ts');
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
-  [...replacements]
-    .sort((left, right) => right.start - left.start)
-    .reduce(
+  pipe(
+    replacements,
+    Array.sortWith((replacement) => -replacement.start, Order.number),
+    Array.reduce(
+      source,
       (current, replacement) =>
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
-      source,
-    );
+    ),
+  );
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
 const sourceForNode = (source: string, node: unknown): string =>
   source.slice(nodeStart(node), nodeEnd(node));
@@ -72,8 +73,11 @@ const lineIndent = (source: string, index: number): string => {
 };
 
 const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<object>): boolean => {
-  if (Array.isArray(node)) {
-    return node.some((entry) => containsConditionalExpressionInValue(entry, seen));
+  if (globalThis.Array.isArray(node)) {
+    return pipe(
+      node,
+      Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
+    );
   }
   if (!isObjectRecord(node)) {
     return false;
@@ -85,7 +89,10 @@ const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<objec
   if (node.type === 'ConditionalExpression') {
     return true;
   }
-  return Object.values(node).some((entry) => containsConditionalExpressionInValue(entry, seen));
+  return pipe(
+    Object.values(node),
+    Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
+  );
 };
 
 const containsConditionalExpression = (node: unknown): boolean =>
@@ -99,138 +106,158 @@ const explicitReturnText = (
   source: string,
   expression: ConditionalExpression,
   indent: string,
-): string | undefined => {
-  if (hasUnsafeBranches(expression)) {
-    return undefined;
-  }
+): string | undefined =>
+  pipe(
+    Option.some(expression),
+    Option.filter((value): boolean => !hasUnsafeBranches(value)),
+    Option.map((value): string => {
+      const condition = sourceForNode(source, value.test);
+      const whenTrue = sourceForNode(source, value.consequent);
+      const whenFalse = sourceForNode(source, value.alternate);
+      const childIndent = `${indent}${INDENT_STEP}`;
 
-  const condition = sourceForNode(source, expression.test);
-  const whenTrue = sourceForNode(source, expression.consequent);
-  const whenFalse = sourceForNode(source, expression.alternate);
-  const childIndent = `${indent}${INDENT_STEP}`;
+      return [
+        `if (${condition}) {`,
+        `${childIndent}return ${whenTrue};`,
+        `${indent}}`,
+        `${indent}return ${whenFalse};`,
+      ].join('\n');
+    }),
+    Option.getOrUndefined,
+  );
 
-  return [
-    `if (${condition}) {`,
-    `${childIndent}return ${whenTrue};`,
-    `${indent}}`,
-    `${indent}return ${whenFalse};`,
-  ].join('\n');
-};
-
-const returnReplacement = (source: string, node: ReturnStatement): Replacement | undefined => {
-  if (node.argument?.type !== 'ConditionalExpression') {
-    return undefined;
-  }
-
-  const indent = lineIndent(source, nodeStart(node));
-  const text = explicitReturnText(source, node.argument, indent);
-  if (text) {
-    return { end: nodeEnd(node), start: nodeStart(node), text };
-  }
-  return undefined;
-};
+const returnReplacement = (source: string, node: ReturnStatement): Replacement | undefined =>
+  pipe(
+    Option.fromNullable(node.argument),
+    Option.filter(
+      (argument): argument is ConditionalExpression => argument.type === 'ConditionalExpression',
+    ),
+    Option.flatMap((argument) =>
+      pipe(
+        Option.fromNullable(
+          explicitReturnText(source, argument, lineIndent(source, nodeStart(node))),
+        ),
+        Option.map((text): Replacement => ({ end: nodeEnd(node), start: nodeStart(node), text })),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const explicitAssignmentText = (
   source: string,
   assignment: AssignmentExpression,
   expression: ConditionalExpression,
   indent: string,
-): string | undefined => {
-  if (hasUnsafeBranches(expression)) {
-    return undefined;
-  }
+): string | undefined =>
+  pipe(
+    Option.some(expression),
+    Option.filter((value): boolean => !hasUnsafeBranches(value)),
+    Option.map((value): string => {
+      const left = sourceForNode(source, assignment.left);
+      const condition = sourceForNode(source, value.test);
+      const whenTrue = sourceForNode(source, value.consequent);
+      const whenFalse = sourceForNode(source, value.alternate);
+      const childIndent = `${indent}${INDENT_STEP}`;
 
-  const left = sourceForNode(source, assignment.left);
-  const condition = sourceForNode(source, expression.test);
-  const whenTrue = sourceForNode(source, expression.consequent);
-  const whenFalse = sourceForNode(source, expression.alternate);
-  const childIndent = `${indent}${INDENT_STEP}`;
-
-  return [
-    `if (${condition}) {`,
-    `${childIndent}${left} = ${whenTrue};`,
-    `${indent}} else {`,
-    `${childIndent}${left} = ${whenFalse};`,
-    `${indent}}`,
-  ].join('\n');
-};
+      return [
+        `if (${condition}) {`,
+        `${childIndent}${left} = ${whenTrue};`,
+        `${indent}} else {`,
+        `${childIndent}${left} = ${whenFalse};`,
+        `${indent}}`,
+      ].join('\n');
+    }),
+    Option.getOrUndefined,
+  );
 
 const assignmentReplacement = (
   source: string,
   node: ExpressionStatement,
-): Replacement | undefined => {
-  if (node.expression.type !== 'AssignmentExpression' || node.expression.operator !== '=') {
-    return undefined;
-  }
-
-  const assignment = node.expression;
-  if (assignment.right.type !== 'ConditionalExpression') {
-    return undefined;
-  }
-
-  const indent = lineIndent(source, nodeStart(node));
-  const text = explicitAssignmentText(source, assignment, assignment.right, indent);
-  if (text) {
-    return { end: nodeEnd(node), start: nodeStart(node), text };
-  }
-  return undefined;
-};
+): Replacement | undefined =>
+  pipe(
+    Option.some(node.expression),
+    Option.filter(
+      (expression): expression is AssignmentExpression =>
+        expression.type === 'AssignmentExpression' && expression.operator === '=',
+    ),
+    Option.flatMap((assignment) =>
+      pipe(
+        Option.some(assignment.right),
+        Option.filter(
+          (right): right is ConditionalExpression => right.type === 'ConditionalExpression',
+        ),
+        Option.flatMap((right) =>
+          Option.fromNullable(
+            explicitAssignmentText(source, assignment, right, lineIndent(source, nodeStart(node))),
+          ),
+        ),
+        Option.map((text): Replacement => ({ end: nodeEnd(node), start: nodeStart(node), text })),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const arrowBaseIndent = (source: string, node: ArrowFunctionExpression): string => {
   const arrowLineStart = source.lastIndexOf('\n', nodeStart(node));
-  if (arrowLineStart === NOT_FOUND_INDEX) {
-    return '';
-  }
-  return lineIndent(source, nodeStart(node));
+  return pipe(
+    Option.some(arrowLineStart),
+    Option.map((lineStart): string => {
+      if (lineStart === NOT_FOUND_INDEX) {
+        return '';
+      }
+      return lineIndent(source, nodeStart(node));
+    }),
+    Option.getOrElse((): string => ''),
+  );
 };
 
-const arrowReplacement = (
-  source: string,
-  node: ArrowFunctionExpression,
-): Replacement | undefined => {
-  if (node.body.type !== 'ConditionalExpression') {
-    return undefined;
-  }
-
-  const baseIndent = arrowBaseIndent(source, node);
-  const bodyIndent = `${baseIndent}${INDENT_STEP}`;
-  const branchText = explicitReturnText(source, node.body, bodyIndent);
-  if (!branchText) {
-    return undefined;
-  }
-
-  return {
-    end: nodeEnd(node.body),
-    start: nodeStart(node.body),
-    text: `{\n${bodyIndent}${branchText}\n${baseIndent}}`,
-  };
-};
+const arrowReplacement = (source: string, node: ArrowFunctionExpression): Replacement | undefined =>
+  pipe(
+    Option.some(node.body),
+    Option.filter((body): body is ConditionalExpression => body.type === 'ConditionalExpression'),
+    Option.flatMap((body) => {
+      const baseIndent = arrowBaseIndent(source, node);
+      const bodyIndent = `${baseIndent}${INDENT_STEP}`;
+      return pipe(
+        Option.fromNullable(explicitReturnText(source, body, bodyIndent)),
+        Option.map(
+          (branchText): Replacement => ({
+            end: nodeEnd(body),
+            start: nodeStart(body),
+            text: `{\n${bodyIndent}${branchText}\n${baseIndent}}`,
+          }),
+        ),
+      );
+    }),
+    Option.getOrUndefined,
+  );
 
 const replacementOverlaps = (replacements: readonly Replacement[], candidate: unknown): boolean => {
   const start = nodeStart(candidate);
   const end = nodeEnd(candidate);
-  return replacements.some(
-    (replacement): boolean => start >= replacement.start && end <= replacement.end,
+  return pipe(
+    replacements,
+    Array.some((replacement): boolean => start >= replacement.start && end <= replacement.end),
   );
 };
 
-const collectExportedVariableKeys = (source: string): ReadonlySet<string> => {
-  const exported = new Set<string>();
+const collectExportedVariableKeys = (source: string): HashSet.HashSet<string> => {
+  let exported = HashSet.empty<string>();
   codemodAPI(source)
     .find(codemodAPI.ExportNamedDeclaration)
     .forEach((path): void => {
       const { declaration } = path.value;
       if (declaration?.type === 'VariableDeclaration') {
-        exported.add(`${nodeStart(declaration)}:${nodeEnd(declaration)}`);
+        exported = HashSet.add(exported, `${nodeStart(declaration)}:${nodeEnd(declaration)}`);
       }
     });
   return exported;
 };
 
 const isExportedVariableDeclaration = (
-  exported: ReadonlySet<string>,
+  exported: HashSet.HashSet<string>,
   node: VariableDeclaration,
-): boolean => exported.has(`${nodeStart(node)}:${nodeEnd(node)}`);
+): boolean => HashSet.has(exported, `${nodeStart(node)}:${nodeEnd(node)}`);
 
 const collectStatementReplacements = (source: string, replacements: Replacement[]): void => {
   const root = codemodAPI(source);
@@ -238,10 +265,10 @@ const collectStatementReplacements = (source: string, replacements: Replacement[
 
   root.find(codemodAPI.ExpressionStatement).forEach((path): void => {
     if (!replacementOverlaps(replacements, path.value)) {
-      const replacement = assignmentReplacement(source, path.value);
-      if (replacement) {
-        replacements.push(replacement);
-      }
+      pipe(
+        Option.fromNullable(assignmentReplacement(source, path.value)),
+        Option.map((replacement): number => replacements.push(replacement)),
+      );
     }
   });
 
@@ -250,28 +277,28 @@ const collectStatementReplacements = (source: string, replacements: Replacement[
       !isExportedVariableDeclaration(exportedVariables, path.value) &&
       !replacementOverlaps(replacements, path.value)
     ) {
-      const replacement = variableReplacement(source, path.value);
-      if (replacement) {
-        replacements.push(replacement);
-      }
+      pipe(
+        Option.fromNullable(variableReplacement(source, path.value)),
+        Option.map((replacement): number => replacements.push(replacement)),
+      );
     }
   });
 
   root.find(codemodAPI.ReturnStatement).forEach((path): void => {
     if (!replacementOverlaps(replacements, path.value)) {
-      const replacement = returnReplacement(source, path.value);
-      if (replacement) {
-        replacements.push(replacement);
-      }
+      pipe(
+        Option.fromNullable(returnReplacement(source, path.value)),
+        Option.map((replacement): number => replacements.push(replacement)),
+      );
     }
   });
 
   root.find(codemodAPI.ArrowFunctionExpression).forEach((path): void => {
     if (!replacementOverlaps(replacements, path.value)) {
-      const replacement = arrowReplacement(source, path.value);
-      if (replacement) {
-        replacements.push(replacement);
-      }
+      pipe(
+        Option.fromNullable(arrowReplacement(source, path.value)),
+        Option.map((replacement): number => replacements.push(replacement)),
+      );
     }
   });
 };
@@ -284,10 +311,13 @@ const collectStatementReplacements = (source: string, replacements: Replacement[
 export const preferExplicitBranches = (source: string): string => {
   const replacements: Replacement[] = [];
   const root = codemodAPI(source);
-  const program = root.find(codemodAPI.Program).paths()[0]?.value;
-  if (program) {
-    collectBranchInitializerRepairs(source, program.body, replacements);
-  }
+  pipe(
+    root.find(codemodAPI.Program).paths(),
+    Array.head,
+    Option.map((program): void =>
+      collectBranchInitializerRepairs(source, program.value.body, replacements),
+    ),
+  );
   root.find(codemodAPI.BlockStatement).forEach((path): void => {
     collectBranchInitializerRepairs(source, path.value.body, replacements);
   });
