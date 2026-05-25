@@ -1,7 +1,9 @@
 /* -------------------------------------------------------------------------- */
 /*            Static acronym data chunk for the acronym-case rule.            */
 /* -------------------------------------------------------------------------- */
-const acronyms1 = [
+import { Array } from 'effect';
+
+const acronyms1 = Array.make(
   'aaa',
   'aabb',
   'aac',
@@ -402,6 +404,6 @@ const acronyms1 = [
   'elf',
   'elixir',
   'elk',
-] as const;
+);
 
 export default acronyms1;

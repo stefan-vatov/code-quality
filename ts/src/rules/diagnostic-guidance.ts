@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*             LLM-friendly diagnostic guidance for custom rules.             */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
 
 interface DiagnosticInput {
   example: string;
@@ -142,7 +143,11 @@ export const constantDiagnosticMessage = (name: string, replacement: string): st
  */
 export const booleanDiagnosticMessage = (name: string): string =>
   diagnosticMessage({
-    example: `const is${name[0]?.toUpperCase() ?? ''}${name.slice(1)} = true`,
+    example: `const is${pipe(
+      Option.fromNullable(name[0]),
+      Option.map((character): string => character.toUpperCase()),
+      Option.getOrElse((): string => ''),
+    )}${name.slice(1)} = true`,
     fix: `Rename boolean '${name}' with an is/has/should/can predicate prefix and update references.`,
     summary: 'Boolean identifiers must read like predicates.',
   });
@@ -156,17 +161,15 @@ export const privateMemberDiagnosticMessage = (
   kind: 'method' | 'property',
   name: string,
   replacement: string,
-): string => {
-  let example = `private ${replacement}: string`;
-  if (kind === 'method') {
-    example = `private ${replacement}(): void {}`;
-  }
-  return diagnosticMessage({
-    example,
+): string =>
+  diagnosticMessage({
+    example: Match.value(kind).pipe(
+      Match.when('method', (): string => `private ${replacement}(): void {}`),
+      Match.orElse((): string => `private ${replacement}: string`),
+    ),
     fix: `Rename private ${kind} '${name}' to '${replacement}' and update internal references.`,
     summary: 'Private class members require a leading underscore.',
   });
-};
 
 /**
  * Internal helper exported for package-local composition.
@@ -178,11 +181,18 @@ export const acronymDiagnosticMessage = (
   replacement: string,
   violations: readonly string[],
 ): string => {
-  const listed = violations.map((acr) => `'${acr}'`).join(', ');
-  let pluralSuffix = '';
-  if (violations.length > 1) {
-    pluralSuffix = 's';
-  }
+  const listed = pipe(
+    violations,
+    Array.map((acr): string => `'${acr}'`),
+    Array.join(', '),
+  );
+  const pluralSuffix = Match.value(violations.length).pipe(
+    Match.when(
+      (length): boolean => length > 1,
+      (): string => 's',
+    ),
+    Match.orElse((): string => ''),
+  );
   return diagnosticMessage({
     example: `const ${replacement} = value`,
     fix: `Rename '${name}' to '${replacement}' and update references; acronym${pluralSuffix} ${listed} must stay uppercase.`,
@@ -289,11 +299,17 @@ The prose must be specific; generated placeholder text does not satisfy the rule
   });
 
 const matchesRuleGuidance = (ruleName: string, guidance: RuleGuidance): boolean =>
-  guidance.keys.some((key): boolean => ruleName.includes(key));
+  pipe(
+    guidance.keys,
+    Array.some((key): boolean => ruleName.includes(key)),
+  );
 
 const effectGuidance = (ruleName: string): Pick<DiagnosticInput, 'example' | 'fix'> =>
-  ruleGuidanceByName.find((guidance): boolean => matchesRuleGuidance(ruleName, guidance)) ??
-  fallbackEffectGuidance;
+  pipe(
+    ruleGuidanceByName,
+    Array.findFirst((guidance): boolean => matchesRuleGuidance(ruleName, guidance)),
+    Option.getOrElse((): Pick<DiagnosticInput, 'example' | 'fix'> => fallbackEffectGuidance),
+  );
 
 /**
  * Internal helper exported for package-local composition.

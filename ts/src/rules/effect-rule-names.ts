@@ -1,12 +1,14 @@
 /* -------------------------------------------------------------------------- */
 /*    Canonical lists of custom Effect rule names exported by the config.     */
 /* -------------------------------------------------------------------------- */
+import { Array } from 'effect';
+
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const effectDefaultRuleNames = [
+export const effectDefaultRuleNames = Array.make(
   'effect-no-floating-effect',
   'effect-require-yield-star',
   'effect-require-return-yield-star',
@@ -88,14 +90,14 @@ export const effectDefaultRuleNames = [
   'effect-no-unsafe-effect-type-assertion',
   'effect-require-service-self-match',
   'effect-no-effect-fn-iife',
-] as const;
+);
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const effectStrictRuleNames = [
+export const effectStrictRuleNames = Array.make(
   'effect-no-run-outside-entrypoints',
   'effect-require-platform-runmain-at-entrypoints',
   'effect-no-runSync-in-server-request-handlers',
@@ -156,4 +158,4 @@ export const effectStrictRuleNames = [
   'effect-prefer-effect-void',
   'effect-prefer-asVoid',
   'effect-prefer-flatMap-over-map-flatten',
-] as const;
+);

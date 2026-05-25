@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*         Conservative codemod for arrow-body-style concise bodies.          */
 /* -------------------------------------------------------------------------- */
+import { Array, Option, Order, Predicate, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
   BlockStatement,
@@ -20,49 +21,63 @@ const NOT_FOUND_INDEX = -1;
 const codemodAPI = jscodeshift.withParser('ts');
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
-  [...replacements]
-    .sort((left, right) => right.start - left.start)
-    .reduce(
+  pipe(
+    replacements,
+    Array.sortWith((replacement) => -replacement.start, Order.number),
+    Array.reduce(
+      source,
       (current, replacement) =>
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
-      source,
-    );
+    ),
+  );
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
 const sourceForNode = (source: string, node: unknown): string =>
   source.slice(nodeStart(node), nodeEnd(node));
 
 const hasAttachedComments = (node: ReturnStatement): boolean =>
-  Boolean(
-    node.comments?.length ||
-    (isObjectRecord(node) &&
-      Array.isArray(node.leadingComments) &&
-      node.leadingComments.length > 0) ||
-    (isObjectRecord(node) &&
-      Array.isArray(node.trailingComments) &&
-      node.trailingComments.length > 0),
+  pipe(
+    [
+      Option.fromNullable(node.comments),
+      pipe(
+        Option.some(node as unknown),
+        Option.filter(isObjectRecord),
+        Option.flatMapNullable((value) => value.leadingComments),
+        Option.filter(globalThis.Array.isArray),
+      ),
+      pipe(
+        Option.some(node as unknown),
+        Option.filter(isObjectRecord),
+        Option.flatMapNullable((value) => value.trailingComments),
+        Option.filter(globalThis.Array.isArray),
+      ),
+    ],
+    Array.some((comments): boolean =>
+      pipe(
+        comments,
+        Option.exists((values): boolean => values.length > 0),
+      ),
+    ),
   );
 
 const expressionNeedsParentheses = (expression: Expression): boolean =>
@@ -70,10 +85,16 @@ const expressionNeedsParentheses = (expression: Expression): boolean =>
 
 const lineEndAfter = (source: string, end: number): number => {
   const nextLineBreak = source.indexOf('\n', end);
-  if (nextLineBreak === NOT_FOUND_INDEX) {
-    return source.length;
-  }
-  return nextLineBreak;
+  return pipe(
+    Option.some(nextLineBreak),
+    Option.map((lineBreak): number => {
+      if (lineBreak === NOT_FOUND_INDEX) {
+        return source.length;
+      }
+      return lineBreak;
+    }),
+    Option.getOrElse((): number => source.length),
+  );
 };
 
 const wouldExceedLineLimit = (
@@ -93,10 +114,16 @@ const wouldExceedLineLimit = (
 
 const replacementTextForExpression = (source: string, expression: Expression): string => {
   const expressionText = sourceForNode(source, expression);
-  if (expressionNeedsParentheses(expression)) {
-    return `(${expressionText})`;
-  }
-  return expressionText;
+  return pipe(
+    Option.some(expressionText),
+    Option.map((text): string => {
+      if (expressionNeedsParentheses(expression)) {
+        return `(${text})`;
+      }
+      return text;
+    }),
+    Option.getOrElse((): string => expressionText),
+  );
 };
 
 interface OnlyReturnStatement {
@@ -104,16 +131,22 @@ interface OnlyReturnStatement {
   statement: ReturnStatement;
 }
 
-const onlyReturnStatement = (body: BlockStatement): OnlyReturnStatement | undefined => {
-  if (body.body.length !== 1) {
-    return undefined;
-  }
-  const [statement] = body.body;
-  if (statement?.type === 'ReturnStatement' && statement.argument) {
-    return { expression: statement.argument, statement };
-  }
-  return undefined;
-};
+const onlyReturnStatement = (body: BlockStatement): OnlyReturnStatement | undefined =>
+  pipe(
+    body.body,
+    Option.liftPredicate((statements): boolean => statements.length === 1),
+    Option.flatMap(Array.head),
+    Option.filter(
+      (statement): statement is ReturnStatement => statement.type === 'ReturnStatement',
+    ),
+    Option.flatMap((statement) =>
+      pipe(
+        Option.fromNullable(statement.argument),
+        Option.map((expression): OnlyReturnStatement => ({ expression, statement })),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const replacementForReturnExpression = (
   source: string,
@@ -121,29 +154,30 @@ const replacementForReturnExpression = (
   expression: Expression,
 ): Replacement | undefined => {
   const text = replacementTextForExpression(source, expression);
-  if (wouldExceedLineLimit(source, nodeStart(node.body), nodeEnd(node.body), text)) {
-    return undefined;
-  }
-  return { end: nodeEnd(node.body), start: nodeStart(node.body), text };
+  return pipe(
+    Option.some({ end: nodeEnd(node.body), start: nodeStart(node.body), text }),
+    Option.filter(
+      (replacement): boolean =>
+        !wouldExceedLineLimit(source, replacement.start, replacement.end, replacement.text),
+    ),
+    Option.getOrUndefined,
+  );
 };
 
 const replacementForArrow = (
   source: string,
   node: ArrowFunctionExpression,
-): Replacement | undefined => {
-  if (node.body.type !== 'BlockStatement') {
-    return undefined;
-  }
-  const result = onlyReturnStatement(node.body);
-  if (!result) {
-    return undefined;
-  }
-  if (hasAttachedComments(result.statement)) {
-    return undefined;
-  }
-
-  return replacementForReturnExpression(source, node, result.expression);
-};
+): Replacement | undefined =>
+  pipe(
+    Option.some(node.body),
+    Option.filter((body): body is BlockStatement => body.type === 'BlockStatement'),
+    Option.flatMap((body) => Option.fromNullable(onlyReturnStatement(body))),
+    Option.filter((result): boolean => !hasAttachedComments(result.statement)),
+    Option.flatMap((result) =>
+      Option.fromNullable(replacementForReturnExpression(source, node, result.expression)),
+    ),
+    Option.getOrUndefined,
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -156,10 +190,10 @@ export const preferConciseArrowBodies = (source: string): string => {
   codemodAPI(source)
     .find(codemodAPI.ArrowFunctionExpression)
     .forEach((path): void => {
-      const replacement = replacementForArrow(source, path.value);
-      if (replacement) {
-        replacements.push(replacement);
-      }
+      pipe(
+        Option.fromNullable(replacementForArrow(source, path.value)),
+        Option.map((replacement): number => replacements.push(replacement)),
+      );
     });
 
   return applyReplacements(source, replacements);

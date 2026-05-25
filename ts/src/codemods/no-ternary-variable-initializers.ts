@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*       Variable-initializer repairs for the no-ternary codemod only.        */
 /* -------------------------------------------------------------------------- */
+import { Array, Option, Predicate, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
   BlockStatement,
@@ -35,27 +36,25 @@ const NOT_FOUND_INDEX = -1;
 const codemodAPI = jscodeshift.withParser('ts');
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
 const sourceForNode = (source: string, node: unknown): string =>
   source.slice(nodeStart(node), nodeEnd(node));
@@ -77,8 +76,11 @@ const lineIndent = (source: string, index: number): string => {
 };
 
 const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<object>): boolean => {
-  if (Array.isArray(node)) {
-    return node.some((entry) => containsConditionalExpressionInValue(entry, seen));
+  if (globalThis.Array.isArray(node)) {
+    return pipe(
+      node,
+      Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
+    );
   }
   if (!isObjectRecord(node)) {
     return false;
@@ -90,7 +92,10 @@ const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<objec
   if (node.type === 'ConditionalExpression') {
     return true;
   }
-  return Object.values(node).some((entry) => containsConditionalExpressionInValue(entry, seen));
+  return pipe(
+    Object.values(node),
+    Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
+  );
 };
 
 const containsConditionalExpression = (node: unknown): boolean =>
@@ -100,62 +105,75 @@ const hasUnsafeBranches = (expression: ConditionalExpression): boolean =>
   containsConditionalExpression(expression.consequent) ||
   containsConditionalExpression(expression.alternate);
 
-const primitiveTypeOf = (expression: Expression): string | undefined => {
-  if (expression.type === 'StringLiteral') {
-    return 'string';
-  }
-  if (expression.type === 'NumericLiteral') {
-    return 'number';
-  }
-  if (expression.type === 'BooleanLiteral') {
-    return 'boolean';
-  }
-  if (expression.type === 'NullLiteral') {
-    return 'null';
-  }
-  return undefined;
-};
+const primitiveTypeOf = (expression: Expression): string | undefined =>
+  pipe(
+    Option.some(expression.type),
+    Option.flatMap((type) => {
+      if (type === 'StringLiteral') {
+        return Option.some('string');
+      }
+      if (type === 'NumericLiteral') {
+        return Option.some('number');
+      }
+      if (type === 'BooleanLiteral') {
+        return Option.some('boolean');
+      }
+      if (type === 'NullLiteral') {
+        return Option.some('null');
+      }
+      return Option.none<string>();
+    }),
+    Option.getOrUndefined,
+  );
 
-const declaredTypeText = (source: string, declaration: VariableDeclarator): string | undefined => {
-  if (!isIdentifier(declaration.id) || !declaration.id.typeAnnotation) {
-    return undefined;
-  }
-  const raw = sourceForNode(source, declaration.id.typeAnnotation).trim();
-  if (raw.startsWith(':')) {
-    return raw.slice(1).trim();
-  }
-  return raw;
-};
+const declaredTypeText = (source: string, declaration: VariableDeclarator): string | undefined =>
+  pipe(
+    Option.some(declaration.id),
+    Option.filter(isIdentifier),
+    Option.flatMapNullable((identifier) => identifier.typeAnnotation),
+    Option.map((annotation): string => {
+      const raw = sourceForNode(source, annotation).trim();
+      if (raw.startsWith(':')) {
+        return raw.slice(1).trim();
+      }
+      return raw;
+    }),
+    Option.getOrUndefined,
+  );
 
 const initializerReturnType = (
   source: string,
   declaration: VariableDeclarator,
   whenTrue: Expression,
   whenFalse: Expression,
-): string | undefined => {
-  const declared = declaredTypeText(source, declaration);
-  if (declared) {
-    return declared;
-  }
-
-  const trueType = primitiveTypeOf(whenTrue);
-  const falseType = primitiveTypeOf(whenFalse);
-  if (trueType && trueType === falseType) {
-    return trueType;
-  }
-  return undefined;
-};
+): string | undefined =>
+  pipe(
+    Option.fromNullable(declaredTypeText(source, declaration)),
+    Option.orElse(() =>
+      pipe(
+        Option.all({
+          falseType: Option.fromNullable(primitiveTypeOf(whenFalse)),
+          trueType: Option.fromNullable(primitiveTypeOf(whenTrue)),
+        }),
+        Option.filter(({ falseType, trueType }): boolean => trueType === falseType),
+        Option.map(({ trueType }): string => trueType),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const optionalTypeText = (
   source: string,
   declaration: VariableDeclarator,
   returnType: string,
-): string => {
-  if (declaredTypeText(source, declaration)) {
-    return `: ${returnType}`;
-  }
-  return '';
-};
+): string =>
+  pipe(
+    Option.fromNullable(declaredTypeText(source, declaration)),
+    Option.match({
+      onNone: (): string => '',
+      onSome: (): string => `: ${returnType}`,
+    }),
+  );
 
 const branchInitializerText = (input: BranchTextInput): string => {
   const bodyIndent = `${input.indent}${INDENT_STEP}`;
@@ -170,12 +188,15 @@ const branchInitializerText = (input: BranchTextInput): string => {
   ].join('\n');
 };
 
-const declarationKeyword = (statement: VariableDeclaration): 'const' | 'let' => {
-  if (statement.kind === 'const') {
-    return 'const';
-  }
-  return 'let';
-};
+const declarationKeyword = (statement: VariableDeclaration): 'const' | 'let' =>
+  pipe(
+    Option.some(statement.kind),
+    Option.filter((kind): boolean => kind === 'const'),
+    Option.match({
+      onNone: (): 'let' => 'let',
+      onSome: (): 'const' => 'const',
+    }),
+  );
 
 const explicitInitializerText = (
   source: string,
@@ -183,32 +204,32 @@ const explicitInitializerText = (
   declaration: VariableDeclarator,
   expression: ConditionalExpression,
   indent: string,
-): string | undefined => {
-  if (!isIdentifier(declaration.id) || hasUnsafeBranches(expression)) {
-    return undefined;
-  }
-
-  const returnType = initializerReturnType(
-    source,
-    declaration,
-    expression.consequent,
-    expression.alternate,
+): string | undefined =>
+  pipe(
+    Option.some(declaration.id),
+    Option.filter(isIdentifier),
+    Option.filter((): boolean => !hasUnsafeBranches(expression)),
+    Option.flatMap((identifier) =>
+      pipe(
+        Option.fromNullable(
+          initializerReturnType(source, declaration, expression.consequent, expression.alternate),
+        ),
+        Option.map((returnType): string =>
+          branchInitializerText({
+            condition: sourceForNode(source, expression.test),
+            falseText: sourceForNode(source, expression.alternate),
+            indent,
+            keyword: declarationKeyword(statement),
+            name: identifier.name,
+            returnType,
+            trueText: sourceForNode(source, expression.consequent),
+            typeText: optionalTypeText(source, declaration, returnType),
+          }),
+        ),
+      ),
+    ),
+    Option.getOrUndefined,
   );
-  if (!returnType) {
-    return undefined;
-  }
-
-  return branchInitializerText({
-    condition: sourceForNode(source, expression.test),
-    falseText: sourceForNode(source, expression.alternate),
-    indent,
-    keyword: declarationKeyword(statement),
-    name: declaration.id.name,
-    returnType,
-    trueText: sourceForNode(source, expression.consequent),
-    typeText: optionalTypeText(source, declaration, returnType),
-  });
-};
 
 const isWhitespaceChar = (char: string | undefined): boolean =>
   char === ' ' || char === '\n' || char === '\r' || char === '\t';
@@ -227,101 +248,112 @@ const arrowReturnTypeInsertPosition = (source: string, arrow: ArrowFunctionExpre
 };
 
 const returnExpressions = (body: BlockStatement): Expression[] =>
-  codemodAPI(body)
-    .find(codemodAPI.ReturnStatement)
-    .paths()
-    .flatMap((path): Expression[] => {
-      if (path.value.argument) {
-        return [path.value.argument];
-      }
-      return [];
-    });
+  pipe(
+    codemodAPI(body).find(codemodAPI.ReturnStatement).paths(),
+    Array.filterMap((path) => Option.fromNullable(path.value.argument)),
+  );
 
 const commonPrimitiveReturnType = (body: BlockStatement): string | undefined => {
   const expressions = returnExpressions(body);
-  const [firstExpression] = expressions;
-  if (!firstExpression) {
-    return undefined;
-  }
-
-  const firstType = primitiveTypeOf(firstExpression);
-  if (!firstType) {
-    return undefined;
-  }
-  if (expressions.every((expression): boolean => primitiveTypeOf(expression) === firstType)) {
-    return firstType;
-  }
-  return undefined;
+  return pipe(
+    expressions,
+    Array.head,
+    Option.flatMap((firstExpression) =>
+      pipe(
+        Option.fromNullable(primitiveTypeOf(firstExpression)),
+        Option.filter((firstType): boolean =>
+          pipe(
+            expressions,
+            Array.every((expression): boolean => primitiveTypeOf(expression) === firstType),
+          ),
+        ),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 };
 
 const arrowIIFEReturnType = (
   source: string,
   declaration: VariableDeclarator,
   arrow: ArrowFunctionExpression,
-): string | undefined => {
-  const declared = declaredTypeText(source, declaration);
-  if (declared) {
-    return declared;
-  }
-  if (arrow.body.type === 'BlockStatement') {
-    return commonPrimitiveReturnType(arrow.body);
-  }
-  return primitiveTypeOf(arrow.body);
-};
+): string | undefined =>
+  pipe(
+    Option.fromNullable(declaredTypeText(source, declaration)),
+    Option.orElse(() => {
+      if (arrow.body.type === 'BlockStatement') {
+        return Option.fromNullable(commonPrimitiveReturnType(arrow.body));
+      }
+      return Option.fromNullable(primitiveTypeOf(arrow.body));
+    }),
+    Option.getOrUndefined,
+  );
 
-const zeroArgArrowIIFE = (declaration: VariableDeclarator): ArrowFunctionExpression | undefined => {
-  if (declaration.init?.type !== 'CallExpression') {
-    return undefined;
-  }
-  const { callee } = declaration.init;
-  if (callee.type !== 'ArrowFunctionExpression' || callee.params.length > 0 || callee.returnType) {
-    return undefined;
-  }
-  return callee;
-};
+const zeroArgArrowIIFE = (declaration: VariableDeclarator): ArrowFunctionExpression | undefined =>
+  pipe(
+    Option.fromNullable(declaration.init),
+    Option.filter((init): boolean => init.type === 'CallExpression'),
+    Option.flatMapNullable((init) => {
+      if (isObjectRecord(init)) {
+        return init.callee;
+      }
+      return undefined;
+    }),
+    Option.filter(
+      (callee): callee is ArrowFunctionExpression =>
+        isObjectRecord(callee) &&
+        callee.type === 'ArrowFunctionExpression' &&
+        globalThis.Array.isArray(callee.params) &&
+        callee.params.length === 0 &&
+        !callee.returnType,
+    ),
+    Option.getOrUndefined,
+  );
 
 const arrowIIFEReturnTypeReplacement = (
   source: string,
   declaration: VariableDeclarator,
-): Replacement | undefined => {
-  const arrow = zeroArgArrowIIFE(declaration);
-  if (!arrow) {
-    return undefined;
-  }
-
-  const returnType = arrowIIFEReturnType(source, declaration, arrow);
-  if (!returnType) {
-    return undefined;
-  }
-
-  const insertAt = arrowReturnTypeInsertPosition(source, arrow);
-  return { end: insertAt, start: insertAt, text: `: ${returnType}` };
-};
+): Replacement | undefined =>
+  pipe(
+    Option.fromNullable(zeroArgArrowIIFE(declaration)),
+    Option.flatMap((arrow) =>
+      pipe(
+        Option.fromNullable(arrowIIFEReturnType(source, declaration, arrow)),
+        Option.map((returnType): Replacement => {
+          const insertAt = arrowReturnTypeInsertPosition(source, arrow);
+          return { end: insertAt, start: insertAt, text: `: ${returnType}` };
+        }),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const initializerReplacement = (
   source: string,
   node: VariableDeclaration,
   declaration: VariableDeclarator,
-): Replacement | undefined => {
-  if (!declaration.init) {
-    return undefined;
-  }
-  if (declaration.init.type !== 'ConditionalExpression') {
-    return arrowIIFEReturnTypeReplacement(source, declaration);
-  }
-
-  const text = explicitInitializerText(
-    source,
-    node,
-    declaration,
-    declaration.init,
-    lineIndent(source, nodeStart(node)),
+): Replacement | undefined =>
+  pipe(
+    Option.fromNullable(declaration.init),
+    Option.flatMap((init) => {
+      if (init.type !== 'ConditionalExpression') {
+        return Option.fromNullable(arrowIIFEReturnTypeReplacement(source, declaration));
+      }
+      return pipe(
+        Option.fromNullable(
+          explicitInitializerText(
+            source,
+            node,
+            declaration,
+            init,
+            lineIndent(source, nodeStart(node)),
+          ),
+        ),
+        Option.map((text): Replacement => ({ end: nodeEnd(node), start: nodeStart(node), text })),
+      );
+    }),
+    Option.getOrUndefined,
   );
-  if (!text) {
-    return undefined;
-  }
-  return { end: nodeEnd(node), start: nodeStart(node), text };
-};
 
 const isVariableDeclarator = (node: unknown): node is VariableDeclarator =>
   isObjectRecord(node) && node.type === 'VariableDeclarator';
@@ -334,14 +366,15 @@ const isVariableDeclarator = (node: unknown): node is VariableDeclarator =>
 export const variableReplacement = (
   source: string,
   node: VariableDeclaration,
-): Replacement | undefined => {
-  if (node.declarations.length !== 1) {
-    return undefined;
-  }
-
-  const [declaration] = node.declarations;
-  if (!isVariableDeclarator(declaration) || !declaration.init) {
-    return undefined;
-  }
-  return initializerReplacement(source, node, declaration);
-};
+): Replacement | undefined =>
+  pipe(
+    node.declarations,
+    Option.liftPredicate((declarations): boolean => declarations.length === 1),
+    Option.flatMap(Array.head),
+    Option.filter(isVariableDeclarator),
+    Option.filter((declaration): boolean => Boolean(declaration.init)),
+    Option.flatMap((declaration) =>
+      Option.fromNullable(initializerReplacement(source, node, declaration)),
+    ),
+    Option.getOrUndefined,
+  );

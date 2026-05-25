@@ -20,6 +20,8 @@
       "ignoreBinaries": ["oxfmt", "vitest"],
       "ignoreDependencies": [
         "@oxlint/plugins",
+        "@effect/platform-node",
+        "effect",
         "jscodeshift",
         "oxlint-plugin-complexity",
         "oxlint-tsgolint"

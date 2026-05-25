@@ -1,7 +1,9 @@
 /* -------------------------------------------------------------------------- */
 /*            Static acronym data chunk for the acronym-case rule.            */
 /* -------------------------------------------------------------------------- */
-const acronyms3 = [
+import { Array } from 'effect';
+
+const acronyms3 = Array.make(
   'mcp',
   'mcpc',
   'mcpd',
@@ -402,6 +404,6 @@ const acronyms3 = [
   'scsi',
   'sctp',
   'sddl',
-] as const;
+);
 
 export default acronyms3;

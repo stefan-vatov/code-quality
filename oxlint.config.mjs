@@ -8,6 +8,7 @@ const config = theThracian({
     strict: {
       adapterLayers: ['ts/src/codemod-fix/**', 'ts/src/index.ts', 'ts/src/rules/source-cache.ts'],
       configLayers: ['ts/src/index.ts'],
+      entrypoints: ['ts/src/codemods/run.ts'],
     },
   },
   typeAware: true,

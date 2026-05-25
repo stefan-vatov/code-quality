@@ -1,7 +1,9 @@
 /* -------------------------------------------------------------------------- */
 /*            Static acronym data chunk for the acronym-case rule.            */
 /* -------------------------------------------------------------------------- */
-const acronyms4 = [
+import { Array } from 'effect';
+
+const acronyms4 = Array.make(
   'sdh',
   'sdi',
   'sdio',
@@ -372,6 +374,6 @@ const acronyms4 = [
   'zope',
   'zpl',
   'zustand',
-] as const;
+);
 
 export default acronyms4;

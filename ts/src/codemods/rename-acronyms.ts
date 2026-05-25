@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*  AST-backed codemod for correcting repeatable acronym casing violations.   */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Option, Order, Predicate, pipe } from 'effect';
 import type { Identifier, ObjectProperty, Statement } from 'jscodeshift';
 import findMisCasedAcronyms, { fixAcronymCase } from '../rules/acronym-case';
 import jscodeshift from 'jscodeshift';
@@ -16,199 +17,268 @@ interface ProgramLike {
 }
 
 interface RenameContext {
-  protectedNames: ReadonlySet<string>;
-  protectedRanges: ReadonlySet<string>;
+  protectedNames: HashSet.HashSet<string>;
+  protectedRanges: HashSet.HashSet<string>;
 }
 
 const codemodAPI = jscodeshift.withParser('ts');
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
-  [...replacements]
-    .sort((left, right) => right.start - left.start)
-    .reduce(
+  pipe(
+    replacements,
+    Array.sortWith((replacement) => -replacement.start, Order.number),
+    Array.reduce(
+      source,
       (current, replacement) =>
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
-      source,
-    );
+    ),
+  );
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
 const nodeRangeKey = (node: unknown): string => `${nodeStart(node)}:${nodeEnd(node)}`;
 
 const isIdentifier = (node: unknown): node is Identifier =>
   isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
 
-const collectObjectPatternNames = (name: Record<string, unknown>, names: Set<string>): void => {
+const collectObjectPatternNames = (
+  name: Record<string, unknown>,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
   const { properties } = name;
-  if (!Array.isArray(properties)) {
-    return;
+  if (!globalThis.Array.isArray(properties)) {
+    return names;
   }
-  for (const property of properties) {
-    collectPropertyBindingName(property, names);
-  }
+  return pipe(
+    properties,
+    Array.reduce(names, (currentNames, property) =>
+      collectPropertyBindingName(property, currentNames),
+    ),
+  );
 };
 
-const collectArrayPatternNames = (name: Record<string, unknown>, names: Set<string>): void => {
+const collectArrayPatternNames = (
+  name: Record<string, unknown>,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
   const { elements } = name;
-  if (!Array.isArray(elements)) {
-    return;
+  if (!globalThis.Array.isArray(elements)) {
+    return names;
   }
-  for (const element of elements) {
-    collectBindingNames(element, names);
-  }
+  return pipe(
+    elements,
+    Array.reduce(names, (currentNames, element) => collectBindingNames(element, currentNames)),
+  );
 };
 
-const collectPropertyBindingName = (property: unknown, names: Set<string>): void => {
+const collectPropertyBindingName = (
+  property: unknown,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
   if (!isObjectRecord(property)) {
-    return;
+    return names;
   }
   if (property.type === 'ObjectProperty') {
-    collectBindingNames(property.value, names);
-  } else if (property.type === 'RestElement') {
-    collectBindingNames(property.argument, names);
+    return collectBindingNames(property.value, names);
   }
+  if (property.type === 'RestElement') {
+    return collectBindingNames(property.argument, names);
+  }
+  return names;
 };
 
-const collectBindingNames = (name: unknown, names: Set<string>): void => {
+const collectPatternBindingNames = (
+  name: Record<string, unknown>,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
+  if (name.type === 'ObjectPattern') {
+    return collectObjectPatternNames(name, names);
+  }
+  if (name.type === 'ArrayPattern') {
+    return collectArrayPatternNames(name, names);
+  }
+  if (name.type === 'AssignmentPattern') {
+    return collectBindingNames(name.left, names);
+  }
+  if (name.type === 'RestElement') {
+    return collectBindingNames(name.argument, names);
+  }
+  return names;
+};
+
+const collectBindingNames = (
+  name: unknown,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
   if (!isObjectRecord(name)) {
-    return;
+    return names;
   }
   if (isIdentifier(name)) {
-    names.add(name.name);
-    return;
+    return HashSet.add(names, name.name);
   }
-  if (name.type === 'ObjectPattern') {
-    collectObjectPatternNames(name, names);
-  } else if (name.type === 'ArrayPattern') {
-    collectArrayPatternNames(name, names);
-  } else if (name.type === 'AssignmentPattern') {
-    collectBindingNames(name.left, names);
-  } else if (name.type === 'RestElement') {
-    collectBindingNames(name.argument, names);
-  }
+  return collectPatternBindingNames(name, names);
 };
 
-const collectImportProtectedNames = (statement: Statement, names: Set<string>): void => {
-  if (!isObjectRecord(statement) || !Array.isArray(statement.specifiers)) {
-    return;
+const collectImportProtectedNames = (
+  statement: Statement,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
+  if (!isObjectRecord(statement) || !globalThis.Array.isArray(statement.specifiers)) {
+    return names;
   }
-  for (const specifier of statement.specifiers) {
-    if (isObjectRecord(specifier) && isIdentifier(specifier.local)) {
-      names.add(specifier.local.name);
-    }
-  }
+  return pipe(
+    statement.specifiers,
+    Array.reduce(names, (currentNames, specifier) => {
+      if (isObjectRecord(specifier) && isIdentifier(specifier.local)) {
+        return HashSet.add(currentNames, specifier.local.name);
+      }
+      return currentNames;
+    }),
+  );
 };
 
-const collectExportedVariableNames = (declaration: unknown, names: Set<string>): void => {
-  if (!isObjectRecord(declaration) || !Array.isArray(declaration.declarations)) {
-    return;
+const collectExportedVariableNames = (
+  declaration: unknown,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
+  if (!isObjectRecord(declaration) || !globalThis.Array.isArray(declaration.declarations)) {
+    return names;
   }
-  for (const variableDeclarator of declaration.declarations) {
-    if (isObjectRecord(variableDeclarator)) {
-      collectBindingNames(variableDeclarator.id, names);
-    }
-  }
+  return pipe(
+    declaration.declarations,
+    Array.reduce(names, (currentNames, variableDeclarator) => {
+      if (isObjectRecord(variableDeclarator)) {
+        return collectBindingNames(variableDeclarator.id, currentNames);
+      }
+      return currentNames;
+    }),
+  );
 };
 
-const collectExportedDeclarationName = (declaration: unknown, names: Set<string>): void => {
+const collectExportedDeclarationName = (
+  declaration: unknown,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
   if (!isObjectRecord(declaration)) {
-    return;
+    return names;
   }
   if (declaration.type === 'VariableDeclaration') {
-    collectExportedVariableNames(declaration, names);
-    return;
+    return collectExportedVariableNames(declaration, names);
   }
   if (isIdentifier(declaration.id)) {
-    names.add(declaration.id.name);
+    return HashSet.add(names, declaration.id.name);
   }
+  return names;
 };
 
-const collectExportSpecifierNames = (statement: Statement, names: Set<string>): void => {
-  if (!isObjectRecord(statement) || !Array.isArray(statement.specifiers)) {
-    return;
+const collectExportSpecifierNames = (
+  statement: Statement,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
+  if (!isObjectRecord(statement) || !globalThis.Array.isArray(statement.specifiers)) {
+    return names;
   }
-  for (const specifier of statement.specifiers) {
-    if (isObjectRecord(specifier)) {
-      collectBindingNames(specifier.local, names);
-      collectBindingNames(specifier.exported, names);
-    }
-  }
+  return pipe(
+    statement.specifiers,
+    Array.reduce(names, (currentNames, specifier) => {
+      if (isObjectRecord(specifier)) {
+        return collectBindingNames(
+          specifier.exported,
+          collectBindingNames(specifier.local, currentNames),
+        );
+      }
+      return currentNames;
+    }),
+  );
 };
 
-const collectProtectedNameFromStatement = (statement: Statement, names: Set<string>): void => {
+const collectProtectedNameFromStatement = (
+  statement: Statement,
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> => {
   if (statement.type === 'ImportDeclaration') {
-    collectImportProtectedNames(statement, names);
-  } else if (statement.type === 'ExportNamedDeclaration' && isObjectRecord(statement)) {
-    collectExportedDeclarationName(statement.declaration, names);
-    collectExportSpecifierNames(statement, names);
+    return collectImportProtectedNames(statement, names);
   }
+  if (statement.type === 'ExportNamedDeclaration' && isObjectRecord(statement)) {
+    return collectExportSpecifierNames(
+      statement,
+      collectExportedDeclarationName(statement.declaration, names),
+    );
+  }
+  return names;
 };
 
-const sourceProgram = (source: string): ProgramLike | undefined => {
-  const [programPath] = codemodAPI(source).find(codemodAPI.Program).paths();
-  if (!programPath) {
-    return undefined;
-  }
-  return programPath.value;
-};
+const sourceProgram = (source: string): ProgramLike | undefined =>
+  pipe(
+    codemodAPI(source).find(codemodAPI.Program).paths(),
+    Array.head,
+    Option.map((programPath): ProgramLike => programPath.value),
+    Option.getOrUndefined,
+  );
 
-const collectProtectedNames = (source: string): Set<string> => {
-  const protectedNames = new Set<string>();
-  const program = sourceProgram(source);
-  if (!program) {
-    return protectedNames;
-  }
+const collectProtectedNames = (source: string): HashSet.HashSet<string> =>
+  pipe(
+    Option.fromNullable(sourceProgram(source)),
+    Option.match({
+      onNone: (): HashSet.HashSet<string> => HashSet.empty(),
+      onSome: (program): HashSet.HashSet<string> =>
+        pipe(
+          program.body,
+          Array.reduce(HashSet.empty<string>(), (protectedNames, statement) =>
+            collectProtectedNameFromStatement(statement, protectedNames),
+          ),
+        ),
+    }),
+  );
 
-  for (const statement of program.body) {
-    collectProtectedNameFromStatement(statement, protectedNames);
-  }
-  return protectedNames;
-};
-
-const addObjectPropertyKeyRange = (ranges: Set<string>, property: ObjectProperty): void => {
+const addObjectPropertyKeyRange = (
+  ranges: HashSet.HashSet<string>,
+  property: ObjectProperty,
+): HashSet.HashSet<string> => {
   if (property.shorthand === true) {
-    ranges.add(nodeRangeKey(property.key));
-    ranges.add(nodeRangeKey(property.value));
-    return;
+    return pipe(
+      ranges,
+      HashSet.add(nodeRangeKey(property.key)),
+      HashSet.add(nodeRangeKey(property.value)),
+    );
   }
-  ranges.add(nodeRangeKey(property.key));
+  return HashSet.add(ranges, nodeRangeKey(property.key));
 };
 
-const collectProtectedRanges = (source: string): Set<string> => {
-  const ranges = new Set<string>();
+const collectProtectedRanges = (source: string): HashSet.HashSet<string> => {
+  let ranges = HashSet.empty<string>();
 
   codemodAPI(source)
     .find(codemodAPI.ObjectProperty)
     .forEach((path): void => {
-      addObjectPropertyKeyRange(ranges, path.value);
+      ranges = addObjectPropertyKeyRange(ranges, path.value);
     });
 
   return ranges;
 };
 
 const shouldSkipIdentifier = (node: Identifier, context: RenameContext): boolean =>
-  context.protectedNames.has(node.name) || context.protectedRanges.has(nodeRangeKey(node));
+  HashSet.has(context.protectedNames, node.name) ||
+  HashSet.has(context.protectedRanges, nodeRangeKey(node));
 
 const collectIdentifierReplacements = (source: string): Replacement[] => {
   const context: RenameContext = {

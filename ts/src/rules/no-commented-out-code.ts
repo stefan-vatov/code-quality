@@ -5,6 +5,7 @@
 /*    Meets the threshold, the comment is flagged. Optimized: pre-compiled    */
 /*       Regex, line scanning via indexOf, minimal string allocations.        */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Match, pipe } from 'effect';
 
 // Pre-compiled regex patterns
 const RE_ARROW_FN = /\b=>\s*[{(\w]/;
@@ -39,7 +40,7 @@ const SENTENCE_CASE_PENALTY = 2;
 const FLAG_SCORE_THRESHOLD = 3;
 
 // Code-indicative keywords
-const CODE_KEYWORDS = new Set([
+const CODE_KEYWORDS = HashSet.make(
   'const',
   'let',
   'var',
@@ -80,29 +81,42 @@ const CODE_KEYWORDS = new Set([
   'protected',
   'private',
   'public',
-]);
+);
+
+const scanIndexes = (startIndex: number, endIndex: number): readonly number[] =>
+  Match.value(startIndex).pipe(
+    Match.when(
+      (value): boolean => value > endIndex,
+      () => [],
+    ),
+    Match.orElse((value): readonly number[] => Array.range(value, endIndex)),
+  );
 
 /**
  * Extract first whitespace-delimited word from text.
  */
-const firstWord = (text: string): string => {
-  let end = 0;
-  const len = text.length;
-  while (end < len && text.charCodeAt(end) > CHAR_CODE_SPACE) {
-    end++;
-  }
-  return text.slice(0, end).toLowerCase();
-};
+const firstWhitespaceIndex = (text: string, index: number): number =>
+  Match.value(index).pipe(
+    Match.when(
+      (current): boolean => current >= text.length || text.charCodeAt(current) <= CHAR_CODE_SPACE,
+      (current): number => current,
+    ),
+    Match.orElse((current): number => firstWhitespaceIndex(text, current + 1)),
+  );
 
-const countOpenBraces = (source: string, start: number, end: number): number => {
-  let count = 0;
-  for (let idx = start; idx < end; idx++) {
-    if (source.charCodeAt(idx) === CHAR_CODE_OPEN_BRACE) {
-      count++;
-    }
-  }
-  return count;
-};
+const firstWord = (text: string): string =>
+  text.slice(0, firstWhitespaceIndex(text, 0)).toLowerCase();
+
+const countOpenBraces = (source: string, start: number, end: number): number =>
+  pipe(
+    scanIndexes(start, end - 1),
+    Array.reduce(0, (count, idx): number =>
+      Match.value(source.charCodeAt(idx)).pipe(
+        Match.when(CHAR_CODE_OPEN_BRACE, (): number => count + 1),
+        Match.orElse((): number => count),
+      ),
+    ),
+  );
 
 interface LineStats {
   braceCount: number;
@@ -111,42 +125,45 @@ interface LineStats {
   score: number;
 }
 
-const hasCodeTokenSignal = (normalized: string): boolean => {
-  if (RE_CODE_TOKEN.test(normalized)) {
-    return true;
-  }
-  if (CODE_KEYWORDS.has(firstWord(normalized))) {
-    return true;
-  }
-  return RE_KEYWORD_SCAN.test(normalized);
-};
+const hasCodeTokenSignal = (normalized: string): boolean =>
+  Match.value(RE_CODE_TOKEN.test(normalized)).pipe(
+    Match.when(true, (): boolean => true),
+    Match.when(
+      (): boolean => HashSet.has(CODE_KEYWORDS, firstWord(normalized)),
+      (): boolean => true,
+    ),
+    Match.orElse((): boolean => RE_KEYWORD_SCAN.test(normalized)),
+  );
 
-const nextLineEnd = (source: string, position: number): number => {
-  const lineEnd = source.indexOf('\n', position);
-  if (lineEnd === -1) {
-    return source.length;
-  }
-  return lineEnd;
-};
+const nextLineEnd = (source: string, position: number): number =>
+  Match.value(source.indexOf('\n', position)).pipe(
+    Match.when(-1, (): number => source.length),
+    Match.orElse((lineEnd): number => lineEnd),
+  );
 
-const firstNonWhitespaceIndex = (source: string, start: number, end: number): number => {
-  let index = start;
-  while (index < end && source.charCodeAt(index) <= CHAR_CODE_SPACE) {
-    index++;
-  }
-  return index;
-};
+const firstNonWhitespaceIndex = (source: string, start: number, end: number): number =>
+  Match.value(start).pipe(
+    Match.when(
+      (index): boolean => index >= end || source.charCodeAt(index) > CHAR_CODE_SPACE,
+      (index): number => index,
+    ),
+    Match.orElse((index): number => firstNonWhitespaceIndex(source, index + 1, end)),
+  );
 
-const firstLineWord = (source: string, start: number, end: number): string => {
-  let wordEnd = start;
-  while (wordEnd < end && source.charCodeAt(wordEnd) > CHAR_CODE_SPACE) {
-    wordEnd++;
-  }
-  return source
-    .slice(start, wordEnd)
+const lineWordEnd = (source: string, start: number, end: number): number =>
+  Match.value(start).pipe(
+    Match.when(
+      (wordEnd): boolean => wordEnd >= end || source.charCodeAt(wordEnd) <= CHAR_CODE_SPACE,
+      (wordEnd): number => wordEnd,
+    ),
+    Match.orElse((wordEnd): number => lineWordEnd(source, wordEnd + 1, end)),
+  );
+
+const firstLineWord = (source: string, start: number, end: number): string =>
+  source
+    .slice(start, lineWordEnd(source, start, end))
     .toLowerCase()
     .replace(/[;:,]$/, '');
-};
 
 const lineKeywordScore = (
   source: string,
@@ -154,10 +171,16 @@ const lineKeywordScore = (
   lineEnd: number,
 ): { hasFoundKeyword: boolean; score: number } => {
   const clean = firstLineWord(source, lineStart, lineEnd);
-  if (CODE_KEYWORDS.has(clean)) {
-    return { hasFoundKeyword: true, score: KEYWORD_SCORE };
-  }
-  return { hasFoundKeyword: false, score: 0 };
+  return Match.value(HashSet.has(CODE_KEYWORDS, clean)).pipe(
+    Match.when(true, (): { hasFoundKeyword: boolean; score: number } => ({
+      hasFoundKeyword: true,
+      score: KEYWORD_SCORE,
+    })),
+    Match.orElse((): { hasFoundKeyword: boolean; score: number } => ({
+      hasFoundKeyword: false,
+      score: 0,
+    })),
+  );
 };
 
 const addLineStats = (
@@ -175,28 +198,32 @@ const addLineStats = (
   };
 };
 
-const scanLineStats = (normalized: string): LineStats => {
-  let stats: LineStats = {
-    braceCount: 0,
-    hasFoundKeyword: false,
-    lineCount: 0,
-    score: 0,
-  };
-  let pos = 0;
+const initialLineStats = (): LineStats => ({
+  braceCount: 0,
+  hasFoundKeyword: false,
+  lineCount: 0,
+  score: 0,
+});
 
-  while (pos < normalized.length) {
-    const lineEnd = nextLineEnd(normalized, pos);
-    const lineStart = firstNonWhitespaceIndex(normalized, pos, lineEnd);
+const scanLineStatsFrom = (normalized: string, pos: number, stats: LineStats): LineStats =>
+  Match.value(pos).pipe(
+    Match.when(
+      (position): boolean => position >= normalized.length,
+      (): LineStats => stats,
+    ),
+    Match.orElse((position): LineStats => {
+      const lineEnd = nextLineEnd(normalized, position);
+      const lineStart = firstNonWhitespaceIndex(normalized, position, lineEnd);
+      const nextStats = Match.value(lineStart < lineEnd).pipe(
+        Match.when(true, (): LineStats => addLineStats(stats, normalized, lineStart, lineEnd)),
+        Match.orElse((): LineStats => stats),
+      );
+      return scanLineStatsFrom(normalized, lineEnd + 1, nextStats);
+    }),
+  );
 
-    if (lineStart < lineEnd) {
-      stats = addLineStats(stats, normalized, lineStart, lineEnd);
-    }
-
-    pos = lineEnd + 1;
-  }
-
-  return stats;
-};
+const scanLineStats = (normalized: string): LineStats =>
+  scanLineStatsFrom(normalized, 0, initialLineStats());
 
 const patternScore = (normalized: string): number => {
   const patterns = [
@@ -208,12 +235,15 @@ const patternScore = (normalized: string): number => {
     RE_JSX_TAG,
     RE_SPREAD,
   ];
-  return patterns.reduce((score, pattern): number => {
-    if (pattern.test(normalized)) {
-      return score + PATTERN_SCORE;
-    }
-    return score;
-  }, 0);
+  return pipe(
+    patterns,
+    Array.reduce(0, (score, pattern): number =>
+      Match.value(pattern.test(normalized)).pipe(
+        Match.when(true, (): number => score + PATTERN_SCORE),
+        Match.orElse((): number => score),
+      ),
+    ),
+  );
 };
 
 const isSentenceCaseSingleLine = (normalized: string, stats: LineStats): boolean =>
@@ -225,34 +255,34 @@ const isSentenceCaseSingleLine = (normalized: string, stats: LineStats): boolean
   normalized.charCodeAt(1) >= CHAR_CODE_LOWER_A &&
   normalized.charCodeAt(1) <= CHAR_CODE_LOWER_Z;
 
-const languagePenalty = (normalized: string, stats: LineStats): number => {
-  let penalty = 0;
-  if (!stats.hasFoundKeyword && RE_NATURAL_START.test(normalized)) {
-    penalty += NATURAL_LANGUAGE_PENALTY;
-  }
-  if (RE_JSDOC_TAG.test(normalized)) {
-    penalty += JSDOC_TAG_PENALTY;
-  }
-  if (!stats.hasFoundKeyword && RE_URL.test(normalized)) {
-    penalty += URL_PENALTY;
-  }
-  if (isSentenceCaseSingleLine(normalized, stats)) {
-    penalty += SENTENCE_CASE_PENALTY;
-  }
-  return penalty;
-};
+const scoreWhen = (condition: boolean, score: number): number =>
+  Match.value(condition).pipe(
+    Match.when(true, (): number => score),
+    Match.orElse((): number => 0),
+  );
 
-const structuralScore = (stats: LineStats): number => {
-  const { braceCount, lineCount, score: baseScore } = stats;
-  let score = baseScore;
-  if (braceCount >= 1) {
-    score += braceCount;
-  }
-  if (lineCount >= MULTILINE_LINE_THRESHOLD) {
-    score += MULTILINE_SCORE;
-  }
-  return score;
-};
+const languagePenaltyChecks = (normalized: string, stats: LineStats): readonly number[] => [
+  scoreWhen(!stats.hasFoundKeyword && RE_NATURAL_START.test(normalized), NATURAL_LANGUAGE_PENALTY),
+  scoreWhen(RE_JSDOC_TAG.test(normalized), JSDOC_TAG_PENALTY),
+  scoreWhen(!stats.hasFoundKeyword && RE_URL.test(normalized), URL_PENALTY),
+  scoreWhen(isSentenceCaseSingleLine(normalized, stats), SENTENCE_CASE_PENALTY),
+];
+
+const languagePenalty = (normalized: string, stats: LineStats): number =>
+  pipe(
+    languagePenaltyChecks(normalized, stats),
+    Array.reduce(0, (penalty, value): number => penalty + value),
+  );
+
+const structuralScore = (stats: LineStats): number =>
+  pipe(
+    [
+      stats.score,
+      scoreWhen(stats.braceCount >= 1, stats.braceCount),
+      scoreWhen(stats.lineCount >= MULTILINE_LINE_THRESHOLD, MULTILINE_SCORE),
+    ],
+    Array.reduce(0, (score, value): number => score + value),
+  );
 
 /**
  * Determines whether comment text is likely dead source code.
@@ -262,17 +292,19 @@ const structuralScore = (stats: LineStats): number => {
  */
 export default function isCommentedOutCode(text: string): boolean {
   const normalized = text.trim();
-  if (normalized.length < MIN_COMMENT_LENGTH) {
-    return false;
-  }
-
-  if (!hasCodeTokenSignal(normalized)) {
-    return false;
-  }
-
-  const stats = scanLineStats(normalized);
-  const score =
-    structuralScore(stats) + patternScore(normalized) - languagePenalty(normalized, stats);
-
-  return score >= FLAG_SCORE_THRESHOLD;
+  return Match.value(normalized).pipe(
+    Match.when(
+      (value): boolean => value.length < MIN_COMMENT_LENGTH,
+      (): boolean => false,
+    ),
+    Match.when(
+      (value): boolean => !hasCodeTokenSignal(value),
+      (): boolean => false,
+    ),
+    Match.orElse((value): boolean => {
+      const stats = scanLineStats(value);
+      const score = structuralScore(stats) + patternScore(value) - languagePenalty(value, stats);
+      return score >= FLAG_SCORE_THRESHOLD;
+    }),
+  );
 }

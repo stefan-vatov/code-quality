@@ -8,6 +8,7 @@ import type {
   Identifier,
   Program,
 } from 'jscodeshift';
+import { Array, HashMap, Option, Order, Predicate, pipe } from 'effect';
 import jscodeshift from 'jscodeshift';
 
 interface Replacement {
@@ -32,43 +33,45 @@ interface ReferenceSearch {
 const codemodAPI = jscodeshift.withParser('ts');
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
-  [...replacements]
-    .sort((left, right) => right.start - left.start)
-    .reduce(
+  pipe(
+    replacements,
+    Array.sortWith((replacement) => -replacement.start, Order.number),
+    Array.reduce(
+      source,
       (current, replacement) =>
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
-      source,
-    );
+    ),
+  );
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
-const sourceForNode = (source: string, node: unknown): string => {
-  if (!node) {
-    return '';
-  }
-  return source.slice(nodeStart(node), nodeEnd(node));
-};
+const sourceForNode = (source: string, node: unknown): string =>
+  pipe(
+    Option.fromNullable(node),
+    Option.match({
+      onNone: (): string => '',
+      onSome: (value): string => source.slice(nodeStart(value), nodeEnd(value)),
+    }),
+  );
 
 const nodeKey = (node: unknown): string => `${nodeStart(node)}:${nodeEnd(node)}`;
 
@@ -81,22 +84,24 @@ const isFunctionDeclaration = (node: unknown): node is FunctionDeclaration =>
 const typeParameterText = (source: string, declaration: FunctionDeclaration): string =>
   sourceForNode(source, declaration.typeParameters).trim();
 
-const parameterText = (source: string, declaration: FunctionDeclaration): string => {
-  const [firstParameter] = declaration.params;
-  const lastParameter = declaration.params.at(-1);
-  if (!firstParameter || !lastParameter) {
-    return '';
-  }
-  return source.slice(nodeStart(firstParameter), nodeEnd(lastParameter));
-};
+const parameterText = (source: string, declaration: FunctionDeclaration): string =>
+  pipe(
+    Option.all({
+      firstParameter: Array.head(declaration.params),
+      lastParameter: Array.last(declaration.params),
+    }),
+    Option.match({
+      onNone: (): string => '',
+      onSome: ({ firstParameter, lastParameter }): string =>
+        source.slice(nodeStart(firstParameter), nodeEnd(lastParameter)),
+    }),
+  );
 
 const hasThisParameter = (node: FunctionDeclaration): boolean =>
-  node.params.some((parameter): boolean => {
-    if (isIdentifier(parameter)) {
-      return parameter.name === 'this';
-    }
-    return false;
-  });
+  pipe(
+    node.params,
+    Array.some((parameter): boolean => isIdentifier(parameter) && parameter.name === 'this'),
+  );
 
 const hasThisExpression = (node: FunctionDeclaration): boolean =>
   codemodAPI(node.body).find(codemodAPI.ThisExpression).size() > 0;
@@ -133,12 +138,18 @@ const hasEarlierReferenceInRecord = (
   if (isFunctionBoundary(value)) {
     return false;
   }
-  return Object.values(value).some((entry): boolean => hasEarlierReferenceInValue(entry, search));
+  return pipe(
+    Object.values(value),
+    Array.some((entry): boolean => hasEarlierReferenceInValue(entry, search)),
+  );
 };
 
 const hasEarlierReferenceInValue = (value: unknown, search: ReferenceSearch): boolean => {
-  if (Array.isArray(value)) {
-    return value.some((entry): boolean => hasEarlierReferenceInValue(entry, search));
+  if (globalThis.Array.isArray(value)) {
+    return pipe(
+      value,
+      Array.some((entry): boolean => hasEarlierReferenceInValue(entry, search)),
+    );
   }
   if (!isObjectRecord(value)) {
     return false;
@@ -152,19 +163,24 @@ const hasEarlierReference = (
   before: number,
 ): boolean => hasEarlierReferenceInValue(root, { before, name, seen: new WeakSet() });
 
-const asyncPrefixFor = (node: FunctionDeclaration): string => {
-  if (node.async) {
-    return 'async ';
-  }
-  return '';
-};
+const asyncPrefixFor = (node: FunctionDeclaration): string =>
+  pipe(
+    Option.some(node.async),
+    Option.filter(Boolean),
+    Option.match({
+      onNone: (): string => '',
+      onSome: (): string => 'async ',
+    }),
+  );
 
-const returnTypeFor = (source: string, node: FunctionDeclaration): string => {
-  if (node.returnType) {
-    return sourceForNode(source, node.returnType);
-  }
-  return '';
-};
+const returnTypeFor = (source: string, node: FunctionDeclaration): string =>
+  pipe(
+    Option.fromNullable(node.returnType),
+    Option.match({
+      onNone: (): string => '',
+      onSome: (returnType): string => sourceForNode(source, returnType),
+    }),
+  );
 
 const declarationText = (
   source: string,
@@ -182,14 +198,14 @@ const declarationText = (
   ].join('');
 };
 
-const collectExportInfo = (source: string): ReadonlyMap<string, ExportInfo> => {
-  const exportsByFunction = new Map<string, ExportInfo>();
+const collectExportInfo = (source: string): HashMap.HashMap<string, ExportInfo> => {
+  let exportsByFunction = HashMap.empty<string, ExportInfo>();
   const root = codemodAPI(source);
 
   root.find(codemodAPI.ExportNamedDeclaration).forEach((path): void => {
     const { declaration } = path.value;
     if (isFunctionDeclaration(declaration)) {
-      exportsByFunction.set(nodeKey(declaration), {
+      exportsByFunction = HashMap.set(exportsByFunction, nodeKey(declaration), {
         end: nodeEnd(path.value),
         isDefault: false,
         prefix: 'export ',
@@ -201,7 +217,7 @@ const collectExportInfo = (source: string): ReadonlyMap<string, ExportInfo> => {
   root.find(codemodAPI.ExportDefaultDeclaration).forEach((path): void => {
     const { declaration } = path.value;
     if (isFunctionDeclaration(declaration)) {
-      exportsByFunction.set(nodeKey(declaration), {
+      exportsByFunction = HashMap.set(exportsByFunction, nodeKey(declaration), {
         end: nodeEnd(path.value),
         isDefault: true,
         prefix: '',
@@ -214,14 +230,14 @@ const collectExportInfo = (source: string): ReadonlyMap<string, ExportInfo> => {
 };
 
 const collectScopes = (source: string): readonly (Program | BlockStatement)[] => {
-  const scopes: (Program | BlockStatement)[] = [];
+  let scopes: readonly (Program | BlockStatement)[] = [];
   const root = codemodAPI(source);
 
   root.find(codemodAPI.Program).forEach((path): void => {
-    scopes.push(path.value);
+    scopes = Array.append(scopes, path.value);
   });
   root.find(codemodAPI.BlockStatement).forEach((path): void => {
-    scopes.push(path.value);
+    scopes = Array.append(scopes, path.value);
   });
 
   return scopes;
@@ -233,11 +249,13 @@ const scopeForDeclaration = (
 ): Program | BlockStatement | undefined => {
   const start = nodeStart(declaration);
   const end = nodeEnd(declaration);
-  return scopes
-    .filter((scope): boolean => nodeStart(scope) <= start && nodeEnd(scope) >= end)
-    .sort(
-      (left, right) => nodeEnd(left) - nodeStart(left) - (nodeEnd(right) - nodeStart(right)),
-    )[0];
+  return pipe(
+    scopes,
+    Array.filter((scope): boolean => nodeStart(scope) <= start && nodeEnd(scope) >= end),
+    Array.sortWith((scope) => nodeEnd(scope) - nodeStart(scope), Order.number),
+    Array.head,
+    Option.getOrUndefined,
+  );
 };
 
 const replacementSpanForDeclaration = (
@@ -264,26 +282,28 @@ const canReplaceDeclaration = (
 const replacementForDeclaration = (
   source: string,
   path: ASTPath<FunctionDeclaration>,
-  exportsByFunction: ReadonlyMap<string, ExportInfo>,
+  exportsByFunction: HashMap.HashMap<string, ExportInfo>,
   scopes: readonly (Program | BlockStatement)[],
 ): Replacement | undefined => {
   const { value: node } = path;
-  const exportInfo = exportsByFunction.get(nodeKey(node));
+  const exportInfo = pipe(HashMap.get(exportsByFunction, nodeKey(node)), Option.getOrUndefined);
   if (!canReplaceDeclaration(node, exportInfo)) {
     return undefined;
   }
 
   const { end, start } = replacementSpanForDeclaration(node, exportInfo);
-  const root = scopeForDeclaration(scopes, node);
-  if (root && hasEarlierReference(root, node.id.name, start)) {
-    return undefined;
-  }
-
-  return {
-    end,
-    start,
-    text: declarationText(source, node, node.id.name, exportInfo),
-  };
+  return pipe(
+    Option.fromNullable(scopeForDeclaration(scopes, node)),
+    Option.filter((root): boolean => hasEarlierReference(root, node.id.name, start)),
+    Option.match({
+      onNone: (): Replacement => ({
+        end,
+        start,
+        text: declarationText(source, node, node.id.name, exportInfo),
+      }),
+      onSome: (): Replacement | undefined => undefined,
+    }),
+  );
 };
 
 /**
@@ -299,10 +319,10 @@ export const preferFunctionExpressions = (source: string): string => {
   codemodAPI(source)
     .find(codemodAPI.FunctionDeclaration)
     .forEach((path): void => {
-      const replacement = replacementForDeclaration(source, path, exportsByFunction, scopes);
-      if (replacement) {
-        replacements.push(replacement);
-      }
+      pipe(
+        Option.fromNullable(replacementForDeclaration(source, path, exportsByFunction, scopes)),
+        Option.map((replacement): number => replacements.push(replacement)),
+      );
     });
 
   return applyReplacements(source, replacements);

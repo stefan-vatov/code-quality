@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*       Oxlint JavaScript plugin entry for The Thracian custom rules.        */
 /* -------------------------------------------------------------------------- */
+import { Array, Option, pipe } from 'effect';
 import {
   acronymDiagnosticMessage,
   booleanDiagnosticMessage,
@@ -40,12 +41,12 @@ interface IdentifierNode {
   range?: [number, number];
 }
 
-const getIdentifierName = (node: { name?: unknown } | null | undefined): string | undefined => {
-  if (typeof node?.name === 'string') {
-    return node.name;
-  }
-  return undefined;
-};
+const getIdentifierName = (node: { name?: unknown } | null | undefined): string | undefined =>
+  pipe(
+    Option.fromNullable(node?.name),
+    Option.filter((name): name is string => typeof name === 'string'),
+    Option.getOrUndefined,
+  );
 
 interface ReportDescriptor {
   message: string;
@@ -60,19 +61,9 @@ interface Context {
 type VisitorMap = Record<string, ((node: never) => void) | undefined>;
 type OxlintPlugin = Parameters<typeof eslintCompatPlugin>[0];
 const readSource = (context: Context): string => readCachedSource(context);
-const isBooleanVar = (node: DeclNode): boolean => {
-  if (
-    node.typeAnnotation &&
-    node.typeAnnotation.typeAnnotation &&
-    node.typeAnnotation.typeAnnotation.type === 'TSBooleanKeyword'
-  ) {
-    return true;
-  }
-  if (node.init && node.init.type === 'Literal' && typeof node.init.value === 'boolean') {
-    return true;
-  }
-  return false;
-};
+const isBooleanVar = (node: DeclNode): boolean =>
+  node.typeAnnotation?.typeAnnotation.type === 'TSBooleanKeyword' ||
+  (node.init?.type === 'Literal' && typeof node.init.value === 'boolean');
 
 const withCreateOnce = <
   RuleWithCreateOnce extends { createOnce: (context: Context) => VisitorMap },
@@ -237,7 +228,7 @@ const acronymCaseRule = withCreateOnce({
   createOnce(context: Context) {
     const checkAcronyms = (name: string, node: object): void => {
       const violations = findMisCasedAcronyms(name);
-      if (violations.length > 0) {
+      if (Array.isNonEmptyReadonlyArray(violations)) {
         const replacement = fixAcronymCase(name);
         context.report({
           message: acronymDiagnosticMessage(name, replacement, violations),
@@ -311,16 +302,20 @@ const noDynamicJSExtensionImportsRule = withCreateOnce({
         if (node.callee?.name !== 'require') {
           return;
         }
-        const firstArgument = node.arguments?.[0]?.value;
-        if (isJavaScriptSpecifier(firstArgument)) {
-          reportJavaScriptSpecifier(context, node, firstArgument);
-        }
+        pipe(
+          Option.fromNullable(node.arguments),
+          Option.flatMap(Array.head),
+          Option.map((argument): unknown => argument.value),
+          Option.filter(isJavaScriptSpecifier),
+          Option.map((specifier): void => reportJavaScriptSpecifier(context, node, specifier)),
+        );
       },
       ImportExpression(node: RuntimeSpecifierNode): void {
-        const source = node.source?.value;
-        if (isJavaScriptSpecifier(source)) {
-          reportJavaScriptSpecifier(context, node, source);
-        }
+        pipe(
+          Option.fromNullable(node.source?.value),
+          Option.filter(isJavaScriptSpecifier),
+          Option.map((specifier): void => reportJavaScriptSpecifier(context, node, specifier)),
+        );
       },
     };
   },
@@ -336,7 +331,12 @@ const noLocalExportListRule = withCreateOnce({
   createOnce(context: Context) {
     return {
       ExportNamedDeclaration(node: ExportNamedNode): void {
-        if (node.source || node.declaration || !node.specifiers || node.specifiers.length === 0) {
+        if (
+          node.source ||
+          node.declaration ||
+          !node.specifiers ||
+          Array.isEmptyReadonlyArray(node.specifiers)
+        ) {
           return;
         }
         context.report({
@@ -364,14 +364,14 @@ const maxImportDepthRule = withCreateOnce({
 
     return {
       CallExpression(node: ImportNode): void {
-        if (
-          node.callee?.name === 'require' &&
-          node.arguments &&
-          node.arguments.length > 0 &&
-          typeof node.arguments[0].value === 'string'
-        ) {
-          checkPath(node.arguments[0].value, node);
-        }
+        pipe(
+          Option.fromNullable(node.arguments),
+          Option.flatMap(Array.head),
+          Option.map((argument): unknown => argument.value),
+          Option.filter((value): value is string => typeof value === 'string'),
+          Option.filter((): boolean => node.callee?.name === 'require'),
+          Option.map((importPath): void => checkPath(importPath, node)),
+        );
       },
       ImportDeclaration(node: ImportNode): void {
         if (node.source?.value) {
@@ -388,12 +388,15 @@ const maxLineLengthRule = withCreateOnce({
       Program(node: object): void {
         const source = readSource(context);
 
-        for (const violation of findLongLines(source)) {
-          context.report({
-            message: lineLengthDiagnosticMessage(violation.line, violation.length),
-            node,
-          });
-        }
+        pipe(
+          findLongLines(source),
+          Array.forEach((violation): void => {
+            context.report({
+              message: lineLengthDiagnosticMessage(violation.line, violation.length),
+              node,
+            });
+          }),
+        );
       },
     };
   },

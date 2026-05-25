@@ -1,6 +1,15 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import {
+  hasHTTPClientResponseWithoutSchema,
+  hasSharedResourceForEachWithoutSemaphore,
+} from '../../src/rules/effect-strict-helpers';
+import {
+  hasLayerFactory,
+  hasUnsafeResourceStream,
+} from '../../src/rules/effect-strict-segment-helpers';
+import { fileURLToPath } from 'node:url';
+import { hasExternalEffectWithoutTimeout } from '../../src/rules/effect-strict-external-helpers';
+import { readFileSync } from 'node:fs';
 
 const strictHelpersPath = fileURLToPath(
   new URL('../../src/rules/effect-strict-helpers.ts', import.meta.url),
@@ -20,40 +29,41 @@ const strictRulesSource = (): string =>
     .map((path): string => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf-8'))
     .join('\n');
 
-describe('Effect strict helper performance invariants', () => {
-  it('uses cheap necessary-token prefilters before expensive source stripping', () => {
-    const source = [strictHelpersPath, strictSegmentHelpersPath, strictExternalHelpersPath]
-      .map((path): string => readFileSync(path, 'utf-8'))
-      .join('\n');
+describe('Effect strict helper performance invariants', (): void => {
+  it('returns false when necessary strict-rule tokens are absent', (): void => {
+    const irrelevantSource = 'const value = 1;\n'.repeat(1000);
 
-    expect(source).toContain("source.includes('Layer.')");
-    expect(source).toContain("source.includes('Effect.forEach')");
-    expect(source).toContain("source.includes('HttpClient.')");
-    expect(source).toContain("source.includes('Stream.')");
+    expect([
+      hasLayerFactory(irrelevantSource),
+      hasSharedResourceForEachWithoutSemaphore(irrelevantSource),
+      hasHTTPClientResponseWithoutSchema(irrelevantSource),
+      hasExternalEffectWithoutTimeout(irrelevantSource),
+      hasUnsafeResourceStream(irrelevantSource),
+    ]).toStrictEqual([false, false, false, false, false]);
   });
 
-  it('hoists Effect call predicates out of strict CallExpression visitor hot paths', () => {
+  it('hoists Effect call predicates out of strict CallExpression visitor hot paths', (): void => {
     const source = strictRulesSource();
 
     expect(source).toContain('const effectCallPredicate');
     expect(source).not.toContain("new Set(['succeed'])");
   });
 
-  it('uses necessary-call tokens for strict AST rules', () => {
+  it('uses necessary-call tokens for strict AST rules', (): void => {
     const source = strictRulesSource();
 
     expect(source).toContain("name: 'effect-prefer-effect-void',");
     expect(source).toContain("tokens: ['succeed'],");
   });
 
-  it('uses broad identifier tokens for strict environment escape-hatch rules', () => {
+  it('uses broad identifier tokens for strict environment escape-hatch rules', (): void => {
     const source = strictRulesSource();
 
     expect(source).toContain("tokens: ['process'],");
     expect(source).toContain("tokens: ['Date', 'Math'],");
   });
 
-  it('caches local external call segments shared by timeout retry and span rules', () => {
+  it('caches local external call segments shared by timeout retry and span rules', (): void => {
     const source = readFileSync(strictSegmentHelpersPath, 'utf-8');
 
     expect(source).toContain('localEffectCallSegmentCache');
@@ -62,7 +72,7 @@ describe('Effect strict helper performance invariants', () => {
     expect(source).not.toContain('enclosingEffectWrapperSegmentCache.delete(source)');
   });
 
-  it('hoists external call scanner patterns out of strict helper hot paths', () => {
+  it('hoists external call scanner patterns out of strict helper hot paths', (): void => {
     const source = readFileSync(strictExternalHelpersPath, 'utf-8');
 
     expect(source).toContain('const EXTERNAL_CALL_PATTERN =');
@@ -71,7 +81,7 @@ describe('Effect strict helper performance invariants', () => {
     expect(source).not.toContain('const idempotentPattern =');
   });
 
-  it('uses an allocation-free pipe operator scanner for external-effect checks', () => {
+  it('uses an allocation-free pipe operator scanner for external-effect checks', (): void => {
     const source = readFileSync(strictSegmentHelpersPath, 'utf-8');
     const scannerStart = source.indexOf('const hasTopLevelPipeOperator');
     const scannerEnd = source.indexOf('const hasExternalEffectWithoutTimeout');

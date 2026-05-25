@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*              Source text cache shared by custom Oxlint rules.              */
 /* -------------------------------------------------------------------------- */
+import { Either, Match, Option, pipe } from 'effect';
 import { readFileSync, statSync } from 'node:fs';
 
 /**
@@ -37,52 +38,70 @@ const cacheFileSource = (filename: string, cachedFileSource: CachedFileSource): 
   return cachedFileSource.source;
 };
 
-const readSourceCodeText = (sourceCode: NonNullable<SourceContext['sourceCode']>): string => {
-  if (sourceCode.text !== undefined) {
-    return sourceCode.text;
-  }
-
-  const cachedSource = sourceCodeTextCache.get(sourceCode);
-  if (cachedSource !== undefined) {
-    return cachedSource;
-  }
-  const source = sourceCode.getText?.() ?? '';
+const uncachedSourceCodeText = (sourceCode: NonNullable<SourceContext['sourceCode']>): string => {
+  const source = pipe(
+    Option.fromNullable(sourceCode.getText),
+    Option.match({
+      onNone: (): string => '',
+      onSome: (getText) => getText(),
+    }),
+  );
   sourceCodeTextCache.set(sourceCode, source);
   return source;
 };
 
-const readFileSource = (filename: string): string => {
-  try {
-    const stats = statSync(filename);
-    const cachedSource = fileSourceCache.get(filename);
-    if (
-      cachedSource !== undefined &&
-      cachedSource.size === stats.size &&
-      cachedSource.mtimeMs === stats.mtimeMs
-    ) {
-      return cachedSource.source;
-    }
-    return cacheFileSource(filename, {
-      mtimeMs: stats.mtimeMs,
-      size: stats.size,
-      source: readFileSync(filename, 'utf8'),
-    });
-  } catch {
-    return '';
-  }
+const readSourceCodeText = (sourceCode: NonNullable<SourceContext['sourceCode']>): string =>
+  pipe(
+    Option.fromNullable(sourceCode.text),
+    Option.match({
+      onNone: () =>
+        pipe(
+          Option.fromNullable(sourceCodeTextCache.get(sourceCode)),
+          Option.match({
+            onNone: () => uncachedSourceCodeText(sourceCode),
+            onSome: (cachedSource) => cachedSource,
+          }),
+        ),
+      onSome: (source) => source,
+    }),
+  );
+
+const isFreshCachedSource = (
+  cachedSource: CachedFileSource,
+  stats: { mtimeMs: number; size: number },
+): boolean => cachedSource.size === stats.size && cachedSource.mtimeMs === stats.mtimeMs;
+
+const readFreshFileSource = (filename: string): string => {
+  const stats = statSync(filename);
+  return pipe(
+    Option.fromNullable(fileSourceCache.get(filename)),
+    Option.filter((cachedSource): boolean => isFreshCachedSource(cachedSource, stats)),
+    Option.match({
+      onNone: () =>
+        cacheFileSource(filename, {
+          mtimeMs: stats.mtimeMs,
+          size: stats.size,
+          source: readFileSync(filename, 'utf8'),
+        }),
+      onSome: (cachedSource) => cachedSource.source,
+    }),
+  );
 };
+
+const readFileSource = (filename: string): string =>
+  pipe(
+    Either.try(() => readFreshFileSource(filename)),
+    Either.getOrElse((): string => ''),
+  );
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const readCachedSource = (context: SourceContext): string => {
-  if (context.sourceCode) {
-    return readSourceCodeText(context.sourceCode);
-  }
-  if (!context.filename) {
-    return '';
-  }
-  return readFileSource(context.filename);
-};
+export const readCachedSource = (context: SourceContext): string =>
+  Match.value(context).pipe(
+    Match.when({ sourceCode: Match.defined }, ({ sourceCode }) => readSourceCodeText(sourceCode)),
+    Match.when({ filename: Match.defined }, ({ filename }) => readFileSource(filename)),
+    Match.orElse((): string => ''),
+  );

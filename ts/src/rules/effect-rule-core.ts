@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*      Core runtime for source-backed and AST-backed Effect lint rules.      */
 /* -------------------------------------------------------------------------- */
+import { Array, Option, String, pipe } from 'effect';
 import { canonicalizeEffectAPIAliases } from './effect-rule-aliases';
 import { effectDiagnosticMessage } from './diagnostic-guidance';
 import { readCachedSource } from './source-cache';
@@ -76,7 +77,6 @@ interface MakeRulesOptions {
 
 const LINE_START_CACHE_MAX = 256;
 const TOKEN_GATE_CACHE_MAX = 512;
-const CHAR_CODE_NEWLINE = 10;
 const lineStartCache = new Map<string, readonly number[]>();
 const globalPatternCache = new WeakMap<RegExp, RegExp>();
 const tokenGateCache = new WeakMap<readonly string[], Map<string, boolean>>();
@@ -84,36 +84,42 @@ const sourceTokenPresenceCache = new Map<string, Map<string, boolean>>();
 
 const readSource = (context: Context): string => readCachedSource(context);
 
+const matchesIn = (source: string, pattern: RegExp): readonly RegExpExecArray[] =>
+  pipe(source.matchAll(pattern), Array.fromIterable);
+
 const isCodeAt = (strippedSource: string, index: number): boolean =>
   strippedSource[index]?.trim() !== '';
 
 const hasPattern = (source: string, patterns: readonly RegExp[]): boolean => {
   let strippedSource: string | undefined = undefined;
-  return patterns.some((pattern) => {
-    for (const match of source.matchAll(toGlobalRegExp(pattern))) {
-      strippedSource ??= stripCommentsAndStrings(source);
-      if (isCodeAt(strippedSource, match.index)) {
-        return true;
-      }
-    }
-    return false;
-  });
+  return pipe(
+    patterns,
+    Array.some((pattern): boolean =>
+      pipe(
+        matchesIn(source, toGlobalRegExp(pattern)),
+        Array.some((match): boolean => {
+          strippedSource ??= stripCommentsAndStrings(source);
+          return isCodeAt(strippedSource, match.index);
+        }),
+      ),
+    ),
+  );
 };
 
-const toGlobalRegExp = (pattern: RegExp): RegExp => {
-  const cachedPattern = globalPatternCache.get(pattern);
-  if (cachedPattern !== undefined) {
-    return cachedPattern;
-  }
-
-  let { flags } = pattern;
-  if (!flags.includes('g')) {
-    flags = `${flags}g`;
-  }
-  const globalPattern = new RegExp(pattern.source, flags);
-  globalPatternCache.set(pattern, globalPattern);
-  return globalPattern;
-};
+const toGlobalRegExp = (pattern: RegExp): RegExp =>
+  pipe(
+    Option.fromNullable(globalPatternCache.get(pattern)),
+    Option.getOrElse((): RegExp => {
+      const flags = pipe(
+        pattern.flags,
+        Option.liftPredicate((value): boolean => pipe(value, String.includes('g'))),
+        Option.getOrElse((): string => `${pattern.flags}g`),
+      );
+      const globalPattern = new RegExp(pattern.source, flags);
+      globalPatternCache.set(pattern, globalPattern);
+      return globalPattern;
+    }),
+  );
 
 const cachedLineStarts = (source: string): readonly number[] | undefined =>
   lineStartCache.get(source);
@@ -122,21 +128,18 @@ const evictFirstLineStart = (): void => {
   if (lineStartCache.size < LINE_START_CACHE_MAX) {
     return;
   }
-  const firstKey = lineStartCache.keys().next().value;
-  if (firstKey !== undefined) {
-    lineStartCache.delete(firstKey);
-  }
+  pipe(
+    Option.fromNullable(lineStartCache.keys().next().value),
+    Option.map((firstKey): boolean => lineStartCache.delete(firstKey)),
+  );
 };
 
-const computeLineStarts = (source: string): number[] => {
-  const starts = [0];
-  for (let position = 0; position < source.length; position++) {
-    if (source.charCodeAt(position) === CHAR_CODE_NEWLINE) {
-      starts.push(position + 1);
-    }
-  }
-  return starts;
-};
+const computeLineStarts = (source: string): number[] =>
+  pipe(
+    matchesIn(source, /\n/g),
+    Array.map((match): number => match.index + 1),
+    Array.prepend(0),
+  );
 
 const lineStartsFor = (source: string): readonly number[] => {
   const cachedStarts = cachedLineStarts(source);
@@ -179,15 +182,24 @@ const firstPatternLOC = (
   patterns: readonly RegExp[],
 ): { column: number; line: number } | undefined => {
   let strippedSource: string | undefined = undefined;
-  for (const pattern of patterns) {
-    for (const match of source.matchAll(toGlobalRegExp(pattern))) {
-      strippedSource ??= stripCommentsAndStrings(source);
-      if (isCodeAt(strippedSource, match.index)) {
-        return locFromIndex(source, match.index);
-      }
-    }
-  }
-  return undefined;
+  return pipe(
+    patterns,
+    Array.filterMap(
+      (pattern): Option.Option<{ column: number; line: number }> =>
+        pipe(
+          matchesIn(source, toGlobalRegExp(pattern)),
+          Array.findFirst((match): boolean => {
+            strippedSource ??= stripCommentsAndStrings(source);
+            return isCodeAt(strippedSource, match.index);
+          }),
+          Option.map((match): { column: number; line: number } =>
+            locFromIndex(source, match.index),
+          ),
+        ),
+    ),
+    Array.head,
+    Option.getOrUndefined,
+  );
 };
 
 interface ReportPatternMatchesInput {
@@ -215,8 +227,12 @@ const reportPatternMatches = (input: ReportPatternMatchesInput): void => {
 const reportCountedPatternMatches = (input: ReportPatternMatchesInput, message: string): void => {
   const { context, node, source, spec } = input;
   let strippedSource: string | undefined = undefined;
-  for (const pattern of spec.countPatterns ?? []) {
-    for (const match of source.matchAll(toGlobalRegExp(pattern))) {
+  pipe(
+    spec.countPatterns ?? [],
+    Array.flatMap((pattern): readonly RegExpExecArray[] =>
+      matchesIn(source, toGlobalRegExp(pattern)),
+    ),
+    Array.forEach((match): void => {
       strippedSource ??= stripCommentsAndStrings(source);
       if (isCodeAt(strippedSource, match.index)) {
         context.report({
@@ -225,8 +241,8 @@ const reportCountedPatternMatches = (input: ReportPatternMatchesInput, message: 
           node,
         });
       }
-    }
-  }
+    }),
+  );
 };
 
 const checkResultIndex = (result: boolean | number | { index: number }): number | undefined => {
@@ -247,22 +263,21 @@ const isCheckViolation = (result: boolean | number | { index: number }): boolean
   return true;
 };
 
-const cachedSourceTokenPresence = (source: string): Map<string, boolean> => {
-  let tokenPresence = sourceTokenPresenceCache.get(source);
-  if (tokenPresence !== undefined) {
-    return tokenPresence;
-  }
-
-  if (sourceTokenPresenceCache.size >= TOKEN_GATE_CACHE_MAX) {
-    const firstKey = sourceTokenPresenceCache.keys().next().value;
-    if (firstKey !== undefined) {
-      sourceTokenPresenceCache.delete(firstKey);
-    }
-  }
-  tokenPresence = new Map<string, boolean>();
-  sourceTokenPresenceCache.set(source, tokenPresence);
-  return tokenPresence;
-};
+const cachedSourceTokenPresence = (source: string): Map<string, boolean> =>
+  pipe(
+    Option.fromNullable(sourceTokenPresenceCache.get(source)),
+    Option.getOrElse((): Map<string, boolean> => {
+      if (sourceTokenPresenceCache.size >= TOKEN_GATE_CACHE_MAX) {
+        pipe(
+          Option.fromNullable(sourceTokenPresenceCache.keys().next().value),
+          Option.map((firstKey): boolean => sourceTokenPresenceCache.delete(firstKey)),
+        );
+      }
+      const tokenPresence = new Map<string, boolean>();
+      sourceTokenPresenceCache.set(source, tokenPresence);
+      return tokenPresence;
+    }),
+  );
 
 const hasTokenInSourceCached = (source: string, token: string): boolean => {
   const tokenPresence = cachedSourceTokenPresence(source);
@@ -271,29 +286,35 @@ const hasTokenInSourceCached = (source: string, token: string): boolean => {
     return cachedValue;
   }
 
-  const hasToken = source.includes(token);
+  const hasToken = pipe(source, String.includes(token));
   tokenPresence.set(token, hasToken);
   return hasToken;
 };
 
 const hasAnyToken = (source: string, tokens: readonly string[]): boolean =>
-  tokens.some((token): boolean => hasTokenInSourceCached(source, token));
+  pipe(
+    tokens,
+    Array.some((token): boolean => hasTokenInSourceCached(source, token)),
+  );
 
 const cachedTokenGate = (source: string, tokens: readonly string[]): boolean | undefined =>
   tokenGateCache.get(tokens)?.get(source);
 
 const cacheTokenGate = (source: string, tokens: readonly string[], hasToken: boolean): boolean => {
-  let sourceCache = tokenGateCache.get(tokens);
-  if (!sourceCache) {
-    sourceCache = new Map<string, boolean>();
-    tokenGateCache.set(tokens, sourceCache);
-  }
+  const sourceCache = pipe(
+    Option.fromNullable(tokenGateCache.get(tokens)),
+    Option.getOrElse((): Map<string, boolean> => {
+      const newSourceCache = new Map<string, boolean>();
+      tokenGateCache.set(tokens, newSourceCache);
+      return newSourceCache;
+    }),
+  );
 
   if (sourceCache.size >= TOKEN_GATE_CACHE_MAX) {
-    const firstKey = sourceCache.keys().next().value;
-    if (firstKey !== undefined) {
-      sourceCache.delete(firstKey);
-    }
+    pipe(
+      Option.fromNullable(sourceCache.keys().next().value),
+      Option.map((firstKey): boolean => sourceCache.delete(firstKey)),
+    );
   }
   sourceCache.set(source, hasToken);
   return hasToken;
@@ -309,7 +330,10 @@ const hasAnyTokenCached = (source: string, tokens: readonly string[]): boolean =
 };
 
 const hasEveryTokenGroup = (source: string, tokenGroups: readonly (readonly string[])[]): boolean =>
-  tokenGroups.every((group): boolean => hasAnyTokenCached(source, group));
+  pipe(
+    tokenGroups,
+    Array.every((group): boolean => hasAnyTokenCached(source, group)),
+  );
 
 const shouldSkipSource = (
   source: string,
@@ -437,7 +461,7 @@ const makeASTCapableRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRu
       return {
         ...astVisitors,
         Program(node: object): void {
-          if (spec.ast && Array.isArray((node as { body?: unknown }).body)) {
+          if (spec.ast && globalThis.Array.isArray((node as { body?: unknown }).body)) {
             return;
           }
           runProgramRule({ context, node, source, spec });
@@ -472,7 +496,15 @@ export const makeRules = (
   specs: readonly RuleSpec[],
   options: MakeRulesOptions = {},
 ): Record<string, SourceRule> =>
-  Object.fromEntries(specs.map((spec) => [spec.name, makeProgramRule(spec, options)]));
+  Object.fromEntries(
+    pipe(
+      specs,
+      Array.map((spec): readonly [string, SourceRule] => [
+        spec.name,
+        makeProgramRule(spec, options),
+      ]),
+    ),
+  );
 
 export {
   effectAPIAliases,

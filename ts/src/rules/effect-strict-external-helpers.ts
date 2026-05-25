@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*       External-call predicates for opt-in strict Effect lint rules.        */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
 import {
   enclosingEffectWrapperSegment,
   hasTopLevelPipeOperator,
@@ -15,10 +16,10 @@ const IDEMPOTENT_EXTERNAL_CALL_PATTERN =
   /\b(?:HttpClient\.(?:get|head|put|delete)|fetch|(?:find|lookup|read)[A-Z]\w*)\s*\(/g;
 
 const hasExternalCallSignal = (source: string): boolean =>
-  source.includes('HttpClient.') ||
-  source.includes('fetch') ||
-  source.includes('FileSystem.') ||
-  source.includes('SqlClient.');
+  pipe(
+    ['HttpClient.', 'fetch', 'FileSystem.', 'SqlClient.'],
+    Array.some((needle): boolean => source.includes(needle)),
+  );
 
 const isFetchSkipped = (
   matchText: string,
@@ -34,24 +35,32 @@ const hasExternalEffectMissingOperator = (
   source: string,
   options: { allowFetch: boolean },
   shouldReport: (code: string, index: number, segment: string) => boolean,
-): boolean => {
-  if (!hasExternalCallSignal(source)) {
-    return false;
-  }
-
-  const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(EXTERNAL_CALL_PATTERN)) {
-    const enclosingWrapper = enclosingEffectWrapperSegment(code, match.index);
-    if (!isFetchSkipped(match[0], enclosingWrapper, options)) {
-      const segment = enclosingWrapper ?? localEffectCallSegment(code, match.index);
-      if (shouldReport(code, match.index, segment)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-};
+): boolean =>
+  Match.value(source).pipe(
+    Match.when(
+      (value): boolean => !hasExternalCallSignal(value),
+      (): boolean => false,
+    ),
+    Match.orElse((value): boolean => {
+      const code = stripCommentsAndStrings(value);
+      return pipe(
+        [...code.matchAll(EXTERNAL_CALL_PATTERN)],
+        Array.some((match): boolean => {
+          const enclosingWrapper = enclosingEffectWrapperSegment(code, match.index);
+          return Match.value(isFetchSkipped(match[0], enclosingWrapper, options)).pipe(
+            Match.when(
+              (shouldSkip): boolean => shouldSkip,
+              (): boolean => false,
+            ),
+            Match.orElse((): boolean => {
+              const segment = enclosingWrapper ?? localEffectCallSegment(code, match.index);
+              return shouldReport(code, match.index, segment);
+            }),
+          );
+        }),
+      );
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -78,11 +87,10 @@ export const hasExternalEffectWithoutSpan = (
 ): boolean => hasExternalEffectMissingOperator(source, options, shouldReportMissingSpan);
 
 const hasIdempotentExternalCallSignal = (source: string): boolean =>
-  source.includes('HttpClient.') ||
-  source.includes('fetch') ||
-  source.includes('find') ||
-  source.includes('lookup') ||
-  source.includes('read');
+  pipe(
+    ['HttpClient.', 'fetch', 'find', 'lookup', 'read'],
+    Array.some((needle): boolean => source.includes(needle)),
+  );
 
 const isUnrelatedNamedRead = (source: string, matchText: string): boolean =>
   /^(?:find|lookup|read)[A-Z]/.test(matchText) && !hasEffectSignal(source);
@@ -100,10 +108,16 @@ const retryScanInput = (
   const index = match.index ?? 0;
   const enclosingWrapper = enclosingEffectWrapperSegment(code, index);
   const rawEnclosingWrapper = enclosingEffectWrapperSegment(source, index);
-  const rawSegment = rawEnclosingWrapper ?? localEffectCallSegment(source, index);
+  const rawSegment = pipe(
+    Option.fromNullable(rawEnclosingWrapper),
+    Option.getOrElse((): string => localEffectCallSegment(source, index)),
+  );
   return {
     isMutatingFetch: isMutatingFetchCall(match[0], rawSegment),
-    segment: enclosingWrapper ?? localEffectCallSegment(code, index),
+    segment: pipe(
+      Option.fromNullable(enclosingWrapper),
+      Option.getOrElse((): string => localEffectCallSegment(code, index)),
+    ),
     shouldSkipFetch: isFetchSkipped(match[0], enclosingWrapper, options),
   };
 };
@@ -116,31 +130,37 @@ const retryScanInput = (
 export const hasIdempotentExternalEffectWithoutRetry = (
   source: string,
   options: { allowFetch: boolean } = { allowFetch: true },
-): boolean => {
-  if (!hasIdempotentExternalCallSignal(source)) {
-    return false;
-  }
-
-  const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(IDEMPOTENT_EXTERNAL_CALL_PATTERN)) {
-    if (!isUnrelatedNamedRead(source, match[0])) {
-      const input = retryScanInput(source, code, match, options);
-      if (
-        shouldReportMissingRetry(
-          code,
-          match.index,
-          input.segment,
-          input.shouldSkipFetch,
-          input.isMutatingFetch,
-        )
-      ) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-};
+): boolean =>
+  Match.value(source).pipe(
+    Match.when(
+      (value): boolean => !hasIdempotentExternalCallSignal(value),
+      (): boolean => false,
+    ),
+    Match.orElse((value): boolean => {
+      const code = stripCommentsAndStrings(value);
+      return pipe(
+        [...code.matchAll(IDEMPOTENT_EXTERNAL_CALL_PATTERN)],
+        Array.some((match): boolean =>
+          Match.value(isUnrelatedNamedRead(value, match[0])).pipe(
+            Match.when(
+              (shouldSkip): boolean => shouldSkip,
+              (): boolean => false,
+            ),
+            Match.orElse((): boolean => {
+              const input = retryScanInput(value, code, match, options);
+              return shouldReportMissingRetry(
+                code,
+                match.index,
+                input.segment,
+                input.shouldSkipFetch,
+                input.isMutatingFetch,
+              );
+            }),
+          ),
+        ),
+      );
+    }),
+  );
 
 const shouldReportMissingRetry = (
   code: string,

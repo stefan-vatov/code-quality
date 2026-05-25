@@ -1,2 +1,6 @@
 packages:
   - ts
+
+onlyBuiltDependencies:
+  - esbuild
+  - nx

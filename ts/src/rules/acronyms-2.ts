@@ -1,7 +1,9 @@
 /* -------------------------------------------------------------------------- */
 /*            Static acronym data chunk for the acronym-case rule.            */
 /* -------------------------------------------------------------------------- */
-const acronyms2 = [
+import { Array } from 'effect';
+
+const acronyms2 = Array.make(
   'elm',
   'elt',
   'emacs',
@@ -402,6 +404,6 @@ const acronyms2 = [
   'mcdst',
   'mcitp',
   'mcm',
-] as const;
+);
 
 export default acronyms2;

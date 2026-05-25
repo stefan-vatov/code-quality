@@ -2,6 +2,7 @@
 /*  Exported-declaration documentation requirement helper for custom Oxlint   */
 /*                                   Rules.                                   */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Match, Option, String, pipe } from 'effect';
 import { isDocumentedLocalExportList } from './require-function-doc-local-exports';
 import { isInsideIgnoredText } from './require-function-doc-ignored-text';
 
@@ -41,96 +42,99 @@ const DEFAULT_KEYWORD_LENGTH = 'default '.length;
 const DECLARE_KEYWORD_LENGTH = 'declare '.length;
 const ABSTRACT_KEYWORD_LENGTH = 'abstract '.length;
 
+const sourceIncludes =
+  (needle: string) =>
+  (source: string): boolean =>
+    pipe(source, String.includes(needle));
+
+const indexesBetween = (start: number, endExclusive: number): readonly number[] => {
+  if (start >= endExclusive) {
+    return Array.empty();
+  }
+  return Array.range(start, endExclusive - 1);
+};
+
+const matchesIn = (source: string, pattern: RegExp): readonly RegExpExecArray[] =>
+  pipe(source.matchAll(pattern), Array.fromIterable);
+
 const isWhitespace = (code: number): boolean =>
   code === CHAR_CODE_SPACE ||
   code === CHAR_CODE_TAB ||
   code === CHAR_CODE_NEWLINE ||
   code === CHAR_CODE_CARRIAGE_RETURN;
 
-const lineEndFor = (source: string, lineStart: number, len: number): number => {
-  const newlineIndex = source.indexOf('\n', lineStart);
-  if (newlineIndex === -1) {
-    return len;
-  }
-  return newlineIndex;
-};
+const firstIndexNotMatching = (
+  source: string,
+  start: number,
+  endExclusive: number,
+  predicate: (code: number) => boolean,
+): number =>
+  pipe(
+    indexesBetween(start, endExclusive),
+    Array.findFirst((index): boolean => !predicate(source.charCodeAt(index))),
+    Option.getOrElse((): number => endExclusive),
+  );
 
 const skipLinePrefix = (source: string, pos: number, lineEnd: number): number => {
-  let cursor = pos;
-  while (cursor < lineEnd && isWhitespace(source.charCodeAt(cursor))) {
-    cursor++;
-  }
-  if (cursor < lineEnd && source.charCodeAt(cursor) === CHAR_CODE_ASTERISK) {
-    cursor++;
-  }
-  while (cursor < lineEnd && isWhitespace(source.charCodeAt(cursor))) {
-    cursor++;
-  }
-  return cursor;
+  const contentStart = firstIndexNotMatching(source, pos, lineEnd, isWhitespace);
+  const afterAsterisk = Match.value(contentStart).pipe(
+    Match.when(
+      (cursor): boolean => cursor < lineEnd && source.charCodeAt(cursor) === CHAR_CODE_ASTERISK,
+      (cursor): number => cursor + 1,
+    ),
+    Match.orElse((cursor): number => cursor),
+  );
+  return firstIndexNotMatching(source, afterAsterisk, lineEnd, isWhitespace);
 };
 
 const isJSDocTagLine = (source: string, pos: number, lineEnd: number): boolean =>
   pos < lineEnd && source.charCodeAt(pos) === CHAR_CODE_AT_SIGN;
 
+const lineEndFor = (source: string, lineStart: number): number =>
+  Match.value(source.indexOf('\n', lineStart)).pipe(
+    Match.when(
+      (index): boolean => index === -1,
+      (): number => source.length,
+    ),
+    Match.orElse((index): number => index),
+  );
+
 const lineHasDescriptionContent = (source: string, lineStart: number, lineEnd: number): boolean => {
-  let pos = skipLinePrefix(source, lineStart, lineEnd);
+  const pos = skipLinePrefix(source, lineStart, lineEnd);
   if (isJSDocTagLine(source, pos, lineEnd)) {
     return false;
   }
-  while (pos < lineEnd) {
-    if (!isWhitespace(source.charCodeAt(pos))) {
-      return true;
-    }
-    pos++;
-  }
-  return false;
+  return pipe(
+    indexesBetween(pos, lineEnd),
+    Array.some((index): boolean => !isWhitespace(source.charCodeAt(index))),
+  );
 };
 
-const nextDescriptionLineStart = (newlineIndex: number): number | undefined => {
-  if (newlineIndex === -1) {
-    return undefined;
-  }
-  return newlineIndex + 1;
-};
+const descriptionLineStarts = (jsdocBody: string): readonly number[] =>
+  pipe(
+    matchesIn(jsdocBody, /\n/g),
+    Array.map((match): number => match.index + 1),
+    Array.prepend(0),
+  );
 
-const hasDescriptionLine = (
-  jsdocBody: string,
-  lineStart: number,
-  len: number,
-): { found: boolean; nextLineStart?: number } => {
-  const newlineIndex = jsdocBody.indexOf('\n', lineStart);
-  const lineEnd = lineEndFor(jsdocBody, lineStart, len);
-  if (lineHasDescriptionContent(jsdocBody, lineStart, lineEnd)) {
-    return { found: true };
-  }
-  return { found: false, nextLineStart: nextDescriptionLineStart(newlineIndex) };
-};
+const hasDescriptionContent = (jsdocBody: string): boolean =>
+  pipe(
+    descriptionLineStarts(jsdocBody),
+    Array.some((lineStart): boolean =>
+      lineHasDescriptionContent(jsdocBody, lineStart, lineEndFor(jsdocBody, lineStart)),
+    ),
+  );
 
-const hasDescriptionContent = (jsdocBody: string): boolean => {
-  let lineStart = 0;
-  const len = jsdocBody.length;
-
-  while (lineStart <= len) {
-    const result = hasDescriptionLine(jsdocBody, lineStart, len);
-    if (result.found) {
-      return true;
-    }
-    if (result.nextLineStart === undefined) {
-      return false;
-    }
-    lineStart = result.nextLineStart;
-  }
-
-  return false;
-};
-
-const skipWhitespaceBack = (source: string, pos: number): number => {
-  let cursor = pos;
-  while (cursor > 0 && isWhitespace(source.charCodeAt(cursor - 1))) {
-    cursor--;
-  }
-  return cursor;
-};
+const skipWhitespaceBack = (source: string, pos: number): number =>
+  pipe(
+    indexesBetween(0, pos),
+    Array.reverse,
+    Array.findFirst((index): boolean => !isWhitespace(source.charCodeAt(index))),
+    Option.match({
+      onNone: (): number => 0,
+      onSome: (index): number => index + 1,
+    }),
+  );
 
 const hasBlockCommentCloseAt = (source: string, pos: number): boolean =>
   pos >= '*/'.length &&
@@ -148,24 +152,22 @@ const jsdocContentBeforeClose = (
   return undefined;
 };
 
-const previousJSDocContent = (source: string, closeStar: number): string | undefined => {
-  let open = closeStar - 1;
-  while (open > 0) {
-    if (
-      source.charCodeAt(open) === CHAR_CODE_ASTERISK &&
-      source.charCodeAt(open - 1) === CHAR_CODE_SLASH
-    ) {
-      const content = jsdocContentBeforeClose(source, open, closeStar);
-      if (content !== undefined) {
-        return content;
+const previousJSDocContent = (source: string, closeStar: number): string | undefined =>
+  pipe(
+    indexesBetween(1, closeStar),
+    Array.reverse,
+    Array.filterMap((open): Option.Option<string> => {
+      if (
+        source.charCodeAt(open) === CHAR_CODE_ASTERISK &&
+        source.charCodeAt(open - 1) === CHAR_CODE_SLASH
+      ) {
+        return Option.fromNullable(jsdocContentBeforeClose(source, open, closeStar));
       }
-      open -= '/*'.length;
-    } else {
-      open--;
-    }
-  }
-  return undefined;
-};
+      return Option.none();
+    }),
+    Array.head,
+    Option.getOrUndefined,
+  );
 
 const hasJSDocBefore = (source: string, exportPOS: number): boolean => {
   const pos = skipWhitespaceBack(source, exportPOS);
@@ -219,15 +221,24 @@ const isDefaultDeclaration = (source: string, pos: number, _len: number): boolea
 const AMBIENT_DECLARE_PREFIXES = ['declare module', 'declare namespace', 'declare global'];
 
 const skipShebangComments = (source: string, idx: number): number | undefined => {
-  let cursor = idx;
-  while (cursor < source.length && source.charCodeAt(cursor) === CHAR_CODE_HASH) {
-    cursor = source.indexOf('\n', cursor);
-    if (cursor === -1) {
-      return undefined;
-    }
-    cursor++;
-  }
-  return cursor;
+  const scan = (cursor: number): number | undefined =>
+    Match.value(cursor).pipe(
+      Match.when(
+        (position): boolean =>
+          position < source.length && source.charCodeAt(position) === CHAR_CODE_HASH,
+        (position): number | undefined =>
+          pipe(
+            Option.some(source.indexOf('\n', position)),
+            Option.filter((newlineIndex): boolean => newlineIndex !== -1),
+            Option.flatMap(
+              (newlineIndex): Option.Option<number> => Option.fromNullable(scan(newlineIndex + 1)),
+            ),
+            Option.getOrUndefined,
+          ),
+      ),
+      Match.orElse((position): number => position),
+    );
+  return scan(idx);
 };
 
 const skipBlockComment = (source: string, idx: number): number | undefined => {
@@ -269,8 +280,10 @@ const skipTriviaToken = (source: string, idx: number): number | undefined => {
 };
 
 const skipLeadingTrivia = (source: string, idx: number): number | undefined => {
-  let cursor = idx;
-  while (cursor < source.length) {
+  const scan = (cursor: number): number | undefined => {
+    if (cursor >= source.length) {
+      return cursor;
+    }
     const next = skipTriviaToken(source, cursor);
     if (next === undefined) {
       return undefined;
@@ -278,15 +291,18 @@ const skipLeadingTrivia = (source: string, idx: number): number | undefined => {
     if (next === cursor) {
       return cursor;
     }
-    cursor = next;
-  }
-  return cursor;
+    return scan(next);
+  };
+  return scan(idx);
 };
 
 const hasAmbientPrefixAt = (source: string, idx: number): boolean =>
-  AMBIENT_DECLARE_PREFIXES.some(
-    (prefix): boolean =>
-      idx + prefix.length <= source.length && source.slice(idx, idx + prefix.length) === prefix,
+  pipe(
+    AMBIENT_DECLARE_PREFIXES,
+    Array.some(
+      (prefix): boolean =>
+        idx + prefix.length <= source.length && source.slice(idx, idx + prefix.length) === prefix,
+    ),
   );
 
 const isAmbientDeclarationFile = (source: string): boolean => {
@@ -299,14 +315,6 @@ const isAmbientDeclarationFile = (source: string): boolean => {
     return false;
   }
   return hasAmbientPrefixAt(source, idx);
-};
-
-const nextExportPosition = (source: string, start: number): number | undefined => {
-  const exp = source.indexOf('export ', start);
-  if (exp === -1) {
-    return undefined;
-  }
-  return exp;
 };
 
 const isStandaloneExportKeyword = (source: string, exp: number): boolean => {
@@ -362,7 +370,7 @@ interface ModifierSpec {
   text: string;
 }
 
-const modifierSpecs: readonly ModifierSpec[] = [
+const modifierSpecs: readonly ModifierSpec[] = Array.make(
   {
     charCode: CHAR_CODE_LOWER_D,
     isDefault: true,
@@ -398,7 +406,7 @@ const modifierSpecs: readonly ModifierSpec[] = [
     shouldStop: true,
     text: 'namespace ',
   },
-];
+);
 
 const modifierSpecMatches = (source: string, pos: number, spec: ModifierSpec): boolean =>
   source.charCodeAt(pos) === spec.charCode &&
@@ -408,30 +416,35 @@ const modifierSpecMatches = (source: string, pos: number, spec: ModifierSpec): b
 const modifierLengthAt = (
   source: string,
   pos: number,
-): { length: number; isDefault: boolean; shouldStop: boolean } | undefined => {
-  for (const spec of modifierSpecs) {
-    if (modifierSpecMatches(source, pos, spec)) {
-      return spec;
-    }
-  }
-  return undefined;
-};
+): { length: number; isDefault: boolean; shouldStop: boolean } | undefined =>
+  pipe(
+    modifierSpecs,
+    Array.findFirst((spec): boolean => modifierSpecMatches(source, pos, spec)),
+    Option.getOrUndefined,
+  );
 
 const scanExportModifiers = (source: string, start: number): ModifierScanResult => {
-  let pos = start;
-  let hasSawDefault = false;
-  let modifier = modifierLengthAt(source, pos);
+  const scan = (state: ModifierScanResult): ModifierScanResult =>
+    pipe(
+      Option.fromNullable(modifierLengthAt(source, state.pos)),
+      Option.match({
+        onNone: (): ModifierScanResult => state,
+        onSome: (modifier): ModifierScanResult => {
+          if (modifier.shouldStop) {
+            return state;
+          }
+          return scan({
+            hasSawDefault: state.hasSawDefault || modifier.isDefault,
+            pos: skipWhitespace(source, state.pos + modifier.length),
+          });
+        },
+      }),
+    );
 
-  while (modifier && !modifier.shouldStop) {
-    hasSawDefault ||= modifier.isDefault;
-    pos = skipWhitespace(source, pos + modifier.length);
-    modifier = modifierLengthAt(source, pos);
-  }
-
-  return { hasSawDefault, pos };
+  return scan({ hasSawDefault: false, pos: start });
 };
 
-const declarationStartCodes = new Set([
+const declarationStartCodes = HashSet.make(
   CHAR_CODE_LOWER_F,
   CHAR_CODE_UPPER_F,
   CHAR_CODE_LOWER_C,
@@ -446,9 +459,9 @@ const declarationStartCodes = new Set([
   CHAR_CODE_UPPER_V,
   CHAR_CODE_LOWER_N,
   CHAR_CODE_UPPER_N,
-]);
+);
 
-const isDeclarationStartCode = (code: number): boolean => declarationStartCodes.has(code);
+const isDeclarationStartCode = (code: number): boolean => HashSet.has(declarationStartCodes, code);
 
 const canSkipDocumentedExport = (source: string, modifiers: ModifierScanResult): boolean => {
   if (modifiers.pos >= source.length) {
@@ -516,34 +529,11 @@ const isUndocumentedExportAt = (source: string, exp: number): boolean => {
   return isDocumentedExportDeclaration(source, exp) === false;
 };
 
-const nextExportSearchPosition = (
-  source: string,
-  pos: number,
-): { nextPOS: number; undocumented: boolean } | undefined => {
-  const exp = nextExportPosition(source, pos);
-  if (exp === undefined) {
-    return undefined;
-  }
-  return {
-    nextPOS: exp + EXPORT_KEYWORD_LENGTH,
-    undocumented: isUndocumentedExportAt(source, exp),
-  };
-};
-
-const hasUndocumentedExport = (source: string): boolean => {
-  let pos = 0;
-  while (pos < source.length) {
-    const exportSearch = nextExportSearchPosition(source, pos);
-    if (!exportSearch) {
-      return false;
-    }
-    if (exportSearch.undocumented) {
-      return true;
-    }
-    pos = exportSearch.nextPOS;
-  }
-  return false;
-};
+const hasUndocumentedExport = (source: string): boolean =>
+  pipe(
+    matchesIn(source, /\bexport\s/g),
+    Array.some((match): boolean => isUndocumentedExportAt(source, match.index)),
+  );
 
 /**
  * Checks whether exported declarations have meaningful JSDoc comments.
@@ -552,7 +542,7 @@ const hasUndocumentedExport = (source: string): boolean => {
  * @returns True when every public declaration is documented or no public declarations exist.
  */
 export default function hasRequiredFunctionDocs(source: string): boolean {
-  if (!source.includes('export ')) {
+  if (!sourceIncludes('export ')(source)) {
     return true;
   }
 

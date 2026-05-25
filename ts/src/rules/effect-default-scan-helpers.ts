@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*         Shared scan helpers for always-on Effect lint predicates.          */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
 import {
   findBalancedCallEnd,
   findStatementEnd,
@@ -21,12 +22,24 @@ const setBoundedCacheValue = <Value>(
   key: string,
   value: Value,
 ): Value => {
-  if (cache.size >= EFFECT_PATTERN_CACHE_MAX) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey !== undefined) {
-      cache.delete(firstKey);
-    }
-  }
+  pipe(
+    Match.value(cache.size),
+    Match.when(
+      (size): boolean => size >= EFFECT_PATTERN_CACHE_MAX,
+      (): void => {
+        pipe(
+          Option.fromNullable(cache.keys().next().value),
+          Option.match({
+            onNone: (): void => undefined,
+            onSome: (firstKey): void => {
+              cache.delete(firstKey);
+            },
+          }),
+        );
+      },
+    ),
+    Match.orElse((): void => undefined),
+  );
   cache.set(key, value);
   return value;
 };
@@ -38,14 +51,17 @@ const setBoundedCacheValue = <Value>(
  */
 export const effectAliasesPattern = (source: string): string => {
   const cachedPattern = effectAliasesPatternCache.get(source);
-  if (cachedPattern !== undefined) {
-    return cachedPattern;
-  }
-
-  return setBoundedCacheValue(
-    effectAliasesPatternCache,
-    source,
-    effectImportAliases(source).map(escapeRegExp).join('|'),
+  return pipe(
+    Option.fromNullable(cachedPattern),
+    Option.match({
+      onNone: (): string =>
+        setBoundedCacheValue(
+          effectAliasesPatternCache,
+          source,
+          pipe(effectImportAliases(source), Array.map(escapeRegExp), Array.join('|')),
+        ),
+      onSome: (pattern): string => pattern,
+    }),
   );
 };
 
@@ -55,19 +71,28 @@ export const effectAliasesPattern = (source: string): string => {
  * @internal
  */
 export const effectCallPattern = (source: string, methods: string): RegExp => {
-  let sourceCache = effectCallPatternCache.get(source);
-  if (sourceCache === undefined) {
-    sourceCache = setBoundedCacheValue(effectCallPatternCache, source, new Map<string, RegExp>());
-  }
-
+  const sourceCache = pipe(
+    Option.fromNullable(effectCallPatternCache.get(source)),
+    Option.getOrElse(
+      (): Map<string, RegExp> =>
+        setBoundedCacheValue(effectCallPatternCache, source, new Map<string, RegExp>()),
+    ),
+  );
   const cachedPattern = sourceCache.get(methods);
-  if (cachedPattern !== undefined) {
-    return cachedPattern;
-  }
-
-  const pattern = new RegExp(`\\b(?:${effectAliasesPattern(source)})\\.(?:${methods})\\s*\\(`, 'g');
-  sourceCache.set(methods, pattern);
-  return pattern;
+  return pipe(
+    Option.fromNullable(cachedPattern),
+    Option.match({
+      onNone: (): RegExp => {
+        const pattern = new RegExp(
+          `\\b(?:${effectAliasesPattern(source)})\\.(?:${methods})\\s*\\(`,
+          'g',
+        );
+        sourceCache.set(methods, pattern);
+        return pattern;
+      },
+      onSome: (pattern): RegExp => pattern,
+    }),
+  );
 };
 
 /**
@@ -77,10 +102,15 @@ export const effectCallPattern = (source: string, methods: string): RegExp => {
  */
 export const localCallSegment = (source: string, targetIndex: number): string => {
   const openParenIndex = source.indexOf('(', targetIndex);
-  if (openParenIndex === -1) {
-    return source.slice(targetIndex, findStatementEnd(source, targetIndex) + 1);
-  }
-  return source.slice(targetIndex, findBalancedCallEnd(source, openParenIndex) + 1);
+  return Match.value(openParenIndex).pipe(
+    Match.when(
+      (index): boolean => index === -1,
+      (): string => source.slice(targetIndex, findStatementEnd(source, targetIndex) + 1),
+    ),
+    Match.orElse((index): string =>
+      source.slice(targetIndex, findBalancedCallEnd(source, index) + 1),
+    ),
+  );
 };
 
 /**
@@ -90,33 +120,44 @@ export const localCallSegment = (source: string, targetIndex: number): string =>
  */
 export const effectCallBodies = (source: string, callPattern: RegExp): string[] => {
   const code = stripCommentsAndStrings(source);
-  const bodies: string[] = [];
-  for (const match of code.matchAll(callPattern)) {
-    const openParenIndex = source.indexOf('(', match.index);
-    if (openParenIndex !== -1) {
-      bodies.push(source.slice(openParenIndex + 1, findBalancedCallEnd(source, openParenIndex)));
-    }
-  }
-
-  return bodies;
+  return pipe(
+    [...code.matchAll(callPattern)],
+    Array.filterMap((match): Option.Option<string> => {
+      const openParenIndex = source.indexOf('(', match.index);
+      return Match.value(openParenIndex).pipe(
+        Match.when(
+          (index): boolean => index === -1,
+          (): Option.Option<string> => Option.none(),
+        ),
+        Match.orElse(
+          (index): Option.Option<string> =>
+            Option.some(source.slice(index + 1, findBalancedCallEnd(source, index))),
+        ),
+      );
+    }),
+  );
 };
 
 const effectGenHasBody = (
   source: string,
   code: string,
   predicate: (body: string) => boolean,
-): boolean => {
-  for (const match of code.matchAll(effectCallPattern(source, 'gen'))) {
-    const openParenIndex = source.indexOf('(', match.index);
-    if (
-      openParenIndex !== -1 &&
-      predicate(source.slice(openParenIndex + 1, findBalancedCallEnd(source, openParenIndex)))
-    ) {
-      return true;
-    }
-  }
-  return false;
-};
+): boolean =>
+  pipe(
+    [...code.matchAll(effectCallPattern(source, 'gen'))],
+    Array.some((match): boolean => {
+      const openParenIndex = source.indexOf('(', match.index);
+      return Match.value(openParenIndex).pipe(
+        Match.when(
+          (index): boolean => index === -1,
+          (): boolean => false,
+        ),
+        Match.orElse((index): boolean =>
+          predicate(source.slice(index + 1, findBalancedCallEnd(source, index))),
+        ),
+      );
+    }),
+  );
 
 const effectFnBodyBounds = (
   source: string,
@@ -124,29 +165,39 @@ const effectFnBodyBounds = (
 ): { end: number; start: number } => {
   const firstCallEnd = findBalancedCallEnd(source, openParenIndex);
   const nextCallMatch = /^\s*\(/.exec(source.slice(firstCallEnd + 1));
-  if (nextCallMatch) {
-    const start = firstCallEnd + 1 + nextCallMatch[0].lastIndexOf('(');
-    return { end: findBalancedCallEnd(source, start), start };
-  }
-  return { end: firstCallEnd, start: openParenIndex };
+  return pipe(
+    Option.fromNullable(nextCallMatch),
+    Option.match({
+      onNone: (): { end: number; start: number } => ({ end: firstCallEnd, start: openParenIndex }),
+      onSome: (match): { end: number; start: number } => {
+        const start = firstCallEnd + 1 + match[0].lastIndexOf('(');
+        return { end: findBalancedCallEnd(source, start), start };
+      },
+    }),
+  );
 };
 
 const effectFnHasBody = (
   source: string,
   code: string,
   predicate: (body: string) => boolean,
-): boolean => {
-  for (const match of code.matchAll(effectCallPattern(source, 'fn'))) {
-    const openParenIndex = source.indexOf('(', match.index);
-    if (openParenIndex !== -1) {
-      const bounds = effectFnBodyBounds(source, openParenIndex);
-      if (predicate(source.slice(bounds.start + 1, bounds.end))) {
-        return true;
-      }
-    }
-  }
-  return false;
-};
+): boolean =>
+  pipe(
+    [...code.matchAll(effectCallPattern(source, 'fn'))],
+    Array.some((match): boolean => {
+      const openParenIndex = source.indexOf('(', match.index);
+      return Match.value(openParenIndex).pipe(
+        Match.when(
+          (index): boolean => index === -1,
+          (): boolean => false,
+        ),
+        Match.orElse((index): boolean => {
+          const bounds = effectFnBodyBounds(source, index);
+          return predicate(source.slice(bounds.start + 1, bounds.end));
+        }),
+      );
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -166,19 +217,25 @@ export const someEffectWorkflowBody = (
  *
  * @internal
  */
-export const enclosingPipeBody = (source: string, targetIndex: number): string | undefined => {
-  for (const match of source.matchAll(/\.pipe\s*\(/g)) {
-    const openParenIndex = source.indexOf('(', match.index);
-    if (openParenIndex !== -1 && openParenIndex <= targetIndex) {
-      const endIndex = findBalancedCallEnd(source, openParenIndex);
-      if (targetIndex <= endIndex) {
-        return source.slice(openParenIndex + 1, endIndex);
-      }
-    }
-  }
-
-  return undefined;
-};
+export const enclosingPipeBody = (source: string, targetIndex: number): string | undefined =>
+  pipe(
+    [...source.matchAll(/\.pipe\s*\(/g)],
+    Array.findFirst((match): boolean => {
+      const openParenIndex = source.indexOf('(', match.index);
+      return Match.value(openParenIndex).pipe(
+        Match.when(
+          (index): boolean => index === -1 || index > targetIndex,
+          (): boolean => false,
+        ),
+        Match.orElse((index): boolean => targetIndex <= findBalancedCallEnd(source, index)),
+      );
+    }),
+    Option.map((match): string => {
+      const openParenIndex = source.indexOf('(', match.index);
+      return source.slice(openParenIndex + 1, findBalancedCallEnd(source, openParenIndex));
+    }),
+    Option.getOrUndefined,
+  );
 
 /**
  * Internal helper exported for package-local composition.

@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*          Codemod for internal exported declaration documentation.          */
 /* -------------------------------------------------------------------------- */
+import { Array, Option, Order, Predicate, pipe } from 'effect';
 import type { ExportNamedDeclaration, Statement } from 'jscodeshift';
 import { formatJSDoc } from './comment-format';
 import jscodeshift from 'jscodeshift';
@@ -18,17 +19,16 @@ const internalHeaderScanLength = 240;
 const codemodAPI = jscodeshift.withParser('ts');
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
 const hasInternalFileHeader = (source: string): boolean => {
   const trimmedStart = source.trimStart();
@@ -45,70 +45,87 @@ const isExportedDeclarationStatement = (
   isObjectRecord(statement) &&
   Boolean(statement.declaration);
 
-const commentStart = (comment: unknown): number | undefined => {
-  if (isObjectRecord(comment)) {
-    const { start } = comment;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  return undefined;
-};
+const commentStart = (comment: unknown): number | undefined =>
+  pipe(
+    Option.some(comment),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrUndefined,
+  );
 
-const commentEnd = (comment: unknown): number | undefined => {
-  if (isObjectRecord(comment)) {
-    const { end } = comment;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  return undefined;
-};
+const commentEnd = (comment: unknown): number | undefined =>
+  pipe(
+    Option.some(comment),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrUndefined,
+  );
 
 const isJSDocComment = (source: string, comment: unknown): boolean => {
   const start = commentStart(comment);
-  if (!isObjectRecord(comment) || comment.type !== 'CommentBlock' || start === undefined) {
-    return false;
-  }
-  return source[start + 2] === '*';
+  return pipe(
+    Option.some(comment),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'CommentBlock'),
+    Option.flatMap(() => Option.fromNullable(start)),
+    Option.exists((value): boolean => source[value + 2] === '*'),
+  );
 };
 
 const hasDeclarationJSDoc = (source: string, statement: Statement): boolean => {
   const comments = statement.comments ?? [];
   const declarationStart = nodeStart(statement);
-  return comments.some((comment): boolean => {
-    const start = commentStart(comment);
-    const end = commentEnd(comment);
-    if (start === undefined || end === undefined || !isJSDocComment(source, comment)) {
-      return false;
-    }
-    if (start === 0) {
-      return false;
-    }
-    return source.slice(end, declarationStart).trim() === '';
-  });
+  return pipe(
+    comments,
+    Array.some((comment): boolean => {
+      const start = commentStart(comment);
+      const end = commentEnd(comment);
+      return pipe(
+        Option.all({
+          end: Option.fromNullable(end),
+          start: Option.fromNullable(start),
+        }),
+        Option.filter(({ start: value }): boolean => value !== 0),
+        Option.exists(
+          ({ end: value }): boolean =>
+            isJSDocComment(source, comment) && source.slice(value, declarationStart).trim() === '',
+        ),
+      );
+    }),
+  );
 };
 
 const applyInsertions = (source: string, insertions: readonly Insertion[]): string =>
-  [...insertions]
-    .sort((left, right) => right.position - left.position)
-    .reduce(
+  pipe(
+    insertions,
+    Array.sortWith((insertion) => -insertion.position, Order.number),
+    Array.reduce(
+      source,
       (current, insertion): string =>
         current.slice(0, insertion.position) + insertion.text + current.slice(insertion.position),
-      source,
-    );
+    ),
+  );
 
 const internalExportDocInsertions = (source: string): readonly Insertion[] => {
   const program = codemodAPI(source).find(codemodAPI.Program).paths()[0]?.value;
-  if (!program) {
-    return [];
-  }
-  return program.body.flatMap((statement): Insertion[] => {
-    if (!isExportedDeclarationStatement(statement) || hasDeclarationJSDoc(source, statement)) {
-      return [];
-    }
-    return [{ position: nodeStart(statement), text: internalExportDoc }];
-  });
+  return pipe(
+    Option.fromNullable(program),
+    Option.map((value) =>
+      pipe(
+        value.body,
+        Array.filter(
+          (statement): statement is ExportNamedDeclaration =>
+            isExportedDeclarationStatement(statement) && !hasDeclarationJSDoc(source, statement),
+        ),
+        Array.map(
+          (statement): Insertion => ({ position: nodeStart(statement), text: internalExportDoc }),
+        ),
+      ),
+    ),
+    Option.getOrElse((): readonly Insertion[] => []),
+  );
 };
 
 /**
@@ -116,10 +133,12 @@ const internalExportDocInsertions = (source: string): readonly Insertion[] => {
  *
  * @internal
  */
-export const addInternalExportDocs = (source: string): string => {
-  if (!hasInternalFileHeader(source) || !source.includes('export ')) {
-    return source;
-  }
-
-  return applyInsertions(source, internalExportDocInsertions(source));
-};
+export const addInternalExportDocs = (source: string): string =>
+  pipe(
+    Option.some(source),
+    Option.filter((value): boolean => hasInternalFileHeader(value) && value.includes('export ')),
+    Option.match({
+      onNone: (): string => source,
+      onSome: (value): string => applyInsertions(value, internalExportDocInsertions(value)),
+    }),
+  );

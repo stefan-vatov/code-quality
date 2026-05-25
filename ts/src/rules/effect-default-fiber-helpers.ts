@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*          Fiber observation predicates for always-on Effect rules.          */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
 import { sameFunctionTail, stripCommentsAndStrings } from './effect-source-helpers';
 
 const isUnobservedForkMatch = (source: string, match: RegExpExecArray): boolean => {
@@ -32,17 +33,18 @@ export const hasUnobservedFork = (source: string): boolean => {
     /\b(?:(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*)?yield\*\s+[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?\.pipe\s*\(\s*Effect\.fork\b/g,
   ];
 
-  for (const pattern of forkPatterns) {
-    for (const match of code.matchAll(pattern)) {
-      if (isUnobservedForkMatch(code, match)) {
-        return true;
-      }
-    }
-  }
-
-  return (
-    /^\s*Effect\.fork\s*\(/m.test(code) ||
-    /^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?\.pipe\s*\(\s*Effect\.fork\b/m.test(code)
+  return pipe(
+    forkPatterns,
+    Array.some((pattern): boolean =>
+      pipe(
+        [...code.matchAll(pattern)],
+        Array.some((match): boolean => isUnobservedForkMatch(code, match)),
+      ),
+    ),
+    (hasUnobservedAssignedFork): boolean =>
+      hasUnobservedAssignedFork ||
+      /^\s*Effect\.fork\s*\(/m.test(code) ||
+      /^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?\.pipe\s*\(\s*Effect\.fork\b/m.test(code),
   );
 };
 
@@ -51,8 +53,12 @@ const nextSameNamedForkIndex = (
   startIndex: number,
   fiberName: string,
 ): number | undefined =>
-  assignedForks.slice(startIndex + 1).find((nextMatch): boolean => nextMatch[1] === fiberName)
-    ?.index;
+  pipe(
+    assignedForks.slice(startIndex + 1),
+    Array.findFirst((nextMatch): boolean => nextMatch[1] === fiberName),
+    Option.flatMapNullable((nextMatch): number | undefined => nextMatch.index),
+    Option.getOrUndefined,
+  );
 
 const runForkLocalSource = (
   code: string,
@@ -60,24 +66,25 @@ const runForkLocalSource = (
   nextForkIndex: number | undefined,
 ): string => {
   const matchIndex = match.index ?? 0;
-  if (nextForkIndex !== undefined) {
-    return sameFunctionTail(code, matchIndex).slice(0, nextForkIndex - matchIndex);
-  }
-  return sameFunctionTail(code, matchIndex);
+  return Match.value(nextForkIndex).pipe(
+    Match.when(Match.defined, (definedNextForkIndex): string =>
+      sameFunctionTail(code, matchIndex).slice(0, definedNextForkIndex - matchIndex),
+    ),
+    Match.orElse((): string => sameFunctionTail(code, matchIndex)),
+  );
 };
 
-const hasUnobservedAssignedRunFork = (code: string, assignedForks: RegExpMatchArray[]): boolean => {
-  for (const [index, match] of assignedForks.entries()) {
-    const [, fiberName] = match;
-    const nextForkIndex = nextSameNamedForkIndex(assignedForks, index, fiberName);
-    const localSource = runForkLocalSource(code, match, nextForkIndex);
-    const observedPattern = new RegExp(`\\b${fiberName}\\.addObserver\\b`);
-    if (!observedPattern.test(localSource)) {
-      return true;
-    }
-  }
-  return false;
-};
+const hasUnobservedAssignedRunFork = (code: string, assignedForks: RegExpMatchArray[]): boolean =>
+  pipe(
+    assignedForks,
+    Array.some((match, index): boolean => {
+      const [, fiberName] = match;
+      const nextForkIndex = nextSameNamedForkIndex(assignedForks, index, fiberName);
+      const localSource = runForkLocalSource(code, match, nextForkIndex);
+      const observedPattern = new RegExp(`\\b${fiberName}\\.addObserver\\b`);
+      return !observedPattern.test(localSource);
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.

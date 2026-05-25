@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*           Schema boundary predicates for always-on Effect rules.           */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
 import { isInsideCall, stripCommentsAndStrings } from './effect-source-helpers';
 import { localCallSegment, someEffectWorkflowBody } from './effect-default-scan-helpers';
 
@@ -31,26 +32,28 @@ export const hasSchemaPromiseDecode = (source: string): boolean =>
  */
 export const hasExternalJSONWithoutDecodeUnknown = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\b(?:response|res)\.json\s*\(\s*\)/g)) {
-    const callSegment = localCallSegment(code, match.index);
-    if (
-      !isInsideCall(code, match.index, /Schema\.decodeUnknown\s*\(/g) &&
-      !/Schema\.decodeUnknown/.test(callSegment)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+  return pipe(
+    [...code.matchAll(/\b(?:response|res)\.json\s*\(\s*\)/g)],
+    Array.some((match): boolean => {
+      const callSegment = localCallSegment(code, match.index);
+      return (
+        !isInsideCall(code, match.index, /Schema\.decodeUnknown\s*\(/g) &&
+        !/Schema\.decodeUnknown/.test(callSegment)
+      );
+    }),
+  );
 };
 
 const schemaDecodeLine = (code: string, index: number): string => {
   const lineStart = Math.max(code.lastIndexOf(';', index) + 1, code.lastIndexOf('\n', index) + 1);
   const lineBreakIndex = code.indexOf('\n', index);
-  let lineEnd = lineBreakIndex;
-  if (lineEnd === -1) {
-    lineEnd = code.length;
-  }
+  const lineEnd = Match.value(lineBreakIndex).pipe(
+    Match.when(
+      (breakIndex): boolean => breakIndex === -1,
+      (): number => code.length,
+    ),
+    Match.orElse((breakIndex): number => breakIndex),
+  );
   return code.slice(lineStart, lineEnd);
 };
 
@@ -61,34 +64,54 @@ const schemaAssertionTail = (code: string, match: RegExpMatchArray): string =>
   );
 
 const hasBindingAssertion = (bindingName: string | undefined, tail: string): boolean =>
-  Boolean(bindingName && new RegExp(`\\b${bindingName}\\s+as\\s+[A-Za-z_$][\\w$]*`).test(tail));
+  pipe(
+    Option.fromNullable(bindingName),
+    Option.match({
+      onNone: (): boolean => false,
+      onSome: (name): boolean => new RegExp(`\\b${name}\\s+as\\s+[A-Za-z_$][\\w$]*`).test(tail),
+    }),
+  );
 
 const hasInlineSchemaDecodeCast = (line: string): boolean =>
   /Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)\s+as\s+[A-Za-z_$][\w$]*/.test(line);
 
-const hasCastAfterSchemaDecodeMatch = (code: string, match: RegExpMatchArray): boolean => {
-  if (match.index === undefined) {
-    return false;
-  }
-  const line = schemaDecodeLine(code, match.index);
-  if (hasInlineSchemaDecodeCast(line)) {
-    return true;
-  }
-  const bindingName = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(line)?.[1];
-  return hasBindingAssertion(bindingName, schemaAssertionTail(code, match));
-};
+const hasCastAfterSchemaDecodeMatch = (code: string, match: RegExpMatchArray): boolean =>
+  pipe(
+    Option.fromNullable(match.index),
+    Option.match({
+      onNone: (): boolean => false,
+      onSome: (index): boolean => {
+        const line = schemaDecodeLine(code, index);
+        return Match.value(line).pipe(
+          Match.when(
+            (schemaLine): boolean => hasInlineSchemaDecodeCast(schemaLine),
+            (): boolean => true,
+          ),
+          Match.orElse((schemaLine): boolean => {
+            const bindingName = pipe(
+              Option.fromNullable(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(schemaLine)),
+              Option.flatMapNullable((bindingMatch): string | undefined => bindingMatch[1]),
+              Option.getOrUndefined,
+            );
+            return hasBindingAssertion(bindingName, schemaAssertionTail(code, match));
+          }),
+        );
+      },
+    }),
+  );
 
-const hasCastAfterSchemaDecodeBinding = (code: string): boolean => {
-  for (const match of code.matchAll(
-    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)/g,
-  )) {
-    const [, bindingName] = match;
-    if (hasBindingAssertion(bindingName, schemaAssertionTail(code, match))) {
-      return true;
-    }
-  }
-  return false;
-};
+const hasCastAfterSchemaDecodeBinding = (code: string): boolean =>
+  pipe(
+    [
+      ...code.matchAll(
+        /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)/g,
+      ),
+    ],
+    Array.some((match): boolean => {
+      const [, bindingName] = match;
+      return hasBindingAssertion(bindingName, schemaAssertionTail(code, match));
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -97,13 +120,12 @@ const hasCastAfterSchemaDecodeBinding = (code: string): boolean => {
  */
 export const hasCastAfterSchemaDecode = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/Schema\.decode[A-Za-z]*\s*\(/g)) {
-    if (hasCastAfterSchemaDecodeMatch(code, match)) {
-      return true;
-    }
-  }
-
-  return hasCastAfterSchemaDecodeBinding(code);
+  return (
+    pipe(
+      [...code.matchAll(/Schema\.decode[A-Za-z]*\s*\(/g)],
+      Array.some((match): boolean => hasCastAfterSchemaDecodeMatch(code, match)),
+    ) || hasCastAfterSchemaDecodeBinding(code)
+  );
 };
 
 /**
@@ -113,21 +135,25 @@ export const hasCastAfterSchemaDecode = (source: string): boolean => {
  */
 export const hasUnhandledSchemaEffectDecode = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(
-    /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)/g,
-  )) {
-    const [, bindingName] = match;
-    const tail = code.slice(match.index + match[0].length);
-    const handledPattern = new RegExp(
-      `(?:yield\\*\\s+${bindingName}\\b|return\\s+${bindingName}\\b)`,
-    );
-    if (!handledPattern.test(tail)) {
-      return true;
-    }
-  }
-
-  return /Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)\.pipe\s*\(\s*Effect\.(?:orDie|ignore)\b/.test(
-    code,
+  return (
+    pipe(
+      [
+        ...code.matchAll(
+          /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)/g,
+        ),
+      ],
+      Array.some((match): boolean => {
+        const [, bindingName] = match;
+        const tail = code.slice(match.index + match[0].length);
+        const handledPattern = new RegExp(
+          `(?:yield\\*\\s+${bindingName}\\b|return\\s+${bindingName}\\b)`,
+        );
+        return !handledPattern.test(tail);
+      }),
+    ) ||
+    /Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)\.pipe\s*\(\s*Effect\.(?:orDie|ignore)\b/.test(
+      code,
+    )
   );
 };
 
