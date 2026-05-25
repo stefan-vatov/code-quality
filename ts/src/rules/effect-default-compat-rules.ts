@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*             Compatibility and runtime-tail Effect rule specs.              */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Match, Option, pipe } from 'effect';
 import {
   effectCallPredicate,
   effectServiceSelfName,
@@ -43,92 +44,126 @@ interface RuleSpec {
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
-const hasMixedEffectImportStyles = (source: string): boolean => {
-  const hasNamedRootEffectImport = /import\s*{[^}]*\bEffect\b[^}]*}\s*from\s*['"]effect['"]/.test(
-    source,
-  );
-  const hasNamespaceEffectImport =
-    /import\s+\*\s+as\s+[A-Za-z_$][\w$]*\s+from\s*['"]effect(?:\/Effect)?['"]/.test(source);
+const globalTimerNames = HashSet.make('clearInterval', 'clearTimeout', 'setInterval', 'setTimeout');
 
-  return hasNamedRootEffectImport && hasNamespaceEffectImport;
-};
+const hasMixedEffectImportStyles = (source: string): boolean =>
+  pipe(
+    [
+      /import\s*{[^}]*\bEffect\b[^}]*}\s*from\s*['"]effect['"]/.test(source),
+      /import\s+\*\s+as\s+[A-Za-z_$][\w$]*\s+from\s*['"]effect(?:\/Effect)?['"]/.test(source),
+    ],
+    Array.every((hasStyle): boolean => hasStyle),
+  );
 
 const tryCatchIndexInEffectGenBody = (code: string, matchIndex: number): number | undefined => {
   const openParenIndex = code.indexOf('(', matchIndex);
-  if (openParenIndex === -1) {
-    return undefined;
-  }
-
-  const bodyStart = openParenIndex + 1;
-  const body = code.slice(bodyStart, findBalancedCallEnd(code, openParenIndex));
-  const tryCatchMatch = /\btry\s*{[\s\S]*?\bcatch\s*\(/.exec(body);
-  if (tryCatchMatch?.index === undefined) {
-    return undefined;
-  }
-  return bodyStart + tryCatchMatch.index;
+  return Match.value(openParenIndex).pipe(
+    Match.when(-1, (): undefined => undefined),
+    Match.orElse((parenIndex): number | undefined => {
+      const bodyStart = parenIndex + 1;
+      const body = code.slice(bodyStart, findBalancedCallEnd(code, parenIndex));
+      return pipe(
+        Option.fromNullable(/\btry\s*{[\s\S]*?\bcatch\s*\(/.exec(body)?.index),
+        Option.map((index): number => bodyStart + index),
+        Option.getOrUndefined,
+      );
+    }),
+  );
 };
 
 const hasTryCatchInEffectGen = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
-  const aliases = effectImportAliases(source).map(escapeRegExp).join('|');
-  if (!aliases) {
-    return false;
-  }
-
-  for (const match of code.matchAll(new RegExp(`\\b(?:${aliases})\\.gen\\s*\\(`, 'g'))) {
-    const index = tryCatchIndexInEffectGenBody(code, match.index);
-    if (index !== undefined) {
-      return index;
-    }
-  }
-
-  return false;
+  const aliases = pipe(effectImportAliases(source), Array.map(escapeRegExp), Array.join('|'));
+  return Match.value(aliases).pipe(
+    Match.when('', (): false => false),
+    Match.orElse((value): number | false =>
+      pipe(
+        Array.fromIterable(code.matchAll(new RegExp(`\\b(?:${value})\\.gen\\s*\\(`, 'g'))),
+        Array.findFirst(
+          (match): boolean => tryCatchIndexInEffectGenBody(code, match.index) !== undefined,
+        ),
+        Option.flatMap((match) =>
+          Option.fromNullable(tryCatchIndexInEffectGenBody(code, match.index)),
+        ),
+        Option.getOrElse((): false => false),
+      ),
+    ),
+  );
 };
 
-const hasNativeErrorClassInEffectModule = (source: string): number | false => {
-  if (!hasEffectSignal(source)) {
-    return false;
-  }
-
-  const match = /\bclass\s+[A-Z][\w$]*\s+extends\s+Error\b/.exec(stripCommentsAndStrings(source));
-  return match?.index ?? false;
-};
+const hasNativeErrorClassInEffectModule = (source: string): number | false =>
+  Match.value(hasEffectSignal(source)).pipe(
+    Match.when(false, (): false => false),
+    Match.orElse((): number | false =>
+      pipe(
+        Option.fromNullable(
+          /\bclass\s+[A-Z][\w$]*\s+extends\s+Error\b/.exec(stripCommentsAndStrings(source))?.index,
+        ),
+        Option.getOrElse((): false => false),
+      ),
+    ),
+  );
 
 const hasUnsafeEffectTypeAssertion = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
-  const match = /\bas\s+Effect\.Effect\s*<[^>]*>/.exec(code);
-  return match?.index ?? false;
+  return pipe(
+    Option.fromNullable(/\bas\s+Effect\.Effect\s*<[^>]*>/.exec(code)?.index),
+    Option.getOrElse((): false => false),
+  );
 };
 
-const serviceMismatchIndex = (code: string, pattern: RegExp): number | undefined => {
-  for (const match of code.matchAll(pattern)) {
-    const [, className, selfName] = match;
-    if (className !== selfName) {
-      return match.index;
-    }
-  }
-  return undefined;
-};
+const serviceMismatchIndex = (code: string, pattern: RegExp): number | undefined =>
+  pipe(
+    Array.fromIterable(code.matchAll(pattern)),
+    Array.findFirst((match): boolean => match[1] !== match[2]),
+    Option.flatMap((match) => Option.fromNullable(match.index)),
+    Option.getOrUndefined,
+  );
 
 const hasServiceSelfMismatch = (source: string): number | false => {
   const code = stripComments(source);
   const contextTagPattern =
     /\bclass\s+([A-Z][\w$]*)\s+extends\s+Context\.Tag\s*<\s*([A-Z][\w$]*)\s*>/g;
   const contextTagIndex = serviceMismatchIndex(code, contextTagPattern);
-  if (contextTagIndex !== undefined) {
-    return contextTagIndex;
-  }
-
-  const servicePattern =
-    /\bclass\s+([A-Z][\w$]*)\s+extends\s+Effect\.Service\s*<\s*([A-Z][\w$]*)\s*>/g;
-  return serviceMismatchIndex(code, servicePattern) ?? false;
+  return pipe(
+    Option.fromNullable(contextTagIndex),
+    Option.match({
+      onNone: (): number | false => {
+        const servicePattern =
+          /\bclass\s+([A-Z][\w$]*)\s+extends\s+Effect\.Service\s*<\s*([A-Z][\w$]*)\s*>/g;
+        return pipe(
+          Option.fromNullable(serviceMismatchIndex(code, servicePattern)),
+          Option.getOrElse((): false => false),
+        );
+      },
+      onSome: (index): number => index,
+    }),
+  );
 };
 
 const hasEffectFnIIFE = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
-  const match = /\bEffect\.fn(?:Untraced|UntracedEager)?\s*\([^)]*\)\s*\([^)]*\)/.exec(code);
-  return match?.index ?? false;
+  return pipe(
+    Option.fromNullable(
+      /\bEffect\.fn(?:Untraced|UntracedEager)?\s*\([^)]*\)\s*\([^)]*\)/.exec(code)?.index,
+    ),
+    Option.getOrElse((): false => false),
+  );
 };
+
+const reportWhen = (
+  condition: boolean,
+  context: RuleContext,
+  message: string,
+  node: object,
+): void =>
+  pipe(
+    Match.value(condition),
+    Match.when(true, (): void => {
+      reportAST(context, message, node);
+    }),
+    Match.orElse((): void => undefined),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -217,17 +252,25 @@ export const effectDefaultCompatibilitySpecs = [
     ast: (context, source): Record<string, (node: object) => void> => ({
       TryStatement(node): void {
         const { start } = node as { start?: number };
-        if (typeof start !== 'number') {
-          return;
-        }
-        const index = hasTryCatchInEffectGen(source);
-        if (typeof index === 'number' && index === start) {
-          reportAST(
-            context,
-            'Use Effect error combinators instead of try/catch inside Effect.gen.',
-            node,
-          );
-        }
+        pipe(
+          Match.value(typeof start).pipe(
+            Match.when('number', (): number | undefined => start),
+            Match.orElse((): undefined => undefined),
+          ),
+          Option.fromNullable,
+          Option.match({
+            onNone: (): void => undefined,
+            onSome: (nodeStart): void => {
+              const index = hasTryCatchInEffectGen(source);
+              reportWhen(
+                typeof index === 'number' && index === nodeStart,
+                context,
+                'Use Effect error combinators instead of try/catch inside Effect.gen.',
+                node,
+              );
+            },
+          }),
+        );
       },
     }),
     message: 'Use Effect error combinators instead of try/catch inside Effect.gen.',
@@ -239,13 +282,12 @@ export const effectDefaultCompatibilitySpecs = [
       const isEffectModule = hasEffectSignal(source);
       return {
         NewExpression(node): void {
-          if (isEffectModule && identifierName(objectValue(node, 'callee')) === 'Promise') {
-            reportAST(
-              context,
-              'Use Effect.async, Effect.promise, or Effect.tryPromise instead of new Promise.',
-              node,
-            );
-          }
+          reportWhen(
+            isEffectModule && identifierName(objectValue(node, 'callee')) === 'Promise',
+            context,
+            'Use Effect.async, Effect.promise, or Effect.tryPromise instead of new Promise.',
+            node,
+          );
         },
       };
     },
@@ -259,17 +301,12 @@ export const effectDefaultCompatibilitySpecs = [
       return {
         CallExpression(node): void {
           const calleeName = identifierName(objectValue(node, 'callee'));
-          if (
-            isEffectModule &&
-            calleeName &&
-            ['clearInterval', 'clearTimeout', 'setInterval', 'setTimeout'].includes(calleeName)
-          ) {
-            reportAST(
-              context,
-              'Use Effect.sleep, Schedule, or Clock instead of global timers in Effect modules.',
-              node,
-            );
-          }
+          reportWhen(
+            isEffectModule && calleeName !== undefined && HashSet.has(globalTimerNames, calleeName),
+            context,
+            'Use Effect.sleep, Schedule, or Clock instead of global timers in Effect modules.',
+            node,
+          );
         },
       };
     },
@@ -282,13 +319,12 @@ export const effectDefaultCompatibilitySpecs = [
       const isEffectModule = hasEffectSignal(source);
       return {
         ClassDeclaration(node): void {
-          if (isEffectModule && identifierName(objectValue(node, 'superClass')) === 'Error') {
-            reportAST(
-              context,
-              'Use tagged/data/schema errors instead of classes extending native Error.',
-              node,
-            );
-          }
+          reportWhen(
+            isEffectModule && identifierName(objectValue(node, 'superClass')) === 'Error',
+            context,
+            'Use tagged/data/schema errors instead of classes extending native Error.',
+            node,
+          );
         },
       };
     },
@@ -300,13 +336,12 @@ export const effectDefaultCompatibilitySpecs = [
   {
     ast: (context): Record<string, (node: object) => void> => ({
       TSAsExpression(node): void {
-        if (typeReferenceName(objectValue(node, 'typeAnnotation')) === 'Effect.Effect') {
-          reportAST(
-            context,
-            'Do not assert Effect error or requirement channels with type casts.',
-            node,
-          );
-        }
+        reportWhen(
+          typeReferenceName(objectValue(node, 'typeAnnotation')) === 'Effect.Effect',
+          context,
+          'Do not assert Effect error or requirement channels with type casts.',
+          node,
+        );
       },
     }),
     check: hasUnsafeEffectTypeAssertion,
@@ -319,13 +354,12 @@ export const effectDefaultCompatibilitySpecs = [
       ClassDeclaration(node): void {
         const className = identifierName(objectValue(node, 'id'));
         const selfName = effectServiceSelfName(objectValue(node, 'superClass'), source);
-        if (className && selfName && className !== selfName) {
-          reportAST(
-            context,
-            'Effect service/tag self type must match the declaring class name.',
-            node,
-          );
-        }
+        reportWhen(
+          className !== undefined && selfName !== undefined && className !== selfName,
+          context,
+          'Effect service/tag self type must match the declaring class name.',
+          node,
+        );
       },
     }),
     check: hasServiceSelfMismatch,
@@ -341,17 +375,14 @@ export const effectDefaultCompatibilitySpecs = [
           const outerCallee = objectValue(node, 'callee');
           const middleCallee = objectValue(outerCallee, 'callee');
           const innerCallee = objectValue(middleCallee, 'callee');
-          if (
+          reportWhen(
             nodeType(outerCallee) === 'CallExpression' &&
-            nodeType(middleCallee) === 'CallExpression' &&
-            isEffectFn(innerCallee)
-          ) {
-            reportAST(
-              context,
-              'Do not call Effect.fn as an IIFE; use Effect.gen for local one-shot workflows.',
-              node,
-            );
-          }
+              nodeType(middleCallee) === 'CallExpression' &&
+              isEffectFn(innerCallee),
+            context,
+            'Do not call Effect.fn as an IIFE; use Effect.gen for local one-shot workflows.',
+            node,
+          );
         },
       };
     },

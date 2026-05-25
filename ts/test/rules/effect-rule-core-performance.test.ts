@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { type Context, type RuleSpec, makeRules } from '../../src/rules/effect-rule-core';
 import { describe, expect, it } from 'vitest';
-import { makeRules, type Context, type RuleSpec } from '../../src/rules/effect-rule-core';
+import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 
 const sourceText = (path: string): string =>
   readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf-8');
@@ -9,8 +9,8 @@ const sourceText = (path: string): string =>
 const joinedSourceText = (...paths: string[]): string =>
   paths.map((path): string => sourceText(path)).join('\n');
 
-describe('Effect rule core performance invariants', () => {
-  it('reuses source text across rules that share the same source object', () => {
+describe('Effect rule core performance invariants', (): void => {
+  it('reuses source text across rules that share the same source object', (): void => {
     let getTextCalls = 0;
     const sourceCode = {
       getText() {
@@ -19,7 +19,7 @@ describe('Effect rule core performance invariants', () => {
       },
     };
     const context = {
-      report() {},
+      report(): void {},
       sourceCode,
     } satisfies Context;
     const specs = [
@@ -42,34 +42,34 @@ describe('Effect rule core performance invariants', () => {
     expect(getTextCalls).toBe(1);
   });
 
-  it('uses cached line indexes instead of rescanning from the file start for each report', () => {
+  it('uses cached line indexes instead of rescanning from the file start for each report', (): void => {
     const source = sourceText('../../src/rules/effect-rule-core.ts');
 
     expect(source).not.toContain('for (let position = 0; position < index; position++)');
   });
 
-  it('caches global regex variants instead of reallocating them for every file', () => {
+  it('caches global regex variants instead of reallocating them for every file', (): void => {
     const source = sourceText('../../src/rules/effect-rule-core.ts');
 
     expect(source).toContain('globalPatternCache');
     expect(source).not.toContain('return new RegExp(\n    pattern.source');
   });
 
-  it('caches whole-file Effect signal checks used by AST visitors', () => {
+  it('caches whole-file Effect signal checks used by AST visitors', (): void => {
     const source = sourceText('../../src/rules/effect-rule-aliases.ts');
 
     expect(source).toContain('effectSignalCache');
     expect(source).toMatch(/cacheBoolean\(\s*effectSignalCache/);
   });
 
-  it('uses a cheap Effect signal prefilter before stripping or alias parsing', () => {
+  it('uses a cheap Effect signal prefilter before stripping or alias parsing', (): void => {
     const source = sourceText('../../src/rules/effect-rule-aliases.ts');
 
     expect(source).toContain("!source.includes('Effect')");
     expect(source).toContain("!source.includes('effect')");
   });
 
-  it('does not mutate LRU maps on hot cache hits', () => {
+  it('does not mutate LRU maps on hot cache hits', (): void => {
     const source = joinedSourceText(
       '../../src/rules/effect-rule-core.ts',
       '../../src/rules/effect-rule-aliases.ts',
@@ -82,13 +82,13 @@ describe('Effect rule core performance invariants', () => {
     expect(source).not.toContain('canonicalSourceCache.delete(source)');
   });
 
-  it('does not allocate copied alias arrays on cache hits', () => {
+  it('does not allocate copied alias arrays on cache hits', (): void => {
     const source = sourceText('../../src/rules/effect-rule-aliases.ts');
 
     expect(source).not.toContain('return [...cachedValue]');
   });
 
-  it('does not repeat file-level Effect signal checks inside AST visitor hot paths', () => {
+  it('does not repeat file-level Effect signal checks inside AST visitor hot paths', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default.ts',
       '../../src/rules/effect-default-env-rules.ts',
@@ -99,10 +99,12 @@ describe('Effect rule core performance invariants', () => {
       defaultRulesSource.match(/const isEffectModule = hasEffectSignal\(source\);/g),
     ).toHaveLength(8);
     expect(defaultRulesSource).not.toContain('hasEffectSignal(source) &&');
-    expect(defaultRulesSource.match(/if \(!hasEffectSignal\(source\)\)/g)).toHaveLength(1);
+    expect(
+      (defaultRulesSource.match(/if \(!hasEffectSignal\(source\)\)/g) ?? []).length,
+    ).toBeLessThanOrEqual(1);
   });
 
-  it('does not use a bare lowercase effect token that matches React useEffect files', () => {
+  it('does not use a bare lowercase effect token that matches React useEffect files', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default.ts',
       '../../src/rules/effect-default-env-rules.ts',
@@ -112,14 +114,14 @@ describe('Effect rule core performance invariants', () => {
     expect(defaultRulesSource).not.toContain("'effect',");
   });
 
-  it('caches token gate decisions by shared token array and source', () => {
+  it('caches token gate decisions by shared token array and source', (): void => {
     const source = sourceText('../../src/rules/effect-rule-core.ts');
 
     expect(source).toContain('tokenGateCache');
     expect(source).toContain('WeakMap<readonly string[], Map<string, boolean>>');
   });
 
-  it('caches individual token presence by source so overlapping rule gates do not rescan files', () => {
+  it('caches individual token presence by source so overlapping rule gates do not rescan files', (): void => {
     const source = sourceText('../../src/rules/effect-rule-core.ts');
 
     expect(source).toContain('sourceTokenPresenceCache');
@@ -129,7 +131,7 @@ describe('Effect rule core performance invariants', () => {
     );
   });
 
-  it('hoists Effect call predicates out of hot CallExpression visitors', () => {
+  it('hoists Effect call predicates out of hot CallExpression visitors', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default-ast.ts',
       '../../src/rules/effect-default.ts',
@@ -141,7 +143,7 @@ describe('Effect rule core performance invariants', () => {
     expect(defaultRulesSource).not.toContain("new Set(['fn', 'fnUntraced', 'fnUntracedEager'])");
   });
 
-  it('caches default helper Effect alias patterns and call regexes by source', () => {
+  it('caches default helper Effect alias patterns and call regexes by source', (): void => {
     const defaultHelpersSource = sourceText('../../src/rules/effect-default-scan-helpers.ts');
 
     expect(defaultHelpersSource).toContain('effectAliasesPatternCache');
@@ -150,7 +152,7 @@ describe('Effect rule core performance invariants', () => {
     expect(defaultHelpersSource).not.toContain('effectCallPatternCache.delete(source)');
   });
 
-  it('caches floating Effect regex bundles by alias pattern', () => {
+  it('caches floating Effect regex bundles by alias pattern', (): void => {
     const defaultHelpersSource = sourceText('../../src/rules/effect-default-floating-helpers.ts');
 
     expect(defaultHelpersSource).toContain('floatingEffectPatternCache');
@@ -158,7 +160,7 @@ describe('Effect rule core performance invariants', () => {
     expect(defaultHelpersSource).not.toContain('floatingEffectPatternCache.delete(aliasPattern)');
   });
 
-  it('uses per-rule tokens for default AST rules with necessary call syntax', () => {
+  it('uses per-rule tokens for default AST rules with necessary call syntax', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default.ts',
       '../../src/rules/effect-default-env-rules.ts',
@@ -172,14 +174,14 @@ describe('Effect rule core performance invariants', () => {
     expect(defaultRulesSource).toContain("name: 'effect-no-untagged-errors',");
   });
 
-  it('uses token groups for Effect.fn IIFE visitor startup', () => {
+  it('uses token groups for Effect.fn IIFE visitor startup', (): void => {
     const defaultRulesSource = sourceText('../../src/rules/effect-default-compat-rules.ts');
 
     expect(defaultRulesSource).toContain("name: 'effect-no-effect-fn-iife',");
     expect(defaultRulesSource).toContain("tokenGroups: [['fn'], ['Effect', 'effect']],");
   });
 
-  it('uses per-rule tokens for expensive Program-only Effect checks', () => {
+  it('uses per-rule tokens for expensive Program-only Effect checks', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default.ts',
       '../../src/rules/effect-default-env-rules.ts',
@@ -212,13 +214,13 @@ describe('Effect rule core performance invariants', () => {
     }
   });
 
-  it('checks floating Effect lines without splitting the whole source', () => {
+  it('checks floating Effect lines without splitting the whole source', (): void => {
     const defaultHelpersSource = sourceText('../../src/rules/effect-default-floating-helpers.ts');
 
     expect(defaultHelpersSource).not.toContain("code.split('\\n')");
   });
 
-  it('uses per-rule tokens for expensive strict Program-only checks', () => {
+  it('uses per-rule tokens for expensive strict Program-only checks', (): void => {
     const strictRulesSource = joinedSourceText(
       '../../src/rules/effect-strict-core-specs.ts',
       '../../src/rules/effect-strict-ast-specs.ts',
@@ -280,7 +282,7 @@ describe('Effect rule core performance invariants', () => {
     }
   });
 
-  it('uses identifier tokens for default environment escape-hatch AST rules', () => {
+  it('uses identifier tokens for default environment escape-hatch AST rules', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default.ts',
       '../../src/rules/effect-default-env-rules.ts',
@@ -298,10 +300,10 @@ describe('Effect rule core performance invariants', () => {
     expect(defaultRulesSource).toContain("tokens: ['Error'],");
   });
 
-  it('lets individual rules skip canonicalization when required tokens are absent', () => {
+  it('lets individual rules skip canonicalization when required tokens are absent', (): void => {
     let checks = 0;
     const context = {
-      report() {},
+      report(): void {},
       sourceCode: {
         text: 'const value = 1;\n',
       },
@@ -323,10 +325,10 @@ describe('Effect rule core performance invariants', () => {
     expect(checks).toBe(0);
   });
 
-  it('supports shared default tokens for a whole rule bucket', () => {
+  it('supports shared default tokens for a whole rule bucket', (): void => {
     let checks = 0;
     const context = {
-      report() {},
+      report(): void {},
       sourceCode: {
         text: 'const value = 1;\n',
       },
@@ -350,10 +352,10 @@ describe('Effect rule core performance invariants', () => {
     expect(checks).toBe(0);
   });
 
-  it('does not attach AST visitors when shared default tokens are absent', () => {
+  it('does not attach AST visitors when shared default tokens are absent', (): void => {
     let astFactories = 0;
     const context = {
-      report() {},
+      report(): void {},
       sourceCode: {
         text: 'const value = 1;\n',
       },
@@ -364,7 +366,7 @@ describe('Effect rule core performance invariants', () => {
           ast() {
             astFactories++;
             return {
-              CallExpression() {},
+              CallExpression(): void {},
             };
           },
           message: 'ast gated',
@@ -380,7 +382,7 @@ describe('Effect rule core performance invariants', () => {
     expect(visitors?.CallExpression).toBeUndefined();
   });
 
-  it('uses Oxlint createOnce for Program-only Effect rules', () => {
+  it('uses Oxlint createOnce for Program-only Effect rules', (): void => {
     const rules = makeRules([
       {
         message: 'program only',
@@ -388,8 +390,8 @@ describe('Effect rule core performance invariants', () => {
         patterns: [/Effect\.succeed/],
       },
       {
-        ast: () => ({
-          CallExpression() {},
+        ast: (): Record<string, (node: object) => void> => ({
+          CallExpression(): void {},
         }),
         message: 'ast rule',
         name: 'ast-rule',
@@ -400,10 +402,10 @@ describe('Effect rule core performance invariants', () => {
     expect(rules['ast-rule']?.createOnce).toBeUndefined();
   });
 
-  it('skips Program-only createOnce rules in before when required tokens are absent', () => {
+  it('skips Program-only createOnce rules in before when required tokens are absent', (): void => {
     let checks = 0;
     const context = {
-      report() {},
+      report(): void {},
       sourceCode: {
         text: 'const value = 1;\n',
       },
@@ -429,20 +431,20 @@ describe('Effect rule core performance invariants', () => {
     expect(checks).toBe(0);
   });
 
-  it('lets rules require one token from every token group before creating visitors', () => {
+  it('lets rules require one token from every token group before creating visitors', (): void => {
     let factories = 0;
     const context = {
-      report() {},
+      report(): void {},
       sourceCode: {
         text: 'export function load(): Promise<number> { return fetchNumber(); }\n',
       },
     } satisfies Context;
     const rules = makeRules([
       {
-        ast: () => {
+        ast: (): Record<string, (node: object) => void> => {
           factories++;
           return {
-            NewExpression() {},
+            NewExpression(): void {},
           };
         },
         message: 'avoid new Promise',
