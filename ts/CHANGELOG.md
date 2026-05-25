@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4 - 2026-05-25
+
+### Fixes
+
+- fix: improve function doc diagnostics (#17) (c6e721f)
+
 ## 0.3.3 - 2026-05-25
 
 ### Fixes
