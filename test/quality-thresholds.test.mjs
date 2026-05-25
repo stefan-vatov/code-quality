@@ -139,6 +139,9 @@ describe('quality threshold configuration', () => {
 
     expect(releaseWorkflow).toContain('verify-published-npm-consumption:');
     expect(releaseWorkflow).toContain('- publish-npm');
+    expect(releaseWorkflow).toContain(
+      "needs.prepare.outputs.ts_released == 'true' && needs.publish-npm.result == 'success'",
+    );
     expect(releaseWorkflow).toContain('pull-requests: write');
     expect(releaseWorkflow).toContain('PUBLISHED_CONFIG_PR_TOKEN');
     expect(releaseWorkflow).toContain('codex/verify-published-oxlint-config');

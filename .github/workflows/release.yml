@@ -180,7 +180,7 @@ jobs:
     needs:
       - prepare
       - publish-npm
-    if: needs.publish-npm.result == 'success'
+    if: needs.prepare.outputs.ts_released == 'true' && needs.publish-npm.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
