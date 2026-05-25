@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runAllRules, runRule } from './effect-rule-test-utils.js';
+import { runAllRules, runRule } from './effect-rule-test-utils';
 
 function reportedEffectRules(source: string, filename = 'src/domain/user.ts'): string[] {
   return runAllRules(source, filename)

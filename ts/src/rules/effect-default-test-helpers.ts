@@ -1,6 +1,26 @@
-import { stripCommentsAndStrings } from './effect-source-helpers.js';
+/* -------------------------------------------------------------------------- */
+/*              Helpers for Effect test-determinism lint rules.               */
+/* -------------------------------------------------------------------------- */
+import { stripCommentsAndStrings } from './effect-source-helpers';
 
-function hasForkBeforeTestClockAdjust(source: string): boolean {
+const testStartPattern = /\bit(?:\.effect)?\s*\(/g;
+
+const testStartsIn = (code: string): number[] =>
+  [...code.matchAll(testStartPattern)].map((match) => match.index);
+
+const enclosingTestBody = (code: string, testStarts: readonly number[], index: number): string => {
+  const previousStarts = testStarts.filter((start): boolean => start < index);
+  const testStart = previousStarts.at(-1) ?? 0;
+  const nextTestStart = testStarts.find((start): boolean => start > index) ?? code.length;
+  return code.slice(testStart, nextTestStart);
+};
+
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const hasForkBeforeTestClockAdjust = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const adjustMatches = [...code.matchAll(/TestClock\.adjust\s*\(/g)];
   if (adjustMatches.length === 0) {
@@ -13,49 +33,49 @@ function hasForkBeforeTestClockAdjust(source: string): boolean {
       code.lastIndexOf('it.effect', adjustIndex),
       code.lastIndexOf('it(', adjustIndex),
     );
-    const segment = code.slice(testStart === -1 ? 0 : testStart, adjustIndex);
+    let segmentStart = testStart;
+    if (segmentStart === -1) {
+      segmentStart = 0;
+    }
+    const segment = code.slice(segmentStart, adjustIndex);
     return /Effect\.fork(?:Scoped)?\b/.test(segment);
   });
-}
+};
 
-function hasRealSleepWithoutTestClock(source: string): boolean {
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const hasRealSleepWithoutTestClock = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  const testStartPattern = /\bit(?:\.effect)?\s*\(/g;
-  const testStarts = [...code.matchAll(testStartPattern)].map((match) => match.index);
+  const testStarts = testStartsIn(code);
 
   for (const sleepMatch of code.matchAll(/Effect\.sleep\s*\(/g)) {
-    const previousStarts = testStarts.filter((start) => start < sleepMatch.index);
-    const testStart = previousStarts.at(-1) ?? 0;
-    const nextTestStart = testStarts.find((start) => start > sleepMatch.index) ?? code.length;
-    const testBody = code.slice(testStart, nextTestStart);
+    const testBody = enclosingTestBody(code, testStarts, sleepMatch.index);
     if (!/TestClock\./.test(testBody)) {
       return true;
     }
   }
 
   return false;
-}
+};
 
-function hasTestClockWithoutEffectContext(source: string): boolean {
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const hasTestClockWithoutEffectContext = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  const testStartPattern = /\bit(?:\.effect)?\s*\(/g;
-  const testStarts = [...code.matchAll(testStartPattern)].map((match) => match.index);
+  const testStarts = testStartsIn(code);
 
   for (const clockMatch of code.matchAll(/TestClock\./g)) {
-    const previousStarts = testStarts.filter((start) => start < clockMatch.index);
-    const testStart = previousStarts.at(-1) ?? 0;
-    const nextTestStart = testStarts.find((start) => start > clockMatch.index) ?? code.length;
-    const testBody = code.slice(testStart, nextTestStart);
+    const testBody = enclosingTestBody(code, testStarts, clockMatch.index);
     if (!/(?:it\.effect|TestContext)/.test(testBody)) {
       return true;
     }
   }
 
   return false;
-}
-
-export {
-  hasForkBeforeTestClockAdjust,
-  hasRealSleepWithoutTestClock,
-  hasTestClockWithoutEffectContext,
 };

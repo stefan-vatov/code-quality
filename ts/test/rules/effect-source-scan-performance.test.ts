@@ -5,11 +5,14 @@ import { describe, expect, it } from 'vitest';
 const sourceScanPath = fileURLToPath(
   new URL('../../src/rules/effect-source-scan.ts', import.meta.url),
 );
-const defaultHelpersPath = fileURLToPath(
-  new URL('../../src/rules/effect-default-helpers.ts', import.meta.url),
+const defaultFloatingHelpersPath = fileURLToPath(
+  new URL('../../src/rules/effect-default-floating-helpers.ts', import.meta.url),
 );
-const sourceHelpersPath = fileURLToPath(
-  new URL('../../src/rules/effect-source-helpers.ts', import.meta.url),
+const defaultScanHelpersPath = fileURLToPath(
+  new URL('../../src/rules/effect-default-scan-helpers.ts', import.meta.url),
+);
+const exportedDeclarationsPath = fileURLToPath(
+  new URL('../../src/rules/effect-exported-declarations.ts', import.meta.url),
 );
 
 describe('Effect source scanner performance invariants', () => {
@@ -28,38 +31,38 @@ describe('Effect source scanner performance invariants', () => {
   });
 
   it('uses rolling previous-line state instead of per-line slice/reverse allocation', () => {
-    const source = readFileSync(defaultHelpersPath, 'utf-8');
+    const source = readFileSync(defaultFloatingHelpersPath, 'utf-8');
 
     expect(source).not.toContain('lines.slice(0, index)');
     expect(source).not.toContain('.reverse().find(');
   });
 
   it('reuses stripped source inside floating Effect detection', () => {
-    const source = readFileSync(defaultHelpersPath, 'utf-8');
+    const source = readFileSync(defaultFloatingHelpersPath, 'utf-8');
 
     expect(source).toContain('const code = stripCommentsAndStrings(source);');
-    expect(source).toContain("const newlineIndex = code.indexOf('\\n', lineStart);");
+    expect(source).toContain("const newlineIndex = source.indexOf('\\n', lineStart);");
     expect(source).not.toContain(".split('\\n')");
     expect(source).not.toContain("stripCommentsAndStrings(source).split('\\n')");
   });
 
   it('prefilters floating Effect lines before running regex bundles', () => {
-    const source = readFileSync(defaultHelpersPath, 'utf-8');
+    const source = readFileSync(defaultFloatingHelpersPath, 'utf-8');
 
-    expect(source).toContain('function hasFloatingEffectCandidateLine');
-    expect(source).toContain('if (!hasFloatingEffectCandidateLine(line, aliasNeedles))');
-    expect(source).toContain('patterns ??= floatingEffectPatterns(aliases)');
+    expect(source).toContain('const hasFloatingEffectCandidateLine');
+    expect(source).toContain('hasFloatingEffectCandidateLine(state.line, aliasNeedles)');
+    expect(source).toContain('const patterns = floatingEffectPatterns(aliases);');
   });
 
   it('short-circuits Effect workflow body scans without allocating body arrays', () => {
-    const source = readFileSync(defaultHelpersPath, 'utf-8');
+    const source = readFileSync(defaultScanHelpersPath, 'utf-8');
 
-    expect(source).toContain('function someEffectWorkflowBody');
+    expect(source).toContain('const someEffectWorkflowBody');
     expect(source).not.toContain('return effectWorkflowBodies(source).some');
   });
 
   it('does not mutate or copy exported-declaration cache hits', () => {
-    const source = readFileSync(sourceHelpersPath, 'utf-8');
+    const source = readFileSync(exportedDeclarationsPath, 'utf-8');
 
     expect(source).not.toContain('exportedDeclarationCache.delete(source)');
     expect(source).not.toContain('return [...cachedValue]');
@@ -67,7 +70,7 @@ describe('Effect source scanner performance invariants', () => {
   });
 
   it('caches exported declaration segment projections separately from raw declarations', () => {
-    const source = readFileSync(sourceHelpersPath, 'utf-8');
+    const source = readFileSync(exportedDeclarationsPath, 'utf-8');
 
     expect(source).toContain('exportedDeclarationSegmentCache');
     expect(source).toContain('exportedCallableDeclarationSegmentCache');

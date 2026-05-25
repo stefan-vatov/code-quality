@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import isCommentedOutCode from '../../src/rules/no-commented-out-code.js';
+import isCommentedOutCode from '../../src/rules/no-commented-out-code';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

@@ -64,6 +64,16 @@ import theThracian from '@thethracian/oxlint-config';
 export default theThracian();
 ```
 
+For fix scripts, combine the package codemod CLI with native Oxlint fixes:
+
+```json
+{
+  "scripts": {
+    "lint:fix": "thx-codemod-fix src && oxlint . --fix && thx-codemod-fix src"
+  }
+}
+```
+
 ### Rust
 
 ```sh

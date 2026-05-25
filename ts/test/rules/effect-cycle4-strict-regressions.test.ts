@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runRule } from './effect-rule-test-utils.js';
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 4 strict regression coverage', () => {
   it('does not let one scoped resource layer hide another unscoped resource layer', () => {

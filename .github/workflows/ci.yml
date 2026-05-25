@@ -138,6 +138,31 @@ jobs:
       - name: Test packages
         run: pnpm run test:projects
 
+  performance:
+    name: performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check performance budgets
+        run: pnpm run performance:gate
+
   build:
     name: build
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import hasLeadingUnderscore, { suggestPrivateName } from '../../src/rules/private-underscore.js';
+import hasLeadingUnderscore, { suggestPrivateName } from '../../src/rules/private-underscore';
 
 describe('hasLeadingUnderscore', () => {
   // Positive cases

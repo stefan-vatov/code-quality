@@ -14,7 +14,12 @@
     },
     "ts": {
       "ignoreBinaries": ["oxfmt", "vitest"],
-      "ignoreDependencies": ["@oxlint/plugins", "oxlint-plugin-complexity", "oxlint-tsgolint"],
+      "ignoreDependencies": [
+        "@oxlint/plugins",
+        "jscodeshift",
+        "oxlint-plugin-complexity",
+        "oxlint-tsgolint"
+      ],
       "ignore": ["test/rules/fixtures/**/*.ts"],
       "entry": [
         "src/index.ts",

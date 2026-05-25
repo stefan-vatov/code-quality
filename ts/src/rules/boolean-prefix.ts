@@ -1,22 +1,100 @@
-import { CHAR_CLASS, CLS_UPPER } from './char-class.js';
+/* -------------------------------------------------------------------------- */
+/*           Boolean prefix naming helpers for custom Oxlint rules.           */
+/* -------------------------------------------------------------------------- */
+import { CHAR_CLASS, CLS_DIGIT, CLS_UNDER, CLS_UPPER } from './char-class';
+
+const CHAR_CODE_UPPER_A = 65;
+const CHAR_CODE_LOWER_A = 97;
+const CHAR_CODE_LOWER_D = 100;
+const CHAR_CODE_LOWER_H = 104;
+const CHAR_CODE_LOWER_I = 105;
+const CHAR_CODE_LOWER_L = 108;
+const CHAR_CODE_LOWER_O = 111;
+const CHAR_CODE_LOWER_S = 115;
+const CHAR_CODE_LOWER_U = 117;
+const FIRST_CHAR_INDEX = 0;
+const SECOND_CHAR_INDEX = 1;
+const THIRD_CHAR_INDEX = 2;
+const FOURTH_CHAR_INDEX = 3;
+const FIFTH_CHAR_INDEX = 4;
+const SIXTH_CHAR_INDEX = 5;
+const SEVENTH_CHAR_INDEX = 6;
+const HAS_PREFIX_LENGTH = 4;
+const IS_PREFIX_LENGTH = 3;
+const SHOULD_PREFIX_LENGTH = 7;
 
 const isUp = (code: number): boolean => (CHAR_CLASS[code] & CLS_UPPER) !== 0;
+const isDigit = (code: number): boolean => (CHAR_CLASS[code] & CLS_DIGIT) !== 0;
+const isUnder = (code: number): boolean => (CHAR_CLASS[code] & CLS_UNDER) !== 0;
 
 /**
  * Check if a variable name has a boolean prefix (is_, has_, should_).
  */
 
-/** Check if char at pos is the given lowercase letter (case-insensitive). */
-function isCharCI(str: string, pos: number, lowerCode: number): boolean {
+/**
+ * Check if char at pos is the given lowercase letter (case-insensitive).
+ */
+const isCharCI = (str: string, pos: number, lowerCode: number): boolean => {
   const ch = str.charCodeAt(pos);
-  return ch === lowerCode || ch === lowerCode - 32;
-}
+  return ch === lowerCode || ch === lowerCode - (CHAR_CODE_LOWER_A - CHAR_CODE_UPPER_A);
+};
 
-/** Check if string consists only of uppercase letters (and optionally digits/underscores). */
-function isAllCaps(name: string): boolean {
+const hasValidPrefixBoundary = (name: string, index: number): boolean => {
+  const next = name.charCodeAt(index);
+  return isUnder(next) || isUp(next) || isDigit(next);
+};
+
+const hasIsPrefix = (name: string): boolean => {
+  if (!isCharCI(name, FIRST_CHAR_INDEX, CHAR_CODE_LOWER_I)) {
+    return false;
+  }
+  if (!isCharCI(name, SECOND_CHAR_INDEX, CHAR_CODE_LOWER_S)) {
+    return false;
+  }
+  return hasValidPrefixBoundary(name, THIRD_CHAR_INDEX);
+};
+
+const hasHasPrefix = (name: string): boolean => {
+  if (name.length < HAS_PREFIX_LENGTH) {
+    return false;
+  }
+  if (!isCharCI(name, FIRST_CHAR_INDEX, CHAR_CODE_LOWER_H)) {
+    return false;
+  }
+  if (!isCharCI(name, SECOND_CHAR_INDEX, CHAR_CODE_LOWER_A)) {
+    return false;
+  }
+  if (!isCharCI(name, THIRD_CHAR_INDEX, CHAR_CODE_LOWER_S)) {
+    return false;
+  }
+  return hasValidPrefixBoundary(name, FOURTH_CHAR_INDEX);
+};
+
+const hasShouldPrefix = (name: string): boolean => {
+  if (name.length < SHOULD_PREFIX_LENGTH) {
+    return false;
+  }
+  if (!hasShouldLetters(name)) {
+    return false;
+  }
+  return hasValidPrefixBoundary(name, SEVENTH_CHAR_INDEX);
+};
+
+const hasShouldLetters = (name: string): boolean =>
+  isCharCI(name, FIRST_CHAR_INDEX, CHAR_CODE_LOWER_S) &&
+  isCharCI(name, SECOND_CHAR_INDEX, CHAR_CODE_LOWER_H) &&
+  isCharCI(name, THIRD_CHAR_INDEX, CHAR_CODE_LOWER_O) &&
+  isCharCI(name, FOURTH_CHAR_INDEX, CHAR_CODE_LOWER_U) &&
+  isCharCI(name, FIFTH_CHAR_INDEX, CHAR_CODE_LOWER_L) &&
+  isCharCI(name, SIXTH_CHAR_INDEX, CHAR_CODE_LOWER_D);
+
+/**
+ * Check if string consists only of uppercase letters (and optionally digits/underscores).
+ */
+const isAllCaps = (name: string): boolean => {
   for (let idx = 0; idx < name.length; idx++) {
     const code = name.charCodeAt(idx);
-    if (!(isUp(code) || (code >= 48 && code <= 57) || code === 95)) {
+    if (!(isUp(code) || isDigit(code) || isUnder(code))) {
       return false;
     }
   }
@@ -27,65 +105,30 @@ function isAllCaps(name: string): boolean {
     }
   }
   return false;
-}
+};
 
+/**
+ * Checks whether a boolean variable name starts with an accepted boolean prefix.
+ *
+ * @param name - Identifier name to inspect.
+ * @returns True when the identifier starts with is, has, or should.
+ */
 export default function hasBooleanPrefix(name: string): boolean {
   const len = name.length;
-  if (len < 3) {
+  if (len < IS_PREFIX_LENGTH) {
     return false;
   }
 
-  const c0 = name.charCodeAt(0);
-  if (c0 === 105 || c0 === 73) {
-    const c1 = name.charCodeAt(1);
-    if (c1 !== 115 && c1 !== 83) {
-      return false;
-    }
-    const next = name.charCodeAt(2);
-    return next === 95 || isUp(next) || (next >= 48 && next <= 57);
-  }
-  if (c0 === 104 || c0 === 72) {
-    if (len < 4) {
-      return false;
-    }
-    if (!isCharCI(name, 1, 97)) {
-      return false;
-    }
-    if (!isCharCI(name, 2, 115)) {
-      return false;
-    }
-    const next = name.charCodeAt(3);
-    return next === 95 || isUp(next) || (next >= 48 && next <= 57);
-  }
-  if (c0 === 115 || c0 === 83) {
-    if (len < 7) {
-      return false;
-    }
-    if (!isCharCI(name, 1, 104)) {
-      return false;
-    }
-    if (!isCharCI(name, 2, 111)) {
-      return false;
-    }
-    if (!isCharCI(name, 3, 117)) {
-      return false;
-    }
-    if (!isCharCI(name, 4, 108)) {
-      return false;
-    }
-    if (!isCharCI(name, 5, 100)) {
-      return false;
-    }
-    const next = name.charCodeAt(6);
-    return next === 95 || isUp(next) || (next >= 48 && next <= 57);
-  }
-  return false;
+  return hasIsPrefix(name) || hasHasPrefix(name) || hasShouldPrefix(name);
 }
 
 /**
- * Suggest a boolean-prefixed name by prepending `is`.
+ * Suggests a boolean-prefixed replacement name.
+ *
+ * @param name - Identifier name that failed the prefix rule.
+ * @returns Suggested identifier using the configured boolean prefix convention.
  */
-export function suggestBooleanName(name: string): string {
+export const suggestBooleanName = (name: string): string => {
   if (name.length === 0) {
     return 'isEnabled';
   }
@@ -93,11 +136,11 @@ export function suggestBooleanName(name: string): string {
   if (isAllCaps(name)) {
     return `IS_${name}`;
   }
-  if (name.indexOf('_') !== -1) {
+  if (name.includes('_')) {
     return `is_${name}`;
   }
   if (isUp(name.charCodeAt(0))) {
     return `is${name}`;
   }
   return `is${name.charAt(0).toUpperCase()}${name.slice(1)}`;
-}
+};

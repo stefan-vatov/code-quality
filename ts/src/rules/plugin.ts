@@ -1,131 +1,114 @@
+/* -------------------------------------------------------------------------- */
+/*       Oxlint JavaScript plugin entry for The Thracian custom rules.        */
+/* -------------------------------------------------------------------------- */
+import {
+  acronymDiagnosticMessage,
+  booleanDiagnosticMessage,
+  constantDiagnosticMessage,
+  fileDocDiagnosticMessage,
+  functionDocDiagnosticMessage,
+  importDepthDiagnosticMessage,
+  jsExtensionDiagnosticMessage,
+  lineLengthDiagnosticMessage,
+  localExportListDiagnosticMessage,
+  privateMemberDiagnosticMessage,
+  renameDiagnosticMessage,
+  typeDiagnosticMessage,
+} from './diagnostic-guidance';
+import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case';
+import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore';
+import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers';
+import isPascalCase, { toPascalCase } from './pascal-case-types';
+import countImportDepth from './max-import-depth';
+import effectDefaultRules from './effect-default';
+import effectStrictRules from './effect-strict';
 import { eslintCompatPlugin } from '@oxlint/plugins';
-import isCommentedOutCode from './no-commented-out-code.js';
-import isPascalCase, { toPascalCase } from './pascal-case-types.js';
-import { isCamelCase, isUpperCase, toCamelCase } from './camel-case-identifiers.js';
-import hasBooleanPrefix, { suggestBooleanName } from './boolean-prefix.js';
-import hasLeadingUnderscore, { suggestPrivateName } from './private-underscore.js';
-import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case.js';
-import findLongLines from './max-line-length.js';
-import countImportDepth from './max-import-depth.js';
-import hasRequiredFileDoc from './require-file-doc.js';
-import hasRequiredFunctionDocs from './require-function-doc.js';
-import { readCachedSource } from './source-cache.js';
-import effectDefaultRules from './effect-default.js';
-import effectStrictRules from './effect-strict.js';
-
-/**
- * Oxlint plugin for The Thracian custom rules.
- */
+import findLongLines from './max-line-length';
+import hasBooleanPrefix from './boolean-prefix';
+import hasRequiredFileDoc from './require-file-doc';
+import hasRequiredFunctionDocs from './require-function-doc';
+import noCommentedOutCodeRule from './plugin-commented-out-code-rule';
+import { readCachedSource } from './source-cache';
 
 interface NamedNode {
-  id?: { name: string } | null;
-  key?: { name: string };
+  id?: IdentifierNode | null;
+  key?: IdentifierNode;
 }
 
-function getIdentifierName(node: { name?: unknown } | null | undefined): string | undefined {
-  return typeof node?.name === 'string' ? node.name : undefined;
+interface IdentifierNode {
+  name: string;
+  range?: [number, number];
 }
 
-type Context = {
-  report: (descriptor: { message: string; node: object }) => void;
-  filename?: string;
+const getIdentifierName = (node: { name?: unknown } | null | undefined): string | undefined => {
+  if (typeof node?.name === 'string') {
+    return node.name;
+  }
+  return undefined;
 };
 
+interface ReportDescriptor {
+  message: string;
+  node: object;
+}
+
+interface Context {
+  report: (descriptor: ReportDescriptor) => void;
+  filename?: string;
+}
+
 type VisitorMap = Record<string, ((node: never) => void) | undefined>;
-
-function readSource(context: Context): string {
-  return readCachedSource(context);
-}
-
-function withCreateOnce<
-  RuleWithCreateOnce extends { createOnce: (context: Context) => VisitorMap },
->(rule: RuleWithCreateOnce): RuleWithCreateOnce & { create: RuleWithCreateOnce['createOnce'] } {
-  return Object.assign(rule, { create: rule.createOnce });
-}
-
-function reportCommentedOutCode(context: Context, node: object, source: string): void {
-  let searchStart = 0;
-  while (searchStart < source.length) {
-    const lineCommentStart = source.indexOf('//', searchStart);
-    const blockCommentStart = source.indexOf('/*', searchStart);
-
-    if (lineCommentStart === -1 && blockCommentStart === -1) {
-      return;
-    }
-
-    if (
-      blockCommentStart !== -1 &&
-      (lineCommentStart === -1 || blockCommentStart < lineCommentStart)
-    ) {
-      const bodyStart = blockCommentStart + 2;
-      const bodyEnd = source.indexOf('*/', bodyStart);
-      const commentEnd = bodyEnd === -1 ? source.length : bodyEnd;
-      if (isCommentedOutCode(source.slice(bodyStart, commentEnd))) {
-        context.report({
-          message: 'Remove this commented-out code instead of leaving it dead.',
-          node,
-        });
-      }
-      searchStart = bodyEnd === -1 ? source.length : bodyEnd + 2;
-      continue;
-    }
-
-    const bodyStart = lineCommentStart + 2;
-    const bodyEnd = source.indexOf('\n', bodyStart);
-    const commentEnd = bodyEnd === -1 ? source.length : bodyEnd;
-    if (isCommentedOutCode(source.slice(bodyStart, commentEnd))) {
-      context.report({
-        message: 'Remove this commented-out code instead of leaving it dead.',
-        node,
-      });
-    }
-    searchStart = bodyEnd === -1 ? source.length : bodyEnd + 1;
+type OxlintPlugin = Parameters<typeof eslintCompatPlugin>[0];
+const readSource = (context: Context): string => readCachedSource(context);
+const isBooleanVar = (node: DeclNode): boolean => {
+  if (
+    node.typeAnnotation &&
+    node.typeAnnotation.typeAnnotation &&
+    node.typeAnnotation.typeAnnotation.type === 'TSBooleanKeyword'
+  ) {
+    return true;
   }
-}
+  if (node.init && node.init.type === 'Literal' && typeof node.init.value === 'boolean') {
+    return true;
+  }
+  return false;
+};
 
-const noCommentedOutCodeRule = withCreateOnce({
-  createOnce(context: Context) {
-    return {
-      Program(node: object) {
-        const source = readSource(context);
-        if (!source) {
-          return;
-        }
-
-        reportCommentedOutCode(context, node, source);
-      },
-    };
-  },
-});
+const withCreateOnce = <
+  RuleWithCreateOnce extends { createOnce: (context: Context) => VisitorMap },
+>(
+  rule: RuleWithCreateOnce,
+): RuleWithCreateOnce & { create: RuleWithCreateOnce['createOnce'] } =>
+  Object.assign(rule, { create: rule.createOnce });
 
 const pascalCaseTypesRule = withCreateOnce({
   createOnce(context: Context) {
-    function reportType(kind: string, name: string, node: object) {
+    const reportType = (kind: string, name: string, node: object): void => {
       context.report({
-        message: `Rename ${kind} from '${name}' to '${toPascalCase(name)}' (PascalCase required for types).`,
+        message: typeDiagnosticMessage(kind, name, toPascalCase(name)),
         node,
       });
-    }
+    };
 
     return {
-      ClassDeclaration(node: NamedNode) {
+      ClassDeclaration(node: NamedNode): void {
         if (node.id && !isPascalCase(node.id.name)) {
           reportType('class', node.id.name, node);
         }
       },
-      TSInterfaceDeclaration(node: NamedNode) {
+      TSEnumDeclaration(node: NamedNode): void {
+        if (node.id && !isPascalCase(node.id.name)) {
+          reportType('enum', node.id.name, node);
+        }
+      },
+      TSInterfaceDeclaration(node: NamedNode): void {
         if (node.id && !isPascalCase(node.id.name)) {
           reportType('interface', node.id.name, node);
         }
       },
-      TSTypeAliasDeclaration(node: NamedNode) {
+      TSTypeAliasDeclaration(node: NamedNode): void {
         if (node.id && !isPascalCase(node.id.name)) {
           reportType('type', node.id.name, node);
-        }
-      },
-      TSEnumDeclaration(node: NamedNode) {
-        if (node.id && !isPascalCase(node.id.name)) {
-          reportType('enum', node.id.name, node);
         }
       },
     };
@@ -144,7 +127,43 @@ interface DeclNode extends NamedNode {
 const camelCaseIdentifiersRule = withCreateOnce({
   createOnce(context: Context) {
     return {
-      VariableDeclarator(node: DeclNode) {
+      FunctionDeclaration(node: NamedNode): void {
+        if (node.id && !isCamelCase(node.id.name)) {
+          context.report({
+            message: renameDiagnosticMessage('function', node.id.name, toCamelCase(node.id.name)),
+            node,
+          });
+        }
+      },
+      MethodDefinition(node: NamedNode): void {
+        if (node.key && !isCamelCase(node.key.name)) {
+          context.report({
+            message: renameDiagnosticMessage('method', node.key.name, toCamelCase(node.key.name)),
+            node,
+          });
+        }
+      },
+      Parameter(node: DeclNode): void {
+        if (node.type === 'Identifier' && node.value && !isCamelCase(node.value.name)) {
+          context.report({
+            message: renameDiagnosticMessage(
+              'parameter',
+              node.value.name,
+              toCamelCase(node.value.name),
+            ),
+            node,
+          });
+        }
+      },
+      PropertyDefinition(node: NamedNode): void {
+        if (node.key && !isCamelCase(node.key.name)) {
+          context.report({
+            message: renameDiagnosticMessage('property', node.key.name, toCamelCase(node.key.name)),
+            node,
+          });
+        }
+      },
+      VariableDeclarator(node: DeclNode): void {
         const name = getIdentifierName(node.id);
         if (!name) {
           return;
@@ -153,49 +172,17 @@ const camelCaseIdentifiersRule = withCreateOnce({
         if (isConst) {
           if (!isCamelCase(name) && !isUpperCase(name)) {
             context.report({
-              message: `Rename constant '${name}' to '${toCamelCase(name)}' for camelCase, or '${name.toUpperCase()}' for UPPER_CASE convention.`,
+              message: constantDiagnosticMessage(name, toCamelCase(name)),
               node,
             });
           }
         } else {
           if (!isCamelCase(name)) {
             context.report({
-              message: `Rename variable '${name}' to '${toCamelCase(name)}' (camelCase required).`,
+              message: renameDiagnosticMessage('variable', name, toCamelCase(name)),
               node,
             });
           }
-        }
-      },
-      FunctionDeclaration(node: NamedNode) {
-        if (node.id && !isCamelCase(node.id.name)) {
-          context.report({
-            message: `Rename function '${node.id.name}' to '${toCamelCase(node.id.name)}' (camelCase required).`,
-            node,
-          });
-        }
-      },
-      Parameter(node: DeclNode) {
-        if (node.type === 'Identifier' && node.value && !isCamelCase(node.value.name)) {
-          context.report({
-            message: `Rename parameter '${node.value.name}' to '${toCamelCase(node.value.name)}' (camelCase required).`,
-            node,
-          });
-        }
-      },
-      MethodDefinition(node: NamedNode) {
-        if (node.key && !isCamelCase(node.key.name)) {
-          context.report({
-            message: `Rename method '${node.key.name}' to '${toCamelCase(node.key.name)}' (camelCase required).`,
-            node,
-          });
-        }
-      },
-      PropertyDefinition(node: NamedNode) {
-        if (node.key && !isCamelCase(node.key.name)) {
-          context.report({
-            message: `Rename property '${node.key.name}' to '${toCamelCase(node.key.name)}' (camelCase required).`,
-            node,
-          });
         }
       },
     };
@@ -204,29 +191,15 @@ const camelCaseIdentifiersRule = withCreateOnce({
 
 const booleanPrefixRule = withCreateOnce({
   createOnce(context: Context) {
-    function isBooleanVar(node: DeclNode): boolean {
-      if (
-        node.typeAnnotation &&
-        node.typeAnnotation.typeAnnotation &&
-        node.typeAnnotation.typeAnnotation.type === 'TSBooleanKeyword'
-      ) {
-        return true;
-      }
-      if (node.init && node.init.type === 'Literal' && typeof node.init.value === 'boolean') {
-        return true;
-      }
-      return false;
-    }
-
     return {
-      VariableDeclarator(node: DeclNode) {
+      VariableDeclarator(node: DeclNode): void {
         const name = getIdentifierName(node.id);
         if (!name) {
           return;
         }
         if (isBooleanVar(node) && !hasBooleanPrefix(name)) {
           context.report({
-            message: `Rename boolean '${name}' to '${suggestBooleanName(name)}' (is_/has_/should_ prefix required for boolean variables).`,
+            message: booleanDiagnosticMessage(name),
             node,
           });
         }
@@ -238,18 +211,20 @@ const booleanPrefixRule = withCreateOnce({
 const privateUnderscoreRule = withCreateOnce({
   createOnce(context: Context) {
     return {
-      PropertyDefinition(node: DeclNode) {
+      MethodDefinition(node: DeclNode): void {
         if (node.key && node.accessibility === 'private' && !hasLeadingUnderscore(node.key.name)) {
+          const replacement = suggestPrivateName(node.key.name);
           context.report({
-            message: `Rename private property '${node.key.name}' to '${suggestPrivateName(node.key.name)}' (leading underscore required for private members).`,
+            message: privateMemberDiagnosticMessage('method', node.key.name, replacement),
             node,
           });
         }
       },
-      MethodDefinition(node: DeclNode) {
+      PropertyDefinition(node: DeclNode): void {
         if (node.key && node.accessibility === 'private' && !hasLeadingUnderscore(node.key.name)) {
+          const replacement = suggestPrivateName(node.key.name);
           context.report({
-            message: `Rename private method '${node.key.name}' to '${suggestPrivateName(node.key.name)}' (leading underscore required for private members).`,
+            message: privateMemberDiagnosticMessage('property', node.key.name, replacement),
             node,
           });
         }
@@ -260,47 +235,47 @@ const privateUnderscoreRule = withCreateOnce({
 
 const acronymCaseRule = withCreateOnce({
   createOnce(context: Context) {
-    function checkAcronyms(name: string, node: object) {
+    const checkAcronyms = (name: string, node: object): void => {
       const violations = findMisCasedAcronyms(name);
       if (violations.length > 0) {
-        const listed = violations.map((acr) => `'${acr}'`).join(', ');
+        const replacement = fixAcronymCase(name);
         context.report({
-          message: `Rename '${name}' to '${fixAcronymCase(name)}' — acronym${violations.length > 1 ? 's' : ''} ${listed} must be uppercase.`,
+          message: acronymDiagnosticMessage(name, replacement, violations),
           node,
         });
       }
-    }
+    };
 
     return {
-      VariableDeclarator(node: NamedNode) {
+      ClassDeclaration(node: NamedNode): void {
+        if (node.id) {
+          checkAcronyms(node.id.name, node);
+        }
+      },
+      FunctionDeclaration(node: NamedNode): void {
+        if (node.id) {
+          checkAcronyms(node.id.name, node);
+        }
+      },
+      MethodDefinition(node: NamedNode): void {
+        if (node.key) {
+          checkAcronyms(node.key.name, node);
+        }
+      },
+      Parameter(node: DeclNode): void {
+        if (node.type === 'Identifier' && node.value) {
+          checkAcronyms(node.value.name, node);
+        }
+      },
+      PropertyDefinition(node: NamedNode): void {
+        if (node.key) {
+          checkAcronyms(node.key.name, node);
+        }
+      },
+      VariableDeclarator(node: NamedNode): void {
         const name = getIdentifierName(node.id);
         if (name) {
           checkAcronyms(name, node);
-        }
-      },
-      FunctionDeclaration(node: NamedNode) {
-        if (node.id) {
-          checkAcronyms(node.id.name, node);
-        }
-      },
-      ClassDeclaration(node: NamedNode) {
-        if (node.id) {
-          checkAcronyms(node.id.name, node);
-        }
-      },
-      MethodDefinition(node: NamedNode) {
-        if (node.key) {
-          checkAcronyms(node.key.name, node);
-        }
-      },
-      PropertyDefinition(node: NamedNode) {
-        if (node.key) {
-          checkAcronyms(node.key.name, node);
-        }
-      },
-      Parameter(node: DeclNode) {
-        if (node.type === 'Identifier' && node.value) {
-          checkAcronyms(node.value.name, node);
         }
       },
     };
@@ -309,31 +284,86 @@ const acronymCaseRule = withCreateOnce({
 
 interface ImportNode {
   source?: { value: string; raw: string } | null;
-  arguments?: Array<{ value: string }>;
+  arguments?: { value: string }[];
   callee?: { name: string };
 }
+
+interface RuntimeSpecifierNode {
+  arguments?: { value?: unknown }[];
+  callee?: { name?: unknown };
+  source?: { value?: unknown };
+}
+
+const isJavaScriptSpecifier = (specifier: unknown): specifier is string =>
+  typeof specifier === 'string' && specifier.endsWith('.js');
+
+const reportJavaScriptSpecifier = (context: Context, node: object, specifier: string): void => {
+  context.report({
+    message: jsExtensionDiagnosticMessage(specifier),
+    node,
+  });
+};
+
+const noDynamicJSExtensionImportsRule = withCreateOnce({
+  createOnce(context: Context) {
+    return {
+      CallExpression(node: RuntimeSpecifierNode): void {
+        if (node.callee?.name !== 'require') {
+          return;
+        }
+        const firstArgument = node.arguments?.[0]?.value;
+        if (isJavaScriptSpecifier(firstArgument)) {
+          reportJavaScriptSpecifier(context, node, firstArgument);
+        }
+      },
+      ImportExpression(node: RuntimeSpecifierNode): void {
+        const source = node.source?.value;
+        if (isJavaScriptSpecifier(source)) {
+          reportJavaScriptSpecifier(context, node, source);
+        }
+      },
+    };
+  },
+});
+
+interface ExportNamedNode {
+  declaration?: object | null;
+  source?: object | null;
+  specifiers?: object[];
+}
+
+const noLocalExportListRule = withCreateOnce({
+  createOnce(context: Context) {
+    return {
+      ExportNamedDeclaration(node: ExportNamedNode): void {
+        if (node.source || node.declaration || !node.specifiers || node.specifiers.length === 0) {
+          return;
+        }
+        context.report({
+          message: localExportListDiagnosticMessage(),
+          node,
+        });
+      },
+    };
+  },
+});
 
 const maxImportDepthRule = withCreateOnce({
   createOnce(context: Context) {
     const MAX_DEPTH = 4;
 
-    function checkPath(importPath: string, node: object) {
+    const checkPath = (importPath: string, node: object): void => {
       const depth = countImportDepth(importPath);
       if (depth > MAX_DEPTH) {
         context.report({
-          message: `Import path depth ${depth} exceeds maximum of ${MAX_DEPTH} (found '${importPath}'). Use a flatter directory structure or path alias.`,
+          message: importDepthDiagnosticMessage(depth, MAX_DEPTH, importPath),
           node,
         });
       }
-    }
+    };
 
     return {
-      ImportDeclaration(node: ImportNode) {
-        if (node.source?.value) {
-          checkPath(node.source.value, node);
-        }
-      },
-      CallExpression(node: ImportNode) {
+      CallExpression(node: ImportNode): void {
         if (
           node.callee?.name === 'require' &&
           node.arguments &&
@@ -343,6 +373,11 @@ const maxImportDepthRule = withCreateOnce({
           checkPath(node.arguments[0].value, node);
         }
       },
+      ImportDeclaration(node: ImportNode): void {
+        if (node.source?.value) {
+          checkPath(node.source.value, node);
+        }
+      },
     };
   },
 });
@@ -350,12 +385,12 @@ const maxImportDepthRule = withCreateOnce({
 const maxLineLengthRule = withCreateOnce({
   createOnce(context: Context) {
     return {
-      Program(node: object) {
+      Program(node: object): void {
         const source = readSource(context);
 
         for (const violation of findLongLines(source)) {
           context.report({
-            message: `Line ${violation.line} has ${violation.length} characters, exceeding the maximum of 150.`,
+            message: lineLengthDiagnosticMessage(violation.line, violation.length),
             node,
           });
         }
@@ -367,7 +402,7 @@ const maxLineLengthRule = withCreateOnce({
 const requireFileDocRule = withCreateOnce({
   createOnce(context: Context) {
     return {
-      Program(node: object) {
+      Program(node: object): void {
         const source = readSource(context);
         if (source === '') {
           return;
@@ -375,10 +410,7 @@ const requireFileDocRule = withCreateOnce({
 
         if (!hasRequiredFileDoc(source)) {
           context.report({
-            message:
-              'File must have a JSDoc header comment (' +
-              '/** ... */)' +
-              ' describing its purpose. Use // @internal to opt out for internal modules.',
+            message: fileDocDiagnosticMessage(),
             node,
           });
         }
@@ -390,7 +422,7 @@ const requireFileDocRule = withCreateOnce({
 const requireFunctionDocRule = withCreateOnce({
   createOnce(context: Context) {
     return {
-      Program(node: object) {
+      Program(node: object): void {
         const source = readSource(context);
         if (source === '') {
           return;
@@ -398,10 +430,7 @@ const requireFunctionDocRule = withCreateOnce({
 
         if (!hasRequiredFunctionDocs(source)) {
           context.report({
-            message:
-              'Missing JSDoc on an exported declaration. Every public function, class, type, ' +
-              'interface, enum, and const must have a non-empty /** ... */ JSDoc comment with ' +
-              'a description of its purpose, parameters, return value, and error conditions.',
+            message: functionDocDiagnosticMessage(),
             node,
           });
         }
@@ -415,14 +444,16 @@ const plugin = {
     name: 'thethracian',
   },
   rules: {
-    'no-commented-out-code': noCommentedOutCodeRule,
-    'pascal-case-types': pascalCaseTypesRule,
-    'camel-case-identifiers': camelCaseIdentifiersRule,
-    'boolean-prefix': booleanPrefixRule,
-    'private-underscore': privateUnderscoreRule,
     'acronym-case': acronymCaseRule,
+    'boolean-prefix': booleanPrefixRule,
+    'camel-case-identifiers': camelCaseIdentifiersRule,
     'max-import-depth': maxImportDepthRule,
     'max-line-length': maxLineLengthRule,
+    'no-commented-out-code': noCommentedOutCodeRule,
+    'no-dynamic-js-extension-imports': noDynamicJSExtensionImportsRule,
+    'no-local-export-list': noLocalExportListRule,
+    'pascal-case-types': pascalCaseTypesRule,
+    'private-underscore': privateUnderscoreRule,
     'require-file-doc': requireFileDocRule,
     'require-function-doc': requireFunctionDocRule,
     ...effectDefaultRules,
@@ -430,4 +461,17 @@ const plugin = {
   },
 };
 
-export default eslintCompatPlugin(plugin as never);
+const isPlugin = (value: unknown): value is OxlintPlugin => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const rules: unknown = Reflect.get(value, 'rules');
+  return typeof rules === 'object' && rules !== null;
+};
+
+if (!isPlugin(plugin)) {
+  throw new TypeError('Invalid The Thracian Oxlint plugin shape.');
+}
+
+/** @internal Oxlint-compatible JavaScript plugin containing The Thracian custom rules. */
+export default eslintCompatPlugin(plugin);

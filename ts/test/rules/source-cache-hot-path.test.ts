@@ -12,7 +12,7 @@ describe('source cache hot path', () => {
       statSync: vi.fn(),
     }));
 
-    const { readCachedSource } = await import('../../src/rules/source-cache.js');
+    const { readCachedSource } = await import('../../src/rules/source-cache');
     const getText = vi.fn(() => 'const value = 1;\n');
     const sourceCode = { getText };
     const context = { sourceCode };

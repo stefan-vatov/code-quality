@@ -11,19 +11,20 @@
     "affected:lint": "nx affected -t lint",
     "affected:test": "nx affected -t test",
     "graph": "nx graph",
+    "codemod:ts": "tsx ts/src/codemod-fix/cli.ts ts/src",
     "lint:projects": "nx run-many -t lint",
     "release": "pnpm run release:plan",
     "release:plan": "node scripts/release-plan.mjs plan",
     "release:prepare": "node scripts/release-plan.mjs prepare",
     "release:dry-run": "pnpm run release:plan",
-    "lint": "oxlint .",
-    "lint:fix": "oxlint . --fix",
+    "lint": "pnpm --dir ts build && oxlint -c oxlint.config.mjs ts",
+    "lint:fix": "pnpm run codemod:ts && pnpm --dir ts build && oxlint -c oxlint.config.mjs ts --fix && pnpm run codemod:ts",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "fix:staged": "lint-staged --concurrent false",
     "lint:staged": "pnpm run fix:staged",
-    "lint:type-aware": "oxlint . --type-aware --type-check",
-    "lint:type-aware:fix": "oxlint . --type-aware --type-check --fix",
+    "lint:type-aware": "pnpm --dir ts build && oxlint -c oxlint.config.mjs ts --type-aware --type-check",
+    "lint:type-aware:fix": "pnpm run codemod:ts && pnpm --dir ts build && oxlint -c oxlint.config.mjs ts --type-aware --type-check --fix && pnpm run codemod:ts",
     "fix": "pnpm run lint:type-aware:fix && pnpm run format",
     "lint:ci": "pnpm run lint:type-aware && pnpm run format:check",
     "prepare": "husky",
@@ -36,13 +37,18 @@
     "test:mutation:incremental": "stryker run --incremental",
     "knip": "knip --cache --strict",
     "knip:watch": "knip --watch --strict",
-    "knip:ci": "knip --cache --strict"
+    "knip:ci": "knip --cache --strict",
+    "performance:gate": "tsx ts/bench/performance-gate.ts --check",
+    "performance:calibrate": "tsx ts/bench/performance-gate.ts --update --runs 20",
+    "performance:estimate": "tsx ts/bench/performance-estimate.ts"
   },
   "devDependencies": {
     "@j178/prek": "^0.3.8",
     "@nx/js": "22.7.1",
     "@stryker-mutator/core": "~9.6.0",
     "@stryker-mutator/vitest-runner": "~9.6.0",
+    "@thethracian/oxlint-config": "workspace:*",
+    "@types/jscodeshift": "^17.3.0",
     "@types/node": "^24.10.0",
     "@vitest/coverage-v8": "~4.1.0",
     "husky": "^9.1.7",
@@ -59,7 +65,7 @@
   },
   "lint-staged": {
     "*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}": [
-      "oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern",
+      "sh -c 'pnpm --dir ts build && oxlint -c oxlint.config.mjs --type-aware --type-check --fix --no-error-on-unmatched-pattern \"$@\"' --",
       "oxfmt"
     ],
     "*.{json,md,yml,yaml,toml,css,scss,html}": [

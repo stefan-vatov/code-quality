@@ -1,4 +1,12 @@
-const effectDefaultRuleNames = [
+/* -------------------------------------------------------------------------- */
+/*    Canonical lists of custom Effect rule names exported by the config.     */
+/* -------------------------------------------------------------------------- */
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const effectDefaultRuleNames = [
   'effect-no-floating-effect',
   'effect-require-yield-star',
   'effect-require-return-yield-star',
@@ -82,7 +90,12 @@ const effectDefaultRuleNames = [
   'effect-no-effect-fn-iife',
 ] as const;
 
-const effectStrictRuleNames = [
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const effectStrictRuleNames = [
   'effect-no-run-outside-entrypoints',
   'effect-require-platform-runmain-at-entrypoints',
   'effect-no-runSync-in-server-request-handlers',
@@ -144,5 +157,3 @@ const effectStrictRuleNames = [
   'effect-prefer-asVoid',
   'effect-prefer-flatMap-over-map-flatten',
 ] as const;
-
-export { effectDefaultRuleNames, effectStrictRuleNames };

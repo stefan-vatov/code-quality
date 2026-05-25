@@ -1,76 +1,103 @@
-import { CHAR_CLASS, CLS_UPPER, CLS_LOWER } from './char-class.js';
+/* -------------------------------------------------------------------------- */
+/*        CamelCase naming helpers for custom Oxlint identifier rules.        */
+/* -------------------------------------------------------------------------- */
+import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
+
+const CHAR_CODE_ZERO = 48;
+const CHAR_CODE_NINE = 57;
+const CHAR_CODE_UNDERSCORE = 95;
 
 const isUp = (code: number): boolean => (CHAR_CLASS[code] & CLS_UPPER) !== 0;
 const isLo = (code: number): boolean => (CHAR_CLASS[code] & CLS_LOWER) !== 0;
 
+const nextSegmentStart = (name: string, start: number): number => {
+  let segmentStart = start;
+  while (segmentStart < name.length && name.charCodeAt(segmentStart) === CHAR_CODE_UNDERSCORE) {
+    segmentStart++;
+  }
+  return segmentStart;
+};
+
+const nextSegmentEnd = (name: string, start: number): number => {
+  let segmentEnd = start;
+  while (segmentEnd < name.length && name.charCodeAt(segmentEnd) !== CHAR_CODE_UNDERSCORE) {
+    segmentEnd++;
+  }
+  return segmentEnd;
+};
+
+const camelTailSegment = (name: string, start: number, end: number): string => {
+  const word = name.slice(start, end);
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+};
+
+const appendCamelSegments = (name: string, result: string, start: number): string => {
+  let output = result;
+  let segStart = start;
+  while (segStart < name.length) {
+    segStart = nextSegmentStart(name, segStart);
+    if (segStart >= name.length) {
+      break;
+    }
+    const segEnd = nextSegmentEnd(name, segStart);
+    output += camelTailSegment(name, segStart, segEnd);
+    segStart = segEnd + 1;
+  }
+  return output;
+};
+
+const underscoreNameToCamelCase = (name: string): string => {
+  const start = nextSegmentStart(name, 0);
+  if (start >= name.length) {
+    return '';
+  }
+
+  const end = nextSegmentEnd(name, start);
+  return appendCamelSegments(name, name.slice(start, end).toLowerCase(), end + 1);
+};
+
 /**
  * Check if a name follows camelCase convention.
  */
-function isCamelCase(name: string): boolean {
+export const isCamelCase = (name: string): boolean => {
   const len = name.length;
-  return len > 0 && isLo(name.charCodeAt(0)) && name.indexOf('_') === -1;
-}
+  return len > 0 && isLo(name.charCodeAt(0)) && !name.includes('_');
+};
 
 /**
  * Check if a name follows UPPER_CASE convention.
  */
-function isUpperCase(name: string): boolean {
+export const isUpperCase = (name: string): boolean => {
   const len = name.length;
   if (len === 0 || !isUp(name.charCodeAt(0))) {
     return false;
   }
   for (let idx = 1; idx < len; idx++) {
     const code = name.charCodeAt(idx);
-    if (!(isUp(code) || (code >= 48 && code <= 57) || code === 95)) {
+    if (
+      !(
+        isUp(code) ||
+        (code >= CHAR_CODE_ZERO && code <= CHAR_CODE_NINE) ||
+        code === CHAR_CODE_UNDERSCORE
+      )
+    ) {
       return false;
     }
   }
   return true;
-}
+};
 
 /**
  * Convert a name to camelCase.
  */
-function toCamelCase(name: string): string {
+export const toCamelCase = (name: string): string => {
   if (name.length === 0) {
     return '';
   }
 
-  if (name.indexOf('_') !== -1) {
-    let start = 0;
-    while (start < name.length && name.charCodeAt(start) === 95) {
-      start++;
-    }
-    if (start >= name.length) {
-      return '';
-    }
-
-    let end = start;
-    while (end < name.length && name.charCodeAt(end) !== 95) {
-      end++;
-    }
-    let result = name.slice(start, end).toLowerCase();
-
-    let segStart = end + 1;
-    while (segStart < name.length) {
-      while (segStart < name.length && name.charCodeAt(segStart) === 95) {
-        segStart++;
-      }
-      if (segStart >= name.length) {
-        break;
-      }
-      let segEnd = segStart;
-      while (segEnd < name.length && name.charCodeAt(segEnd) !== 95) {
-        segEnd++;
-      }
-      const word = name.slice(segStart, segEnd);
-      result += word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      segStart = segEnd + 1;
-    }
-    return result;
+  if (name.includes('_')) {
+    return underscoreNameToCamelCase(name);
   }
 
   return name.charAt(0).toLowerCase() + name.slice(1);
-}
-
-export { isCamelCase, isUpperCase, toCamelCase };
+};

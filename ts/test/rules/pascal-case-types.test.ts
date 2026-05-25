@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import isPascalCase, { toPascalCase } from '../../src/rules/pascal-case-types.js';
+import isPascalCase, { toPascalCase } from '../../src/rules/pascal-case-types';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'pascal-case-types');
 

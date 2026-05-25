@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index.js';
-import effectDefaultRules from '../../src/rules/effect-default.js';
-import {
-  effectDefaultRuleNames,
-  effectStrictRuleNames,
-} from '../../src/rules/effect-rule-names.js';
-import effectStrictRules from '../../src/rules/effect-strict.js';
-import plugin from '../../src/rules/plugin.js';
-import { sorted } from './effect-rule-test-utils.js';
+import theThracianOxlint from '../../src/index';
+import effectDefaultRules from '../../src/rules/effect-default';
+import { effectDefaultRuleNames, effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import effectStrictRules from '../../src/rules/effect-strict';
+import plugin from '../../src/rules/plugin';
+import { sorted } from './effect-rule-test-utils';
 
 describe('Effect rule buckets', () => {
   it('keeps bucket names, implementations, and plugin registration in exact sync', () => {

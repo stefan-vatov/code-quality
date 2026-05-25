@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import findLongLines from '../../src/rules/max-line-length.js';
+import findLongLines from '../../src/rules/max-line-length';
 
 describe('max-line-length rule logic', () => {
   it('returns immediately for files shorter than the maximum line length', () => {

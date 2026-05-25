@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runRule } from './effect-rule-test-utils.js';
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 6 strict regression coverage', () => {
   it('enforces class service tags over GenericTag service definitions in strict mode', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import countImportDepth from '../../src/rules/max-import-depth.js';
+import countImportDepth from '../../src/rules/max-import-depth';
 
 describe('max-import-depth rule logic', () => {
   it('returns 0 for non-relative import', () => {

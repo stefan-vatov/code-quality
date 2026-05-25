@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index.js';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils.js';
+import theThracianOxlint from '../../src/index';
+import { runConfiguredRules, runRule } from './effect-rule-test-utils';
 
 describe('Effect strict path options', () => {
   it('does not expose a strict console rule because direct console is globally banned', () => {
@@ -199,6 +199,13 @@ describe('Effect strict path options', () => {
         source: 'fetch("/users");',
         reportedFile: 'src/domain/http.ts',
         ignoredFile: 'platform/adapters/http.ts',
+      },
+      {
+        ruleName: 'effect-no-node-builtins-when-effect-platform-exists',
+        options: { adapterLayers: ['platform/adapters/**'] },
+        source: "import { readFileSync } from 'node:fs';",
+        reportedFile: 'src/domain/files.ts',
+        ignoredFile: 'platform/adapters/files.ts',
       },
       {
         ruleName: 'effect-no-leaked-service-dependencies',

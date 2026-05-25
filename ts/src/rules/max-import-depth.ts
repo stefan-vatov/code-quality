@@ -1,34 +1,71 @@
+/* -------------------------------------------------------------------------- */
+/*           Import-depth helper for detecting parent path climbs.            */
+/* -------------------------------------------------------------------------- */
+
 /**
- * Count leading `../` segments in an import path.
- * Returns 0 for non-relative imports (no leading `..`).
+ * Count leading `../` segments in an import path. Returns 0 for non-relative imports (no leading
+ * `..`).
  */
 export default function countImportDepth(path: string): number {
-  const len = path.length;
-  if (len < 2 || path.charCodeAt(0) !== 46 || path.charCodeAt(1) !== 46) {
-    return 0;
+  if (!isParentRelativePath(path)) {
+    return NO_PARENT_IMPORT_DEPTH;
   }
-  // `.../` is not a relative path — skip triple+ dot
-  if (len > 2 && path.charCodeAt(2) === 46) {
-    return 0;
-  }
-
   let depth = 0;
-  let idx = 0;
+  let index = 0;
 
-  while (
-    idx + 2 < len &&
-    path.charCodeAt(idx) === 46 &&
-    path.charCodeAt(idx + 1) === 46 &&
-    path.charCodeAt(idx + 2) === 47
-  ) {
+  while (hasParentDirectorySegment(path, index)) {
     depth++;
-    idx += 3;
+    index += PARENT_DIRECTORY_SEGMENT_LENGTH;
   }
 
-  // Trailing `..` at end-of-string
-  if (idx + 2 === len && path.charCodeAt(idx) === 46 && path.charCodeAt(idx + 1) === 46) {
+  if (hasTrailingParentDirectory(path, index)) {
     depth++;
   }
 
   return depth;
 }
+
+const CHAR_DOT = 46;
+const CHAR_SLASH = 47;
+const FIRST_CHAR_INDEX = 0;
+const SECOND_CHAR_INDEX = 1;
+const THIRD_CHAR_INDEX = 2;
+const NO_PARENT_IMPORT_DEPTH = 0;
+const PARENT_DIRECTORY_SEGMENT_LENGTH = 3;
+const PARENT_DIRECTORY_TOKEN_LENGTH = 2;
+
+const isParentRelativePath = (path: string): boolean => {
+  if (path.length < PARENT_DIRECTORY_TOKEN_LENGTH) {
+    return false;
+  }
+  if (path.charCodeAt(FIRST_CHAR_INDEX) !== CHAR_DOT) {
+    return false;
+  }
+  if (path.charCodeAt(SECOND_CHAR_INDEX) !== CHAR_DOT) {
+    return false;
+  }
+  return path.charCodeAt(THIRD_CHAR_INDEX) !== CHAR_DOT;
+};
+
+const hasParentDirectorySegment = (path: string, index: number): boolean => {
+  if (index + PARENT_DIRECTORY_TOKEN_LENGTH >= path.length) {
+    return false;
+  }
+  if (path.charCodeAt(index) !== CHAR_DOT) {
+    return false;
+  }
+  if (path.charCodeAt(index + SECOND_CHAR_INDEX) !== CHAR_DOT) {
+    return false;
+  }
+  return path.charCodeAt(index + THIRD_CHAR_INDEX) === CHAR_SLASH;
+};
+
+const hasTrailingParentDirectory = (path: string, index: number): boolean => {
+  if (index + PARENT_DIRECTORY_TOKEN_LENGTH !== path.length) {
+    return false;
+  }
+  if (path.charCodeAt(index) !== CHAR_DOT) {
+    return false;
+  }
+  return path.charCodeAt(index + SECOND_CHAR_INDEX) === CHAR_DOT;
+};

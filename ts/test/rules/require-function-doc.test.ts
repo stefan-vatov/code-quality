@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import hasRequiredFunctionDocs from '../../src/rules/require-function-doc.js';
+import hasRequiredFunctionDocs from '../../src/rules/require-function-doc';
 
 // ============================================================================
 // hasRequiredFunctionDocs — checks exported declarations have non-empty JSDoc
@@ -172,6 +172,17 @@ export function sub(a: number, b: number): number { return a - b; }`;
     expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
+  it('fails when a local export list hides an undocumented declaration', () => {
+    const src = 'const hidden = () => true;\nexport { hidden };';
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('passes when a local export list points to a documented declaration', () => {
+    const src =
+      '/**\n * Hidden implementation export.\n * @internal\n */\nconst hidden = () => true;\nexport { hidden };';
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
   // ── fails: empty JSDoc ────────────────────────────────────────────────
 
   it('fails when JSDoc is empty (no description)', () => {
@@ -184,11 +195,10 @@ export function sub(a: number, b: number): number { return a - b; }`;
     expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
-  it('passes when JSDoc has only tags but no description', () => {
-    // Edge case: @param only, no description text. This is still "documented."
+  it('fails when JSDoc has only tags but no description', () => {
     const src =
       '/**\n * @param a - first number\n * @returns sum\n */\nexport function add(a: number): number { return a + 1; }';
-    expect(hasRequiredFunctionDocs(src)).toBe(true);
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
   // ── fails: mixed documented/undocumented ──────────────────────────────
@@ -490,9 +500,9 @@ export function b() {}`;
 
   // ── inline type-only exports ─────────────────────────────────────────
 
-  it('skips export { type A, type B }', () => {
+  it('fails for local export type lists without documented declarations', () => {
     const src = 'export { type A, type B };';
-    expect(hasRequiredFunctionDocs(src)).toBe(true);
+    expect(hasRequiredFunctionDocs(src)).toBe(false);
   });
 
   it('skips export type * from (wildcard type re-export)', () => {

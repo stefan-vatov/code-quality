@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import findMisCasedAcronyms, { fixAcronymCase } from '../../src/rules/acronym-case.js';
+import findMisCasedAcronyms, { fixAcronymCase } from '../../src/rules/acronym-case';
 
 const fixturesDir = join(import.meta.dirname, 'fixtures', 'acronym-case');
 
@@ -118,6 +118,8 @@ describe('findMisCasedAcronyms', () => {
     expect(findMisCasedAcronyms('getClassName')).toEqual([]);
     expect(findMisCasedAcronyms('userBuilder')).toEqual([]);
     expect(findMisCasedAcronyms('myDataStore')).toEqual([]);
+    expect(findMisCasedAcronyms('findMisCasedAcronyms')).toEqual([]);
+    expect(findMisCasedAcronyms('renameMisCasedAcronyms')).toEqual([]);
   });
 
   it('handles acronym at start of PascalCase', () => {
@@ -130,6 +132,12 @@ describe('findMisCasedAcronyms', () => {
     expect(findMisCasedAcronyms('clientHTTP')).toEqual([]);
     expect(findMisCasedAcronyms('fileXML')).toEqual([]);
     expect(findMisCasedAcronyms('dataJSON')).toEqual([]);
+  });
+
+  it('allows leading lowercase acronyms in camelCase identifiers', () => {
+    expect(findMisCasedAcronyms('urlParser')).toEqual([]);
+    expect(findMisCasedAcronyms('httpIndex')).toEqual([]);
+    expect(findMisCasedAcronyms('regexPrefixChars')).toEqual([]);
   });
 
   it('handles acronyms in middle of identifiers', () => {
@@ -196,6 +204,7 @@ describe('fixAcronymCase', () => {
   it('returns unchanged when no mis-cased acronyms', () => {
     expect(fixAcronymCase('parseURL')).toBe('parseURL');
     expect(fixAcronymCase('userName')).toBe('userName');
+    expect(fixAcronymCase('urlParser')).toBe('urlParser');
   });
 
   it('handles empty string', () => {

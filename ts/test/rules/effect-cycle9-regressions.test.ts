@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runRule } from './effect-rule-test-utils.js';
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 9 regression coverage', () => {
   it('keeps fiber observation inside the same arrow function body', () => {

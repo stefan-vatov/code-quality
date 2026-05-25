@@ -40,4 +40,4 @@ export class SshClient {}
 // Variables
 const apiUrl = 'https://example.com';
 const userJson = '{"name":"alice"}';
-const cssContent = '';
+const userCss = '';

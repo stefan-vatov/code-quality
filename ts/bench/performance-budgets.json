@@ -1,0 +1,1646 @@
+{
+  "codemods": {
+    "addInternalExportDocs": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2000000,
+      "observedMedianNs": 208,
+      "observedP95Ns": 18208,
+      "operationsPerSample": 1,
+      "p95LimitNs": 10000000,
+      "runs": 20
+    },
+    "addVoidReturnTypes": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2060373,
+      "observedMedianNs": 686791,
+      "observedP95Ns": 1352875,
+      "operationsPerSample": 1,
+      "p95LimitNs": 10000000,
+      "runs": 20
+    },
+    "applyCodemodFixToSource": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 11601876,
+      "observedMedianNs": 3867292,
+      "observedP95Ns": 6130209,
+      "operationsPerSample": 1,
+      "p95LimitNs": 24520836,
+      "runs": 20
+    },
+    "formatFileHeaderComment": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2000000,
+      "observedMedianNs": 1625,
+      "observedP95Ns": 5791,
+      "operationsPerSample": 1,
+      "p95LimitNs": 10000000,
+      "runs": 20
+    },
+    "formatJSDocComments": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2000000,
+      "observedMedianNs": 5125,
+      "observedP95Ns": 14125,
+      "operationsPerSample": 1,
+      "p95LimitNs": 10000000,
+      "runs": 20
+    },
+    "inlineLocalExportLists": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2000000,
+      "observedMedianNs": 172750,
+      "observedP95Ns": 3405333,
+      "operationsPerSample": 1,
+      "p95LimitNs": 13621332,
+      "runs": 20
+    },
+    "preferConciseArrowBodies": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2000000,
+      "observedMedianNs": 202792,
+      "observedP95Ns": 3354584,
+      "operationsPerSample": 1,
+      "p95LimitNs": 13418336,
+      "runs": 20
+    },
+    "preferExplicitBranches": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2814501,
+      "observedMedianNs": 938167,
+      "observedP95Ns": 4085166,
+      "operationsPerSample": 1,
+      "p95LimitNs": 16340664,
+      "runs": 20
+    },
+    "preferFunctionExpressions": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2144250,
+      "observedMedianNs": 714750,
+      "observedP95Ns": 4651667,
+      "operationsPerSample": 1,
+      "p95LimitNs": 18606668,
+      "runs": 20
+    },
+    "renameMisCasedAcronyms": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2000000,
+      "observedMedianNs": 434875,
+      "observedP95Ns": 875500,
+      "operationsPerSample": 1,
+      "p95LimitNs": 10000000,
+      "runs": 20
+    },
+    "sortImportDeclarations": {
+      "inputSamples": 4,
+      "iterations": 8,
+      "medianLimitNs": 2000000,
+      "observedMedianNs": 210166,
+      "observedP95Ns": 1758750,
+      "operationsPerSample": 1,
+      "p95LimitNs": 10000000,
+      "runs": 20
+    }
+  },
+  "rules": {
+    "acronym-case": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15192.625,
+      "observedP95Ns": 26177.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "boolean-prefix": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13677,
+      "observedP95Ns": 18630.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "camel-case-identifiers": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13145.875,
+      "observedP95Ns": 20427,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-avoid-layer-explosion": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13302.125,
+      "observedP95Ns": 19979.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-ad-hoc-effect-wrapper-abstractions": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12447.875,
+      "observedP95Ns": 18182.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-async-await-in-effect": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13182.25,
+      "observedP95Ns": 17359.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-catchAll-with-mapError": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13015.625,
+      "observedP95Ns": 18432.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-console-log-in-effect-code": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13911.5,
+      "observedP95Ns": 24177,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-crypto-randomUUID": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12479.25,
+      "observedP95Ns": 18406.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-date-now-in-effect-code": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14151,
+      "observedP95Ns": 30057.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-deprecated-context-tag-function": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12395.875,
+      "observedP95Ns": 16578.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-deprecated-schema-package": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12765.625,
+      "observedP95Ns": 21088.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-direct-clock-random-outside-adapters": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13276,
+      "observedP95Ns": 20317.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-direct-http-fs-outside-platform-services": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14203.125,
+      "observedP95Ns": 25250,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-direct-process-env-outside-config-layer": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13599,
+      "observedP95Ns": 22437.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-duplicate-layer-instances": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13500,
+      "observedP95Ns": 19843.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-effect-fn-iife": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15755.125,
+      "observedP95Ns": 27197.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-effect-in-array-foreach": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13677,
+      "observedP95Ns": 24375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-effect-in-promise-callback": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12911.5,
+      "observedP95Ns": 17031.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-error-channel-widening-to-unknown": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13343.75,
+      "observedP95Ns": 23385.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-floating-effect": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 18625,
+      "observedP95Ns": 33927,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-floating-fiber": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15828.125,
+      "observedP95Ns": 28635.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-focused-effect-tests": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15687.5,
+      "observedP95Ns": 24822.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-fork-daemon-without-cleanup": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15359.375,
+      "observedP95Ns": 20760.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-function-returning-gen": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15588.625,
+      "observedP95Ns": 30781.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-global-error-channel": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15260.375,
+      "observedP95Ns": 19411.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-global-fetch": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 23224,
+      "observedP95Ns": 46661.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-global-timers": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13984.375,
+      "observedP95Ns": 17703.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-json-parse-cast": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14729.125,
+      "observedP95Ns": 37796.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-known-fake-api": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13953.125,
+      "observedP95Ns": 19119.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-leaked-service-dependencies": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14875,
+      "observedP95Ns": 25062.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-live-services-in-unit-tests": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13953.125,
+      "observedP95Ns": 22500,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-math-random-in-effect-code": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15171.875,
+      "observedP95Ns": 36005.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-mixed-effect-import-styles": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15015.625,
+      "observedP95Ns": 24786.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-multiple-provide-chain": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12838.5,
+      "observedP95Ns": 18411.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-native-error-classes": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13390.625,
+      "observedP95Ns": 21088.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-new-promise": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13427.125,
+      "observedP95Ns": 20744.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-node-builtins-when-effect-platform-exists": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13057.375,
+      "observedP95Ns": 40020.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-obsolete-imports": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13026.125,
+      "observedP95Ns": 30395.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-process-env-in-effect-code": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13880.25,
+      "observedP95Ns": 51901.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-promise-returning-public-api": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14333.375,
+      "observedP95Ns": 24489.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-promise-then-in-effect": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12453.125,
+      "observedP95Ns": 18687.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-provide-in-domain-modules": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12421.875,
+      "observedP95Ns": 17130.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-real-sleep-in-tests": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13062.5,
+      "observedP95Ns": 22958.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-run-inside-effect": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13744.875,
+      "observedP95Ns": 33635.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-run-outside-entrypoints": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13677,
+      "observedP95Ns": 20427,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-runSync-in-server-request-handlers": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12739.625,
+      "observedP95Ns": 18552.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-runfork-without-observer": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12817.625,
+      "observedP95Ns": 41802,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-runpromise-in-exported-api": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12823,
+      "observedP95Ns": 19750,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-service-construction-outside-layer": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13114.625,
+      "observedP95Ns": 21296.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-silent-error-swallowing": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15448,
+      "observedP95Ns": 84453.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-skipped-effect-tests": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14114.5,
+      "observedP95Ns": 38484.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-string-errors": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14760.5,
+      "observedP95Ns": 29046.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-sync-for-promise": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14937.5,
+      "observedP95Ns": 212296.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-sync-for-throwing-ops": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15573,
+      "observedP95Ns": 68994.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-test-runtime-leakage": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13635.375,
+      "observedP95Ns": 51010.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-throw": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13312.5,
+      "observedP95Ns": 18515.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-try-catch-in-effect-gen": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13937.5,
+      "observedP95Ns": 18317.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-unbounded-queue": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13276,
+      "observedP95Ns": 18791.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-unbounded-stream-buffer": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13151.125,
+      "observedP95Ns": 28000,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-unnecessary-gen": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15463.5,
+      "observedP95Ns": 30916.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-unsafe-effect-type-assertion": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13020.875,
+      "observedP95Ns": 22229.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-no-untagged-errors": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 18380.25,
+      "observedP95Ns": 39630.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-asVoid": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13671.875,
+      "observedP95Ns": 28708.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-catchTag-over-catchAll": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15520.75,
+      "observedP95Ns": 383703.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1534813,
+      "runs": 20
+    },
+    "effect-prefer-catchTags-for-multiple-tags": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12546.875,
+      "observedP95Ns": 97817.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-config-redacted": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12875,
+      "observedP95Ns": 23484.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-direct-yield-star": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12739.625,
+      "observedP95Ns": 23474,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-effect-fn-for-exported-effects": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13307.25,
+      "observedP95Ns": 33302.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-effect-is": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12536.5,
+      "observedP95Ns": 20494.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-effect-void": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15161.375,
+      "observedP95Ns": 27692.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-flatMap-over-map-flatten": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12984.375,
+      "observedP95Ns": 24776.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-fork-scoped-for-listeners": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15536.5,
+      "observedP95Ns": 186135.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-gen-for-nested-flatmap": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12598.875,
+      "observedP95Ns": 97291.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-gen-over-do": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12437.5,
+      "observedP95Ns": 21927,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-ignore-logged": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12343.75,
+      "observedP95Ns": 18812.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-in-memory-implementations": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12229.125,
+      "observedP95Ns": 19359.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-it-effect-for-unit-tests": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12312.5,
+      "observedP95Ns": 16895.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-mapError-over-catchAll-rethrow": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12812.5,
+      "observedP95Ns": 26786.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-pubsub-for-broadcast": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13994.875,
+      "observedP95Ns": 22343.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-schema-tagged-struct": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 16656.25,
+      "observedP95Ns": 27921.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-single-schema-literal-union": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15807.375,
+      "observedP95Ns": 23229.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-prefer-succeed-for-static-layers": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12750,
+      "observedP95Ns": 20458.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-acquire-release": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12432.25,
+      "observedP95Ns": 22312.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-batching-for-resolver": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12359.375,
+      "observedP95Ns": 16979.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-bounded-concurrency": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13843.75,
+      "observedP95Ns": 88573,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-bounded-flatMap-concurrency": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15515.625,
+      "observedP95Ns": 141093.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-centralized-provision": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12192.625,
+      "observedP95Ns": 19687.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-deterministic-service-keys": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12750,
+      "observedP95Ns": 18760.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-effect-suppression-reason-and-ticket": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12578.125,
+      "observedP95Ns": 22854.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-error-cause-preserved": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12208.25,
+      "observedP95Ns": 17135.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-explicit-asyncPush-buffer": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13895.75,
+      "observedP95Ns": 21515.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-layer-memoization-constant": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12802.125,
+      "observedP95Ns": 19822.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-layer-scoped-when-scope-required": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12395.875,
+      "observedP95Ns": 18750,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-onExit-for-cleanup": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12119.75,
+      "observedP95Ns": 18208.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-platform-runmain-at-entrypoints": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13088.625,
+      "observedP95Ns": 20349,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-provided-services-in-tests": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13447.875,
+      "observedP95Ns": 18880.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-ref-for-shared-mutable-state": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12546.875,
+      "observedP95Ns": 16578.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-restore-for-fork-in-uninterruptible": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12651.125,
+      "observedP95Ns": 22963.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-retry-policy-for-idempotent-external-effects": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14260.5,
+      "observedP95Ns": 25484.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-return-yield-star": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 17260.375,
+      "observedP95Ns": 53328.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-schedule-jitter-for-retries": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13255.25,
+      "observedP95Ns": 27880.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-schema-is-over-instanceof": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12885.375,
+      "observedP95Ns": 19510.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-scoped-for-acquireRelease": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12562.5,
+      "observedP95Ns": 21953.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-scoped-for-resource-layers": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12994.875,
+      "observedP95Ns": 19536.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-scoped-for-resources": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12546.875,
+      "observedP95Ns": 21817.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-scoped-in-loops": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13791.625,
+      "observedP95Ns": 30302.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-semaphore-for-shared-resources": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13109.375,
+      "observedP95Ns": 26651.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-service-class-pattern": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13187.5,
+      "observedP95Ns": 25541.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-service-self-match": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13072.875,
+      "observedP95Ns": 31958.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-span-external": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15130.125,
+      "observedP95Ns": 22958.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-stream-resource-safety": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15322.875,
+      "observedP95Ns": 26968.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-stream-termination": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14500,
+      "observedP95Ns": 19203.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-suspend-for-circular-deps": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15750,
+      "observedP95Ns": 198125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-suspend-for-lazy-evaluation": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14651.125,
+      "observedP95Ns": 26640.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-suspend-for-recursion": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 16296.875,
+      "observedP95Ns": 71541.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-tag-identifier": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14187.5,
+      "observedP95Ns": 19625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-testclock-for-time-code": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15031.25,
+      "observedP95Ns": 28244.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-timeout-on-external-effects": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14406.25,
+      "observedP95Ns": 23260.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-typed-error-in-trypromise": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 16776.125,
+      "observedP95Ns": 44536.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-require-yield-star": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 17864.625,
+      "observedP95Ns": 124250,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-avoid-old-type-names": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15786.5,
+      "observedP95Ns": 96026.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-correct-number-type-for-parsed-json": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14901,
+      "observedP95Ns": 37291.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-no-cast-after-decode": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14385.375,
+      "observedP95Ns": 38156.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-no-unknown-crossing-boundary": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13453.125,
+      "observedP95Ns": 24661.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-no-unsafe-sync-decode-in-effect-code": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15234.375,
+      "observedP95Ns": 32041.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-prefer-decodeUnknown-effect": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15718.75,
+      "observedP95Ns": 44213.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-prefer-taggedClass-over-manual-tag": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13588.5,
+      "observedP95Ns": 67427.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-config-schema": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13026,
+      "observedP95Ns": 113427.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-http-client-response-schema": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13046.875,
+      "observedP95Ns": 22083.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-http-server-request-schema": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 16224,
+      "observedP95Ns": 28739.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-parse-error-handling": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15932.375,
+      "observedP95Ns": 52203.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-parseJson-for-json-strings": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 17796.875,
+      "observedP95Ns": 93750,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-persistence-schema": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12823,
+      "observedP95Ns": 18406.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-public-command-schema": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12974,
+      "observedP95Ns": 18890.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-validation-at-input-boundaries": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12375,
+      "observedP95Ns": 19593.75,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-require-validation-at-output-boundaries": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13593.75,
+      "observedP95Ns": 27083.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-schema-use-decodeUnknown-for-external-data": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13062.5,
+      "observedP95Ns": 21156.25,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-test-no-runpromise": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13302.125,
+      "observedP95Ns": 26203.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-testClock-requires-fork": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12838.625,
+      "observedP95Ns": 17312.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-testClock-requires-testContext": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13244.75,
+      "observedP95Ns": 23989.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-use-batched-resolver-for-n-plus-one": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13599,
+      "observedP95Ns": 27958.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-use-duration-constructors": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 14015.625,
+      "observedP95Ns": 27875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "effect-use-exit-for-failure-tests": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12937.5,
+      "observedP95Ns": 21921.875,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "max-import-depth": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12750,
+      "observedP95Ns": 18635.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "max-line-length": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12760.375,
+      "observedP95Ns": 29812.5,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "no-commented-out-code": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 16869.75,
+      "observedP95Ns": 25635.375,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "no-dynamic-js-extension-imports": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13255.25,
+      "observedP95Ns": 23151,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "no-local-export-list": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12520.75,
+      "observedP95Ns": 23489.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "pascal-case-types": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13151,
+      "observedP95Ns": 22328.125,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "private-underscore": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 12557.25,
+      "observedP95Ns": 19000,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "require-file-doc": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 13151,
+      "observedP95Ns": 21963.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    },
+    "require-function-doc": {
+      "inputSamples": 6,
+      "iterations": 80,
+      "medianLimitNs": 250000,
+      "observedMedianNs": 15182.375,
+      "observedP95Ns": 26692.625,
+      "operationsPerSample": 8,
+      "p95LimitNs": 1000000,
+      "runs": 20
+    }
+  }
+}
