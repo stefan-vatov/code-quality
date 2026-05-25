@@ -81,7 +81,6 @@ jobs:
           pnpm run knip:ci
           pnpm run check
           pnpm run test:projects
-          pnpm run performance:gate
           pnpm run build
           pnpm nx run-many -t pack
 
@@ -104,7 +103,6 @@ jobs:
           pnpm run knip:ci
           pnpm run check
           pnpm run test:projects
-          pnpm run performance:gate
           pnpm run build
           pnpm nx run-many -t pack
 

@@ -47,7 +47,7 @@ describe('performance gate configuration', () => {
     ]);
   });
 
-  it('wires the performance gate into package scripts and pre-push checks', () => {
+  it('keeps the performance gate local to package scripts and pre-push checks', () => {
     const packageJSON = rootJSON('package.json') as { scripts?: Record<string, string> };
     const prePush = rootText('.husky/pre-push');
     const ciWorkflow = rootText('.github/workflows/ci.yml');
@@ -60,8 +60,8 @@ describe('performance gate configuration', () => {
       'tsx ts/bench/performance-gate.ts --update --runs 20',
     );
     expect(prePush).toContain('pnpm run performance:gate');
-    expect(ciWorkflow).toContain('run: pnpm run performance:gate');
-    expect(releaseWorkflow).toContain('pnpm run performance:gate');
+    expect(ciWorkflow).not.toContain('pnpm run performance:gate');
+    expect(releaseWorkflow).not.toContain('pnpm run performance:gate');
   });
 
   it('keeps fast custom rule p95 budgets above normal pre-push timer jitter', () => {
