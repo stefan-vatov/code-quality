@@ -1,6 +1,8 @@
 /* -------------------------------------------------------------------------- */
 /*      ASCII character classification table for hot-path lint helpers.       */
 /* -------------------------------------------------------------------------- */
+import { Array, pipe } from 'effect';
+
 const ASCII_TABLE_SIZE = 128;
 const CHAR_CODE_ZERO = 48;
 const CHAR_CODE_NINE = 57;
@@ -14,28 +16,40 @@ const CLASS_LOWER_BIT = 2;
 const CLASS_DIGIT_BIT = 4;
 const CLASS_UNDERSCORE_BIT = 8;
 
+const buildCharClass = (): Uint8Array => {
+  const charClass = new Uint8Array(ASCII_TABLE_SIZE);
+
+  pipe(
+    Array.range(CHAR_CODE_UPPER_A, CHAR_CODE_UPPER_Z),
+    Array.forEach((idx): void => {
+      charClass[idx] = CLASS_UPPER_BIT;
+    }),
+  );
+
+  pipe(
+    Array.range(CHAR_CODE_LOWER_A, CHAR_CODE_LOWER_Z),
+    Array.forEach((idx): void => {
+      charClass[idx] = CLASS_LOWER_BIT;
+    }),
+  );
+
+  pipe(
+    Array.range(CHAR_CODE_ZERO, CHAR_CODE_NINE),
+    Array.forEach((idx): void => {
+      charClass[idx] = CLASS_DIGIT_BIT;
+    }),
+  );
+
+  charClass[CHAR_CODE_UNDERSCORE] = CLASS_UNDERSCORE_BIT;
+  return charClass;
+};
+
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const CHAR_CLASS = new Uint8Array(ASCII_TABLE_SIZE);
-
-// Populate at module init.
-// A-Z
-for (let idx = CHAR_CODE_UPPER_A; idx <= CHAR_CODE_UPPER_Z; idx++) {
-  CHAR_CLASS[idx] = CLASS_UPPER_BIT;
-}
-// Lowercase letters.
-for (let idx = CHAR_CODE_LOWER_A; idx <= CHAR_CODE_LOWER_Z; idx++) {
-  CHAR_CLASS[idx] = CLASS_LOWER_BIT;
-}
-// 0-9
-for (let idx = CHAR_CODE_ZERO; idx <= CHAR_CODE_NINE; idx++) {
-  CHAR_CLASS[idx] = CLASS_DIGIT_BIT;
-}
-// Underscore.
-CHAR_CLASS[CHAR_CODE_UNDERSCORE] = CLASS_UNDERSCORE_BIT;
+export const CHAR_CLASS = buildCharClass();
 
 /**
  * Internal helper exported for package-local composition.
