@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3 - 2026-05-25
+
+### Fixes
+
+- fix: make thracian lint rules less brittle (#15) (0030478)
+
 ## 0.3.2 - 2026-05-25
 
 ### Changes
