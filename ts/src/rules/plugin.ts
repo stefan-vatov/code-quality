@@ -473,5 +473,9 @@ if (!isPlugin(plugin)) {
   throw new TypeError('Invalid The Thracian Oxlint plugin shape.');
 }
 
-/** @internal Oxlint-compatible JavaScript plugin containing The Thracian custom rules. */
+/**
+ * Oxlint-compatible JavaScript plugin containing The Thracian custom rules.
+ *
+ * @internal
+ */
 export default eslintCompatPlugin(plugin);
