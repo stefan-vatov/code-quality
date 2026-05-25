@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*            Conservative codemod for local export-list rewrites.            */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Option, Order, Predicate, pipe } from 'effect';
 import type {
   Declaration,
   ExportNamedDeclaration,
@@ -30,43 +31,49 @@ const exportKeyword = 'export ';
 const codemodAPI = jscodeshift.withParser('ts');
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
+  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
-  [...replacements]
-    .sort((left, right) => right.start - left.start)
-    .reduce(
+  pipe(
+    replacements,
+    Array.sortWith((replacement) => -replacement.start, Order.number),
+    Array.reduce(
+      source,
       (current, replacement) =>
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
-      source,
-    );
+    ),
+  );
 
-const nodeStart = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { start } = node;
-    if (typeof start === 'number') {
-      return start;
-    }
-  }
-  throw new Error('jscodeshift node is missing a start offset');
-};
+const nodeStart = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.start),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
+  );
 
-const nodeEnd = (node: unknown): number => {
-  if (isObjectRecord(node)) {
-    const { end } = node;
-    if (typeof end === 'number') {
-      return end;
-    }
-  }
-  throw new Error('jscodeshift node is missing an end offset');
-};
+const nodeEnd = (node: unknown): number =>
+  pipe(
+    Option.some(node),
+    Option.filter(isObjectRecord),
+    Option.flatMapNullable((value) => value.end),
+    Option.filter(Predicate.isNumber),
+    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
+  );
 
 const lineEndAfter = (source: string, position: number): number => {
   const newline = source.indexOf('\n', position);
-  if (newline === -1) {
-    return source.length;
-  }
-  return newline + 1;
+  return pipe(
+    Option.some(newline),
+    Option.map((value): number => {
+      if (value === -1) {
+        return source.length;
+      }
+      return value + 1;
+    }),
+    Option.getOrElse((): number => source.length),
+  );
 };
 
 const isIdentifier = (node: unknown): node is Identifier =>
@@ -81,30 +88,50 @@ const isVariableDeclaration = (declaration: Declaration): declaration is Variabl
 const isVariableDeclarator = (declaration: unknown): declaration is VariableDeclarator =>
   isObjectRecord(declaration) && 'id' in declaration;
 
-const exportSpecifierName = (specifier: unknown): string | undefined => {
-  if (!isObjectRecord(specifier) || specifier.type !== 'ExportSpecifier') {
-    return undefined;
-  }
-  const { exported, local } = specifier;
-  if (!isIdentifier(local) || !isIdentifier(exported)) {
-    return undefined;
-  }
-  if (local.name !== exported.name) {
-    return undefined;
-  }
-  return local.name;
-};
+const exportSpecifierName = (specifier: unknown): string | undefined =>
+  pipe(
+    Option.some(specifier),
+    Option.filter(isObjectRecord),
+    Option.filter((value): boolean => value.type === 'ExportSpecifier'),
+    Option.flatMap((value) =>
+      pipe(
+        Option.all({
+          exported: Option.fromNullable(value.exported),
+          local: Option.fromNullable(value.local),
+        }),
+        Option.filter(
+          ({ exported, local }): boolean => isIdentifier(local) && isIdentifier(exported),
+        ),
+        Option.filter(({ exported, local }): boolean => {
+          if (!isIdentifier(local) || !isIdentifier(exported)) {
+            return false;
+          }
+          return local.name === exported.name;
+        }),
+        Option.map(({ local }): string => {
+          if (!isIdentifier(local)) {
+            return '';
+          }
+          return local.name;
+        }),
+        Option.filter((name): boolean => name.length > 0),
+      ),
+    ),
+    Option.getOrUndefined,
+  );
 
 const exportSpecifierNames = (specifiers: readonly unknown[]): string[] | undefined => {
-  const names: string[] = [];
-  for (const specifier of specifiers) {
-    const name = exportSpecifierName(specifier);
-    if (!name) {
-      return undefined;
-    }
-    names.push(name);
+  const names = pipe(
+    specifiers,
+    Array.map((specifier) => Option.fromNullable(exportSpecifierName(specifier))),
+  );
+  if (names.some(Option.isNone)) {
+    return undefined;
   }
-  return names;
+  return pipe(
+    names,
+    Array.filterMap((name) => name),
+  );
 };
 
 const localExportListFor = (
@@ -116,35 +143,42 @@ const localExportListFor = (
     return undefined;
   }
 
-  const names = exportSpecifierNames(specifiers);
-  if (!names) {
-    return undefined;
-  }
-
-  return {
-    names,
-    range: {
-      end: lineEndAfter(source, nodeEnd(node)),
-      start: nodeStart(node),
-      text: '',
-    },
-  };
+  return pipe(
+    Option.fromNullable(exportSpecifierNames(specifiers)),
+    Option.map(
+      (names): ExportList => ({
+        names,
+        range: {
+          end: lineEndAfter(source, nodeEnd(node)),
+          start: nodeStart(node),
+          text: '',
+        },
+      }),
+    ),
+    Option.getOrUndefined,
+  );
 };
 
 const variableStatementNames = (node: VariableDeclaration): readonly string[] =>
-  node.declarations.flatMap((declaration): string[] => {
-    if (isVariableDeclarator(declaration) && isIdentifier(declaration.id)) {
-      return [declaration.id.name];
-    }
-    return [];
-  });
+  pipe(
+    node.declarations,
+    Array.filterMap((declaration) => {
+      if (isVariableDeclarator(declaration) && isIdentifier(declaration.id)) {
+        return Option.some(declaration.id.name);
+      }
+      return Option.none<string>();
+    }),
+  );
 
-const declarationName = (node: Declaration): string | undefined => {
-  if (!isObjectRecord(node) || !isIdentifier(node.id)) {
-    return undefined;
-  }
-  return node.id.name;
-};
+const declarationName = (node: Declaration): string | undefined =>
+  pipe(
+    Option.some(node as unknown),
+    Option.filter(isObjectRecord),
+    Option.flatMap((value) => Option.fromNullable(value.id)),
+    Option.filter(isIdentifier),
+    Option.map((value): string => value.name),
+    Option.getOrUndefined,
+  );
 
 const unwrappedDeclaration = (node: Statement): Declaration | undefined => {
   if (isExportNamedDeclaration(node)) {
@@ -156,68 +190,78 @@ const unwrappedDeclaration = (node: Statement): Declaration | undefined => {
   return undefined;
 };
 
-const declarationNames = (node: Statement): readonly string[] => {
-  const declaration = unwrappedDeclaration(node);
-  if (!declaration) {
-    return [];
-  }
-  if (isVariableDeclaration(declaration)) {
-    return variableStatementNames(declaration);
-  }
-  const name = declarationName(declaration);
-  if (name) {
-    return [name];
-  }
-  return [];
-};
+const declarationNames = (node: Statement): readonly string[] =>
+  pipe(
+    Option.fromNullable(unwrappedDeclaration(node)),
+    Option.match({
+      onNone: (): readonly string[] => [],
+      onSome: (declaration): readonly string[] => {
+        if (isVariableDeclaration(declaration)) {
+          return variableStatementNames(declaration);
+        }
+        return pipe(
+          Option.fromNullable(declarationName(declaration)),
+          Option.match({
+            onNone: (): readonly string[] => [],
+            onSome: (name): readonly string[] => [name],
+          }),
+        );
+      },
+    }),
+  );
 
-const inlineExportReplacement = (statement: Statement): Replacement | undefined => {
-  if (isExportNamedDeclaration(statement)) {
-    return undefined;
-  }
-  return {
-    end: nodeStart(statement),
-    start: nodeStart(statement),
-    text: exportKeyword,
-  };
-};
+const inlineExportReplacement = (statement: Statement): Replacement | undefined =>
+  pipe(
+    Option.some(statement),
+    Option.filter((value): boolean => !isExportNamedDeclaration(value)),
+    Option.map(
+      (value): Replacement => ({
+        end: nodeStart(value),
+        start: nodeStart(value),
+        text: exportKeyword,
+      }),
+    ),
+    Option.getOrUndefined,
+  );
 
 const collectExportLists = (
   source: string,
   statements: readonly Statement[],
 ): readonly ExportList[] =>
-  statements.flatMap((statement): ExportList[] => {
-    if (!isExportNamedDeclaration(statement)) {
-      return [];
-    }
-    const exportList = localExportListFor(source, statement);
-    if (exportList) {
-      return [exportList];
-    }
-    return [];
-  });
+  pipe(
+    statements,
+    Array.filterMap((statement) => {
+      if (isExportNamedDeclaration(statement)) {
+        return Option.fromNullable(localExportListFor(source, statement));
+      }
+      return Option.none<ExportList>();
+    }),
+  );
 
-const sourceProgram = (source: string): ProgramLike | undefined => {
-  const [programPath] = codemodAPI(source).find(codemodAPI.Program).paths();
-  if (!programPath) {
-    return undefined;
-  }
-  return programPath.value;
-};
+const sourceProgram = (source: string): ProgramLike | undefined =>
+  pipe(
+    codemodAPI(source).find(codemodAPI.Program).paths(),
+    Array.head,
+    Option.map((programPath): ProgramLike => programPath.value),
+    Option.getOrUndefined,
+  );
 
 const appendInlineExportReplacements = (
   replacements: Replacement[],
   statements: readonly Statement[],
-  names: ReadonlySet<string>,
+  names: HashSet.HashSet<string>,
 ): void => {
-  for (const statement of statements) {
-    if (declarationNames(statement).some((name) => names.has(name))) {
-      const replacement = inlineExportReplacement(statement);
-      if (replacement) {
-        replacements.push(replacement);
-      }
-    }
-  }
+  pipe(
+    statements,
+    Array.filter((statement): boolean =>
+      pipe(
+        declarationNames(statement),
+        Array.some((name): boolean => HashSet.has(names, name)),
+      ),
+    ),
+    Array.filterMap((statement) => Option.fromNullable(inlineExportReplacement(statement))),
+    Array.map((replacement): number => replacements.push(replacement)),
+  );
 };
 
 const collectExportListReplacements = (source: string): Replacement[] => {
@@ -226,8 +270,16 @@ const collectExportListReplacements = (source: string): Replacement[] => {
     return [];
   }
   const exportLists = collectExportLists(source, program.body);
-  const names = new Set(exportLists.flatMap((exportList) => [...exportList.names]));
-  const replacements: Replacement[] = exportLists.map((exportList) => exportList.range);
+  const names = HashSet.fromIterable(
+    pipe(
+      exportLists,
+      Array.flatMap((exportList) => exportList.names),
+    ),
+  );
+  const replacements: Replacement[] = pipe(
+    exportLists,
+    Array.map((exportList) => exportList.range),
+  );
   appendInlineExportReplacements(replacements, program.body, names);
   return replacements;
 };
