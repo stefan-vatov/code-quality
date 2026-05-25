@@ -37,6 +37,7 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@effect/platform-node": "0.106.0",
     "@oxlint/plugins": "^1.66.0",
     "effect": "3.21.2",
     "jscodeshift": "^17.3.0",

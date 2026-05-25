@@ -1,6 +1,8 @@
 /* -------------------------------------------------------------------------- */
 /*       Backward-compatible local runner for TypeScript codemod fixes.       */
 /* -------------------------------------------------------------------------- */
+import { Array, Effect, pipe } from 'effect';
+import { NodeRuntime } from '@effect/platform-node';
 import { codemodFix } from '../codemod-fix/index';
 
 export {
@@ -12,11 +14,22 @@ export {
 
 const defaultPaths = ['ts/src'] as const;
 
-const paths = process.argv.slice(2);
-let selectedPaths: readonly string[] = defaultPaths;
-if (paths.length > 0) {
-  selectedPaths = paths;
-}
-const result = codemodFix({ paths: selectedPaths });
+const selectedPaths = pipe(process.argv.slice(2), (paths): readonly string[] => {
+  if (Array.isNonEmptyReadonlyArray(paths)) {
+    return paths;
+  }
+  return defaultPaths;
+});
 
-process.stdout.write(`Applied TypeScript codemods to ${result.changedFiles.length} file(s).\n`);
+type CodemodFixResult = ReturnType<typeof codemodFix>;
+
+const applyCodemodFix = Effect.sync(() => codemodFix({ paths: selectedPaths }));
+
+const writeCodemodSummary = (result: CodemodFixResult): Effect.Effect<void> => {
+  const message = `Applied TypeScript codemods to ${result.changedFiles.length} file(s).\n`;
+  return Effect.sync(() => process.stdout.write(message));
+};
+
+const program = pipe(applyCodemodFix, Effect.tap(writeCodemodSummary));
+
+NodeRuntime.runMain(program);
