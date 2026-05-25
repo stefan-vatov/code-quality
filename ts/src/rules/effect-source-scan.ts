@@ -1,28 +1,49 @@
 /* -------------------------------------------------------------------------- */
 /*              Source scanning utilities for Effect lint rules.              */
 /* -------------------------------------------------------------------------- */
-import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class';
+import { Array, Option, pipe } from 'effect';
+import { findREGEXLiteralEnd, isREGEXLiteralStart } from './effect-source-regex-scan';
 
-const regexPrefixChars = new Set(['(', '[', '{', '=', ':', ',', ';', '!', '?', '&', '|']);
-const regexPrefixWords = new Set(['case', 'delete', 'return', 'throw', 'typeof', 'void', 'yield']);
+export { findREGEXLiteralEnd, isREGEXLiteralStart } from './effect-source-regex-scan';
+
 const STRIP_CACHE_MAX = 256;
 const codeOnlyCache = new Map<string, string>();
-const IDENTIFIER_MASK = CLS_UPPER | CLS_LOWER | CLS_DIGIT | CLS_UNDER;
-const CHAR_CODE_SPACE = 32;
-const CHAR_CODE_TAB = 9;
-const CHAR_CODE_NEWLINE = 10;
-const CHAR_CODE_CARRIAGE_RETURN = 13;
-const CHAR_CODE_VERTICAL_TAB = 11;
-const CHAR_CODE_FORM_FEED = 12;
-const CHAR_CODE_DOLLAR = 36;
 
-const isWhitespaceCode = (code: number): boolean =>
-  code === CHAR_CODE_SPACE ||
-  code === CHAR_CODE_TAB ||
-  code === CHAR_CODE_NEWLINE ||
-  code === CHAR_CODE_CARRIAGE_RETURN ||
-  code === CHAR_CODE_VERTICAL_TAB ||
-  code === CHAR_CODE_FORM_FEED;
+interface StripState {
+  index: number;
+  isBlockComment: boolean;
+  isEscaped: boolean;
+  isLineComment: boolean;
+  quote: string;
+  stripped: string;
+  templateExpressionDepth: number;
+}
+
+interface QuoteState {
+  isEscaped: boolean;
+  quote: string;
+}
+
+interface QuoteOrNonCodeScanResult {
+  index: number;
+  quoteState: QuoteState;
+}
+
+interface DepthScanResult {
+  depth: number;
+  index: number;
+  isEnd: boolean;
+  quoteState: QuoteState;
+}
+
+type DepthReduceState = DepthScanResult & { endIndex: number };
+
+const scanIndexes = (startIndex: number, endIndex: number): readonly number[] => {
+  if (startIndex > endIndex) {
+    return [];
+  }
+  return Array.range(startIndex, endIndex);
+};
 
 const appendNewlineOrBlank = (output: string, char: string): string => {
   if (char === '\n') {
@@ -38,28 +59,11 @@ const appendPreservedOrBlank = (output: string, shouldPreserve: boolean, char: s
   return `${output} `;
 };
 
-interface StripState {
-  index: number;
-  isBlockComment: boolean;
-  isEscaped: boolean;
-  isLineComment: boolean;
-  quote: string;
-  stripped: string;
-  templateExpressionDepth: number;
-}
-
 const lineCommentStep = (state: StripState, char: string): StripState => {
   if (char === '\n') {
-    return {
-      ...state,
-      isLineComment: false,
-      stripped: state.stripped + char,
-    };
+    return { ...state, isLineComment: false, stripped: state.stripped + char };
   }
-  return {
-    ...state,
-    stripped: `${state.stripped} `,
-  };
+  return { ...state, stripped: `${state.stripped} ` };
 };
 
 const blockCommentStep = (
@@ -75,10 +79,7 @@ const blockCommentStep = (
       stripped: `${state.stripped}  `,
     };
   }
-  return {
-    ...state,
-    stripped: appendNewlineOrBlank(state.stripped, char),
-  };
+  return { ...state, stripped: appendNewlineOrBlank(state.stripped, char) };
 };
 
 const templateInterpolationStartStep = (state: StripState): StripState => ({
@@ -90,34 +91,21 @@ const templateInterpolationStartStep = (state: StripState): StripState => ({
 });
 
 const quotedStep = (state: StripState, char: string, nextChar: string | undefined): StripState => {
-  const shouldPreserve = char === '\n';
   if (state.quote === '`' && char === '$' && nextChar === '{' && !state.isEscaped) {
     return templateInterpolationStartStep(state);
   }
   if (state.isEscaped) {
-    return {
-      ...state,
-      isEscaped: false,
-      stripped: appendNewlineOrBlank(state.stripped, char),
-    };
+    return { ...state, isEscaped: false, stripped: appendNewlineOrBlank(state.stripped, char) };
   }
   if (char === '\\') {
-    return {
-      ...state,
-      isEscaped: true,
-      stripped: appendNewlineOrBlank(state.stripped, char),
-    };
+    return { ...state, isEscaped: true, stripped: appendNewlineOrBlank(state.stripped, char) };
   }
   if (char === state.quote) {
-    return {
-      ...state,
-      quote: '',
-      stripped: state.stripped + char,
-    };
+    return { ...state, quote: '', stripped: state.stripped + char };
   }
   return {
     ...state,
-    stripped: appendPreservedOrBlank(state.stripped, shouldPreserve || char === state.quote, char),
+    stripped: appendPreservedOrBlank(state.stripped, char === '\n' || char === state.quote, char),
   };
 };
 
@@ -138,18 +126,9 @@ const templateBraceStep = (state: StripState, char: string): StripState | undefi
 
   const templateExpressionDepth = state.templateExpressionDepth - 1;
   if (templateExpressionDepth === 0) {
-    return {
-      ...state,
-      quote: '`',
-      stripped: `${state.stripped} `,
-      templateExpressionDepth,
-    };
+    return { ...state, quote: '`', stripped: `${state.stripped} `, templateExpressionDepth };
   }
-  return {
-    ...state,
-    stripped: state.stripped + char,
-    templateExpressionDepth,
-  };
+  return { ...state, stripped: state.stripped + char, templateExpressionDepth };
 };
 
 const codeStep = (
@@ -200,7 +179,10 @@ const stripCodeOnlyStep = (source: string, state: StripState): StripState => {
   if (state.quote) {
     return quotedStep(state, char, nextChar);
   }
-  return templateBraceStep(state, char) ?? codeStep(source, state, char, nextChar);
+  return pipe(
+    Option.fromNullable(templateBraceStep(state, char)),
+    Option.getOrElse((): StripState => codeStep(source, state, char, nextChar)),
+  );
 };
 
 const initialStripState = (): StripState => ({
@@ -212,24 +194,6 @@ const initialStripState = (): StripState => ({
   stripped: '',
   templateExpressionDepth: 0,
 });
-
-const isASCIIIdentifierChar = (source: string, index: number): boolean => {
-  const code = source.charCodeAt(index);
-  return (
-    code === CHAR_CODE_DOLLAR ||
-    (code < CHAR_CLASS.length && (CHAR_CLASS[code] & IDENTIFIER_MASK) !== 0)
-  );
-};
-
-const isASCIILetter = (source: string, index: number): boolean => {
-  const code = source.charCodeAt(index);
-  return code < CHAR_CLASS.length && (CHAR_CLASS[code] & (CLS_UPPER | CLS_LOWER)) !== 0;
-};
-
-interface QuoteState {
-  isEscaped: boolean;
-  quote: string;
-}
 
 const quoteStart = (char: string): string => {
   if (char === '"' || char === "'" || char === '`') {
@@ -251,158 +215,40 @@ const nextQuoteState = (state: QuoteState, char: string): QuoteState => {
   return state;
 };
 
-const cached = (cache: Map<string, string>, source: string): string | undefined =>
-  cache.get(source);
-
 const cacheResult = (cache: Map<string, string>, source: string, value: string): string => {
   if (cache.size >= STRIP_CACHE_MAX) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey !== undefined) {
-      cache.delete(firstKey);
-    }
+    pipe(
+      Option.fromNullable(cache.keys().next().value),
+      Option.map((firstKey): boolean => cache.delete(firstKey)),
+    );
   }
   cache.set(source, value);
   return value;
 };
 
-const previousSignificantIndex = (source: string, index: number): number => {
-  for (let cursor = index - 1; cursor >= 0; cursor--) {
-    if (!isWhitespaceCode(source.charCodeAt(cursor))) {
-      return cursor;
-    }
-  }
-
-  return -1;
-};
-
-const wordBefore = (source: string, index: number): string => {
-  const endIndex = previousSignificantIndex(source, index);
-  if (endIndex === -1 || !isASCIIIdentifierChar(source, endIndex)) {
-    return '';
-  }
-
-  let startIndex = endIndex;
-  while (startIndex > 0 && isASCIIIdentifierChar(source, startIndex - 1)) {
-    startIndex--;
-  }
-
-  return source.slice(startIndex, endIndex + 1);
-};
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const isREGEXLiteralStart = (source: string, index: number): boolean => {
-  if (source[index] !== '/' || source[index + 1] === '/' || source[index + 1] === '*') {
-    return false;
-  }
-
-  const previousIndex = previousSignificantIndex(source, index);
-  if (previousIndex === -1) {
-    return true;
-  }
-
-  return (
-    regexPrefixChars.has(source[previousIndex]) || regexPrefixWords.has(wordBefore(source, index))
+const skipLineCommentIndex = (source: string, index: number): number =>
+  pipe(
+    Option.fromNullable(source.indexOf('\n', index + 2)),
+    Option.map((newlineIndex): number => {
+      if (newlineIndex === -1) {
+        return source.length;
+      }
+      return newlineIndex;
+    }),
+    Option.getOrElse((): number => source.length),
   );
-};
 
-const regexFlagsEndIndex = (source: string, index: number): number => {
-  let flagsEndIndex = index;
-  while (isASCIILetter(source, flagsEndIndex + 1)) {
-    flagsEndIndex++;
-  }
-  return flagsEndIndex;
-};
-
-const scanREGEXDelimiter = (
-  source: string,
-  index: number,
-  isCharacterClass: boolean,
-): { endIndex?: number; isCharacterClass: boolean; isEscaped: boolean } | undefined => {
-  const char = source[index];
-  if (char === '\n') {
-    return { endIndex: -1, isCharacterClass, isEscaped: false };
-  }
-  if (char === '/' && !isCharacterClass) {
-    return { endIndex: regexFlagsEndIndex(source, index), isCharacterClass, isEscaped: false };
-  }
-  return undefined;
-};
-
-const scanREGEXCharacterClass = (
-  char: string,
-  isCharacterClass: boolean,
-): { isCharacterClass: boolean; isEscaped: boolean } => {
-  if (char === '[') {
-    return { isCharacterClass: true, isEscaped: false };
-  }
-  if (char === ']') {
-    return { isCharacterClass: false, isEscaped: false };
-  }
-  return { isCharacterClass, isEscaped: false };
-};
-
-const scanREGEXLiteralChar = (
-  source: string,
-  index: number,
-  isEscaped: boolean,
-  isCharacterClass: boolean,
-): { endIndex?: number; isCharacterClass: boolean; isEscaped: boolean } => {
-  const char = source[index];
-  if (isEscaped) {
-    return { isCharacterClass, isEscaped: false };
-  }
-  if (char === '\\') {
-    return { isCharacterClass, isEscaped: true };
-  }
-  const delimiter = scanREGEXDelimiter(source, index, isCharacterClass);
-  if (delimiter) {
-    return delimiter;
-  }
-  return scanREGEXCharacterClass(char, isCharacterClass);
-};
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const findREGEXLiteralEnd = (source: string, startIndex: number): number => {
-  let isEscaped = false;
-  let isCharacterClass = false;
-
-  for (let index = startIndex + 1; index < source.length; index++) {
-    const result = scanREGEXLiteralChar(source, index, isEscaped, isCharacterClass);
-    if (result.endIndex === -1) {
-      return startIndex;
-    }
-    if (result.endIndex !== undefined) {
-      return result.endIndex;
-    }
-    ({ isCharacterClass, isEscaped } = result);
-  }
-
-  return startIndex;
-};
-
-const skipLineCommentIndex = (source: string, index: number): number => {
-  const newlineIndex = source.indexOf('\n', index + 2);
-  if (newlineIndex === -1) {
-    return source.length;
-  }
-  return newlineIndex;
-};
-
-const skipBlockCommentIndex = (source: string, index: number): number => {
-  const commentEnd = source.indexOf('*/', index + 2);
-  if (commentEnd === -1) {
-    return source.length;
-  }
-  return commentEnd + 1;
-};
+const skipBlockCommentIndex = (source: string, index: number): number =>
+  pipe(
+    Option.fromNullable(source.indexOf('*/', index + 2)),
+    Option.map((commentEnd): number => {
+      if (commentEnd === -1) {
+        return source.length;
+      }
+      return commentEnd + 1;
+    }),
+    Option.getOrElse((): number => source.length),
+  );
 
 const skipNonCodeIndex = (source: string, index: number): number | undefined => {
   const char = source[index];
@@ -423,7 +269,7 @@ const quoteOrNonCodeScan = (
   source: string,
   index: number,
   quoteState: QuoteState,
-): { index: number; quoteState: QuoteState } | undefined => {
+): QuoteOrNonCodeScanResult | undefined => {
   const char = source[index];
   if (quoteState.quote) {
     return { index, quoteState: nextQuoteState(quoteState, char) };
@@ -432,11 +278,11 @@ const quoteOrNonCodeScan = (
   if (quote) {
     return { index, quoteState: { isEscaped: false, quote } };
   }
-  const nonCodeIndex = skipNonCodeIndex(source, index);
-  if (nonCodeIndex !== undefined) {
-    return { index: nonCodeIndex, quoteState };
-  }
-  return undefined;
+  return pipe(
+    Option.fromNullable(skipNonCodeIndex(source, index)),
+    Option.map((nonCodeIndex): QuoteOrNonCodeScanResult => ({ index: nonCodeIndex, quoteState })),
+    Option.getOrUndefined,
+  );
 };
 
 const nextBalancedCallScan = (
@@ -444,97 +290,129 @@ const nextBalancedCallScan = (
   index: number,
   depth: number,
   quoteState: QuoteState,
-): { depth: number; index: number; isEnd: boolean; quoteState: QuoteState } => {
-  const quoteOrNonCode = quoteOrNonCodeScan(source, index, quoteState);
-  if (quoteOrNonCode) {
-    return { ...quoteOrNonCode, depth, isEnd: false };
-  }
-  const char = source[index];
-  if (char === '(') {
-    return { depth: depth + 1, index, isEnd: false, quoteState };
-  }
-  if (char !== ')') {
-    return { depth, index, isEnd: false, quoteState };
-  }
-  return { depth: depth - 1, index, isEnd: depth - 1 === 0, quoteState };
-};
+): DepthScanResult =>
+  pipe(
+    Option.fromNullable(quoteOrNonCodeScan(source, index, quoteState)),
+    Option.match({
+      onNone: (): DepthScanResult => {
+        const char = source[index];
+        if (char === '(') {
+          return { depth: depth + 1, index, isEnd: false, quoteState };
+        }
+        if (char === ')') {
+          return { depth: depth - 1, index, isEnd: depth - 1 === 0, quoteState };
+        }
+        return { depth, index, isEnd: false, quoteState };
+      },
+      onSome: (quoteOrNonCode): DepthScanResult => ({ ...quoteOrNonCode, depth, isEnd: false }),
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const findBalancedCallEnd = (source: string, openParenIndex: number): number => {
-  let depth = 0;
-  let quoteState = { isEscaped: false, quote: '' };
-
-  for (let index = openParenIndex; index < source.length; index++) {
-    const next = nextBalancedCallScan(source, index, depth, quoteState);
-    if (next.isEnd) {
-      return index;
-    }
-    ({ depth, index, quoteState } = next);
-  }
-
-  return source.length - 1;
-};
+export const findBalancedCallEnd = (source: string, openParenIndex: number): number =>
+  pipe(
+    scanIndexes(openParenIndex, source.length - 1),
+    Array.reduce(
+      {
+        depth: 0,
+        endIndex: source.length - 1,
+        index: openParenIndex,
+        isEnd: false,
+        quoteState: { isEscaped: false, quote: '' },
+      },
+      (state, scanIndex): DepthReduceState => {
+        if (state.isEnd || scanIndex < state.index) {
+          return state;
+        }
+        const next = nextBalancedCallScan(source, scanIndex, state.depth, state.quoteState);
+        if (next.isEnd) {
+          return { ...next, endIndex: scanIndex };
+        }
+        return { ...next, endIndex: state.endIndex };
+      },
+    ),
+    (state): number => state.endIndex,
+  );
 
 const nextBraceScan = (
   source: string,
   index: number,
   depth: number,
   quoteState: QuoteState,
-): { depth: number; index: number; isEnd: boolean; quoteState: QuoteState } => {
-  const quoteOrNonCode = quoteOrNonCodeScan(source, index, quoteState);
-  if (quoteOrNonCode) {
-    return { ...quoteOrNonCode, depth, isEnd: false };
-  }
-  const char = source[index];
-  if (char === '{') {
-    return { depth: depth + 1, index, isEnd: false, quoteState };
-  }
-  if (char !== '}') {
-    return { depth, index, isEnd: false, quoteState };
-  }
-  return { depth: depth - 1, index, isEnd: depth - 1 === 0, quoteState };
-};
+): DepthScanResult =>
+  pipe(
+    Option.fromNullable(quoteOrNonCodeScan(source, index, quoteState)),
+    Option.match({
+      onNone: (): DepthScanResult => {
+        const char = source[index];
+        if (char === '{') {
+          return { depth: depth + 1, index, isEnd: false, quoteState };
+        }
+        if (char === '}') {
+          return { depth: depth - 1, index, isEnd: depth - 1 === 0, quoteState };
+        }
+        return { depth, index, isEnd: false, quoteState };
+      },
+      onSome: (quoteOrNonCode): DepthScanResult => ({ ...quoteOrNonCode, depth, isEnd: false }),
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const stripCommentsAndStrings = (source: string): string => {
-  const cachedValue = cached(codeOnlyCache, source);
-  if (cachedValue !== undefined) {
-    return cachedValue;
-  }
-
-  let state = initialStripState();
-  while (state.index < source.length) {
-    const stepped = stripCodeOnlyStep(source, state);
-    state = { ...stepped, index: stepped.index + 1 };
-  }
-
-  return cacheResult(codeOnlyCache, source, state.stripped);
-};
+export const stripCommentsAndStrings = (source: string): string =>
+  pipe(
+    Option.fromNullable(codeOnlyCache.get(source)),
+    Option.match({
+      onNone: (): string => {
+        const state = pipe(
+          scanIndexes(0, source.length - 1),
+          Array.reduce(initialStripState(), (currentState, scanIndex): StripState => {
+            if (scanIndex < currentState.index) {
+              return currentState;
+            }
+            const stepped = stripCodeOnlyStep(source, currentState);
+            return { ...stepped, index: stepped.index + 1 };
+          }),
+        );
+        return cacheResult(codeOnlyCache, source, state.stripped);
+      },
+      onSome: (value): string => value,
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const findMatchingBrace = (source: string, openIndex: number): number => {
-  let depth = 0;
-  let quoteState = { isEscaped: false, quote: '' };
-
-  for (let index = openIndex; index < source.length; index++) {
-    const next = nextBraceScan(source, index, depth, quoteState);
-    if (next.isEnd) {
-      return index;
-    }
-    ({ depth, index, quoteState } = next);
-  }
-
-  return -1;
-};
+export const findMatchingBrace = (source: string, openIndex: number): number =>
+  pipe(
+    scanIndexes(openIndex, source.length - 1),
+    Array.reduce(
+      {
+        depth: 0,
+        endIndex: -1,
+        index: openIndex,
+        isEnd: false,
+        quoteState: { isEscaped: false, quote: '' },
+      },
+      (state, scanIndex): DepthReduceState => {
+        if (state.isEnd || scanIndex < state.index) {
+          return state;
+        }
+        const next = nextBraceScan(source, scanIndex, state.depth, state.quoteState);
+        if (next.isEnd) {
+          return { ...next, endIndex: scanIndex };
+        }
+        return { ...next, endIndex: state.endIndex };
+      },
+    ),
+    (state): number => state.endIndex,
+  );
