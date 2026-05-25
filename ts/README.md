@@ -76,8 +76,6 @@ For staged files, wire the same package tools through `lint-staged`:
 }
 ```
 
-That is the consumer setup. This monorepo has an extra local package build step only because it dogfoods the workspace copy of `@thethracian/oxlint-config` before publication; downstream projects should not need that shell wrapper.
-
 Programmatic consumers can use the same codemod runner:
 
 ```ts

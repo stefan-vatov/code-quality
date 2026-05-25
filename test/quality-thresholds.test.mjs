@@ -91,6 +91,14 @@ describe('quality threshold configuration', () => {
     );
   });
 
+  it('keeps published TypeScript README focused on consumers, not monorepo dogfooding', () => {
+    const readme = rootText('ts/README.md');
+
+    expect(readme).not.toMatch(
+      /dogfood|workspace copy|monorepo has an extra local package build step/u,
+    );
+  });
+
   it('enforces coverage watermarks for the TypeScript package source', () => {
     const config = rootText('vitest.config.mts');
 
