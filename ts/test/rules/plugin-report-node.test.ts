@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import plugin from '../../src/rules/plugin';
+import { tmpdir } from 'node:os';
 
 type RuleName = keyof typeof plugin.rules;
 
@@ -33,8 +33,8 @@ const fixer: Fixer = {
   },
 };
 
-describe('file-level custom rules', () => {
-  it('declares no-commented-out-code as fixable for native Oxlint --fix', () => {
+describe('file-level custom rules', (): void => {
+  it('declares no-commented-out-code as fixable for native Oxlint --fix', (): void => {
     expect(plugin.rules['no-commented-out-code'].meta).toStrictEqual({
       fixable: 'code',
       type: 'problem',
@@ -49,32 +49,35 @@ describe('file-level custom rules', () => {
       'require-function-doc',
       '/** Module docs. */\nconst internal = true;\nexport function live() { return internal; }\n',
     ],
-  ] satisfies Array<[RuleName, string]>)('reports %s on the Program node', (ruleName, source) => {
-    const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
-    const filename = join(root, 'fixture.ts');
-    const reports: Report[] = [];
+  ] satisfies Array<[RuleName, string]>)(
+    'reports %s on the Program node',
+    (ruleName, source): void => {
+      const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
+      const filename = join(root, 'fixture.ts');
+      const reports: Report[] = [];
 
-    writeFileSync(filename, source);
+      writeFileSync(filename, source);
 
-    try {
-      const visitors = plugin.rules[ruleName].create({
-        filename,
-        report(report: Report) {
-          reports.push(report);
-        },
-      });
+      try {
+        const visitors = plugin.rules[ruleName].create({
+          filename,
+          report(report: Report): void {
+            reports.push(report);
+          },
+        });
 
-      visitors.Program?.(programNode);
-    } finally {
-      rmSync(root, { force: true, recursive: true });
-    }
+        visitors.Program?.(programNode);
+      } finally {
+        rmSync(root, { force: true, recursive: true });
+      }
 
-    expect(reports[0]?.node).toBe(programNode);
-    expect(reports[0]?.message).toContain('Fix:');
-    expect(reports[0]?.message).toContain('Example:');
-  });
+      expect(reports[0]?.node).toBe(programNode);
+      expect(reports[0]?.message).toContain('Fix:');
+      expect(reports[0]?.message).toContain('Example:');
+    },
+  );
 
-  it('reports the divider header format for missing file docs', () => {
+  it('reports the divider header format for missing file docs', (): void => {
     const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
     const filename = join(root, 'fixture.ts');
     const reports: Report[] = [];
@@ -84,7 +87,7 @@ describe('file-level custom rules', () => {
     try {
       const visitors = plugin.rules['require-file-doc'].create({
         filename,
-        report(report: Report) {
+        report(report: Report): void {
           reports.push(report);
         },
       });
@@ -104,7 +107,7 @@ The text line must be a real description of what the file is for; declaration JS
     expect(reports[0]?.message).toContain('Example:');
   });
 
-  it('reports the public JSDoc shape for undocumented exports', () => {
+  it('reports the public JSDoc shape for undocumented exports', (): void => {
     const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
     const filename = join(root, 'fixture.ts');
     const reports: Report[] = [];
@@ -114,7 +117,7 @@ The text line must be a real description of what the file is for; declaration JS
     try {
       const visitors = plugin.rules['require-function-doc'].create({
         filename,
-        report(report: Report) {
+        report(report: Report): void {
           reports.push(report);
         },
       });
@@ -138,7 +141,7 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports[0]?.message).toContain('Example:');
   });
 
-  it('offers a native fix that removes a commented-out line', () => {
+  it('offers a native fix that removes a commented-out line', (): void => {
     const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
     const filename = join(root, 'fixture.ts');
     const reports: Report[] = [];
@@ -148,7 +151,7 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     try {
       const visitors = plugin.rules['no-commented-out-code'].create({
         filename,
-        report(report: Report) {
+        report(report: Report): void {
           reports.push(report);
         },
       });
@@ -162,7 +165,7 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports[0]?.fix?.(fixer)).toStrictEqual({ range: [0, 22], text: '' });
   });
 
-  it('does not treat comment delimiters inside strings as fixable comments', () => {
+  it('does not treat comment delimiters inside strings as fixable comments', (): void => {
     const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-rule-'));
     const filename = join(root, 'fixture.ts');
     const reports: Report[] = [];
@@ -175,7 +178,7 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     try {
       const visitors = plugin.rules['no-commented-out-code'].create({
         filename,
-        report(report: Report) {
+        report(report: Report): void {
           reports.push(report);
         },
       });
@@ -188,10 +191,10 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports).toEqual([]);
   });
 
-  it('reports dynamic imports with emitted JavaScript extensions', () => {
+  it('reports dynamic imports with emitted JavaScript extensions', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['no-dynamic-js-extension-imports'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -211,10 +214,10 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports[0]?.message).toContain("import { helper } from './feature'");
   });
 
-  it('reports package-subpath dynamic imports with emitted JavaScript extensions', () => {
+  it('reports package-subpath dynamic imports with emitted JavaScript extensions', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['no-dynamic-js-extension-imports'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -231,10 +234,10 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports).toHaveLength(1);
   });
 
-  it('reports CommonJS requires with emitted JavaScript extensions', () => {
+  it('reports CommonJS requires with emitted JavaScript extensions', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['no-dynamic-js-extension-imports'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -250,10 +253,10 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports[0]?.node).toBe(requireNode);
   });
 
-  it('allows extensionless dynamic TypeScript imports', () => {
+  it('allows extensionless dynamic TypeScript imports', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['no-dynamic-js-extension-imports'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -269,10 +272,10 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports).toStrictEqual([]);
   });
 
-  it('reports deep imports with an agent-readable remediation example', () => {
+  it('reports deep imports with an agent-readable remediation example', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['max-import-depth'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -289,10 +292,11 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports[0]?.message).toContain("import { helper } from '@/shared/helper'");
   });
 
-  it('reports local export lists', () => {
+  it('reports multi-item local export lists in implementation modules', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['no-local-export-list'].create({
-      report(report: Report) {
+      filename: '/repo/src/lib/helpers.ts',
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -300,7 +304,7 @@ The prose must be specific; generated placeholder text does not satisfy the rule
       type: 'ExportNamedDeclaration',
       declaration: null,
       source: null,
-      specifiers: [{ local: { name: 'helper' } }],
+      specifiers: [{ local: { name: 'helper' } }, { local: { name: 'otherHelper' } }],
     };
 
     visitors.ExportNamedDeclaration?.(exportNode);
@@ -311,10 +315,47 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     expect(reports[0]?.message).toContain('export const helper');
   });
 
-  it('allows re-export lists from another module', () => {
+  it('allows single local export lists used for intentional aliases', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['no-local-export-list'].create({
-      report(report: Report) {
+      report(report: Report): void {
+        reports.push(report);
+      },
+    });
+
+    visitors.ExportNamedDeclaration?.({
+      type: 'ExportNamedDeclaration',
+      declaration: null,
+      source: null,
+      specifiers: [{ local: { name: 'helper' } }],
+    });
+
+    expect(reports).toStrictEqual([]);
+  });
+
+  it('allows local export lists in index barrel modules', (): void => {
+    const reports: Report[] = [];
+    const visitors = plugin.rules['no-local-export-list'].create({
+      filename: '/repo/src/index.ts',
+      report(report: Report): void {
+        reports.push(report);
+      },
+    });
+
+    visitors.ExportNamedDeclaration?.({
+      type: 'ExportNamedDeclaration',
+      declaration: null,
+      source: null,
+      specifiers: [{ local: { name: 'helper' } }, { local: { name: 'otherHelper' } }],
+    });
+
+    expect(reports).toStrictEqual([]);
+  });
+
+  it('allows re-export lists from another module', (): void => {
+    const reports: Report[] = [];
+    const visitors = plugin.rules['no-local-export-list'].create({
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -330,16 +371,16 @@ The prose must be specific; generated placeholder text does not satisfy the rule
   });
 });
 
-describe('identifier naming custom rules', () => {
-  it('ignores destructuring variable declarators without crashing', () => {
+describe('identifier naming custom rules', (): void => {
+  it('ignores destructuring variable declarators without crashing', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['camel-case-identifiers'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });
 
-    expect(() => {
+    expect((): void => {
       visitors.VariableDeclarator?.({
         type: 'VariableDeclarator',
         id: {
@@ -355,15 +396,37 @@ describe('identifier naming custom rules', () => {
     expect(reports).toEqual([]);
   });
 
-  it('ignores destructuring declarators in acronym checks without crashing', () => {
+  it('allows PascalCase const values for component-like or command-like objects', (): void => {
     const reports: Report[] = [];
-    const visitors = plugin.rules['acronym-case'].create({
-      report(report: Report) {
+    const visitors = plugin.rules['camel-case-identifiers'].create({
+      report(report: Report): void {
         reports.push(report);
       },
     });
 
-    expect(() => {
+    visitors.VariableDeclarator?.({
+      type: 'VariableDeclarator',
+      id: {
+        name: 'MigrationWizard',
+        type: 'Identifier',
+      },
+      parent: {
+        kind: 'const',
+      },
+    });
+
+    expect(reports).toStrictEqual([]);
+  });
+
+  it('ignores destructuring declarators in acronym checks without crashing', (): void => {
+    const reports: Report[] = [];
+    const visitors = plugin.rules['acronym-case'].create({
+      report(report: Report): void {
+        reports.push(report);
+      },
+    });
+
+    expect((): void => {
       visitors.VariableDeclarator?.({
         type: 'VariableDeclarator',
         id: {
@@ -379,10 +442,10 @@ describe('identifier naming custom rules', () => {
     expect(reports).toEqual([]);
   });
 
-  it('does not offer unsafe declaration-only acronym rename fixes', () => {
+  it('does not offer unsafe declaration-only acronym rename fixes', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['acronym-case'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });
@@ -403,10 +466,10 @@ describe('identifier naming custom rules', () => {
     expect(reports[0]?.fix).toBeUndefined();
   });
 
-  it('does not offer unsafe declaration-only boolean rename fixes', () => {
+  it('does not offer unsafe declaration-only boolean rename fixes', (): void => {
     const reports: Report[] = [];
     const visitors = plugin.rules['boolean-prefix'].create({
-      report(report: Report) {
+      report(report: Report): void {
         reports.push(report);
       },
     });

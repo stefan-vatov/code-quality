@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*    File-level documentation requirement helper for custom Oxlint rules.    */
 /* -------------------------------------------------------------------------- */
-import { Array, Match, Option, pipe } from 'effect';
+import { Match, Option, pipe } from 'effect';
 
 // Character code constants
 const CH_HASH = 35;
@@ -17,11 +17,9 @@ const BLOCK_MARKER_LOOKAHEAD = 15;
 
 // Pre-computed search strings
 const JSDOC_END = '*/';
-const DIVIDER_PREFIX = '/* ';
-const DIVIDER_SUFFIX = ' */';
-const DIVIDER_LENGTH = 80;
-const DIVIDER_RULE =
-  '/* -------------------------------------------------------------------------- */';
+const DIVIDER_PREFIX = '/*';
+const DIVIDER_SUFFIX = '*/';
+const MIN_DIVIDER_DASHES = 3;
 
 const isWhitespace = (code: number): boolean =>
   code === CH_SPACE || code === CH_NEWLINE || code === CH_RETURN || code === CH_TAB;
@@ -50,8 +48,39 @@ const skipLeadingWhitespace = (source: string, start: number): number =>
     Match.orElse((pos): number => skipLeadingWhitespace(source, pos + 1)),
   );
 
+const trimLineEnd = (line: string): string => line.replace(/\r$/u, '');
+
+const lineTextAt = (source: string, start: number): string =>
+  trimLineEnd(source.slice(start, lineEndAt(source, start)));
+
+const isSkippableToolDirectiveLine = (line: string): boolean => {
+  const trimmed = line.trim();
+  return (
+    trimmed.startsWith('/* eslint-') ||
+    trimmed.startsWith('// eslint-') ||
+    trimmed.startsWith('// @ts-') ||
+    trimmed.startsWith('/// <reference') ||
+    trimmed === "'use strict';" ||
+    trimmed === '"use strict";'
+  );
+};
+
+const skipToolDirectiveLines = (source: string, start: number): number => {
+  const pos = skipLeadingWhitespace(source, start);
+  if (pos >= source.length) {
+    return pos;
+  }
+
+  const line = lineTextAt(source, pos);
+  if (!isSkippableToolDirectiveLine(line)) {
+    return pos;
+  }
+
+  return skipToolDirectiveLines(source, nextLineStartAt(source, pos));
+};
+
 const leadingContentPosition = (source: string, emptyResult: number): number =>
-  skipLeadingWhitespace(source, skipShebangLines(source, emptyResult));
+  skipToolDirectiveLines(source, skipShebangLines(source, emptyResult));
 
 const hasJSDocStartAt = (source: string, pos: number): boolean =>
   pos + 2 < source.length &&
@@ -71,48 +100,57 @@ const nextLineStartAt = (source: string, start: number): number =>
     Match.orElse((newline): number => newline + 1),
   );
 
+const dividerLineInnerText = (line: string): string | undefined => {
+  const normalizedLine = trimLineEnd(line);
+  if (!normalizedLine.startsWith(DIVIDER_PREFIX) || !normalizedLine.endsWith(DIVIDER_SUFFIX)) {
+    return undefined;
+  }
+  return normalizedLine.slice(DIVIDER_PREFIX.length, -DIVIDER_SUFFIX.length).trim();
+};
+
+const hasMeaningfulDividerText = (text: string): boolean => text.length > 0 && !/^-+$/u.test(text);
+
 const isDividerTextLine = (line: string): boolean =>
-  line.length === DIVIDER_LENGTH &&
-  line.startsWith(DIVIDER_PREFIX) &&
-  line.endsWith(DIVIDER_SUFFIX);
+  pipe(Option.fromNullable(dividerLineInnerText(line)), Option.exists(hasMeaningfulDividerText));
 
-const isDividerRuleLine = (line: string): boolean => line === DIVIDER_RULE;
-
-const nextDividerEndFrom = (source: string, cursor: number): number | undefined =>
-  Match.value(cursor).pipe(
-    Match.when(
-      (position): boolean => position >= source.length,
-      (): undefined => undefined,
-    ),
-    Match.orElse((position): number | undefined => {
-      const end = lineEndAt(source, position);
-      return Match.value(isDividerRuleLine(source.slice(position, end))).pipe(
-        Match.when(true, (): number => end),
-        Match.orElse((): number | undefined =>
-          nextDividerEndFrom(source, nextLineStartAt(source, position)),
-        ),
-      );
-    }),
+const isDividerRuleLine = (line: string): boolean =>
+  pipe(
+    Option.fromNullable(dividerLineInnerText(line)),
+    Option.exists((text): boolean => /^-+$/u.test(text) && text.length >= MIN_DIVIDER_DASHES),
   );
 
-const nextDividerEnd = (source: string, start: number): number | undefined =>
-  nextDividerEndFrom(source, nextLineStartAt(source, start));
+const dividerHeaderBodyEndFrom = (
+  source: string,
+  cursor: number,
+  hasMeaningfulBody: boolean,
+): number | undefined => {
+  if (cursor >= source.length) {
+    return undefined;
+  }
+
+  const line = lineTextAt(source, cursor);
+  const end = lineEndAt(source, cursor);
+
+  if (isDividerRuleLine(line)) {
+    return Match.value(hasMeaningfulBody).pipe(
+      Match.when(true, (): number => end),
+      Match.orElse((): undefined => undefined),
+    );
+  }
+
+  if (!isDividerTextLine(line)) {
+    return undefined;
+  }
+
+  return dividerHeaderBodyEndFrom(source, nextLineStartAt(source, cursor), true);
+};
 
 const dividerHeaderEnd = (source: string, pos: number): number | undefined => {
-  const firstEnd = lineEndAt(source, pos);
-  return Match.value(isDividerRuleLine(source.slice(pos, firstEnd))).pipe(
-    Match.when(false, (): undefined => undefined),
-    Match.orElse((): number | undefined =>
-      pipe(
-        Option.fromNullable(nextDividerEnd(source, firstEnd)),
-        Option.filter((closingDividerEnd): boolean => {
-          const body = source.slice(nextLineStartAt(source, firstEnd), closingDividerEnd);
-          return pipe(body.split('\n'), Array.every(isDividerTextLine));
-        }),
-        Option.getOrUndefined,
-      ),
-    ),
-  );
+  if (!isDividerRuleLine(lineTextAt(source, pos))) {
+    return undefined;
+  }
+
+  return dividerHeaderBodyEndFrom(source, nextLineStartAt(source, pos), false);
 };
 
 const boundedEnd = (source: string, pos: number, lookahead: number): number =>
