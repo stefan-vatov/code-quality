@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*         Environment, schema, resource, and test Effect rule specs.         */
 /* -------------------------------------------------------------------------- */
+import { Match, pipe } from 'effect';
 import {
   hasCastAfterSchemaDecode,
   hasExternalJSONWithoutDecodeUnknown,
@@ -52,6 +53,75 @@ interface RuleSpec {
   tokens?: readonly string[];
 }
 
+const reportWhen = (
+  condition: boolean,
+  context: RuleContext,
+  message: string,
+  node: object,
+): void =>
+  pipe(
+    Match.value(condition),
+    Match.when(true, (): void => {
+      reportAST(context, message, node);
+    }),
+    Match.orElse((): void => undefined),
+  );
+
+const isEffectRuntimeTest = (source: string, context: RuleContext): boolean =>
+  pipe(
+    Match.value(isEffectTestPath(context)),
+    Match.when(false, (): boolean => false),
+    Match.orElse((): boolean => hasRuntimeCall(source)),
+  );
+
+const isEffectUnitTestWithoutEffectContext = (source: string, context: RuleContext): boolean =>
+  pipe(
+    Match.value(isEffectTestPath(context)),
+    Match.when(false, (): boolean => false),
+    Match.orElse(
+      (): boolean =>
+        !hasRuntimeCall(source) &&
+        /\bit\s*\([\s\S]*?Effect\./.test(stripCommentsAndStrings(source)),
+    ),
+  );
+
+const hasTestClockAdjustWithoutFork = (source: string): boolean =>
+  pipe(
+    Match.value(/TestClock\.adjust\s*\(/.test(stripCommentsAndStrings(source))),
+    Match.when(false, (): boolean => false),
+    Match.orElse((): boolean => !hasForkBeforeTestClockAdjust(source)),
+  );
+
+const hasEffectFailureAssertionWithoutExit = (source: string, context: RuleContext): boolean =>
+  pipe(
+    Match.value(isEffectTestPath(context)),
+    Match.when(false, (): boolean => false),
+    Match.orElse((): boolean => {
+      const code = stripCommentsAndStrings(source);
+      return (
+        !hasRuntimeCall(source) && /\b(?:rejects|toThrow)\b/.test(code) && /\bEffect\./.test(code)
+      );
+    }),
+  );
+
+const hasFocusedEffectTest = (source: string, context: RuleContext): boolean =>
+  pipe(
+    Match.value(isEffectTestPath(context)),
+    Match.when(false, (): boolean => false),
+    Match.orElse((): boolean =>
+      /\b(?:it|describe)\.effect\.only\s*\(/.test(stripCommentsAndStrings(source)),
+    ),
+  );
+
+const hasSkippedEffectTest = (source: string, context: RuleContext): boolean =>
+  pipe(
+    Match.value(isEffectTestPath(context)),
+    Match.when(false, (): boolean => false),
+    Match.orElse((): boolean =>
+      /\b(?:it|describe)\.effect\.skip\s*\(/.test(stripCommentsAndStrings(source)),
+    ),
+  );
+
 /**
  * Internal helper exported for package-local composition.
  *
@@ -66,9 +136,12 @@ export const effectDefaultEnvironmentSpecs = [
         MemberExpression(node): void {
           const { objectName, propertyName } = memberParts(node);
           const processEnv = objectName === 'process' && propertyName === 'env';
-          if (isEffectModule && !isConfigLayer && processEnv) {
-            reportAST(context, 'Use Effect Config instead of process.env in Effect code.', node);
-          }
+          reportWhen(
+            isEffectModule && !isConfigLayer && processEnv,
+            context,
+            'Use Effect Config instead of process.env in Effect code.',
+            node,
+          );
         },
       };
     },
@@ -83,14 +156,12 @@ export const effectDefaultEnvironmentSpecs = [
       return {
         CallExpression(node): void {
           const { objectName, propertyName } = memberParts(objectValue(node, 'callee'));
-          if (
-            isEffectModule &&
-            !isAdapterLayer &&
-            objectName === 'Date' &&
-            propertyName === 'now'
-          ) {
-            reportAST(context, 'Use Effect Clock instead of Date.now in Effect code.', node);
-          }
+          reportWhen(
+            isEffectModule && !isAdapterLayer && objectName === 'Date' && propertyName === 'now',
+            context,
+            'Use Effect Clock instead of Date.now in Effect code.',
+            node,
+          );
         },
       };
     },
@@ -105,14 +176,12 @@ export const effectDefaultEnvironmentSpecs = [
       return {
         CallExpression(node): void {
           const { objectName, propertyName } = memberParts(objectValue(node, 'callee'));
-          if (
-            isEffectModule &&
-            !isAdapterLayer &&
-            objectName === 'Math' &&
-            propertyName === 'random'
-          ) {
-            reportAST(context, 'Use Effect Random instead of Math.random in Effect code.', node);
-          }
+          reportWhen(
+            isEffectModule && !isAdapterLayer && objectName === 'Math' && propertyName === 'random',
+            context,
+            'Use Effect Random instead of Math.random in Effect code.',
+            node,
+          );
         },
       };
     },
@@ -248,24 +317,19 @@ export const effectDefaultEnvironmentSpecs = [
     tokens: ['unbounded', 'Infinity'],
   },
   {
-    check: (source, context): boolean => isEffectTestPath(context) && hasRuntimeCall(source),
+    check: isEffectRuntimeTest,
     message: 'Use @effect/vitest it.effect instead of manually running Effects in tests.',
     name: 'effect-test-no-runpromise',
     tokens: ['run'],
   },
   {
-    check: (source, context): boolean =>
-      isEffectTestPath(context) &&
-      !hasRuntimeCall(source) &&
-      /\bit\s*\([\s\S]*?Effect\./.test(stripCommentsAndStrings(source)),
+    check: isEffectUnitTestWithoutEffectContext,
     message: 'Use it.effect for tests that exercise Effect programs.',
     name: 'effect-prefer-it-effect-for-unit-tests',
     tokens: ['it('],
   },
   {
-    check: (source): boolean =>
-      /TestClock\.adjust\s*\(/.test(stripCommentsAndStrings(source)) &&
-      !hasForkBeforeTestClockAdjust(source),
+    check: hasTestClockAdjustWithoutFork,
     message: 'Fork time-dependent work before adjusting TestClock.',
     name: 'effect-testClock-requires-fork',
     tokens: ['TestClock.adjust'],
@@ -285,27 +349,19 @@ export const effectDefaultEnvironmentSpecs = [
     tokens: ['sleep'],
   },
   {
-    check: (source, context): boolean =>
-      isEffectTestPath(context) &&
-      !hasRuntimeCall(source) &&
-      /\b(?:rejects|toThrow)\b/.test(stripCommentsAndStrings(source)) &&
-      /\bEffect\./.test(stripCommentsAndStrings(source)),
+    check: hasEffectFailureAssertionWithoutExit,
     message: 'Use Effect.exit inside it.effect when asserting Effect failures.',
     name: 'effect-use-exit-for-failure-tests',
     tokens: ['rejects', 'toThrow'],
   },
   {
-    check: (source, context): boolean =>
-      isEffectTestPath(context) &&
-      /\b(?:it|describe)\.effect\.only\s*\(/.test(stripCommentsAndStrings(source)),
+    check: hasFocusedEffectTest,
     message: 'Focused Effect tests must not be committed.',
     name: 'effect-no-focused-effect-tests',
     tokens: ['.only'],
   },
   {
-    check: (source, context): boolean =>
-      isEffectTestPath(context) &&
-      /\b(?:it|describe)\.effect\.skip\s*\(/.test(stripCommentsAndStrings(source)),
+    check: hasSkippedEffectTest,
     message: 'Skipped Effect tests must not be committed.',
     name: 'effect-no-skipped-effect-tests',
     tokens: ['.skip'],
