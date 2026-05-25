@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import hasRequiredFunctionDocs, {
+  findRequiredFunctionDocFailure,
+} from '../../src/rules/require-function-doc';
 import { fileURLToPath } from 'node:url';
-import hasRequiredFunctionDocs from '../../src/rules/require-function-doc';
 import { readFileSync } from 'node:fs';
 
 // ============================================================================
@@ -656,6 +658,36 @@ export function parse(input: string, options?: Options): AST {
     // fake export at start of template literal would be detected.
     // The real export at end lacks JSDoc → fails
     expect(hasRequiredFunctionDocs(src)).toBe(false);
+  });
+
+  it('ignores generated-code exports inside strings when real exports are documented', (): void => {
+    const src = `const indexContent = \`export * from './lib/generated.js';\\n\`;
+const cliContent = [
+  'export interface CliIo {',
+  'export async function run(args: readonly string[]): Promise<number> {',
+  'export default [',
+].join('\\n');
+
+/** Real public API. */
+export function real(): void {}`;
+
+    expect(hasRequiredFunctionDocs(src)).toBe(true);
+  });
+
+  it('reports the first real undocumented export instead of generated-code strings', (): void => {
+    const src = `const cliContent = [
+  'export interface GeneratedCliIo {',
+  'export async function generatedRun(): Promise<number> {',
+].join('\\n');
+
+export interface CliIo {
+  info: (message: string) => void;
+}`;
+
+    expect(findRequiredFunctionDocFailure(src)).toEqual({
+      line: 6,
+      snippet: 'export interface CliIo {',
+    });
   });
 
   // ── export default class / interface ─────────────────────────────────
