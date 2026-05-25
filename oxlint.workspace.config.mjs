@@ -1,7 +1,12 @@
 /* -------------------------------------------------------------------------- */
 /* Local Oxlint configuration for validating unpublished TypeScript changes.  */
 /* -------------------------------------------------------------------------- */
-import theThracian from './ts/dist/index.js';
+import { existsSync } from 'node:fs';
+
+const packageModule = existsSync(new URL('./ts/dist/index.js', import.meta.url))
+  ? await import('./ts/dist/index.js')
+  : await import('@thethracian/oxlint-config');
+const theThracian = packageModule.default;
 
 const config = theThracian({
   effect: {

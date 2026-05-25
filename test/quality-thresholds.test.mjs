@@ -105,8 +105,9 @@ describe('quality threshold configuration', () => {
     expect(packageJSON.scripts['lint:local:type-aware:fix']).toBe(
       'pnpm run codemod:ts:local && pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check --fix && pnpm run codemod:ts:local',
     );
-    expect(localConfig).toContain("from './ts/dist/index.js'");
-    expect(localConfig).not.toContain("from '@thethracian/oxlint-config'");
+    expect(localConfig).toContain("existsSync(new URL('./ts/dist/index.js', import.meta.url))");
+    expect(localConfig).toContain("await import('./ts/dist/index.js')");
+    expect(localConfig).toContain("await import('@thethracian/oxlint-config')");
     expect(publishedConfig).toContain("'oxlint.workspace.config.mjs'");
     expect(knipConfig.ignore).toContain('oxlint.workspace.config.mjs');
     expect(packageJSON.scripts.lint).toBe('oxlint -c oxlint.config.mjs ts');
