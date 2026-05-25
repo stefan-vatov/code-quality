@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*          Path option schema helpers for strict Effect lint rules.          */
 /* -------------------------------------------------------------------------- */
+import { Array, Match, Option, pipe } from 'effect';
 import type { Context } from './effect-rule-core';
 
 /**
@@ -82,61 +83,106 @@ const globToken = (pattern: string, index: number): { index: number; text: strin
   const nextChar = pattern[index + 1];
   const afterNextChar = pattern[index + 2];
 
-  if (char === '*' && nextChar === '*' && afterNextChar === '/') {
-    return { index: index + 2, text: '(?:.*/)?' };
-  }
-  if (char === '*' && nextChar === '*') {
-    return { index: index + 1, text: '.*' };
-  }
-  if (char === '*') {
-    return { index, text: '[^/]*' };
-  }
-  return { index, text: escapeRegExp(char ?? '') };
+  return Match.value(char).pipe(
+    Match.when(
+      (character): boolean => character === '*' && nextChar === '*' && afterNextChar === '/',
+      (): { index: number; text: string } => ({ index: index + 2, text: '(?:.*/)?' }),
+    ),
+    Match.when(
+      (character): boolean => character === '*' && nextChar === '*',
+      (): { index: number; text: string } => ({ index: index + 1, text: '.*' }),
+    ),
+    Match.when(
+      (character): boolean => character === '*',
+      (): { index: number; text: string } => ({ index, text: '[^/]*' }),
+    ),
+    Match.orElse((character): { index: number; text: string } => ({
+      index,
+      text: escapeRegExp(character ?? ''),
+    })),
+  );
 };
 
 const globBody = (normalizedPattern: string): string => {
-  let body = '';
-  for (let index = 0; index < normalizedPattern.length; index++) {
-    const token = globToken(normalizedPattern, index);
-    const { index: nextIndex, text } = token;
-    body += text;
-    index = nextIndex;
-  }
-  return body;
+  const appendToken = (index: number, body: string): string =>
+    Match.value(index).pipe(
+      Match.when(
+        (currentIndex): boolean => currentIndex >= normalizedPattern.length,
+        (): string => body,
+      ),
+      Match.orElse((currentIndex): string => {
+        const token = globToken(normalizedPattern, currentIndex);
+        return appendToken(token.index + 1, body + token.text);
+      }),
+    );
+  return appendToken(0, '');
 };
 
-const globPrefix = (normalizedPattern: string): string => {
-  if (normalizedPattern.startsWith('/')) {
-    return '^';
-  }
-  return '(?:^|/)';
-};
+const globPrefix = (normalizedPattern: string): string =>
+  Match.value(normalizedPattern.startsWith('/')).pipe(
+    Match.when(true, (): string => '^'),
+    Match.orElse((): string => '(?:^|/)'),
+  );
 
 const globToRegExp = (pattern: string): RegExp => {
   const cached = globCache.get(pattern);
-  if (cached) {
-    return cached;
-  }
-
-  const normalizedPattern = pattern.replace(/\\/g, '/').replace(/^\.\//, '');
-  const matcher = new RegExp(`${globPrefix(normalizedPattern)}${globBody(normalizedPattern)}$`);
-  globCache.set(pattern, matcher);
-  return matcher;
+  return pipe(
+    Option.fromNullable(cached),
+    Option.match({
+      onNone: (): RegExp => {
+        const normalizedPattern = pattern.replace(/\\/g, '/').replace(/^\.\//, '');
+        const matcher = new RegExp(
+          `${globPrefix(normalizedPattern)}${globBody(normalizedPattern)}$`,
+        );
+        globCache.set(pattern, matcher);
+        return matcher;
+      },
+      onSome: (matcher): RegExp => matcher,
+    }),
+  );
 };
 
-const matchesPath = (filename: string | undefined, pattern: string): boolean => {
-  if (!filename) {
-    return false;
-  }
-  return globToRegExp(pattern).test(filename.replace(/\\/g, '/'));
-};
+const matchesPath = (filename: string | undefined, pattern: string): boolean =>
+  pipe(
+    Option.fromNullable(filename),
+    Option.exists((value): boolean => globToRegExp(pattern).test(value.replace(/\\/g, '/'))),
+  );
+
+const isReadonlyStringArray = (value: unknown): value is readonly string[] =>
+  Array.isArray(value) &&
+  pipe(
+    value,
+    Array.every((entry): boolean => typeof entry === 'string'),
+  );
+
+const strictOptionsFromUnknown = (options: object): StrictPathOptions =>
+  pipe(
+    strictPathOptionKeys,
+    Array.reduce({} as StrictPathOptions, (current, optionKey): StrictPathOptions => {
+      const optionValue: unknown = Reflect.get(options, optionKey);
+      return pipe(
+        Option.fromNullable(optionValue),
+        Option.filter(isReadonlyStringArray),
+        Option.match({
+          onNone: (): StrictPathOptions => current,
+          onSome: (optionArray): StrictPathOptions => {
+            const next = { ...current };
+            next[optionKey] = optionArray;
+            return next;
+          },
+        }),
+      );
+    }),
+  );
 
 const getStrictOptions = (context: Pick<Context, 'options'>): StrictPathOptions => {
   const options = context.options?.[0];
-  if (!options || typeof options !== 'object') {
-    return {};
-  }
-  return options as StrictPathOptions;
+  return pipe(
+    Option.fromNullable(options),
+    Option.filter((value): value is object => typeof value === 'object'),
+    Option.map(strictOptionsFromUnknown),
+    Option.getOrElse((): StrictPathOptions => ({})),
+  );
 };
 
 /**
@@ -146,23 +192,38 @@ const getStrictOptions = (context: Pick<Context, 'options'>): StrictPathOptions 
  */
 export const sanitizeStrictPathOptions = (
   options: StrictPathOptions | undefined,
-): StrictPathOptions | undefined => {
-  if (!options) {
-    return undefined;
-  }
-
-  const sanitized: StrictPathOptions = {};
-  for (const optionKey of strictPathOptionKeys) {
-    if (Object.hasOwn(options, optionKey)) {
-      sanitized[optionKey] = options[optionKey];
-    }
-  }
-
-  if (Object.keys(sanitized).length === 0) {
-    return undefined;
-  }
-  return sanitized;
-};
+): StrictPathOptions | undefined =>
+  pipe(
+    Option.fromNullable(options),
+    Option.flatMap((value) => {
+      const sanitized = pipe(
+        strictPathOptionKeys,
+        Array.reduce(
+          {} as StrictPathOptions,
+          (current, optionKey): StrictPathOptions =>
+            Match.value(Object.hasOwn(value, optionKey)).pipe(
+              Match.when(
+                (hasOption): boolean => hasOption,
+                (): StrictPathOptions => {
+                  const next = { ...current };
+                  next[optionKey] = value[optionKey];
+                  return next;
+                },
+              ),
+              Match.orElse((): StrictPathOptions => current),
+            ),
+        ),
+      );
+      return Match.value(Object.keys(sanitized).length).pipe(
+        Match.when(
+          (length): boolean => length === 0,
+          () => Option.none(),
+        ),
+        Match.orElse(() => Option.some(sanitized)),
+      );
+    }),
+    Option.getOrUndefined,
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -176,11 +237,17 @@ export const isConfiguredPath = (
   const configuredPatterns = getStrictOptions(context)[key];
   const patterns = configuredPatterns ?? defaultPathOptions[key];
 
-  return patterns.some((pattern) => matchesPath(context.filename, pattern));
+  return pipe(
+    patterns,
+    Array.some((pattern): boolean => matchesPath(context.filename, pattern)),
+  );
 };
 
 const isTestFile = (filename: string | undefined): boolean =>
-  Boolean(filename && testFilePattern.test(filename));
+  pipe(
+    Option.fromNullable(filename),
+    Option.exists((value): boolean => testFilePattern.test(value)),
+  );
 
 /**
  * Internal helper exported for package-local composition.
