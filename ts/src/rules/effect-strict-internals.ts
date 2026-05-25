@@ -1,6 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*       AST and source predicates for opt-in strict Effect lint rules.       */
 /* -------------------------------------------------------------------------- */
+import { Array, HashSet, Option, pipe } from 'effect';
 import { effectAPIAliases, effectFunctionAliases, effectImportAliases } from './effect-rule-core';
 import {
   exportedDeclarationTexts,
@@ -25,6 +26,19 @@ interface RuleContext {
 }
 
 type ASTValue = boolean | null | number | object | string | undefined;
+type IndexedMatch = RegExpExecArray;
+
+const astValueTypes = HashSet.make('boolean', 'number', 'object', 'string');
+
+const matchesIn = (source: string, pattern: RegExp): readonly IndexedMatch[] =>
+  pipe(source.matchAll(pattern), Array.fromIterable);
+
+const matchIndexOrFalse = (match: RegExpExecArray | null): number | false =>
+  pipe(
+    Option.fromNullable(match),
+    Option.map((value): number => value.index),
+    Option.getOrElse((): false => false),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -36,9 +50,7 @@ export const reportAST = (context: RuleContext, message: string, node: object): 
 };
 
 const isASTValue = (value: unknown): value is ASTValue =>
-  value === undefined ||
-  value === null ||
-  ['boolean', 'number', 'object', 'string'].includes(typeof value);
+  value === undefined || value === null || HashSet.has(astValueTypes, typeof value);
 
 /**
  * Internal helper exported for package-local composition.
@@ -62,8 +74,8 @@ export const objectValue = (node: ASTValue, key: string): ASTValue => {
  * @internal
  */
 export const arrayValue = (node: ASTValue): ASTValue[] => {
-  if (Array.isArray(node)) {
-    return node.filter(isASTValue);
+  if (globalThis.Array.isArray(node)) {
+    return pipe(node, Array.filter(isASTValue));
   }
   return [];
 };
@@ -153,7 +165,7 @@ export const isSchemaMember = (node: ASTValue, source: string, propertyName: str
   return Boolean(
     parts.objectName &&
     parts.propertyName === propertyName &&
-    effectAPIAliases(source, 'Schema').includes(parts.objectName),
+    pipe(effectAPIAliases(source, 'Schema'), Array.contains(parts.objectName)),
   );
 };
 
@@ -166,20 +178,22 @@ export const effectCallPredicate = (
   source: string,
   names: readonly string[],
 ): ((callee: ASTValue) => boolean) => {
-  const memberNames = new Set(names);
-  const importAliases = new Set(effectImportAliases(source));
-  const functionAliases = new Set(
-    names.flatMap((name) => effectFunctionAliases(source, 'Effect', name)),
+  const memberNames = HashSet.fromIterable(names);
+  const importAliases = pipe(effectImportAliases(source), HashSet.fromIterable);
+  const functionAliases = pipe(
+    names,
+    Array.flatMap((name): readonly string[] => effectFunctionAliases(source, 'Effect', name)),
+    HashSet.fromIterable,
   );
 
   return (callee: ASTValue): boolean => {
     const { objectName, propertyName } = memberParts(callee);
     if (objectName && propertyName) {
-      return importAliases.has(objectName) && memberNames.has(propertyName);
+      return HashSet.has(importAliases, objectName) && HashSet.has(memberNames, propertyName);
     }
 
     const calleeName = identifierName(callee);
-    return Boolean(calleeName && functionAliases.has(calleeName));
+    return Boolean(calleeName && HashSet.has(functionAliases, calleeName));
   };
 };
 
@@ -191,15 +205,21 @@ const literalStringValue = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-const contextTagServiceKey = (innerArguments: ASTValue): string | undefined => {
-  const [firstInnerArgument] = arrayValue(innerArguments);
-  return literalStringValue(firstInnerArgument);
-};
+const contextTagServiceKey = (innerArguments: ASTValue): string | undefined =>
+  pipe(
+    arrayValue(innerArguments),
+    Array.head,
+    Option.flatMapNullable(literalStringValue),
+    Option.getOrUndefined,
+  );
 
-const effectServiceKey = (outerArguments: ASTValue): string | undefined => {
-  const [firstOuterArgument] = arrayValue(outerArguments);
-  return literalStringValue(firstOuterArgument);
-};
+const effectServiceKey = (outerArguments: ASTValue): string | undefined =>
+  pipe(
+    arrayValue(outerArguments),
+    Array.head,
+    Option.flatMapNullable(literalStringValue),
+    Option.getOrUndefined,
+  );
 
 const contextTagKeyFromMember = (
   member: { objectName?: string; propertyName?: string },
@@ -221,7 +241,7 @@ const effectServiceKeyFromMember = (
 ): string | undefined => {
   if (
     member.objectName &&
-    effectImportAliases(source).includes(member.objectName) &&
+    pipe(effectImportAliases(source), Array.contains(member.objectName)) &&
     member.propertyName === 'Service'
   ) {
     return effectServiceKey(outerArguments);
@@ -274,17 +294,18 @@ export const serviceKeyFromClass = (
  *
  * @internal
  */
-export const hasRetryScheduleWithoutJitter = (source: string): boolean => {
-  for (const match of source.matchAll(/\bEffect\.retry\s*\(/g)) {
-    const openParenIndex = source.indexOf('(', match.index);
-    const callBody = source.slice(openParenIndex + 1, findBalancedCallEnd(source, openParenIndex));
-    if (/\bSchedule\./.test(callBody) && !/\bjitter(?:ed)?\b/.test(callBody)) {
-      return true;
-    }
-  }
-
-  return false;
-};
+export const hasRetryScheduleWithoutJitter = (source: string): boolean =>
+  pipe(
+    matchesIn(source, /\bEffect\.retry\s*\(/g),
+    Array.some((match): boolean => {
+      const openParenIndex = source.indexOf('(', match.index);
+      const callBody = source.slice(
+        openParenIndex + 1,
+        findBalancedCallEnd(source, openParenIndex),
+      );
+      return /\bSchedule\./.test(callBody) && !/\bjitter(?:ed)?\b/.test(callBody);
+    }),
+  );
 
 const declarationBeforeBody = (declaration: string): string => {
   const bodyStart = declaration.indexOf('{');
@@ -344,18 +365,21 @@ const hasClassPromiseReturningPublicMember = (declaration: string): boolean => {
  * @internal
  */
 export const hasPromiseReturningPublicAPI = (source: string): boolean =>
-  exportedDeclarationTexts(source).some((declaration) => {
-    if (/^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\b/.test(declaration)) {
-      return hasClassPromiseReturningPublicMember(declaration);
-    }
+  pipe(
+    exportedDeclarationTexts(source),
+    Array.some((declaration): boolean => {
+      if (/^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\b/.test(declaration)) {
+        return hasClassPromiseReturningPublicMember(declaration);
+      }
 
-    const signature = stripCommentsAndStrings(publicAPIDeclarationSignature(declaration));
-    return (
-      /\bPromise\s*</.test(signature) ||
-      /^\s*(?:export\s+)?async\s+function\b/.test(signature) ||
-      /=\s*async\b/.test(signature)
-    );
-  });
+      const signature = stripCommentsAndStrings(publicAPIDeclarationSignature(declaration));
+      return (
+        /\bPromise\s*</.test(signature) ||
+        /^\s*(?:export\s+)?async\s+function\b/.test(signature) ||
+        /=\s*async\b/.test(signature)
+      );
+    }),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -363,8 +387,11 @@ export const hasPromiseReturningPublicAPI = (source: string): boolean =>
  * @internal
  */
 export const hasExportedRunPromiseAPI = (source: string): boolean =>
-  exportedDeclarationTexts(source).some((declaration): boolean =>
-    /\bEffect\.runPromise\s*\(/.test(stripCommentsAndStrings(declaration)),
+  pipe(
+    exportedDeclarationTexts(source),
+    Array.some((declaration): boolean =>
+      /\bEffect\.runPromise\s*\(/.test(stripCommentsAndStrings(declaration)),
+    ),
   );
 
 const functionBodySegment = (code: string, matchIndex: number): string | undefined => {
@@ -386,21 +413,24 @@ const functionBodySegment = (code: string, matchIndex: number): string | undefin
  */
 export const hasRunSyncInServerRequestHandler = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(/\b(?:handler|route|loader|action)\s*=/g)) {
-    const segment = code.slice(match.index, findStatementEnd(code, match.index) + 1);
-    if (/\bEffect\.runSync\s*\(/.test(segment)) {
-      return true;
-    }
-  }
-
-  for (const match of code.matchAll(/\bfunction\s+(?:handler|route|loader|action)\s*\(/g)) {
-    const body = functionBodySegment(code, match.index);
-    if (body && /\bEffect\.runSync\s*\(/.test(body)) {
-      return true;
-    }
-  }
-
-  return false;
+  return (
+    pipe(
+      matchesIn(code, /\b(?:handler|route|loader|action)\s*=/g),
+      Array.some((match): boolean => {
+        const segment = code.slice(match.index, findStatementEnd(code, match.index) + 1);
+        return /\bEffect\.runSync\s*\(/.test(segment);
+      }),
+    ) ||
+    pipe(
+      matchesIn(code, /\bfunction\s+(?:handler|route|loader|action)\s*\(/g),
+      Array.some((match): boolean =>
+        pipe(
+          Option.fromNullable(functionBodySegment(code, match.index)),
+          Option.exists((body): boolean => /\bEffect\.runSync\s*\(/.test(body)),
+        ),
+      ),
+    )
+  );
 };
 
 /**
@@ -408,10 +438,8 @@ export const hasRunSyncInServerRequestHandler = (source: string): boolean => {
  *
  * @internal
  */
-export const hasCryptoRandomUUID = (source: string): number | false => {
-  const match = /\bcrypto\.randomUUID\s*\(/.exec(stripCommentsAndStrings(source));
-  return match?.index ?? false;
-};
+export const hasCryptoRandomUUID = (source: string): number | false =>
+  matchIndexOrFalse(/\bcrypto\.randomUUID\s*\(/.exec(stripCommentsAndStrings(source)));
 
 /**
  * Internal helper exported for package-local composition.
@@ -420,8 +448,7 @@ export const hasCryptoRandomUUID = (source: string): number | false => {
  */
 export const hasSchemaInstanceof = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
-  const match = /\binstanceof\s+[A-Z][\w$]*(?:Schema|Request)\b/.exec(code);
-  return match?.index ?? false;
+  return matchIndexOrFalse(/\binstanceof\s+[A-Z][\w$]*(?:Schema|Request)\b/.exec(code));
 };
 
 /**
@@ -429,35 +456,35 @@ export const hasSchemaInstanceof = (source: string): number | false => {
  *
  * @internal
  */
-export const hasSchemaStructWithTag = (source: string): number | false => {
-  const match = /\bSchema\.Struct\s*\(\s*{[\s\S]*?_tag\s*:\s*Schema\.Literal\s*\(/.exec(
-    stripCommentsAndStrings(source),
+export const hasSchemaStructWithTag = (source: string): number | false =>
+  matchIndexOrFalse(
+    /\bSchema\.Struct\s*\(\s*{[\s\S]*?_tag\s*:\s*Schema\.Literal\s*\(/.exec(
+      stripCommentsAndStrings(source),
+    ),
   );
-  return match?.index ?? false;
-};
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const hasSchemaUnionOfLiterals = (source: string): number | false => {
-  const match =
+export const hasSchemaUnionOfLiterals = (source: string): number | false =>
+  matchIndexOrFalse(
     /\bSchema\.Union\s*\(\s*Schema\.Literal\s*\([^)]*\)\s*,\s*Schema\.Literal\s*\(/.exec(
       stripCommentsAndStrings(source),
-    );
-  return match?.index ?? false;
-};
+    ),
+  );
 
-const nonDeterministicServiceKeyIndex = (code: string, pattern: RegExp): number | undefined => {
-  for (const match of code.matchAll(pattern)) {
-    const [, className, key] = match;
-    if (className !== key && !key.endsWith(`/${className}`)) {
-      return match.index;
-    }
-  }
-  return undefined;
-};
+const nonDeterministicServiceKeyIndex = (code: string, pattern: RegExp): number | undefined =>
+  pipe(
+    matchesIn(code, pattern),
+    Array.findFirst((match): boolean => {
+      const [, className, key] = match;
+      return className !== key && !key.endsWith(`/${className}`);
+    }),
+    Option.map((match): number => match.index),
+    Option.getOrUndefined,
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -485,8 +512,9 @@ export const hasNonDeterministicServiceKey = (source: string): number | false =>
  */
 export const hasMultipleProvideChain = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
-  const match = /\.pipe\s*\([\s\S]*?Effect\.provide\s*\([\s\S]*?Effect\.provide\s*\(/.exec(code);
-  return match?.index ?? false;
+  return matchIndexOrFalse(
+    /\.pipe\s*\([\s\S]*?Effect\.provide\s*\([\s\S]*?Effect\.provide\s*\(/.exec(code),
+  );
 };
 
 /**
@@ -496,8 +524,7 @@ export const hasMultipleProvideChain = (source: string): number | false => {
  */
 export const hasLayerEffectWithScope = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
-  const match = /\bLayer\.effect\s*\([\s\S]*?\b(?:Scope\.Scope|Scope)\b/.exec(code);
-  return match?.index ?? false;
+  return matchIndexOrFalse(/\bLayer\.effect\s*\([\s\S]*?\b(?:Scope\.Scope|Scope)\b/.exec(code));
 };
 
 /**
@@ -505,13 +532,12 @@ export const hasLayerEffectWithScope = (source: string): number | false => {
  *
  * @internal
  */
-export const hasNodeBuiltinImport = (source: string): number | false => {
-  const match =
+export const hasNodeBuiltinImport = (source: string): number | false =>
+  matchIndexOrFalse(
     /\bfrom\s+['"]node:(?:fs|fs\/promises|path|child_process|crypto|stream|http|https)['"]/.exec(
       stripComments(source),
-    );
-  return match?.index ?? false;
-};
+    ),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -524,26 +550,12 @@ export const hasGlobalFetch = (source: string, context: RuleContext): number | f
     return false;
   }
 
-  for (const match of code.matchAll(/\bfetch\s*\(/g)) {
-    const wrappedFetch = Boolean(effectWrapperStatement(code, match.index));
-    if (wrappedFetch) {
-      return match.index;
-    }
-  }
-
-  return false;
-};
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasEffectSucceedWithVoid = (source: string): number | false => {
-  const match = /\bEffect\.succeed\s*\(\s*(?:undefined|void\s+0)?\s*\)/.exec(
-    stripCommentsAndStrings(source),
+  return pipe(
+    matchesIn(code, /\bfetch\s*\(/g),
+    Array.findFirst((match): boolean => Boolean(effectWrapperStatement(code, match.index))),
+    Option.map((match): number => match.index),
+    Option.getOrElse((): false => false),
   );
-  return match?.index ?? false;
 };
 
 /**
@@ -551,25 +563,34 @@ export const hasEffectSucceedWithVoid = (source: string): number | false => {
  *
  * @internal
  */
-export const hasMapToVoid = (source: string): number | false => {
-  const match = /\bEffect\.map\s*\(\s*\(\s*\)\s*=>\s*(?:undefined|void\s+0|\{\s*\})\s*\)/.exec(
-    stripCommentsAndStrings(source),
+export const hasEffectSucceedWithVoid = (source: string): number | false =>
+  matchIndexOrFalse(
+    /\bEffect\.succeed\s*\(\s*(?:undefined|void\s+0)?\s*\)/.exec(stripCommentsAndStrings(source)),
   );
-  return match?.index ?? false;
-};
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const hasMapFlatten = (source: string): number | false => {
-  const match =
+export const hasMapToVoid = (source: string): number | false =>
+  matchIndexOrFalse(
+    /\bEffect\.map\s*\(\s*\(\s*\)\s*=>\s*(?:undefined|void\s+0|\{\s*\})\s*\)/.exec(
+      stripCommentsAndStrings(source),
+    ),
+  );
+
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const hasMapFlatten = (source: string): number | false =>
+  matchIndexOrFalse(
     /\bEffect\.map\s*\([\s\S]*?\)\s*,\s*Effect\.flatten\b|\bEffect\.map\s*\([\s\S]*?\)\.pipe\s*\(\s*Effect\.flatten\b/.exec(
       stripCommentsAndStrings(source),
-    );
-  return match?.index ?? false;
-};
+    ),
+  );
 
 /**
  * Internal helper exported for package-local composition.
@@ -600,17 +621,14 @@ export const hasDirectPlatformAccess = (source: string, context: RuleContext): b
   }
 
   const code = stripCommentsAndStrings(source);
-  for (const match of code.matchAll(
-    /\b(?:fetch|readFileSync|writeFileSync|createReadStream)\s*\(/g,
-  )) {
-    if (!match[0].startsWith('fetch')) {
-      return true;
-    }
+  return pipe(
+    matchesIn(code, /\b(?:fetch|readFileSync|writeFileSync|createReadStream)\s*\(/g),
+    Array.some((match): boolean => {
+      if (!match[0].startsWith('fetch')) {
+        return true;
+      }
 
-    if (!effectWrapperStatement(code, match.index)) {
-      return true;
-    }
-  }
-
-  return false;
+      return !effectWrapperStatement(code, match.index);
+    }),
+  );
 };
