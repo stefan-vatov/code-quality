@@ -60,10 +60,10 @@ describe('quality threshold configuration', () => {
   it('uses the published TypeScript package entrypoint like a consumer project', () => {
     const packageJSON = rootJSON('package.json');
     const oxlintConfig = rootText('oxlint.config.mjs');
+    const dependencyVersion = packageJSON.devDependencies['@thethracian/oxlint-config'];
 
-    expect(packageJSON.devDependencies['@thethracian/oxlint-config']).toBe(
-      'npm:@thethracian/oxlint-config@0.3.0',
-    );
+    expect(dependencyVersion).toMatch(/^(?:npm:@thethracian\/oxlint-config@)?\d+\.\d+\.\d+$/u);
+    expect(dependencyVersion).not.toMatch(/^(?:file|link|workspace):/u);
     expect(oxlintConfig).toContain("from '@thethracian/oxlint-config'");
     expect(oxlintConfig).not.toMatch(/workspace copy|local dist/u);
     expect(oxlintConfig).not.toContain('./ts/dist');
@@ -88,6 +88,7 @@ describe('quality threshold configuration', () => {
 
   it('keeps workspace TypeScript config checks behind explicit local development scripts', () => {
     const packageJSON = rootJSON('package.json');
+    const knipConfig = rootJSON('knip.json');
     const publishedConfig = rootText('oxlint.config.mjs');
     const localConfig = rootText('oxlint.workspace.config.mjs');
 
@@ -107,6 +108,7 @@ describe('quality threshold configuration', () => {
     expect(localConfig).toContain("from './ts/dist/index.js'");
     expect(localConfig).not.toContain("from '@thethracian/oxlint-config'");
     expect(publishedConfig).toContain("'oxlint.workspace.config.mjs'");
+    expect(knipConfig.ignore).toContain('oxlint.workspace.config.mjs');
     expect(packageJSON.scripts.lint).toBe('oxlint -c oxlint.config.mjs ts');
     expect(packageJSON.scripts['lint:ci']).not.toContain('local');
   });
