@@ -264,6 +264,23 @@ const addObjectPropertyKeyRange = (
   return HashSet.add(ranges, nodeRangeKey(property.key));
 };
 
+const isTypeScriptSyntaxNode = (node: unknown): boolean =>
+  isObjectRecord(node) && typeof node.type === 'string' && node.type.startsWith('TS');
+
+const hasTypeScriptSyntaxAncestor = (path: { parentPath?: unknown }): boolean => {
+  let current = path.parentPath;
+
+  while (isObjectRecord(current)) {
+    const { value } = current;
+    if (isTypeScriptSyntaxNode(value)) {
+      return true;
+    }
+    current = current.parentPath;
+  }
+
+  return false;
+};
+
 const collectProtectedRanges = (source: string): HashSet.HashSet<string> => {
   let ranges = HashSet.empty<string>();
 
@@ -271,6 +288,14 @@ const collectProtectedRanges = (source: string): HashSet.HashSet<string> => {
     .find(codemodAPI.ObjectProperty)
     .forEach((path): void => {
       ranges = addObjectPropertyKeyRange(ranges, path.value);
+    });
+
+  codemodAPI(source)
+    .find(codemodAPI.Identifier)
+    .forEach((path): void => {
+      if (hasTypeScriptSyntaxAncestor(path)) {
+        ranges = HashSet.add(ranges, nodeRangeKey(path.value));
+      }
     });
 
   return ranges;
