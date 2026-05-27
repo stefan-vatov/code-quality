@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5 - 2026-05-27
+
+### Fixes
+
+- fix: protect type contracts in acronym codemod (#19) (ec70982)
+
 ## 0.3.4 - 2026-05-25
 
 ### Fixes
