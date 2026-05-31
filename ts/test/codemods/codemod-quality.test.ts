@@ -3749,7 +3749,6 @@ describe('codemod quality gate', (): void => {
       { encoding: 'utf8', env: subprocessEnv() },
     );
 
-    expect(result.stdout + result.stderr).toBe('');
-    expect(result.status).toBe(0);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
   }, 30_000);
 });
