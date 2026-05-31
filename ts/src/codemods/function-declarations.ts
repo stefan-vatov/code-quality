@@ -191,6 +191,13 @@ const declarationText = (
   const typeParameters = typeParameterText(source, node);
   const parameters = parameterText(source, node);
   const body = sourceForNode(source, node.body);
+  if (node.generator === true) {
+    return [
+      `${exportInfo?.prefix ?? ''}const ${name} = `,
+      `${asyncPrefixFor(node)}function* ${name}${typeParameters}(${parameters})`,
+      `${returnTypeFor(source, node)} ${body};`,
+    ].join('');
+  }
   return [
     `${exportInfo?.prefix ?? ''}const ${name} = `,
     `${asyncPrefixFor(node)}${typeParameters}(${parameters})`,

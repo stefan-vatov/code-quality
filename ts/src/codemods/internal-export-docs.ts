@@ -31,10 +31,15 @@ const nodeStart = (node: unknown): number =>
   );
 
 const hasInternalFileHeader = (source: string): boolean => {
-  const trimmedStart = source.trimStart();
+  const trimmedStart = source
+    .trimStart()
+    .replace(/^#![^\n]*(?:\n|$)/u, '')
+    .trimStart();
   return (
-    trimmedStart.startsWith('/**') &&
-    trimmedStart.slice(0, internalHeaderScanLength).includes('@internal')
+    (trimmedStart.startsWith('/**') &&
+      trimmedStart.slice(0, internalHeaderScanLength).includes('@internal')) ||
+    (trimmedStart.startsWith('/*') &&
+      trimmedStart.slice(0, internalHeaderScanLength).toLocaleLowerCase().includes('internal'))
   );
 };
 
@@ -109,23 +114,17 @@ const applyInsertions = (source: string, insertions: readonly Insertion[]): stri
   );
 
 const internalExportDocInsertions = (source: string): readonly Insertion[] => {
-  const program = codemodAPI(source).find(codemodAPI.Program).paths()[0]?.value;
-  return pipe(
-    Option.fromNullable(program),
-    Option.map((value) =>
-      pipe(
-        value.body,
-        Array.filter(
-          (statement): statement is ExportNamedDeclaration =>
-            isExportedDeclarationStatement(statement) && !hasDeclarationJSDoc(source, statement),
-        ),
-        Array.map(
-          (statement): Insertion => ({ position: nodeStart(statement), text: internalExportDoc }),
-        ),
-      ),
-    ),
-    Option.getOrElse((): readonly Insertion[] => []),
-  );
+  const insertions: Insertion[] = [];
+
+  codemodAPI(source)
+    .find(codemodAPI.ExportNamedDeclaration)
+    .forEach((path): void => {
+      if (isExportedDeclarationStatement(path.value) && !hasDeclarationJSDoc(source, path.value)) {
+        insertions.push({ position: nodeStart(path.value), text: internalExportDoc });
+      }
+    });
+
+  return insertions;
 };
 
 /**

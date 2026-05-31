@@ -253,16 +253,42 @@ const appendInlineExportReplacements = (
 ): void => {
   pipe(
     statements,
-    Array.filter((statement): boolean =>
-      pipe(
-        declarationNames(statement),
-        Array.some((name): boolean => HashSet.has(names, name)),
-      ),
-    ),
+    Array.filter((statement): boolean => {
+      const namesInStatement = declarationNames(statement);
+      return (
+        namesInStatement.length > 0 &&
+        pipe(
+          namesInStatement,
+          Array.every((name): boolean => HashSet.has(names, name)),
+        )
+      );
+    }),
     Array.filterMap((statement) => Option.fromNullable(inlineExportReplacement(statement))),
     Array.map((replacement): number => replacements.push(replacement)),
   );
 };
+
+const partialMultiDeclaratorExportNames = (
+  statements: readonly Statement[],
+  names: HashSet.HashSet<string>,
+): HashSet.HashSet<string> =>
+  pipe(
+    statements,
+    Array.reduce(HashSet.empty<string>(), (blockedNames, statement) => {
+      const namesInStatement = declarationNames(statement);
+      const exportedNames = pipe(
+        namesInStatement,
+        Array.filter((name): boolean => HashSet.has(names, name)),
+      );
+      if (exportedNames.length === 0 || exportedNames.length === namesInStatement.length) {
+        return blockedNames;
+      }
+      return pipe(
+        exportedNames,
+        Array.reduce(blockedNames, (currentNames, name) => HashSet.add(currentNames, name)),
+      );
+    }),
+  );
 
 const collectExportListReplacements = (source: string): Replacement[] => {
   const program = sourceProgram(source);
@@ -270,14 +296,28 @@ const collectExportListReplacements = (source: string): Replacement[] => {
     return [];
   }
   const exportLists = collectExportLists(source, program.body);
+  const exportNames = pipe(
+    exportLists,
+    Array.flatMap((exportList) => exportList.names),
+  );
+  const blockedNames = partialMultiDeclaratorExportNames(
+    program.body,
+    HashSet.fromIterable(exportNames),
+  );
   const names = HashSet.fromIterable(
     pipe(
-      exportLists,
-      Array.flatMap((exportList) => exportList.names),
+      exportNames,
+      Array.filter((name): boolean => !HashSet.has(blockedNames, name)),
     ),
   );
   const replacements: Replacement[] = pipe(
     exportLists,
+    Array.filter((exportList): boolean =>
+      pipe(
+        exportList.names,
+        Array.every((name): boolean => !HashSet.has(blockedNames, name)),
+      ),
+    ),
     Array.map((exportList) => exportList.range),
   );
   appendInlineExportReplacements(replacements, program.body, names);

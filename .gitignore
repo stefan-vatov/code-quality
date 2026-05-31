@@ -156,6 +156,7 @@ build/Release
 
 # Dependency directories
 node_modules/
+ts/codemod-quality-output/
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)

@@ -264,6 +264,28 @@ const addObjectPropertyKeyRange = (
   return HashSet.add(ranges, nodeRangeKey(property.key));
 };
 
+const addObjectPropertyKeyName = (
+  names: HashSet.HashSet<string>,
+  property: ObjectProperty,
+): HashSet.HashSet<string> => {
+  if (isIdentifier(property.key)) {
+    return HashSet.add(names, property.key.name);
+  }
+  return names;
+};
+
+const collectProtectedPropertyNames = (source: string): HashSet.HashSet<string> => {
+  let names = HashSet.empty<string>();
+
+  codemodAPI(source)
+    .find(codemodAPI.ObjectProperty)
+    .forEach((path): void => {
+      names = addObjectPropertyKeyName(names, path.value);
+    });
+
+  return names;
+};
+
 const isTypeScriptSyntaxNode = (node: unknown): boolean =>
   isObjectRecord(node) && typeof node.type === 'string' && node.type.startsWith('TS');
 
@@ -281,8 +303,28 @@ const hasTypeScriptSyntaxAncestor = (path: { parentPath?: unknown }): boolean =>
   return false;
 };
 
+const isProtectedMemberProperty = (
+  path: { parentPath?: unknown; value: Identifier },
+  protectedPropertyNames: HashSet.HashSet<string>,
+): boolean => {
+  if (!HashSet.has(protectedPropertyNames, path.value.name)) {
+    return false;
+  }
+  if (!isObjectRecord(path.parentPath)) {
+    return false;
+  }
+  const parent = path.parentPath.value;
+  return (
+    isObjectRecord(parent) &&
+    parent.type === 'MemberExpression' &&
+    parent.computed !== true &&
+    parent.property === path.value
+  );
+};
+
 const collectProtectedRanges = (source: string): HashSet.HashSet<string> => {
   let ranges = HashSet.empty<string>();
+  const protectedPropertyNames = collectProtectedPropertyNames(source);
 
   codemodAPI(source)
     .find(codemodAPI.ObjectProperty)
@@ -293,7 +335,10 @@ const collectProtectedRanges = (source: string): HashSet.HashSet<string> => {
   codemodAPI(source)
     .find(codemodAPI.Identifier)
     .forEach((path): void => {
-      if (hasTypeScriptSyntaxAncestor(path)) {
+      if (
+        hasTypeScriptSyntaxAncestor(path) ||
+        isProtectedMemberProperty(path, protectedPropertyNames)
+      ) {
         ranges = HashSet.add(ranges, nodeRangeKey(path.value));
       }
     });
