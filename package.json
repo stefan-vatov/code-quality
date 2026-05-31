@@ -34,6 +34,7 @@
     "lint:ci": "pnpm run lint:type-aware && pnpm run format:check",
     "prepare": "husky",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
+    "test:codemod-quality": "vitest run --config vitest.config.mts ts/test/codemods/codemod-quality.test.ts",
     "test:watch": "vitest --config vitest.config.mts",
     "test:coverage": "vitest run --coverage --config vitest.config.mts --passWithNoTests",
     "test:ci": "vitest run --coverage --config vitest.config.mts --passWithNoTests",

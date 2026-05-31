@@ -80,8 +80,21 @@ const hasAttachedComments = (node: ReturnStatement): boolean =>
     ),
   );
 
-const expressionNeedsParentheses = (expression: Expression): boolean =>
-  expression.type === 'ObjectExpression';
+const expressionNeedsParentheses = (expression: Expression): boolean => {
+  if (expression.type === 'ObjectExpression') {
+    return true;
+  }
+  if (!isObjectRecord(expression)) {
+    return false;
+  }
+  return (
+    (expression.type === 'TSAsExpression' ||
+      expression.type === 'TSSatisfiesExpression' ||
+      expression.type === 'TSTypeAssertion') &&
+    isObjectRecord(expression.expression) &&
+    expression.expression.type === 'ObjectExpression'
+  );
+};
 
 const lineEndAfter = (source: string, end: number): number => {
   const nextLineBreak = source.indexOf('\n', end);

@@ -4,6 +4,8 @@
 import type {
   ASTPath,
   ArrowFunctionExpression,
+  ClassMethod,
+  ClassPrivateMethod,
   Expression,
   FunctionDeclaration,
   FunctionExpression,
@@ -22,9 +24,12 @@ interface Replacement {
 
 type FunctionLike =
   | ArrowFunctionExpression
+  | ClassMethod
+  | ClassPrivateMethod
   | FunctionDeclaration
   | FunctionExpression
   | ObjectMethod;
+type RootCollection = ReturnType<typeof codemodAPI>;
 
 interface ReturnSearch {
   isRoot: boolean;
@@ -80,6 +85,8 @@ const isExpressionLike = (value: unknown): value is Expression =>
 const isFunctionLikeNode = (node: unknown): node is FunctionLike =>
   isObjectRecord(node) &&
   (node.type === 'ArrowFunctionExpression' ||
+    node.type === 'ClassMethod' ||
+    node.type === 'ClassPrivateMethod' ||
     node.type === 'FunctionDeclaration' ||
     node.type === 'FunctionExpression' ||
     node.type === 'ObjectMethod');
@@ -477,19 +484,35 @@ const replacementForFunction = (
     Option.getOrUndefined,
   );
 
+const appendReplacementForFunction = (
+  source: string,
+  propertyNames: HashMap.HashMap<string, string>,
+  replacements: Replacement[],
+  path: ASTPath<FunctionLike>,
+): void => {
+  pipe(
+    Option.fromNullable(replacementForFunction(source, path, propertyNames)),
+    Option.map((replacement): number => replacements.push(replacement)),
+  );
+};
+
+const collectClassMethodReplacements = (
+  root: RootCollection,
+  collect: (path: ASTPath<FunctionLike>) => void,
+): void => {
+  root.find(codemodAPI.ClassMethod).forEach(collect);
+  root.find(codemodAPI.ClassPrivateMethod).forEach(collect);
+};
+
 const collectFunctionReplacements = (source: string): Replacement[] => {
   const replacements: Replacement[] = [];
   const propertyNames = collectObjectPropertyNames(source);
-
-  const collect = (path: ASTPath<FunctionLike>): void => {
-    pipe(
-      Option.fromNullable(replacementForFunction(source, path, propertyNames)),
-      Option.map((replacement): number => replacements.push(replacement)),
-    );
-  };
+  const collect = (path: ASTPath<FunctionLike>): void =>
+    appendReplacementForFunction(source, propertyNames, replacements, path);
 
   const root = codemodAPI(source);
   root.find(codemodAPI.ArrowFunctionExpression).forEach(collect);
+  collectClassMethodReplacements(root, collect);
   root.find(codemodAPI.ObjectMethod).forEach(collect);
   root.find(codemodAPI.FunctionDeclaration).forEach(collect);
   root.find(codemodAPI.FunctionExpression).forEach(collect);

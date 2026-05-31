@@ -62,6 +62,9 @@ const sourceForNode = (source: string, node: unknown): string =>
 const isIdentifier = (node: Node | null | undefined): node is Identifier =>
   node?.type === 'Identifier';
 
+const isExpressionLike = (value: unknown): value is Expression =>
+  isObjectRecord(value) && typeof value.type === 'string';
+
 const lineIndent = (source: string, index: number): string => {
   const lineStart = source.lastIndexOf('\n', index) + 1;
   let cursor = lineStart;
@@ -105,8 +108,18 @@ const hasUnsafeBranches = (expression: ConditionalExpression): boolean =>
   containsConditionalExpression(expression.consequent) ||
   containsConditionalExpression(expression.alternate);
 
-const primitiveTypeOf = (expression: Expression): string | undefined =>
-  pipe(
+const primitiveTypeOf = (expression: Expression): string | undefined => {
+  if (
+    isObjectRecord(expression) &&
+    (expression.type === 'TSAsExpression' ||
+      expression.type === 'TSSatisfiesExpression' ||
+      expression.type === 'TSTypeAssertion') &&
+    isExpressionLike(expression.expression)
+  ) {
+    return primitiveTypeOf(expression.expression);
+  }
+
+  return pipe(
     Option.some(expression.type),
     Option.flatMap((type) => {
       if (type === 'StringLiteral') {
@@ -125,6 +138,7 @@ const primitiveTypeOf = (expression: Expression): string | undefined =>
     }),
     Option.getOrUndefined,
   );
+};
 
 const declaredTypeText = (source: string, declaration: VariableDeclarator): string | undefined =>
   pipe(

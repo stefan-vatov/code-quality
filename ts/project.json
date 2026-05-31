@@ -18,6 +18,9 @@
     "test": {
       "command": "pnpm exec vitest run --config vitest.config.mts --passWithNoTests ts"
     },
+    "codemod-quality": {
+      "command": "pnpm run test:codemod-quality"
+    },
     "pack": {
       "command": "pnpm --dir ts build && mkdir -p dist/packages && pnpm --dir ts pack --pack-destination ../dist/packages",
       "outputs": ["{workspaceRoot}/dist/packages"]
