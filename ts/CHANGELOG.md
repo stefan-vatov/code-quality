@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6 - 2026-05-31
+
+### Fixes
+
+- fix: add codemod quality gate and fix edge cases (#21) (0ed6616)
+
 ## 0.3.5 - 2026-05-27
 
 ### Fixes
