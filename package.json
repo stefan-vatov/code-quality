@@ -35,6 +35,7 @@
     "prepare": "husky",
     "test": "vitest run --config vitest.config.mts --passWithNoTests",
     "test:codemod-quality": "vitest run --config vitest.config.mts ts/test/codemods/codemod-quality.test.ts",
+    "test:oxlint-min-peer": "pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs",
     "test:watch": "vitest --config vitest.config.mts",
     "test:coverage": "vitest run --coverage --config vitest.config.mts --passWithNoTests",
     "test:ci": "vitest run --coverage --config vitest.config.mts --passWithNoTests",
@@ -46,7 +47,8 @@
     "knip:ci": "knip --cache --strict",
     "performance:gate": "tsx ts/bench/performance-gate.ts --check",
     "performance:calibrate": "tsx ts/bench/performance-gate.ts --update --runs 20",
-    "performance:estimate": "tsx ts/bench/performance-estimate.ts"
+    "performance:estimate": "tsx ts/bench/performance-estimate.ts",
+    "quality:gate": "pnpm run lint:ci && pnpm run lint:projects && pnpm run knip:ci && pnpm run check && pnpm run test:projects && pnpm run test:ci && pnpm run build && pnpm run performance:gate && pnpm run test:oxlint-min-peer && pnpm run test:mutation && pnpm nx run-many -t pack"
   },
   "devDependencies": {
     "@j178/prek": "^0.3.8",

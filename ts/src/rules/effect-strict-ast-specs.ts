@@ -4,8 +4,6 @@
 import { Array, Option, pipe } from 'effect';
 import {
   arrayValue,
-  effectCallPredicate,
-  effectWrapperStatement,
   hasCryptoRandomUUID,
   hasEffectSucceedWithVoid,
   hasGlobalFetch,
@@ -28,8 +26,10 @@ import {
   serviceKeyFromClass,
 } from './effect-strict-internals';
 import type { RuleSpec } from './effect-rule-core';
+import { asNode } from './effect-ast';
+import { effectGlobalFetchAST } from './effect-global-fetch-ast';
+import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 import { isConfiguredPath } from './effect-path-options';
-import { stripCommentsAndStrings } from './effect-source-helpers';
 
 /**
  * Internal helper exported for package-local composition.
@@ -191,45 +191,32 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['node:'],
     },
     {
-      ast: (context, source): Record<string, (node: object) => void> => ({
-        CallExpression(node): void {
-          const calleeName = identifierName(objectValue(node, 'callee'));
-          const wrappedFetch = effectWrapperStatement(
-            stripCommentsAndStrings(source),
-            (node as { start?: number }).start ?? 0,
-          );
-          if (
-            calleeName === 'fetch' &&
-            !isConfiguredPath(context, 'adapterLayers') &&
-            wrappedFetch
-          ) {
-            reportAST(
-              context,
-              'Use the Effect HTTP client or an adapter service instead of global fetch.',
-              node,
-            );
-          }
-        },
-      }),
+      ast: (context, source): Record<string, (node: object) => void> => {
+        if (isConfiguredPath(context, 'adapterLayers')) {
+          return { Program(): void {} };
+        }
+        return effectGlobalFetchAST(context, source);
+      },
       check: hasGlobalFetch,
       message: 'Use the Effect HTTP client or an adapter service instead of global fetch.',
       name: 'effect-no-global-fetch',
       tokens: ['fetch'],
     },
     {
-      ast: (context, source): Record<string, (node: object) => void> => {
-        const isEffectSucceed = effectCallPredicate(source, ['succeed']);
+      ast: (context): Record<string, (node: object) => void> => {
+        const effectSucceed = importedEffectCallMatcher(context, 'Effect', ['succeed']);
         return {
           CallExpression(node): void {
             const callArguments = arrayValue(objectValue(node, 'arguments'));
             const firstArg = pipe(callArguments, Array.head, Option.getOrUndefined);
             if (
-              isEffectSucceed(objectValue(node, 'callee')) &&
+              effectSucceed.matches(asNode(objectValue(node, 'callee'))) &&
               (!firstArg || identifierName(firstArg) === 'undefined' || isVoidZero(firstArg))
             ) {
               reportAST(context, 'Use Effect.void instead of Effect.succeed(undefined).', node);
             }
           },
+          Program: effectSucceed.initialize,
         };
       },
       check: hasEffectSucceedWithVoid,

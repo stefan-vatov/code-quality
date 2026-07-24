@@ -12,6 +12,7 @@ import {
   propertyKeyName,
   reportAST,
 } from './effect-default-ast';
+import { effectRecursionAST, effectSyncForPromiseAST } from './effect-default-boundary-ast';
 import {
   exportedCallableDeclarationSegments,
   exportedDeclarationSegments,
@@ -42,6 +43,7 @@ import {
 import { hasEffectSignal, makeRules } from './effect-rule-core';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
+import preferMapOverFlatMapSucceedRule from './effect-prefer-map-over-flatmap-succeed';
 import { strictPathOptionsSchema } from './effect-path-options';
 
 type RuleSpec = Parameters<typeof makeRules>[0][number];
@@ -166,6 +168,7 @@ const effectDefaultSpecs = [
     tokens: ['fork'],
   },
   {
+    ast: effectRecursionAST,
     check: hasRecursiveEffectWithoutSuspend,
     message: 'Recursive Effect construction must be wrapped in Effect.suspend.',
     name: 'effect-require-suspend-for-recursion',
@@ -339,10 +342,11 @@ const effectDefaultSpecs = [
     tokens: ['runFork'],
   },
   {
+    ast: effectSyncForPromiseAST,
     check: hasSyncForPromise,
     message: 'Use Effect.tryPromise for Promise-returning code instead of Effect.sync.',
     name: 'effect-no-sync-for-promise',
-    tokenGroups: [['sync'], ['async', 'fetch', 'Promise.']],
+    tokenGroups: [['sync'], ['async', 'fetch', 'Promise']],
   },
   {
     check: hasSyncForThrowingOPS,
@@ -379,9 +383,12 @@ const effectDefaultSpecs = [
   ...effectDefaultCompatibilitySpecs,
 ] satisfies readonly RuleSpec[];
 
-const effectDefaultRules = makeRules(effectDefaultSpecs, {
-  defaultTokens: effectDefaultRuleTokens,
-  schema: strictPathOptionsSchema,
-});
+const effectDefaultRules = {
+  ...makeRules(effectDefaultSpecs, {
+    defaultTokens: effectDefaultRuleTokens,
+    schema: strictPathOptionsSchema,
+  }),
+  'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,
+};
 
 export default effectDefaultRules;

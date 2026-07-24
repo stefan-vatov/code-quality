@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { describe, expect, it } from 'vitest';
 import {
   existsSync,
   mkdirSync,
@@ -8,10 +8,10 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { tmpdir } from 'node:os';
 
 const repoRoot = join(import.meta.dirname, '..', '..');
 const distPackageTestTimeoutMs = 30_000;
@@ -38,7 +38,7 @@ type CliAstCase = {
   source: string;
 };
 
-const astBackedCliCases: CliAstCase[] = [
+const astBackedCLICases = [
   {
     ruleName: 'effect-no-promise-then-in-effect',
     filename: 'src/domain/promise-then.ts',
@@ -53,6 +53,12 @@ const astBackedCliCases: CliAstCase[] = [
     ruleName: 'effect-no-untagged-errors',
     filename: 'src/domain/untagged-error.ts',
     source: 'import { Effect } from "effect";\nconst failure = Effect.fail(new Error("bad"));',
+  },
+  {
+    ruleName: 'effect-prefer-map-over-flatMap-succeed',
+    filename: 'src/domain/flatmap-succeed.ts',
+    source:
+      'import { Effect } from "effect";\ndeclare const program: Effect.Effect<number>;\nconst result = program.pipe(Effect.flatMap((value) => Effect.succeed(value + 1)));',
   },
   {
     ruleName: 'effect-no-console-log-in-effect-code',
@@ -150,17 +156,28 @@ const astBackedCliCases: CliAstCase[] = [
       'import { Effect } from "effect";\nconst response = Effect.tryPromise({ try: () => fetch("/users"), catch: (error) => error });',
   },
   {
+    ruleName: 'effect-no-sync-for-promise',
+    filename: 'src/domain/sync-global-promise.ts',
+    source:
+      'import { sync as effectSync } from "effect/Effect";\nconst task = effectSync(() => Promise.resolve(fetch("/users")));',
+  },
+  {
+    ruleName: 'effect-require-suspend-for-recursion',
+    filename: 'src/domain/eager-recursion.ts',
+    source:
+      'import { Effect as Fx } from "effect";\nconst loop = (value: number): Fx.Effect<number> => { Fx.succeed(undefined); return loop(value - 1); };',
+  },
+  {
     ruleName: 'effect-prefer-effect-void',
     filename: 'src/domain/effect-void.ts',
     source: 'import { Effect } from "effect";\nconst done = Effect.succeed(void 0);',
   },
 ];
 
-function importFresh<T>(path: string): Promise<T> {
-  return import(`${pathToFileURL(path).href}?t=${Date.now()}`) as Promise<T>;
-}
+const importFresh = <T>(path: string): Promise<T> =>
+  import(`${pathToFileURL(path).href}?t=${Date.now()}`) as Promise<T>;
 
-function runOxlintJson(args: string[], cwd: string): string {
+const runOxlintJSON = (args: string[], cwd: string): string => {
   try {
     return execFileSync('pnpm', ['exec', 'oxlint', ...args], {
       cwd,
@@ -171,12 +188,12 @@ function runOxlintJson(args: string[], cwd: string): string {
     const output = (error as { stdout?: string }).stdout;
     return output ?? '';
   }
-}
+};
 
-describe('published TypeScript package shape', () => {
+describe('published TypeScript package shape', (): void => {
   it(
     'cleans stale renamed build artifacts before packing dist',
-    () => {
+    (): void => {
       const stalePath = join(repoRoot, 'ts', 'dist', 'rules', 'effect-agentic.js');
       mkdirSync(join(repoRoot, 'ts', 'dist', 'rules'), { recursive: true });
       writeFileSync(stalePath, 'export default {};\n');
@@ -193,7 +210,7 @@ describe('published TypeScript package shape', () => {
 
   it(
     'builds an importable dist config with the package-local plugin and all Effect rules',
-    async () => {
+    async (): Promise<void> => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
         cwd: repoRoot,
         stdio: 'pipe',
@@ -223,7 +240,7 @@ describe('published TypeScript package shape', () => {
 
   it(
     'executes built custom Effect rules through the real Oxlint CLI',
-    async () => {
+    async (): Promise<void> => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
         cwd: repoRoot,
         stdio: 'pipe',
@@ -257,7 +274,7 @@ describe('published TypeScript package shape', () => {
           'const failure = Effect.fail("bad");\nHttpClient.get(url).pipe(Effect.timeout("1 second"));\n',
         );
 
-        const output = runOxlintJson(
+        const output = runOxlintJSON(
           [sourcePath, '--config', configPath, '--disable-nested-config', '--format', 'json'],
           repoRoot,
         );
@@ -273,7 +290,7 @@ describe('published TypeScript package shape', () => {
 
   it(
     'executes every AST-backed Effect rule through the real Oxlint CLI',
-    async () => {
+    async (): Promise<void> => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
         cwd: repoRoot,
         stdio: 'pipe',
@@ -287,7 +304,7 @@ describe('published TypeScript package shape', () => {
         );
         const config = theThracianOxlint({ effect: { strict: true } });
         const rules = Object.fromEntries(
-          astBackedCliCases.map(({ ruleName }) => [
+          astBackedCLICases.map(({ ruleName }) => [
             `thethracian/${ruleName}`,
             config.rules?.[`thethracian/${ruleName}`],
           ]),
@@ -300,21 +317,89 @@ describe('published TypeScript package shape', () => {
           JSON.stringify({ jsPlugins: config.jsPlugins, rules }, undefined, 2),
         );
 
-        for (const testCase of astBackedCliCases) {
+        for (const testCase of astBackedCLICases) {
           const sourcePath = join(root, testCase.filename);
           mkdirSync(join(sourcePath, '..'), { recursive: true });
           writeFileSync(sourcePath, testCase.source);
           sourcePaths.push(sourcePath);
         }
 
-        const output = runOxlintJson(
+        const output = runOxlintJSON(
           [...sourcePaths, '--config', configPath, '--disable-nested-config', '--format', 'json'],
           repoRoot,
         );
 
-        for (const { ruleName } of astBackedCliCases) {
+        for (const { ruleName } of astBackedCLICases) {
           expect(output, `${ruleName} should report through real Oxlint`).toContain(ruleName);
         }
+
+        const nonReportSources = [
+          {
+            filename: 'src/domain/shadowed-flatmap-succeed.ts',
+            source:
+              'import { Effect } from "effect";\nconst result = (Effect) => Effect.flatMap(1, (value) => Effect.succeed(value + 1));',
+          },
+          {
+            filename: 'src/domain/unrelated-import-flatmap-succeed.ts',
+            source:
+              'import { Effect } from "local-effect";\nconst result = Effect.flatMap(1, (value) => Effect.succeed(value + 1));',
+          },
+          {
+            filename: 'src/domain/loop-shadowed-flatmap-succeed.ts',
+            source:
+              'import { Effect } from "effect";\nfor (const Effect of localEffects) { Effect.flatMap(1, (value) => Effect.succeed(value + 1)); }',
+          },
+          {
+            filename: 'src/domain/switch-shadowed-flatmap-succeed.ts',
+            source:
+              'import { Effect } from "effect";\nswitch (kind) { case "local": const Effect = LocalEffect; Effect.flatMap(1, (value) => Effect.succeed(value + 1)); }',
+          },
+          {
+            filename: 'src/domain/tdz-shadowed-promise.ts',
+            source:
+              'import { Effect as Fx } from "effect";\nconst task = Fx.sync(() => Promise.resolve(1));\nconst Promise = LocalPromise;',
+          },
+          {
+            filename: 'src/domain/tdz-shadowed-fetch.ts',
+            source:
+              'import { Effect as Fx } from "effect";\nconst task = Fx.sync(() => fetch("/users"));\nconst fetch = localFetch;',
+          },
+          {
+            filename: 'src/domain/nested-shadowed-promise.ts',
+            source:
+              'import { Effect as Fx } from "effect";\nfunction make(Promise: LocalPromise) { return Fx.sync(() => Promise.resolve(1)); }',
+          },
+          {
+            filename: 'src/domain/nested-shadowed-recursion.ts',
+            source:
+              'import { Effect as Fx } from "effect";\nfunction loop() { return Fx.flatMap(step, (loop) => loop()); }',
+          },
+          {
+            filename: 'src/domain/suspended-aliased-recursion.ts',
+            source:
+              'import * as Fx from "effect/Effect";\nfunction loop() { return Fx.flatMap(step, () => Fx.suspend(() => loop())); }',
+          },
+        ];
+        const nonReportPaths = nonReportSources.map(({ filename, source }) => {
+          const sourcePath = join(root, filename);
+          writeFileSync(sourcePath, source);
+          return sourcePath;
+        });
+        const nonReportOutput = runOxlintJSON(
+          [
+            ...nonReportPaths,
+            '--config',
+            configPath,
+            '--disable-nested-config',
+            '--format',
+            'json',
+          ],
+          repoRoot,
+        );
+
+        expect(nonReportOutput).not.toContain('effect-prefer-map-over-flatMap-succeed');
+        expect(nonReportOutput).not.toContain('effect-no-sync-for-promise');
+        expect(nonReportOutput).not.toContain('effect-require-suspend-for-recursion');
       } finally {
         rmSync(root, { force: true, recursive: true });
       }
@@ -324,7 +409,7 @@ describe('published TypeScript package shape', () => {
 
   it(
     'imports the built package through the public npm exports surface',
-    () => {
+    (): void => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
         cwd: repoRoot,
         stdio: 'pipe',
@@ -371,12 +456,12 @@ describe('published TypeScript package shape', () => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(141);
+        expect(parsed.effectRuleCount).toBe(142);
         expect(existsSync(parsed.pluginPath)).toBe(true);
-        const packageJson = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+        const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;
         };
-        expect(packageJson.bin?.['thx-codemod-fix']).toBe('./dist/codemod-fix/cli.js');
+        expect(packageJSON.bin?.['thx-codemod-fix']).toBe('./dist/codemod-fix/cli.js');
       } finally {
         rmSync(root, { force: true, recursive: true });
       }

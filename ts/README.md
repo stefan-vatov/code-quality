@@ -23,7 +23,7 @@ Result: native Oxlint rules + The Thracian custom rules + optional Effect policy
 
 - Strict by default: every rule is an error, not a suggestion.
 - Agent-ready TypeScript: catches debug artifacts, unsafe escape hatches, silent catches, mutation, deep nesting, and oversized code.
-- Effect-aware out of the box: 81 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
+- Effect-aware out of the box: 82 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
 - Strict Effect mode when you want it: opt in to 60 additional project-boundary rules for entrypoints, adapters, config layers, domain modules, service wiring, external calls, and test ownership.
 - Importable config: consumers import one package instead of copying linter files around a codebase.
 
@@ -109,11 +109,15 @@ The default bucket checks for patterns such as:
 - floating `Effect` values that are never run, yielded, returned, or composed
 - missing `yield*` inside `Effect.gen`
 - nested `flatMap` code that should be `Effect.gen`
+- `flatMap` callbacks that only lift one value with `Effect.succeed` and should use `Effect.map`
+- eager recursive Effect construction that needs `Effect.suspend`; ordinary `flatMap`, `map`, `gen`, and `Effect.fn` continuations remain deferred, while v4 `*Eager` continuations are analyzed as immediate execution
 - string errors and untagged error channels
-- unsafe Promise, throw, runtime, and sync boundaries
+- unsafe Promise, throw, runtime, and sync boundaries, including provably invoked local helpers, executed defaults, and eager collection callbacks
 - Schema decode misuse at external data boundaries
 - resource, fiber, stream, concurrency, and test determinism mistakes
 - deprecated or invented Effect APIs
+
+`effect-prefer-map-over-flatMap-succeed` is import-aware and AST-backed. It recognizes root `Effect` imports, `effect/Effect` namespace imports, and aliased named `flatMap`/`succeed` imports across pipeable, `pipe`, data-first, and data-last composition. It reports only non-async, non-generator arrow or function callbacks whose entire body directly returns a single-argument `Effect.succeed` call, and it ignores unrelated lookalikes and lexically shadowed bindings.
 
 Disable the Effect bucket for non-Effect projects:
 

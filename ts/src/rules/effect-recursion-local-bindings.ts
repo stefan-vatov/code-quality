@@ -1,0 +1,161 @@
+/* -------------------------------------------------------------------------- */
+/*        Local function and alias resolution for recursion execution.        */
+/* -------------------------------------------------------------------------- */
+
+import { childNode, childNodes, identifierName } from './effect-ast';
+import { isFunctionNode, unwrappedExpression } from './effect-boundary-ast-shared';
+import type { ASTNode } from './effect-ast';
+
+interface AliasBinding {
+  kind: 'alias';
+  name: string;
+}
+
+interface FunctionBinding {
+  kind: 'function';
+  node: ASTNode;
+}
+
+/**
+ * One locally declared callable or identifier alias.
+ *
+ * @internal
+ */
+export type LocalBinding = AliasBinding | FunctionBinding;
+
+/**
+ * Nested local callable bindings visible at one execution site.
+ *
+ * @internal
+ */
+export type LocalFunctionScopes = readonly ReadonlyMap<string, LocalBinding>[];
+
+/**
+ * Statically resolved local invocation identity.
+ *
+ * @internal
+ */
+export interface LocalInvocationTarget {
+  functionNode?: ASTNode;
+  isSelfCall: boolean;
+}
+
+const addVariableBinding = (bindings: Map<string, LocalBinding>, declarator: ASTNode): void => {
+  const name = identifierName(childNode(declarator, 'id'));
+  const initializer = unwrappedExpression(childNode(declarator, 'init'));
+  if (!name || !initializer) {
+    return;
+  }
+  if (isFunctionNode(initializer)) {
+    bindings.set(name, { kind: 'function', node: initializer });
+    return;
+  }
+  const aliasName = identifierName(initializer);
+  if (aliasName) {
+    bindings.set(name, { kind: 'alias', name: aliasName });
+  }
+};
+
+const addStatementBinding = (bindings: Map<string, LocalBinding>, statement: ASTNode): void => {
+  if (statement.type === 'FunctionDeclaration') {
+    const name = identifierName(childNode(statement, 'id'));
+    if (name) {
+      bindings.set(name, { kind: 'function', node: statement });
+    }
+    return;
+  }
+  if (statement.type === 'VariableDeclaration') {
+    for (const declarator of childNodes(statement, 'declarations')) {
+      addVariableBinding(bindings, declarator);
+    }
+  }
+};
+
+const localScopeFor = (
+  node: ASTNode,
+  cache: WeakMap<object, ReadonlyMap<string, LocalBinding>>,
+): ReadonlyMap<string, LocalBinding> => {
+  const cached = cache.get(node);
+  if (cached) {
+    return cached;
+  }
+  const bindings = new Map<string, LocalBinding>();
+  if (node.type === 'BlockStatement' || node.type === 'Program') {
+    for (const statement of childNodes(node, 'body')) {
+      addStatementBinding(bindings, statement);
+    }
+  }
+  cache.set(node, bindings);
+  return bindings;
+};
+
+/**
+ * Extend local callable scopes for a block or program node.
+ *
+ * @internal
+ */
+export const localScopesForNode = (
+  node: ASTNode,
+  current: LocalFunctionScopes,
+  cache: WeakMap<object, ReadonlyMap<string, LocalBinding>>,
+): LocalFunctionScopes => {
+  if (node.type !== 'BlockStatement' && node.type !== 'Program') {
+    return current;
+  }
+  const scope = localScopeFor(node, cache);
+  if (scope.size === 0) {
+    return current;
+  }
+  return [...current, scope];
+};
+
+const localBindingFor = (name: string, scopes: LocalFunctionScopes): LocalBinding | undefined => {
+  for (let index = scopes.length - 1; index >= 0; index -= 1) {
+    const binding = scopes[index]?.get(name);
+    if (binding) {
+      return binding;
+    }
+  }
+  return undefined;
+};
+
+const targetWithoutBinding = (
+  name: string,
+  functionName: string,
+): LocalInvocationTarget | undefined => {
+  if (name === functionName) {
+    return { isSelfCall: true };
+  }
+  return undefined;
+};
+
+const resolveLocalTargetAt = (
+  name: string,
+  functionName: string,
+  scopes: LocalFunctionScopes,
+  seenAliases: Set<LocalBinding>,
+): LocalInvocationTarget | undefined => {
+  const binding = localBindingFor(name, scopes);
+  if (!binding) {
+    return targetWithoutBinding(name, functionName);
+  }
+  if (binding.kind === 'function') {
+    return { functionNode: binding.node, isSelfCall: false };
+  }
+  if (seenAliases.has(binding)) {
+    return undefined;
+  }
+  seenAliases.add(binding);
+  return resolveLocalTargetAt(binding.name, functionName, scopes, seenAliases);
+};
+
+/**
+ * Resolve a local callable, alias chain, or unshadowed self-reference.
+ *
+ * @internal
+ */
+export const resolveLocalTarget = (
+  name: string,
+  functionName: string,
+  scopes: LocalFunctionScopes,
+): LocalInvocationTarget | undefined => resolveLocalTargetAt(name, functionName, scopes, new Set());

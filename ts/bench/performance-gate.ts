@@ -1,66 +1,84 @@
 #!/usr/bin/env node
-/* -------------------------------------------------------------------------- */
-/*       Performance gate for custom Oxlint rules and shipped codemods.       */
-/* -------------------------------------------------------------------------- */
+import {
+  type BenchRow,
+  type BudgetFile,
+  type Fixture,
+  type ReportDescriptor,
+  type VisitorMap,
+  dispatchNodes,
+  parseFixture,
+  withSourceCodeServices,
+} from './performance-gate-support';
+import {
+  type CandidateShape,
+  type CandidateSubsystem,
+  candidateSource,
+} from './performance-candidate-fixtures';
+import { assertBudgetManifest, failedBudgetRows } from './performance-gate-budgets';
+import { benchmarkCodemodFixtures, benchmarkCodemods } from './performance-gate-codemods';
+import {
+  groupedBudgets,
+  measureBenchmark,
+  measurePreparedBenchmark,
+  percentile,
+} from './performance-gate-measurement';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseSync } from 'oxc-parser';
-import { addInternalExportDocs } from '../src/codemods/internal-export-docs';
-import { addVoidReturnTypes } from '../src/codemods/explicit-return-types';
-import { applyCodemodFixToSource } from '../src/codemod-fix/index';
-import { formatFileHeaderComment } from '../src/codemods/format-file-header';
-import { formatJSDocComments } from '../src/codemods/format-jsdoc-comments';
-import { inlineLocalExportLists } from '../src/codemods/inline-export-lists';
-import { preferConciseArrowBodies } from '../src/codemods/arrow-body-style';
-import { preferExplicitBranches } from '../src/codemods/no-ternary';
-import { preferFunctionExpressions } from '../src/codemods/function-declarations';
-import { renameMisCasedAcronyms } from '../src/codemods/rename-acronyms';
-import { sortImportDeclarations } from '../src/codemods/sort-imports';
 import plugin from '../src/rules/plugin';
 
-interface BudgetEntry {
-  inputSamples: number;
-  iterations: number;
-  medianLimitNs: number;
-  observedMedianNs: number;
-  observedP95Ns: number;
-  operationsPerSample: number;
-  p95LimitNs: number;
-  runs: number;
-}
-
-interface BudgetFile {
-  codemods: Record<string, BudgetEntry>;
-  rules: Record<string, BudgetEntry>;
-}
-
-interface BenchRow {
-  inputSamples: number;
-  iterations: number;
-  medianNs: number;
-  name: string;
-  operationsPerSample: number;
-  p95Ns: number;
-}
-
-interface Fixture {
-  ast?: object;
-  filename: string;
-  source: string;
-}
-
-const defaultRuleIterations = 80;
-const defaultCodemodIterations = 8;
-const defaultRuns = 5;
-const ruleOperationsPerSample = 8;
+const minimumTimedSamples = 20;
+const defaultRuleIterations = 20;
+const defaultCodemodIterations = 20;
+const defaultRuns = 20;
+const candidateRuns = 20;
+const ruleOperationsPerSample = 1;
 const codemodOperationsPerSample = 1;
-const nsPerMs = 1_000_000;
-const ruleMedianBudgetFloorNs = 500_000;
-const ruleP95BudgetFloorNs = nsPerMs;
-const codemodMedianBudgetFloorNs = 2 * nsPerMs;
-const codemodP95BudgetFloorNs = 10 * nsPerMs;
-const p95Tolerance = 4;
-const medianTolerance = 3;
+const medianBudgetFloorNs = 25_000;
+const p95BudgetFloorNs = 100_000;
+const budgetLimitMultiplier = 6;
+const candidateBaseLimitNs = 1_000_000;
+const candidateNodeLimitNs = 10_000;
+const linearGrowthTolerance = 6;
+const hotWarmupIterations = 10;
+
+interface RuleBenchmarkHits {
+  candidateHits: number;
+  fixReadHits: number;
+  referenceEntryHits: number;
+}
+
+const ruleBenchmarkHits = new Map<string, RuleBenchmarkHits>();
+let activeRuleName: string | undefined;
+const benchmarkHitsFor = (name: string): RuleBenchmarkHits => {
+  const existing = ruleBenchmarkHits.get(name);
+  if (existing) {
+    return existing;
+  }
+  const created = { candidateHits: 0, fixReadHits: 0, referenceEntryHits: 0 };
+  ruleBenchmarkHits.set(name, created);
+  return created;
+};
+
+const requiredBenchmarkHits = {
+  nativeCommentHits: 0,
+  nativeReferenceHits: 0,
+  candidateHits: 0,
+  fixHits: 0,
+  onReferenceEntry(): void {
+    if (activeRuleName) {
+      benchmarkHitsFor(activeRuleName).referenceEntryHits += 1;
+    }
+  },
+};
+
+const assertBenchmarkHits = (): void => {
+  const missing = Object.entries(requiredBenchmarkHits)
+    .filter(([name, hits]): boolean => typeof hits === 'number' && hits === 0)
+    .map(([name]) => name);
+  if (missing.length > 0) {
+    throw new Error(`Benchmark work paths were not exercised: ${missing.join(', ')}`);
+  }
+};
 
 const strictOptions = {
   adapterLayers: ['src/adapters/**'],
@@ -77,74 +95,39 @@ const ruleFixtures: Fixture[] = [
     filename: 'src/domain/user.ts',
     source: `
       import { Effect, Schema, Layer, Context, Queue, Stream, Schedule, Duration } from "effect";
-      import * as E from "effect/Effect";
-      import { runPromise } from "effect/Effect";
-      export interface Input { payload: Record<string, unknown>; }
-      export type Loader = () => Promise<User>;
-      class Repo { load(): Promise<User> { return promise; } }
-      export { Repo };
-      const docs = "Effect.runPromise(program) Effect.timeout( Effect.retry(";
+      import * as E from "effect/Effect"; import { runPromise } from "effect/Effect"; class Repo{load():Promise<User>{return promise}} export{Repo};
+      export interface Input { payload: Record<string, unknown>; } export type Loader = () => Promise<User>;
+      const docs = "Effect.runPromise(program) Effect.timeout( Effect.retry("; const raw = JSON.parse(body); const responseData = response.json();
       const User = Schema.Struct({ age: Schema.NumberFromString, _tag: Schema.Literal("User") });
-      const raw = JSON.parse(body);
-      const responseData = response.json();
       const program = Effect.gen(function* () {
-        const decoded = Schema.decodeUnknown(User)(payload);
-        const user = decoded as User;
-        const fiber = yield* Effect.fork(worker);
-        yield* Effect.sleep(Duration.seconds(1));
-        return Effect.succeed(user);
+        const decoded = Schema.decodeUnknown(User)(payload); const user = decoded as User;
+        const fiber = yield* Effect.fork(worker); yield* Effect.sleep(Duration.seconds(1)); return Effect.succeed(user);
       });
-      export const load = () => Effect.runPromise(program);
+      export const load = () => Effect.runPromise(program); const promiseInsideSync = Effect.sync(() => Promise.resolve(user));
+      const mapped = Effect.flatMap(program, (value) => Effect.succeed(value)); E.gen(function* () { return E.succeed(1); }); runPromise(program);
       Effect.tryPromise({ try: () => fetch("/users"), catch: (error) => ({ error }) });
-      Effect.forEach(items, work, { concurrency: "unbounded" });
-      Effect.fail("bad");
-      Effect.fail(new Error("bad"));
-      E.gen(function* () { return E.succeed(1); });
-      runPromise(program);
+      Effect.forEach(items, work, { concurrency: "unbounded" }); Effect.fail("bad"); Effect.fail(new Error("bad"));
     `,
   },
   {
     filename: 'src/adapters/http.ts',
-    source: `
-      import { Effect, HttpClient, Schedule, Duration } from "effect";
-      export const getUser = Effect.tryPromise({ try: () => fetch("/users"), catch: FetchError.fromUnknown });
-      const http = HttpClient.get("/users").pipe(Effect.retry(Schedule.exponential("1 second")));
-      const file = FileSystem.readFileString(path);
-    `,
+    source: `import { Effect, HttpClient, Schedule, Duration } from "effect";
+      export const getUser = Effect.tryPromise({ try: () => fetch("/users"), catch: FetchError.fromUnknown }); const http = HttpClient.get("/users").pipe(Effect.retry(Schedule.exponential("1 second"))); const file = FileSystem.readFileString(path);`,
   },
   {
     filename: 'src/server.ts',
-    source: `
-      import { Effect, HttpRouter, Schema } from "effect";
-      const route = () => Effect.runSync(program);
-      const handler = HttpRouter.get("/users", Effect.gen(function* () {
-        const body = yield* request.json;
-        const input = yield* Schema.decodeUnknown(User)(body);
-        return Response.json(input);
-      }));
-      Effect.runPromise(program);
-    `,
+    source: `import { Effect, HttpRouter, Schema } from "effect";
+      const route = () => Effect.runSync(program); Effect.runPromise(program); const handler = HttpRouter.get("/users", Effect.succeed(Response.json(input)));`,
   },
   {
     filename: 'src/config/env.ts',
-    source: `
-      import { Config, Effect, Schema } from "effect";
-      const token = process.env.API_TOKEN;
-      const raw = Config.string("API_TOKEN");
-      const parsed = Schema.decodeUnknown(ConfigSchema)(raw);
-      const now = Date.now();
-      const random = Math.random();
-    `,
+    source: `import { Config, Effect, Schema } from "effect";
+      const token = process.env.API_TOKEN; const raw = Config.string("API_TOKEN"); const parsed = Schema.decodeUnknown(ConfigSchema)(raw); const now = Date.now(); const random = Math.random();`,
   },
   {
     filename: 'tests/unit/user.test.ts',
-    source: `
-      import { Effect, TestClock, Duration } from "effect";
-      it.effect.only("focused", () => program);
-      it.effect.skip("skipped", () => program);
-      it.effect("time", () => Effect.sleep(Duration.seconds(1)));
-      it.effect("clock", () => TestClock.adjust("1 second"));
-    `,
+    source: `import { Effect, TestClock, Duration } from "effect";
+      it.effect.only("focused", () => program); it.effect.skip("skipped", () => program); it.effect("time", () => Effect.sleep(Duration.seconds(1))); it.effect("clock", () => TestClock.adjust("1 second"));`,
   },
   {
     filename: 'src/domain/clean.ts',
@@ -157,47 +140,17 @@ const ruleFixtures: Fixture[] = [
       export const UserRepoLayer = Layer.succeed(UserRepo, service);
     `,
   },
+  {
+    filename: 'src/domain/native-scope.ts',
+    source: `import { Effect as Fx } from "effect"; import { flatMap as chain, succeed as done } from "effect/Effect";
+      const mapped = chain(program, (value) => done(value)); const promised = Fx.sync(() => Promise.resolve(1));
+      // const abandoned = Fx.succeed(0);
+      function shadow(Promise: any, chain: any, Fx: any) { return Fx.sync(() => Promise.resolve(chain())); }`,
+  },
 ];
 
-const codemodFixtures = [
-  `
-    import zed from './zed';
-    import { beta, alpha } from './letters';
-    const apiUrl = '/users';
-    const helper = () => { return apiUrl; };
-    function value() { return undefined; }
-    export { helper, value };
-  `,
-  `
-    /** Internal helper exported for package-local composition. */
-    export const run = (input: string) => {
-      if (input) { return "ok"; } else { return "bad"; }
-    };
-  `,
-  `
-    const result = enabled ? makeEnabled() : makeDisabled();
-    export const mapper = (value: string) => { return { value }; };
-  `,
-  `
-    export function parse(input: string) { return undefined; }
-    export const httpApi = () => fetch('/users');
-  `,
-];
-
-const codemods = {
-  addInternalExportDocs,
-  addVoidReturnTypes,
-  applyCodemodFixToSource,
-  formatFileHeaderComment,
-  formatJSDocComments,
-  inlineLocalExportLists,
-  preferConciseArrowBodies,
-  preferExplicitBranches,
-  preferFunctionExpressions,
-  renameMisCasedAcronyms,
-  sortImportDeclarations,
-} satisfies Record<string, (source: string) => string>;
-
+const codemodFixtures = benchmarkCodemodFixtures;
+const codemods = benchmarkCodemods;
 const args = new Set(process.argv.slice(2));
 const stringArg = (name: string, fallback: string): string => {
   const index = process.argv.indexOf(name);
@@ -206,11 +159,6 @@ const stringArg = (name: string, fallback: string): string => {
   }
   return process.argv[index + 1] ?? fallback;
 };
-
-const budgetPath = stringArg(
-  '--budget',
-  new URL('./performance-budgets.json', import.meta.url).pathname,
-);
 const numericArg = (name: string, fallback: number): number => {
   const index = process.argv.indexOf(name);
   if (index === -1) {
@@ -218,94 +166,94 @@ const numericArg = (name: string, fallback: number): number => {
   }
   return Number(process.argv[index + 1] ?? fallback);
 };
+const budgetPath = stringArg(
+  '--budget',
+  new URL('./performance-budgets.json', import.meta.url).pathname,
+);
 
-const percentile = (values: readonly number[], percentileValue: number): number =>
-  [...values].sort((left, right) => left - right)[Math.floor(values.length * percentileValue)] ?? 0;
-
-const parseFixture = (fixture: Fixture): Fixture => ({
-  ...fixture,
-  ast: parseSync(fixture.filename, fixture.source, { sourceType: 'module' }).program as object,
-});
-
-const isNode = (value: unknown): value is { type: string } =>
-  Boolean(
-    value && typeof value === 'object' && typeof (value as { type?: unknown }).type === 'string',
-  );
-
-const traverse = (
-  node: unknown,
-  visitors: Record<string, ((node: object) => void) | undefined>,
-): void => {
-  if (!isNode(node)) {
-    return;
-  }
-  if (node.type !== 'Program') {
-    visitors[node.type]?.(node);
-  }
-  for (const value of Object.values(node)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        traverse(item, visitors);
-      }
-      continue;
-    }
-    traverse(value, visitors);
-  }
-};
-
-const runRule = (name: string, fixture: Fixture): void => {
-  const rule = plugin.rules[name as keyof typeof plugin.rules];
-  const visitors = rule.create({
-    filename: fixture.filename,
-    options: [strictOptions],
-    report() {},
-    sourceCode: { text: fixture.source },
+const nativeServices = [
+  'getAllComments',
+  'getText',
+  'isGlobalReference',
+  'scopeManager',
+  'text',
+  'visitorKeys',
+] as const;
+const parseBenchmarkFixture = (fixture: Fixture): Fixture =>
+  withSourceCodeServices(parseFixture(fixture, requiredBenchmarkHits), nativeServices);
+const parsedRuleFixtures = ruleFixtures.map(parseBenchmarkFixture);
+const uniqueFixture = (fixture: Fixture, sample: number): Fixture =>
+  parseBenchmarkFixture({
+    filename: fixture.filename.replace(/\.ts$/u, `.cold-${sample}.ts`),
+    source: `${fixture.source}${'\n'.repeat(sample + 1)}`,
   });
-  visitors.Program?.(fixture.ast ?? {});
-  traverse(fixture.ast, visitors);
-};
 
-const benchmark = (
-  name: string,
-  inputs: readonly Fixture[] | readonly string[],
-  iterations: number,
-  operationsPerSample: number,
-  fn: (input: Fixture | string) => void,
-): BenchRow => {
-  const times: number[] = [];
-  const warmupIterations = Math.max(10, Math.floor(iterations / 4));
-  for (let iteration = 0; iteration < warmupIterations; iteration++) {
-    fn(inputs[iteration % inputs.length]);
-  }
-  for (let iteration = 0; iteration < iterations; iteration++) {
-    const startedAt = process.hrtime.bigint();
-    for (let operation = 0; operation < operationsPerSample; operation++) {
-      fn(inputs[(iteration + operation) % inputs.length]);
-    }
-    times.push(Number(process.hrtime.bigint() - startedAt) / operationsPerSample);
-  }
-  return {
-    inputSamples: inputs.length,
-    iterations,
-    medianNs: percentile(times, 0.5),
-    name,
-    operationsPerSample,
-    p95Ns: percentile(times, 0.95),
+const runRule = (name: string, fixture: Fixture, fixMode = true): number => {
+  const hits = benchmarkHitsFor(name);
+  const benchmarkFixer = {
+    removeRange(range: readonly number[]): object {
+      hits.fixReadHits += 1;
+      requiredBenchmarkHits.fixHits += 1;
+      return { range, text: '' };
+    },
+    replaceTextRange(range: readonly number[], text: string): object {
+      hits.fixReadHits += 1;
+      requiredBenchmarkHits.fixHits += 1;
+      return { range, text };
+    },
   };
+  const rule = plugin.rules[name as keyof typeof plugin.rules];
+  const create = rule.create as unknown as (context: object) => VisitorMap;
+  let reports = 0;
+  activeRuleName = name;
+  try {
+    const visitors = create({
+      filename: fixture.filename,
+      options: [strictOptions],
+      report(descriptor: ReportDescriptor): void {
+        reports += 1;
+        hits.candidateHits += 1;
+        requiredBenchmarkHits.candidateHits += 1;
+        if (fixMode && descriptor.fix) {
+          descriptor.fix(benchmarkFixer);
+        }
+      },
+      sourceCode: fixture.sourceCode,
+    });
+    for (const node of dispatchNodes(name, fixture, visitors)) {
+      visitors[node.type]?.(node);
+    }
+    return reports;
+  } finally {
+    activeRuleName = undefined;
+  }
 };
 
-const ruleRows = (iterations: number): BenchRow[] => {
-  const fixtures = ruleFixtures.map(parseFixture);
-  return Object.keys(plugin.rules)
-    .sort()
-    .map((name) =>
-      benchmark(name, fixtures, iterations, ruleOperationsPerSample, (fixture) =>
-        runRule(name, fixture as Fixture),
-      ),
-    );
-};
-
-const codemodRows = (iterations: number): BenchRow[] =>
+const benchmark = measureBenchmark;
+const ruleNames = Object.keys(plugin.rules).sort();
+const coldRuleRows = (iterations: number): BenchRow[] =>
+  ruleNames.map((name) =>
+    measurePreparedBenchmark(
+      name,
+      iterations,
+      ruleOperationsPerSample,
+      (sample) => uniqueFixture(ruleFixtures[sample % ruleFixtures.length], sample),
+      (fixture) => void runRule(name, fixture),
+      ruleFixtures.length,
+    ),
+  );
+const hotRuleRows = (iterations: number): BenchRow[] =>
+  ruleNames.map((name) =>
+    benchmark(
+      name,
+      parsedRuleFixtures,
+      iterations,
+      ruleOperationsPerSample,
+      (fixture) => void runRule(name, fixture),
+      hotWarmupIterations,
+    ),
+  );
+const codemodRows = (iterations: number, warmups: number): BenchRow[] =>
   Object.entries(codemods)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([name, fn]) =>
@@ -314,139 +262,244 @@ const codemodRows = (iterations: number): BenchRow[] =>
         codemodFixtures,
         iterations,
         codemodOperationsPerSample,
-        (source) => void fn(source as string),
+        (source) => void fn(source),
+        warmups,
       ),
     );
 
-const readBudgets = (): BudgetFile => JSON.parse(readFileSync(budgetPath, 'utf8')) as BudgetFile;
+interface CandidateFixture extends Fixture {
+  candidateScale: number;
+  candidateShape: CandidateShape;
+  subsystem: CandidateSubsystem;
+}
 
-const budgetEntry = (
-  rows: readonly BenchRow[],
-  runs: number,
-  medianFloorNs: number,
-  p95FloorNs: number,
-): BudgetEntry => {
-  const p95Values = rows.map((row) => row.p95Ns);
-  const medianValues = rows.map((row) => row.medianNs);
-  const observedP95Ns = Math.max(...p95Values);
-  const observedMedianNs = Math.max(...medianValues);
+const candidateSubsystems = [
+  {
+    candidate: '// const abandoned = Effect.succeed(0);\n',
+    name: 'comment',
+    ruleName: 'no-commented-out-code',
+  },
+  {
+    candidate: 'const promised = Effect.sync(() => Promise.resolve(1));',
+    name: 'promise',
+    ruleName: 'effect-no-sync-for-promise',
+  },
+  {
+    candidate:
+      'function loop(): Effect.Effect<number> { Effect.succeed(undefined); return loop(); }',
+    name: 'recursion',
+    ruleName: 'effect-require-suspend-for-recursion',
+  },
+  {
+    candidate: 'export const load = () => Effect.succeed(1);',
+    name: 'export',
+    ruleName: 'effect-prefer-effect-fn-for-exported-effects',
+  },
+  {
+    candidate: 'const request = Effect.tryPromise(() => fetch("/users"));',
+    name: 'native',
+    ruleName: 'effect-no-global-fetch',
+  },
+  {
+    candidate:
+      'const mapped = Effect.flatMap(Effect.succeed(1), (value) => Effect.succeed(value));',
+    name: 'map',
+    ruleName: 'effect-prefer-map-over-flatMap-succeed',
+  },
+].map((subsystem): CandidateSubsystem => subsystem);
+const candidateShapes = ['candidate-free', 'early-candidate', 'late-candidate'] as const;
+const candidateScales = [100, 1_000, 5_000] as const;
+const candidateStressFixtures = candidateSubsystems.flatMap((subsystem) =>
+  candidateShapes.flatMap((shape) =>
+    candidateScales.map(
+      (scale): CandidateFixture => ({
+        ...parseBenchmarkFixture({
+          filename: `src/domain/bench-${subsystem.name}-${shape}-${scale}.ts`,
+          source: candidateSource(subsystem, shape, scale),
+        }),
+        candidateScale: scale,
+        candidateShape: shape,
+        subsystem,
+      }),
+    ),
+  ),
+);
+
+const assertRuleBenchmarkHits = (): void => {
+  const missing = candidateSubsystems.flatMap(({ name, ruleName }) => {
+    const hits = benchmarkHitsFor(ruleName);
+    const failures =
+      hits.candidateHits > 0 ? [] : [`${name}/${ruleName} did not exercise a candidate`];
+    if (
+      (name === 'promise' || name === 'native' || name === 'map') &&
+      hits.referenceEntryHits === 0
+    ) {
+      failures.push(`${name}/${ruleName} did not enter native references`);
+    }
+    return failures;
+  });
+  const commentHits = benchmarkHitsFor('no-commented-out-code');
+  if (commentHits.fixReadHits === 0) {
+    missing.push('comment fixer was not read');
+  }
+  if (missing.length > 0) {
+    throw new Error(`Per-rule benchmark work was incomplete: ${missing.join(', ')}`);
+  }
+};
+
+const normalizedP95NsPerNode = new Map<string, number[]>();
+const candidateColdRows: BenchRow[] = [];
+const candidateHotRows: BenchRow[] = [];
+const benchmarkCandidateMatrix = (): void => {
+  normalizedP95NsPerNode.clear();
+  candidateColdRows.length = 0;
+  candidateHotRows.length = 0;
+  for (const fixture of candidateStressFixtures) {
+    const shouldReport = fixture.candidateShape !== 'candidate-free';
+    const { ruleName } = fixture.subsystem;
+    if (runRule(ruleName, fixture) > 0 !== shouldReport) {
+      throw new Error(
+        `${ruleName} candidate expectation failed at ${fixture.candidateShape}/${fixture.candidateScale}`,
+      );
+    }
+    const coldRow = measurePreparedBenchmark(
+      `${ruleName}:candidate:cold:${fixture.candidateShape}:${fixture.candidateScale}`,
+      candidateRuns,
+      1,
+      (sample) =>
+        parseBenchmarkFixture({
+          filename: fixture.filename.replace(/\.ts$/u, `.cold-${sample}.ts`),
+          source: candidateSource(
+            fixture.subsystem,
+            fixture.candidateShape,
+            fixture.candidateScale,
+            sample,
+          ),
+        }),
+      (input) => void runRule(ruleName, input),
+      1,
+    );
+    candidateColdRows.push(coldRow);
+    const hotRow = benchmark(
+      `${ruleName}:candidate:hot:${fixture.candidateShape}:${fixture.candidateScale}`,
+      [fixture],
+      candidateRuns,
+      1,
+      (input) => void runRule(ruleName, input),
+      hotWarmupIterations,
+      1,
+    );
+    candidateHotRows.push(hotRow);
+    for (const row of [coldRow, hotRow]) {
+      const phase = ((): string => {
+        if (row === coldRow) {
+          return 'cold';
+        }
+        return 'hot';
+      })();
+      const nodeCount = fixture.visitorNodes?.length ?? fixture.candidateScale;
+      const normalizedCandidateLimitNs = candidateNodeLimitNs + candidateBaseLimitNs / nodeCount;
+      const normalized = row.p95Ns / nodeCount;
+      if (normalized > normalizedCandidateLimitNs) {
+        throw new Error(
+          `${row.name} exceeded its normalized candidate ceiling: ${Math.round(row.p95Ns)}ns`,
+        );
+      }
+      const key = `${phase}/${fixture.subsystem.name}/${fixture.candidateShape}`;
+      const observed = normalizedP95NsPerNode.get(key) ?? [];
+      observed.push(normalized);
+      normalizedP95NsPerNode.set(key, observed);
+    }
+  }
+  for (const [key, observations] of normalizedP95NsPerNode) {
+    if (observations.length !== candidateScales.length) {
+      throw new Error(`${key} did not measure every candidate scale`);
+    }
+    const lowest = Math.min(...observations);
+    const highest = Math.max(...observations);
+    if (highest > Math.max(candidateNodeLimitNs, lowest * linearGrowthTolerance)) {
+      throw new Error(`${key} did not retain linear candidate scaling`);
+    }
+  }
+};
+
+const measureAll = (runs: number): { codemods: BenchRow[]; rules: BenchRow[] } => {
+  const ruleIterations = Math.max(defaultRuleIterations, runs);
+  const coldRows = [...coldRuleRows(ruleIterations), ...codemodRows(defaultCodemodIterations, 0)];
+  const hotRows = [
+    ...hotRuleRows(ruleIterations),
+    ...codemodRows(defaultCodemodIterations, hotWarmupIterations),
+  ];
+  const coldMedianNs = percentile(
+    coldRows.map((row) => row.medianNs),
+    0.5,
+  );
+  const hotMedianNs = percentile(
+    hotRows.map((row) => row.medianNs),
+    0.5,
+  );
+  const coldP95Ns = percentile(
+    coldRows.map((row) => row.p95Ns),
+    0.95,
+  );
+  const hotP95Ns = percentile(
+    hotRows.map((row) => row.p95Ns),
+    0.95,
+  );
+  benchmarkCandidateMatrix();
+  assertBenchmarkHits();
+  assertRuleBenchmarkHits();
+  process.stdout.write(
+    `Benchmark phases: cold ${Math.round(coldMedianNs)}ns/${Math.round(coldP95Ns)}ns, hot ${Math.round(hotMedianNs)}ns/${Math.round(hotP95Ns)}ns.\n`,
+  );
+  const ruleCount = ruleNames.length;
   return {
-    inputSamples: rows[0]?.inputSamples ?? 0,
-    iterations: rows[0]?.iterations ?? 0,
-    medianLimitNs: Math.ceil(Math.max(medianFloorNs, observedMedianNs * medianTolerance)),
-    observedMedianNs,
-    observedP95Ns,
-    operationsPerSample: rows[0]?.operationsPerSample ?? 0,
-    p95LimitNs: Math.ceil(Math.max(p95FloorNs, observedP95Ns * p95Tolerance)),
-    runs,
+    codemods: [...coldRows.slice(ruleCount), ...hotRows.slice(ruleCount)],
+    rules: [...coldRows.slice(0, ruleCount), ...hotRows.slice(0, ruleCount)],
   };
 };
 
-const groupedBudgets = (
-  rows: readonly BenchRow[],
-  runs: number,
-  medianFloorNs: number,
-  p95FloorNs: number,
-): Record<string, BudgetEntry> =>
-  Object.fromEntries(
-    [...new Set(rows.map((row) => row.name))].sort().map((name) => [
-      name,
-      budgetEntry(
-        rows.filter((row) => row.name === name),
-        runs,
-        medianFloorNs,
-        p95FloorNs,
-      ),
-    ]),
-  );
+const readBudgets = (): BudgetFile => JSON.parse(readFileSync(budgetPath, 'utf8')) as BudgetFile;
 
-const measureAll = (runs: number): { codemods: BenchRow[]; rules: BenchRow[] } => {
-  const rules: BenchRow[] = [];
-  const codemodsRows: BenchRow[] = [];
-  for (let run = 0; run < runs; run++) {
-    rules.push(...ruleRows(defaultRuleIterations));
-    codemodsRows.push(...codemodRows(defaultCodemodIterations));
-  }
-  return { codemods: codemodsRows, rules };
-};
-
-const missingEntries = (actual: readonly string[], expected: Record<string, unknown>): string[] =>
-  actual.filter((name) => !Object.hasOwn(expected, name));
-
-const staleEntries = (actual: readonly string[], expected: Record<string, unknown>): string[] =>
-  Object.keys(expected).filter((name) => !actual.includes(name));
-
-const assertManifest = (budgets: BudgetFile): void => {
-  const ruleNames = Object.keys(plugin.rules).sort();
-  const codemodNames = Object.keys(codemods).sort();
-  const missingRules = missingEntries(ruleNames, budgets.rules);
-  const missingCodemods = missingEntries(codemodNames, budgets.codemods);
-  const staleRules = staleEntries(ruleNames, budgets.rules);
-  const staleCodemods = staleEntries(codemodNames, budgets.codemods);
-  const problems = [
-    ...missingRules.map((name) => `missing rule budget: ${name}`),
-    ...missingCodemods.map((name) => `missing codemod budget: ${name}`),
-    ...staleRules.map((name) => `stale rule budget: ${name}`),
-    ...staleCodemods.map((name) => `stale codemod budget: ${name}`),
-  ];
-  if (problems.length > 0) {
-    throw new Error(
-      `Performance budget manifest is out of sync.\n${problems.join('\n')}\nRun: pnpm run performance:calibrate`,
-    );
-  }
-};
-
-const checkRows = (
-  kind: 'codemod' | 'rule',
-  rows: readonly BenchRow[],
-  budgets: Record<string, BudgetEntry>,
-): string[] =>
-  rows.flatMap((row) => {
-    const budget = budgets[row.name];
-    if (!budget) {
-      return [`missing ${kind} budget: ${row.name}`];
-    }
-    if (row.p95Ns > budget.p95LimitNs || row.medianNs > budget.medianLimitNs) {
-      return [
-        `${kind} ${row.name} exceeded budget: median ${row.medianNs}ns/${budget.medianLimitNs}ns, p95 ${row.p95Ns}ns/${budget.p95LimitNs}ns`,
-      ];
-    }
-    return [];
-  });
-
+const measuredRuns = (): number => Math.max(minimumTimedSamples, numericArg('--runs', defaultRuns));
 const updateBudgets = (): void => {
-  const runs = numericArg('--runs', defaultRuns);
+  const runs = measuredRuns();
   const rows = measureAll(runs);
   const budgets: BudgetFile = {
     codemods: groupedBudgets(
       rows.codemods,
       runs,
-      codemodMedianBudgetFloorNs,
-      codemodP95BudgetFloorNs,
+      medianBudgetFloorNs,
+      p95BudgetFloorNs,
+      budgetLimitMultiplier,
     ),
-    rules: groupedBudgets(rows.rules, runs, ruleMedianBudgetFloorNs, ruleP95BudgetFloorNs),
+    rules: groupedBudgets(
+      rows.rules,
+      runs,
+      medianBudgetFloorNs,
+      p95BudgetFloorNs,
+      budgetLimitMultiplier,
+    ),
   };
   writeFileSync(budgetPath, `${JSON.stringify(budgets, null, 2)}\n`, 'utf8');
   process.stdout.write(
-    `Updated ${join('ts', 'bench', 'performance-budgets.json')} from ${runs} run(s).\n`,
+    `Updated ${join('ts', 'bench', 'performance-budgets.json')} from ${runs} runs.\n`,
   );
 };
-
 const checkBudgets = (): void => {
   const budgets = readBudgets();
-  assertManifest(budgets);
-  const rows = measureAll(1);
+  const codemodNames = Object.keys(codemods).sort();
+  assertBudgetManifest(ruleNames, codemodNames, budgets);
+  const rows = measureAll(defaultRuns);
   const failures = [
-    ...checkRows('rule', rows.rules, budgets.rules),
-    ...checkRows('codemod', rows.codemods, budgets.codemods),
+    ...failedBudgetRows('rule', rows.rules, budgets.rules),
+    ...failedBudgetRows('codemod', rows.codemods, budgets.codemods),
   ];
   if (failures.length > 0) {
-    throw new Error(
-      `Performance gate failed.\n${failures.join('\n')}\nRun: pnpm run performance:calibrate`,
-    );
+    throw new Error(`Performance gate failed.\n${failures.join('\n')}`);
   }
   process.stdout.write(
-    `Performance gate passed for ${rows.rules.length} custom rules and ${rows.codemods.length} codemods.\n`,
+    `Performance gate passed for ${ruleNames.length} custom rules and ${Object.keys(codemods).length} codemods.\n`,
   );
 };
 

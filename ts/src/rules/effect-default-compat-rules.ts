@@ -17,16 +17,9 @@ import {
   stripComments,
   stripCommentsAndStrings,
 } from './effect-source-helpers';
-
-interface RuleContext {
-  filename?: string;
-  options?: object[];
-  report: (descriptor: {
-    loc?: { column: number; line: number };
-    message: string;
-    node: object;
-  }) => void;
-}
+import type { Context as RuleContext } from './effect-rule-core';
+import { asNode } from './effect-ast';
+import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 
 interface RuleSpec {
   ast?: (
@@ -179,6 +172,24 @@ export const effectDefaultCompatibilitySpecs = [
     tokens: ['@effect/io', '@effect/data'],
   },
   {
+    ast: (context): Record<string, (node: object) => void> => {
+      const fakeEffectAPI = importedEffectCallMatcher(context, 'Effect', [
+        'bracket',
+        'fromEither',
+        'fromPromise',
+        'tryCatch',
+      ]);
+      let hasReported = false;
+      return {
+        CallExpression(node): void {
+          if (!hasReported && fakeEffectAPI.matches(asNode(objectValue(node, 'callee')))) {
+            hasReported = true;
+            reportAST(context, 'This is not a known Effect API for the configured version.', node);
+          }
+        },
+        Program: fakeEffectAPI.initialize,
+      };
+    },
     check: (source): boolean =>
       /\bEffect\.(?:fromPromise|tryCatch|bracket|fromEither)\s*\(/.test(
         stripCommentsAndStrings(source),

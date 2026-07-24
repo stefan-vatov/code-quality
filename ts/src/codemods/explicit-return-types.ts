@@ -490,6 +490,12 @@ const appendReplacementForFunction = (
   replacements: Replacement[],
   path: ASTPath<FunctionLike>,
 ): void => {
+  if (
+    (path.value.type === 'ClassMethod' || path.value.type === 'ClassPrivateMethod') &&
+    path.value.kind === 'constructor'
+  ) {
+    return;
+  }
   pipe(
     Option.fromNullable(replacementForFunction(source, path, propertyNames)),
     Option.map((replacement): number => replacements.push(replacement)),
