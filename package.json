@@ -47,9 +47,7 @@
     "knip:ci": "knip --cache --strict",
     "performance:gate": "tsx ts/bench/performance-gate.ts --check",
     "performance:calibrate": "tsx ts/bench/performance-gate.ts --update --runs 20",
-    "performance:estimate": "tsx ts/bench/performance-estimate.ts",
-    "quality:gate": "pnpm run lint:ci && pnpm run lint:projects && pnpm run knip:ci && pnpm run check && pnpm run test:projects && pnpm run test:ci && pnpm run build && pnpm run performance:gate && pnpm run test:oxlint-min-peer && pnpm run test:mutation && pnpm nx run-many -t pack",
-    "quality:gate:ci": "pnpm run lint:ci && pnpm run lint:projects && pnpm run knip:ci && pnpm run check && pnpm run test:projects && pnpm run test:ci && pnpm run build && pnpm run performance:gate && pnpm run test:oxlint-min-peer && pnpm nx run-many -t pack"
+    "performance:estimate": "tsx ts/bench/performance-estimate.ts"
   },
   "devDependencies": {
     "@j178/prek": "^0.3.8",
