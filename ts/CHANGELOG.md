@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2026-07-24
+
+### Features
+
+- feat(ts): add effect lint analysis and stable-value rule (#23) (52e2384)
+
 ## 0.3.6 - 2026-05-31
 
 ### Fixes
