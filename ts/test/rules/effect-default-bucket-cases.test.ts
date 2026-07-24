@@ -33,6 +33,11 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; Effect.map(program, (value) => value);',
   },
   {
+    name: 'effect-prefer-succeed-for-stable-values',
+    invalid: 'import { Effect } from "effect"; Effect.sync(() => 1);',
+    valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',

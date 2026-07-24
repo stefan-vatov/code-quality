@@ -23,7 +23,7 @@ Result: native Oxlint rules + The Thracian custom rules + optional Effect policy
 
 - Strict by default: every rule is an error, not a suggestion.
 - Agent-ready TypeScript: catches debug artifacts, unsafe escape hatches, silent catches, mutation, deep nesting, and oversized code.
-- Effect-aware out of the box: 82 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
+- Effect-aware out of the box: 83 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
 - Strict Effect mode when you want it: opt in to 60 additional project-boundary rules for entrypoints, adapters, config layers, domain modules, service wiring, external calls, and test ownership.
 - Importable config: consumers import one package instead of copying linter files around a codebase.
 
@@ -118,6 +118,14 @@ The default bucket checks for patterns such as:
 - deprecated or invented Effect APIs
 
 `effect-prefer-map-over-flatMap-succeed` is import-aware and AST-backed. It recognizes root `Effect` imports, `effect/Effect` namespace imports, and aliased named `flatMap`/`succeed` imports across pipeable, `pipe`, data-first, and data-last composition. It reports only non-async, non-generator arrow or function callbacks whose entire body directly returns a single-argument `Effect.succeed` call, and it ignores unrelated lookalikes and lexically shadowed bindings.
+
+`effect-prefer-succeed-for-stable-values` reports `Effect.sync` thunks that only return a literal or an already-initialized `const` from the same execution context. It is import-aware and deliberately preserves calls, getters, allocations, mutable or imported bindings, throwing blocks, and reads whose initialization does not dominate Effect construction. The rule was mined from these concrete Effect codebases:
+
+- Effect `packages/effect/src/unstable/rpc/RpcServer.ts` ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/unstable/rpc/RpcServer.ts#L1107))
+- Effect `packages/effect/test/unstable/cli/LogLevel.test.ts` ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/test/unstable/cli/LogLevel.test.ts#L37))
+- Effect Solutions `tests/08-testing.test.ts` ([source](https://github.com/kitlangton/effect-solutions/blob/09f82e6c5c928e7232cd32daf04d7c6a830b63f7/tests/08-testing.test.ts#L181))
+- Effect Native `packages/bun-test/test/index.test.ts` ([source](https://github.com/effect-native/effect-native/blob/df994cc632071e80ab78280400573586258aed3e/packages/bun-test/test/index.test.ts#L49))
+- T3 Code `packages/effect-codex-app-server/src/_internal/shared.ts` ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/packages/effect-codex-app-server/src/_internal/shared.ts#L48))
 
 Disable the Effect bucket for non-Effect projects:
 

@@ -14,6 +14,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-require-return-yield-star',
   'effect-prefer-gen-for-nested-flatmap',
   'effect-prefer-map-over-flatMap-succeed',
+  'effect-prefer-succeed-for-stable-values',
   'effect-no-function-returning-gen',
   'effect-prefer-effect-fn-for-exported-effects',
   'effect-no-unnecessary-gen',
