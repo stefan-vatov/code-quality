@@ -1,169 +1,17 @@
 /* -------------------------------------------------------------------------- */
 /*      Source navigation helpers for Effect lint rule implementations.       */
 /* -------------------------------------------------------------------------- */
-import { Array, HashSet, Match, Option, pipe } from 'effect';
-import {
-  findBalancedCallEnd,
-  findMatchingBrace,
-  findREGEXLiteralEnd,
-  isREGEXLiteralStart,
-} from './effect-source-scan';
+import { Array, Match, Option, pipe } from 'effect';
+import { findBalancedCallEnd, findMatchingBrace } from './effect-source-scan';
+import { nextSourceLexicalIndex } from './effect-source-navigation-lexer';
 
-const quoteCharacters = HashSet.make('"', "'", '`');
-
-const scanIndexes = (startIndex: number, endIndex: number): readonly number[] =>
-  Match.value(startIndex).pipe(
-    Match.when(
-      (value): boolean => value > endIndex,
-      () => [],
-    ),
-    Match.orElse((value): readonly number[] => Array.range(value, endIndex)),
-  );
-
-const indexOrFallback = (index: number, fallback: number): number =>
-  Match.value(index).pipe(
-    Match.when(-1, (): number => fallback),
-    Match.orElse((value): number => value),
-  );
-
-const skipLineCommentIndex = (source: string, index: number, fallback: number): number =>
-  indexOrFallback(source.indexOf('\n', index + 2), fallback);
-
-const skipBlockCommentIndex = (source: string, index: number, fallback: number): number =>
-  Match.value(source.indexOf('*/', index + 2)).pipe(
-    Match.when(-1, (): number => fallback),
-    Match.orElse((commentEnd): number => commentEnd + 1),
-  );
-
-interface QuoteState {
-  isEscaped: boolean;
-  quote: string;
-}
-
-const nextQuoteState = (state: QuoteState, char: string): QuoteState =>
-  Match.value({ char, state }).pipe(
-    Match.when(
-      ({ state: currentState }): boolean => currentState.isEscaped,
-      ({ state: currentState }): QuoteState => ({ ...currentState, isEscaped: false }),
-    ),
-    Match.when(
-      ({ char: value }): boolean => value === '\\',
-      ({ state: currentState }): QuoteState => ({ ...currentState, isEscaped: true }),
-    ),
-    Match.when(
-      ({ char: value, state: currentState }): boolean => value === currentState.quote,
-      (): QuoteState => ({ isEscaped: false, quote: '' }),
-    ),
-    Match.orElse(({ state: currentState }): QuoteState => currentState),
-  );
-
-const quoteStart = (char: string): string =>
-  Match.value(char).pipe(
-    Match.when(
-      (value): boolean => HashSet.has(quoteCharacters, value),
-      (value): string => value,
-    ),
-    Match.orElse((): string => ''),
-  );
-
-const scanNonCodeIndex = (source: string, index: number, fallback: number): number | undefined =>
-  Match.value({ char: source[index], nextChar: source[index + 1] }).pipe(
-    Match.when(
-      ({ char, nextChar }): boolean => char === '/' && nextChar === '/',
-      (): number => skipLineCommentIndex(source, index, fallback),
-    ),
-    Match.when(
-      ({ char, nextChar }): boolean => char === '/' && nextChar === '*',
-      (): number => skipBlockCommentIndex(source, index, fallback),
-    ),
-    Match.when(
-      (): boolean => isREGEXLiteralStart(source, index),
-      (): number => findREGEXLiteralEnd(source, index),
-    ),
-    Match.orElse((): undefined => undefined),
-  );
-
-const scanBraceIndex = (
-  source: string,
-  index: number,
-  targetIndex: number,
-  stack: number[],
-): number => {
-  const char = source[index];
-  const nonCodeIndex = scanNonCodeIndex(source, index, targetIndex);
-  return pipe(
-    Option.fromNullable(nonCodeIndex),
-    Option.match({
-      onNone: (): number =>
-        Match.value(char).pipe(
-          Match.when('{', (): number => {
-            stack.push(index);
-            return index;
-          }),
-          Match.when('}', (): number => {
-            stack.pop();
-            return index;
-          }),
-          Match.orElse((): number => index),
-        ),
-      onSome: (value): number => value,
-    }),
-  );
-};
-
-const nextBraceScanIndex = (
-  source: string,
-  index: number,
-  targetIndex: number,
-  stack: number[],
-  quoteState: QuoteState,
-): { index: number; quoteState: QuoteState } => {
-  const char = source[index];
-  return Match.value(quoteState.quote).pipe(
-    Match.when(
-      (quote): boolean => quote !== '',
-      (): { index: number; quoteState: QuoteState } => ({
-        index,
-        quoteState: nextQuoteState(quoteState, char),
-      }),
-    ),
-    Match.orElse((): { index: number; quoteState: QuoteState } => {
-      const quote = quoteStart(char);
-      return Match.value(quote).pipe(
-        Match.when(
-          (value): boolean => value !== '',
-          (value): { index: number; quoteState: QuoteState } => ({
-            index,
-            quoteState: { isEscaped: false, quote: value },
-          }),
-        ),
-        Match.orElse((): { index: number; quoteState: QuoteState } => ({
-          index: scanBraceIndex(source, index, targetIndex, stack),
-          quoteState,
-        })),
-      );
-    }),
-  );
-};
-
-const findEnclosingBraceOpen = (source: string, targetIndex: number): number => {
-  const stack: number[] = [];
-  pipe(
-    scanIndexes(0, targetIndex - 1),
-    Array.reduce(
-      { index: 0, quoteState: { isEscaped: false, quote: '' } },
-      (state, scanIndex): { index: number; quoteState: QuoteState } =>
-        Match.value(scanIndex < state.index).pipe(
-          Match.when(true, (): { index: number; quoteState: QuoteState } => state),
-          Match.orElse((): { index: number; quoteState: QuoteState } =>
-            nextBraceScanIndex(source, scanIndex, targetIndex, stack, state.quoteState),
-          ),
-        ),
-    ),
-  );
-
-  return stack.at(-1) ?? -1;
-};
+const CHAR_CODE_BRACE_CLOSE = 125;
+const CHAR_CODE_BRACE_OPEN = 123;
+const CHAR_CODE_BRACKET_CLOSE = 93;
+const CHAR_CODE_BRACKET_OPEN = 91;
+const CHAR_CODE_PAREN_CLOSE = 41;
+const CHAR_CODE_PAREN_OPEN = 40;
+const CHAR_CODE_SEMICOLON = 59;
 
 /**
  * Internal helper exported for package-local composition.
@@ -183,144 +31,137 @@ export const isInsideCall = (source: string, targetIndex: number, callPattern: R
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const statementAfter = (source: string, targetIndex: number, maxLength = 320): string => {
-  const end = source.indexOf(';', targetIndex);
-  return Match.value(end).pipe(
-    Match.when(-1, (): string => source.slice(targetIndex, targetIndex + maxLength)),
-    Match.orElse((statementEnd): string => source.slice(targetIndex, statementEnd + 1)),
-  );
-};
-
-interface StatementDepth {
-  brace: number;
-  bracket: number;
-  paren: number;
+interface StatementEnd {
+  endIndex: number;
+  isEnd: boolean;
 }
 
-const isStatementDepthZero = (depth: StatementDepth): boolean =>
-  depth.brace === 0 && depth.bracket === 0 && depth.paren === 0;
-
-const updateParenDepth = (depth: StatementDepth, char: string): StatementDepth | undefined =>
-  Match.value(char).pipe(
-    Match.when('(', (): StatementDepth => ({ ...depth, paren: depth.paren + 1 })),
-    Match.when(')', (): StatementDepth => ({ ...depth, paren: depth.paren - 1 })),
-    Match.orElse((): undefined => undefined),
-  );
-
-const updateBraceDepth = (depth: StatementDepth, char: string): StatementDepth | undefined =>
-  Match.value(char).pipe(
-    Match.when('{', (): StatementDepth => ({ ...depth, brace: depth.brace + 1 })),
-    Match.when('}', (): StatementDepth => ({ ...depth, brace: depth.brace - 1 })),
-    Match.orElse((): undefined => undefined),
-  );
-
-const updateBracketDepth = (depth: StatementDepth, char: string): StatementDepth | undefined =>
-  Match.value(char).pipe(
-    Match.when('[', (): StatementDepth => ({ ...depth, bracket: depth.bracket + 1 })),
-    Match.when(']', (): StatementDepth => ({ ...depth, bracket: depth.bracket - 1 })),
-    Match.orElse((): undefined => undefined),
-  );
-
-const updateStatementDepth = (depth: StatementDepth, char: string): StatementDepth =>
-  pipe(
-    Option.fromNullable(updateParenDepth(depth, char)),
-    Option.orElse(() => Option.fromNullable(updateBraceDepth(depth, char))),
-    Option.orElse(() => Option.fromNullable(updateBracketDepth(depth, char))),
-    Option.getOrElse((): StatementDepth => depth),
-  );
-
-const skipStatementNonCode = (source: string, index: number): number | undefined =>
-  scanNonCodeIndex(source, index, source.length);
-
-const quoteOrStatementNonCodeScan = (
+const nextEnclosingBraceScanIndex = (
   source: string,
+  targetIndex: number,
+  stack: number[],
   index: number,
-  quoteState: QuoteState,
-): { index: number; quoteState: QuoteState } | undefined => {
-  const char = source[index];
-  return Match.value(quoteState.quote).pipe(
-    Match.when(
-      (quote): boolean => quote !== '',
-      (): { index: number; quoteState: QuoteState } => ({
-        index,
-        quoteState: nextQuoteState(quoteState, char),
-      }),
-    ),
-    Match.orElse((): { index: number; quoteState: QuoteState } | undefined => {
-      const quote = quoteStart(char);
-      return Match.value(quote).pipe(
-        Match.when(
-          (value): boolean => value !== '',
-          (value): { index: number; quoteState: QuoteState } => ({
-            index,
-            quoteState: { isEscaped: false, quote: value },
-          }),
-        ),
-        Match.orElse((): { index: number; quoteState: QuoteState } | undefined =>
-          pipe(
-            Option.fromNullable(skipStatementNonCode(source, index)),
-            Option.map((nonCodeIndex): { index: number; quoteState: QuoteState } => ({
-              index: nonCodeIndex,
-              quoteState,
-            })),
-            Option.getOrUndefined,
-          ),
-        ),
-      );
-    }),
-  );
+): number => {
+  const charCode = source.charCodeAt(index);
+  const nextIndex = nextSourceLexicalIndex(source, index, targetIndex, charCode);
+  if (nextIndex !== index) {
+    return nextIndex;
+  }
+  if (charCode === CHAR_CODE_BRACE_OPEN) {
+    stack.push(index);
+  } else if (charCode === CHAR_CODE_BRACE_CLOSE) {
+    stack.pop();
+  }
+  return index + 1;
 };
 
-const nextStatementScan = (
+const findEnclosingBraceOpen = (source: string, targetIndex: number): number => {
+  const stack: number[] = [];
+  let index = 0;
+  while (index < targetIndex) {
+    index = nextEnclosingBraceScanIndex(source, targetIndex, stack, index);
+  }
+  return stack.at(-1) ?? -1;
+};
+
+const isDelimiterOpen = (charCode: number): boolean =>
+  charCode === CHAR_CODE_BRACE_OPEN ||
+  charCode === CHAR_CODE_BRACKET_OPEN ||
+  charCode === CHAR_CODE_PAREN_OPEN;
+
+const isDelimiterClose = (charCode: number): boolean =>
+  charCode === CHAR_CODE_BRACE_CLOSE ||
+  charCode === CHAR_CODE_BRACKET_CLOSE ||
+  charCode === CHAR_CODE_PAREN_CLOSE;
+
+const hasTargetStackPrefix = (
+  stack: readonly number[],
+  targetStack: readonly number[],
+): boolean => {
+  if (stack.length > targetStack.length) {
+    return false;
+  }
+  for (let index = 0; index < stack.length; index += 1) {
+    if (stack[index] !== targetStack[index]) {
+      return false;
+    }
+  }
+  return true;
+};
+
+interface StatementScanState {
+  delimiterStack: number[];
+  index: number;
+  targetStack: readonly number[] | undefined;
+}
+
+interface StatementScanStep {
+  state: StatementScanState;
+  statementEnd: StatementEnd | undefined;
+}
+
+const captureTargetStack = (
+  state: StatementScanState,
+  startIndex: number,
+  nextIndex: number,
+): readonly number[] | undefined => {
+  if (state.targetStack !== undefined) {
+    return state.targetStack;
+  }
+  if (state.index === startIndex || (startIndex >= state.index && startIndex < nextIndex)) {
+    return [...state.delimiterStack];
+  }
+  return undefined;
+};
+
+const updateDelimiterStack = (delimiterStack: number[], charCode: number, index: number): void => {
+  if (isDelimiterOpen(charCode)) {
+    delimiterStack.push(index);
+  } else if (isDelimiterClose(charCode)) {
+    delimiterStack.pop();
+  }
+};
+
+const nextStatementScanStep = (
   source: string,
-  index: number,
-  depth: StatementDepth,
-  quoteState: QuoteState,
-): { depth: StatementDepth; index: number; isEnd: boolean; quoteState: QuoteState } => {
-  const char = source[index];
-  return Match.value(char === ';' && isStatementDepthZero(depth)).pipe(
-    Match.when(
-      true,
-      (): { depth: StatementDepth; index: number; isEnd: boolean; quoteState: QuoteState } => ({
-        depth,
-        index,
-        isEnd: true,
-        quoteState,
-      }),
-    ),
-    Match.orElse(
-      (): { depth: StatementDepth; index: number; isEnd: boolean; quoteState: QuoteState } =>
-        pipe(
-          Option.fromNullable(quoteOrStatementNonCodeScan(source, index, quoteState)),
-          Option.match({
-            onNone: (): {
-              depth: StatementDepth;
-              index: number;
-              isEnd: boolean;
-              quoteState: QuoteState;
-            } => ({
-              depth: updateStatementDepth(depth, char),
-              index,
-              isEnd: false,
-              quoteState,
-            }),
-            onSome: (
-              quoteOrNonCode,
-            ): {
-              depth: StatementDepth;
-              index: number;
-              isEnd: boolean;
-              quoteState: QuoteState;
-            } => ({ ...quoteOrNonCode, depth, isEnd: false }),
-          }),
-        ),
-    ),
-  );
+  sourceLength: number,
+  startIndex: number,
+  state: StatementScanState,
+): StatementScanStep => {
+  const charCode = source.charCodeAt(state.index);
+  const nextIndex = nextSourceLexicalIndex(source, state.index, sourceLength, charCode);
+  const targetStack = captureTargetStack(state, startIndex, nextIndex);
+  if (nextIndex !== state.index) {
+    return { state: { ...state, index: nextIndex, targetStack }, statementEnd: undefined };
+  }
+  if (
+    charCode === CHAR_CODE_SEMICOLON &&
+    state.index >= startIndex &&
+    hasTargetStackPrefix(state.delimiterStack, targetStack ?? state.delimiterStack)
+  ) {
+    return {
+      state,
+      statementEnd: { endIndex: state.index, isEnd: true },
+    };
+  }
+  updateDelimiterStack(state.delimiterStack, charCode, state.index);
+  return {
+    state: { ...state, index: state.index + 1, targetStack },
+    statementEnd: undefined,
+  };
+};
+
+const scanStatementEnd = (source: string, startIndex: number): StatementEnd => {
+  const sourceLength = source.length;
+  let state: StatementScanState = { delimiterStack: [], index: 0, targetStack: undefined };
+  while (state.index < sourceLength) {
+    const step = nextStatementScanStep(source, sourceLength, startIndex, state);
+    if (step.statementEnd !== undefined) {
+      return step.statementEnd;
+    }
+    ({ state } = step);
+  }
+  return { endIndex: sourceLength - 1, isEnd: false };
 };
 
 /**
@@ -329,42 +170,23 @@ const nextStatementScan = (
  * @internal
  */
 export const findStatementEnd = (source: string, startIndex: number): number =>
-  pipe(
-    scanIndexes(startIndex, source.length - 1),
-    Array.reduce(
-      {
-        depth: { brace: 0, bracket: 0, paren: 0 },
-        endIndex: source.length - 1,
-        index: startIndex,
-        isEnd: false,
-        quoteState: { isEscaped: false, quote: '' },
-      },
-      (
-        state,
-        scanIndex,
-      ): {
-        depth: StatementDepth;
-        endIndex: number;
-        index: number;
-        isEnd: boolean;
-        quoteState: QuoteState;
-      } =>
-        Match.value(state.isEnd || scanIndex < state.index).pipe(
-          Match.when(true, () => state),
-          Match.orElse(() => {
-            const next = nextStatementScan(source, scanIndex, state.depth, state.quoteState);
-            return {
-              ...next,
-              endIndex: Match.value(next.isEnd).pipe(
-                Match.when(true, (): number => scanIndex),
-                Match.orElse((): number => state.endIndex),
-              ),
-            };
-          }),
-        ),
+  scanStatementEnd(source, startIndex).endIndex;
+
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const statementAfter = (source: string, targetIndex: number, maxLength = 320): string => {
+  const statementEnd = scanStatementEnd(source, targetIndex);
+  return Match.value(statementEnd).pipe(
+    Match.when(
+      ({ isEnd }): boolean => isEnd,
+      ({ endIndex }): string => source.slice(targetIndex, endIndex + 1),
     ),
-    (state): number => state.endIndex,
+    Match.orElse((): string => source.slice(targetIndex, targetIndex + maxLength)),
   );
+};
 
 const enclosingEffectCallTail = (source: string, targetIndex: number): string | undefined =>
   pipe(

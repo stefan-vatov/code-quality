@@ -1,9 +1,9 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index';
-import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
 import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
 import type { RuleCase } from './effect-rule-test-utils';
+import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
+import { readFileSync } from 'node:fs';
+import theThracianOxlint from '../../src/index';
 
 const defaultCases: RuleCase[] = [
   {
@@ -25,6 +25,17 @@ const defaultCases: RuleCase[] = [
     name: 'effect-prefer-gen-for-nested-flatmap',
     invalid: 'Effect.flatMap(a, () => Effect.flatMap(b, () => c));',
     valid: 'a.pipe(Effect.flatMap((value) => b(value)));',
+  },
+  {
+    name: 'effect-prefer-map-over-flatMap-succeed',
+    invalid:
+      'import { Effect } from "effect"; Effect.flatMap(program, (value) => Effect.succeed(value));',
+    valid: 'import { Effect } from "effect"; Effect.map(program, (value) => value);',
+  },
+  {
+    name: 'effect-prefer-succeed-for-stable-values',
+    invalid: 'import { Effect } from "effect"; Effect.sync(() => 1);',
+    valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',
   },
   {
     name: 'effect-no-function-returning-gen',
@@ -58,8 +69,8 @@ const defaultCases: RuleCase[] = [
   },
   {
     name: 'effect-require-suspend-for-recursion',
-    invalid: 'function loop() { return Effect.flatMap(step, () => loop()); }',
-    valid: 'function loop() { return Effect.suspend(() => Effect.flatMap(step, () => loop())); }',
+    invalid: 'function loop() { return Effect.succeed(loop()); }',
+    valid: 'function loop() { return Effect.flatMap(step, () => loop()); }',
   },
   {
     name: 'effect-require-suspend-for-lazy-evaluation',
@@ -429,30 +440,33 @@ const defaultCases: RuleCase[] = [
   },
 ];
 
-describe('Effect always-on rule behavior', () => {
-  it('has one behavior case for every always-on rule', () => {
+describe('Effect always-on rule behavior', (): void => {
+  it('has one behavior case for every always-on rule', (): void => {
     expect(sorted(defaultCases.map((testCase) => testCase.name))).toStrictEqual(
       sorted(effectDefaultRuleNames),
     );
   });
 
-  it.each(defaultCases)('detects and accepts always-on rule $name', (testCase) => {
+  it.each(defaultCases)('detects and accepts always-on rule $name', (testCase): void => {
     expect(runRule(testCase.name, testCase.invalid, testCase.filename)).toHaveLength(1);
     expect(runRule(testCase.name, testCase.valid, testCase.filename)).toHaveLength(0);
   });
 
-  it.each(defaultCases)('keeps exported config behavior for always-on rule $name', (testCase) => {
-    const config = theThracianOxlint();
-    const invalidRuleNames = runConfiguredRules(config, testCase.invalid, testCase.filename).map(
-      (report) => report.ruleName,
-    );
-    const validRuleNames = runConfiguredRules(config, testCase.valid, testCase.filename).map(
-      (report) => report.ruleName,
-    );
+  it.each(defaultCases)(
+    'keeps exported config behavior for always-on rule $name',
+    (testCase): void => {
+      const config = theThracianOxlint();
+      const invalidRuleNames = runConfiguredRules(config, testCase.invalid, testCase.filename).map(
+        (report) => report.ruleName,
+      );
+      const validRuleNames = runConfiguredRules(config, testCase.valid, testCase.filename).map(
+        (report) => report.ruleName,
+      );
 
-    expect(invalidRuleNames).toContain(testCase.name);
-    expect(validRuleNames).not.toContain(testCase.name);
-  });
+      expect(invalidRuleNames).toContain(testCase.name);
+      expect(validRuleNames).not.toContain(testCase.name);
+    },
+  );
 
   it.each([
     [
@@ -473,11 +487,14 @@ describe('Effect always-on rule behavior', () => {
       'effect-no-native-error-classes',
       'import { Effect } from "effect"; class UserError extends\nError {}',
     ],
-  ])('keeps token gates broad enough for valid multiline syntax in %s', (ruleName, source) => {
-    expect(runRule(ruleName, source)).toHaveLength(1);
-  });
+  ])(
+    'keeps token gates broad enough for valid multiline syntax in %s',
+    (ruleName, source): void => {
+      expect(runRule(ruleName, source)).toHaveLength(1);
+    },
+  );
 
-  it('keeps effect signal token groups broad enough for namespace imports', () => {
+  it('keeps effect signal token groups broad enough for namespace imports', (): void => {
     expect(
       runRule(
         'effect-no-new-promise',
@@ -486,13 +503,13 @@ describe('Effect always-on rule behavior', () => {
     ).toHaveLength(1);
   });
 
-  it('keeps floating Effect alias detection broad enough for multiline imports', () => {
+  it('keeps floating Effect alias detection broad enough for multiline imports', (): void => {
     expect(
       runRule('effect-no-floating-effect', 'import { Effect as E } from\n"effect";\nE.succeed(1);'),
     ).toHaveLength(1);
   });
 
-  it('uses precise token gates for common source-scan Effect rules', () => {
+  it('uses precise token gates for common source-scan Effect rules', (): void => {
     const source = [
       '../../src/rules/effect-default.ts',
       '../../src/rules/effect-default-compat-rules.ts',

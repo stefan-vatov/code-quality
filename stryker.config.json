@@ -7,14 +7,14 @@
     "fileName": "reports/mutation/mutation.json"
   },
   "packageManager": "pnpm",
-  "plugins": ["@stryker-mutator/vitest-runner"],
+  "plugins": ["./test/stryker-vitest-reload-safe.mjs"],
   "reporters": ["clear-text", "progress", "html", "json"],
-  "testRunner": "vitest",
+  "testRunner": "vitest-reload-safe",
   "ignorePatterns": ["/coverage", "/dist", "/.nx", "/elixir/_build", "/rust/target", "/ts/dist"],
   "thresholds": {
-    "break": 80,
+    "break": 82,
     "high": 90,
-    "low": 80
+    "low": 82
   },
   "vitest": {
     "configFile": "vitest.stryker.config.mts",

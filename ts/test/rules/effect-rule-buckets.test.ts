@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index';
-import effectDefaultRules from '../../src/rules/effect-default';
 import { effectDefaultRuleNames, effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import effectDefaultRules from '../../src/rules/effect-default';
 import effectStrictRules from '../../src/rules/effect-strict';
 import plugin from '../../src/rules/plugin';
 import { sorted } from './effect-rule-test-utils';
+import theThracianOxlint from '../../src/index';
 
-describe('Effect rule buckets', () => {
-  it('keeps bucket names, implementations, and plugin registration in exact sync', () => {
-    expect(effectDefaultRuleNames).toHaveLength(81);
+describe('Effect rule buckets', (): void => {
+  it('keeps bucket names, implementations, and plugin registration in exact sync', (): void => {
+    expect(effectDefaultRuleNames).toHaveLength(83);
     expect(effectStrictRuleNames).toHaveLength(60);
-    expect(new Set([...effectDefaultRuleNames, ...effectStrictRuleNames]).size).toBe(141);
+    expect(new Set([...effectDefaultRuleNames, ...effectStrictRuleNames]).size).toBe(143);
     expect(sorted(Object.keys(effectDefaultRules))).toEqual(sorted(effectDefaultRuleNames));
     expect(sorted(Object.keys(effectStrictRules))).toEqual(sorted(effectStrictRuleNames));
 
@@ -20,7 +20,7 @@ describe('Effect rule buckets', () => {
     expect(plugin.rules).not.toHaveProperty('complexity');
   });
 
-  it('keeps published config bucket enablement in exact sync', () => {
+  it('keeps published config bucket enablement in exact sync', (): void => {
     const defaultConfig = theThracianOxlint();
     const disabledConfig = theThracianOxlint({ effect: false });
     const strictConfig = theThracianOxlint({ effect: { strict: true } });
@@ -39,7 +39,7 @@ describe('Effect rule buckets', () => {
     }
   });
 
-  it('declares options schemas for strict rules that receive project path configuration', () => {
+  it('declares options schemas for strict rules that receive project path configuration', (): void => {
     for (const ruleName of effectStrictRuleNames) {
       const rule = plugin.rules[ruleName as keyof typeof plugin.rules] as {
         meta?: { schema?: unknown };
@@ -49,7 +49,7 @@ describe('Effect rule buckets', () => {
     }
   });
 
-  it('keeps the strict path option schema keys stable', () => {
+  it('keeps the strict path option schema keys stable', (): void => {
     const rule = plugin.rules['effect-no-run-outside-entrypoints'] as {
       meta?: { schema?: Array<{ properties?: Record<string, unknown> }> };
     };

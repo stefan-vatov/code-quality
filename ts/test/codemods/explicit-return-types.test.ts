@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { addVoidReturnTypes } from '../../src/codemods/explicit-return-types';
 
-describe('addVoidReturnTypes', () => {
-  it('adds void to block-bodied arrow functions without returned values', () => {
+describe('addVoidReturnTypes', (): void => {
+  it('adds void to block-bodied arrow functions without returned values', (): void => {
     const input = `const logValue = (value: string) => {
   sink(value);
 };
@@ -14,7 +14,7 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('adds Promise<void> to async functions without returned values', () => {
+  it('adds Promise<void> to async functions without returned values', (): void => {
     const input = `const persist = async (value: string) => {
   await sink(value);
 };
@@ -27,7 +27,7 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('adds void to object literal methods without returned values', () => {
+  it('adds void to object literal methods without returned values', (): void => {
     const input = `const visitor = {
   Program(node) {
     report(node);
@@ -43,7 +43,7 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('does not add a return type when any branch returns a value', () => {
+  it('does not add a return type when any branch returns a value', (): void => {
     const input = `const getValue = (enabled: boolean) => {
   if (enabled) {
     return "value";
@@ -54,7 +54,7 @@ describe('addVoidReturnTypes', () => {
     expect(addVoidReturnTypes(input)).toBe(input);
   });
 
-  it('adds string to expression-bodied arrows with locally provable string method returns', () => {
+  it('adds string to expression-bodied arrows with locally provable string method returns', (): void => {
     const input = `const parseValue = (value: string) => value.trim();
 `;
 
@@ -63,7 +63,7 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('adds boolean to expression-bodied arrows with syntactic boolean expressions', () => {
+  it('adds boolean to expression-bodied arrows with syntactic boolean expressions', (): void => {
     const input = `const isEnabled = (value: string) => value.length > 0;
 `;
 
@@ -72,7 +72,7 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('adds boolean to return statements that call RegExp.test', () => {
+  it('adds boolean to return statements that call RegExp.test', (): void => {
     const input = `const hasToken = (source: string) => {
   return /Effect\\./.test(source);
 };
@@ -84,7 +84,7 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('adds boolean to predicate-style check property arrows', () => {
+  it('adds boolean to predicate-style check property arrows', (): void => {
     const input = `const rule = {
   check: (source: string, context: Context) =>
     isConfiguredPath(context) && hasEffectSignal(source),
@@ -98,7 +98,7 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('adds visitor-map return types to ast property factories', () => {
+  it('adds visitor-map return types to ast property factories', (): void => {
     const input = `const rule = {
   ast: (context: Context, source: string) => ({
     CallExpression(node): void {
@@ -118,10 +118,21 @@ describe('addVoidReturnTypes', () => {
 `);
   });
 
-  it('does not touch functions that already have return types', () => {
+  it('does not touch functions that already have return types', (): void => {
     const input = `const logValue = (value: string): void => {
   sink(value);
 };
+`;
+
+    expect(addVoidReturnTypes(input)).toBe(input);
+  });
+
+  it('does not add return types to class constructors', (): void => {
+    const input = `class Runtime {
+  constructor(readonly state: RuntimeState) {
+    initialize(state);
+  }
+}
 `;
 
     expect(addVoidReturnTypes(input)).toBe(input);

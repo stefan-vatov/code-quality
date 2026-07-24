@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { runRule } from './effect-rule-test-utils';
 
-describe('Effect cycle 8 regression coverage', () => {
-  it('does not treat ordinary helper calls inside Effect.gen as recursive construction', () => {
+describe('Effect cycle 8 regression coverage', (): void => {
+  it('treats recursion inside Effect.gen as a deferred continuation', (): void => {
     const valid = `
       function loadUser() {
         return Effect.gen(function* () {
@@ -11,7 +11,7 @@ describe('Effect cycle 8 regression coverage', () => {
       }
     `;
 
-    const invalid = `
+    const recursive = `
       function loadUser(id) {
         return Effect.gen(function* () {
           return yield* loadUser(id);
@@ -20,10 +20,10 @@ describe('Effect cycle 8 regression coverage', () => {
     `;
 
     expect(runRule('effect-require-suspend-for-recursion', valid)).toHaveLength(0);
-    expect(runRule('effect-require-suspend-for-recursion', invalid)).toHaveLength(1);
+    expect(runRule('effect-require-suspend-for-recursion', recursive)).toHaveLength(0);
   });
 
-  it('does not let resource detection span from an unrelated Effect into acquireRelease', () => {
+  it('does not let resource detection span from an unrelated Effect into acquireRelease', (): void => {
     const valid = `
       const pure = Effect.sync(() => value);
       const managed = Effect.acquireRelease(
@@ -38,7 +38,7 @@ describe('Effect cycle 8 regression coverage', () => {
     expect(runRule('effect-require-acquire-release', invalid)).toHaveLength(1);
   });
 
-  it('does not let resource detection span from one Layer.effect into a scoped layer', () => {
+  it('does not let resource detection span from one Layer.effect into a scoped layer', (): void => {
     const valid = `
       const PureLayer = Layer.effect(Service, Effect.succeed(service));
       const ScopedLayer = Layer.scoped(
@@ -54,7 +54,7 @@ describe('Effect cycle 8 regression coverage', () => {
     expect(runRule('effect-require-scoped-for-resource-layers', invalid)).toHaveLength(1);
   });
 
-  it('flags naked millisecond durations in both unary and binary Effect duration APIs', () => {
+  it('flags naked millisecond durations in both unary and binary Effect duration APIs', (): void => {
     const unary = 'const delayed = Effect.sleep(1000);';
     const binaryTimeout = 'const timed = Effect.timeout(request, 1000);';
     const binaryDelay = 'const delayed = Effect.delay(request, 1000);';
@@ -66,7 +66,7 @@ describe('Effect cycle 8 regression coverage', () => {
     expect(runRule('effect-use-duration-constructors', valid)).toHaveLength(0);
   });
 
-  it('detects Effect values created in function-form Array.forEach callbacks', () => {
+  it('detects Effect values created in function-form Array.forEach callbacks', (): void => {
     const invalid = `
       users.forEach(function (user) {
         return Effect.succeed(user);
@@ -83,7 +83,7 @@ describe('Effect cycle 8 regression coverage', () => {
     expect(runRule('effect-no-effect-in-array-foreach', valid)).toHaveLength(0);
   });
 
-  it('detects Effect values created in function-form Promise callbacks', () => {
+  it('detects Effect values created in function-form Promise callbacks', (): void => {
     const invalid = `
       promise.then(function (value) {
         return Effect.succeed(value);
@@ -96,7 +96,7 @@ describe('Effect cycle 8 regression coverage', () => {
     expect(runRule('effect-no-effect-in-promise-callback', valid)).toHaveLength(0);
   });
 
-  it('detects function-form Effect.sync wrappers around Promise and throwing code', () => {
+  it('detects function-form Effect.sync wrappers around Promise and throwing code', (): void => {
     const promiseInvalid = `
       const task = Effect.sync(function () {
         return fetch("/users");

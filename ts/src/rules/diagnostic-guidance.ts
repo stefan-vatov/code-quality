@@ -15,6 +15,12 @@ interface RuleGuidance {
   keys: readonly string[];
 }
 
+interface NormalizedRuleGuidance {
+  example: string;
+  fix: string;
+  keys: readonly string[];
+}
+
 const markdownCode = (code: string): string => `\`\`\`ts\n${code}\n\`\`\``;
 const effectName = ['Eff', 'ect'].join('');
 const JAVASCRIPT_EXTENSION_LENGTH = 3;
@@ -86,6 +92,19 @@ const ruleGuidanceByName = [
     keys: ['env', 'Clock', 'Random'],
   },
 ] satisfies readonly RuleGuidance[];
+
+const normalizedRuleGuidanceByName = pipe(
+  ruleGuidanceByName,
+  Array.map(
+    (guidance): NormalizedRuleGuidance => ({
+      ...guidance,
+      keys: pipe(
+        guidance.keys,
+        Array.map((key): string => key.toLowerCase()),
+      ),
+    }),
+  ),
+);
 
 const fallbackEffectGuidance = {
   example: `const program = ${effectName}.gen(function* () {\n  return yield* operation.pipe(${effectName}.withSpan("operation"))\n})`,
@@ -311,18 +330,34 @@ The prose must be specific; generated placeholder text does not satisfy the rule
     summary: 'Missing public declaration JSDoc.',
   });
 
-const matchesRuleGuidance = (ruleName: string, guidance: RuleGuidance): boolean =>
-  pipe(
-    guidance.keys,
-    Array.some((key): boolean => ruleName.includes(key)),
-  );
+const matchesNormalizedRuleGuidance = (
+  normalizedRuleName: string,
+  guidance: NormalizedRuleGuidance,
+): boolean => {
+  const { keys } = guidance;
+  const keyCount = keys.length;
+  for (let keyIndex = 0; keyIndex < keyCount; keyIndex += 1) {
+    const key = keys[keyIndex];
+    if (key !== undefined && normalizedRuleName.includes(key)) {
+      return true;
+    }
+  }
 
-const effectGuidance = (ruleName: string): Pick<DiagnosticInput, 'example' | 'fix'> =>
-  pipe(
-    ruleGuidanceByName,
-    Array.findFirst((guidance): boolean => matchesRuleGuidance(ruleName, guidance)),
-    Option.getOrElse((): Pick<DiagnosticInput, 'example' | 'fix'> => fallbackEffectGuidance),
-  );
+  return false;
+};
+
+const effectGuidance = (ruleName: string): Pick<DiagnosticInput, 'example' | 'fix'> => {
+  const normalizedRuleName = ruleName.toLowerCase();
+  const guidanceCount = normalizedRuleGuidanceByName.length;
+  for (let guidanceIndex = 0; guidanceIndex < guidanceCount; guidanceIndex += 1) {
+    const guidance = normalizedRuleGuidanceByName[guidanceIndex];
+    if (guidance !== undefined && matchesNormalizedRuleGuidance(normalizedRuleName, guidance)) {
+      return guidance;
+    }
+  }
+
+  return fallbackEffectGuidance;
+};
 
 /**
  * Internal helper exported for package-local composition.

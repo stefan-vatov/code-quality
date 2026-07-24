@@ -2,18 +2,39 @@
 /*       Exported declaration extraction helpers for Effect lint rules.       */
 /* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
-import { findMatchingBrace, stripCommentsAndStrings } from './effect-source-scan';
-import { findStatementEnd } from './effect-source-navigation';
+import {
+  createModuleSourceIndex,
+  findModuleStatementEnd,
+  moduleBindingDeclarations,
+  moduleLevelMatches,
+} from './effect-module-source-index';
+import {
+  exportedCallableDeclarationSegment,
+  exportedDeclarationSegment,
+} from './effect-export-segments';
+import type { ModuleBindingDeclaration } from './effect-module-source-index';
+import { declarationWithBraceBody } from './effect-export-declaration-boundaries';
+import { defaultExportBindingName } from './effect-export-default-binding';
+import { stripCommentsAndStrings } from './effect-source-scan';
+
+type ModuleSourceIndex = ReturnType<typeof createModuleSourceIndex>;
+interface ExportedDeclarationProjection {
+  readonly analysisText: string;
+  readonly declarationText: string;
+}
 
 const EXPORTED_DECLARATION_CACHE_MAX = 256;
 const exportedDeclarationCache = new Map<string, string[]>();
 const exportedDeclarationSegmentCache = new Map<string, string[]>();
 const exportedCallableDeclarationSegmentCache = new Map<string, string[]>();
-
+const exportedDeclarationProjectionCache = new Map<
+  string,
+  readonly ExportedDeclarationProjection[]
+>();
 const cachedExportedDeclarations = (source: string): string[] | undefined =>
   exportedDeclarationCache.get(source);
 
-const cacheValue = (cache: Map<string, string[]>, source: string, value: string[]): string[] => {
+const cacheValue = <Value>(cache: Map<string, Value>, source: string, value: Value): Value => {
   pipe(
     Match.value(cache.size),
     Match.when(
@@ -45,19 +66,11 @@ const cacheExportedDeclarationSegments = (source: string, segments: string[]): s
 const cacheExportedCallableDeclarationSegments = (source: string, segments: string[]): string[] =>
   cacheValue(exportedCallableDeclarationSegmentCache, source, segments);
 
-const declarationWithBraceBody = (source: string, startIndex: number): string | undefined => {
-  const bodyStart = source.indexOf('{', startIndex);
-  return Match.value(bodyStart).pipe(
-    Match.when(-1, (): undefined => undefined),
-    Match.orElse((start): string | undefined => {
-      const bodyEnd = findMatchingBrace(source, start);
-      return Match.value(bodyEnd).pipe(
-        Match.when(-1, (): undefined => undefined),
-        Match.orElse((end): string => source.slice(startIndex, end + 1)),
-      );
-    }),
-  );
-};
+const cacheExportedDeclarationProjections = (
+  source: string,
+  projections: readonly ExportedDeclarationProjection[],
+): readonly ExportedDeclarationProjection[] =>
+  cacheValue(exportedDeclarationProjectionCache, source, projections);
 
 const exportedNamesFromList = (exportedList: string): string[] =>
   pipe(
@@ -75,49 +88,136 @@ const exportedNamesFromList = (exportedList: string): string[] =>
     }),
   );
 
-const namedExportDeclarationPattern = (exportedName: string): RegExp =>
-  new RegExp(
-    `\\b(?:(?:const|let|var)\\s+${exportedName}\\b|` +
-      `(?:async\\s+)?function\\s+${exportedName}\\b|` +
-      `type\\s+${exportedName}\\b|interface\\s+${exportedName}\\b|` +
-      `(?:abstract\\s+)?class\\s+${exportedName}\\b)`,
-  );
-
 const isBraceBodyDeclaration = (declarationText: string): boolean =>
   /\b(?:async\s+)?function\b|\b(?:abstract\s+)?class\b|\binterface\b/.test(declarationText);
 
 const namedExportDeclarationText = (
   source: string,
   code: string,
-  exportedName: string,
-): string | undefined => {
-  const declarationMatch = namedExportDeclarationPattern(exportedName).exec(code);
-  return pipe(
-    Option.fromNullable(declarationMatch),
-    Option.match({
-      onNone: (): undefined => undefined,
-      onSome: (match): string | undefined =>
-        Match.value(isBraceBodyDeclaration(match[0])).pipe(
-          Match.when(true, (): string | undefined => declarationWithBraceBody(source, match.index)),
-          Match.orElse((): string => {
-            const statementEnd = findStatementEnd(source, match.index);
-            return source.slice(match.index, statementEnd + 1);
-          }),
-        ),
-    }),
-  );
-};
-
-const addNamedExportDeclarations = (source: string, code: string, exportedList: string): string[] =>
+  declaration: ModuleBindingDeclaration,
+): string | undefined =>
   pipe(
-    exportedNamesFromList(exportedList),
-    Array.filterMap(
-      (exportedName): Option.Option<string> =>
-        Option.fromNullable(namedExportDeclarationText(source, code, exportedName)),
+    Match.value(isBraceBodyDeclaration(declaration.match[0])),
+    Match.when(true, (): string | undefined =>
+      declarationWithBraceBody(source, code, declaration.statementStart, declaration.match[0]),
+    ),
+    Match.orElse((): string =>
+      source.slice(declaration.statementStart, declaration.statementEnd + 1),
     ),
   );
 
-const addStatementDeclarations = (source: string, matches: Iterable<RegExpMatchArray>): string[] =>
+const isolatedVariableDeclarationText = (
+  source: string,
+  declaration: ModuleBindingDeclaration,
+): string => {
+  const semicolonCode = 59;
+  const prefix = source.slice(declaration.statementStart, declaration.variableKeywordEnd);
+  const declarator = source.slice(declaration.declaratorStart, declaration.declaratorEnd);
+  if (source.charCodeAt(declaration.statementEnd) === semicolonCode) {
+    return `${prefix} ${declarator};`;
+  }
+  return `${prefix} ${declarator}`;
+};
+
+const privateSiblingText = (
+  source: string,
+  statementStart: number,
+  statementEnd: number,
+  selectedDeclarations: readonly ModuleBindingDeclaration[],
+): string => {
+  let text = '';
+  let sourceIndex = statementStart;
+  for (const declaration of selectedDeclarations) {
+    text += source.slice(sourceIndex, declaration.declaratorStart);
+    sourceIndex = declaration.declaratorEnd;
+  }
+  return text + source.slice(sourceIndex, statementEnd + 1);
+};
+
+const shouldIsolateVariableDeclaration = (
+  source: string,
+  declaration: ModuleBindingDeclaration,
+  selectedDeclarations: readonly ModuleBindingDeclaration[],
+): boolean =>
+  declaration.siblingCount > selectedDeclarations.length &&
+  /\b(?:Effect|Promise)\b/.test(
+    privateSiblingText(
+      source,
+      declaration.statementStart,
+      declaration.statementEnd,
+      selectedDeclarations,
+    ),
+  );
+
+const variableProjection = (
+  source: string,
+  declaration: ModuleBindingDeclaration,
+  selectedDeclarations: readonly ModuleBindingDeclaration[],
+): ExportedDeclarationProjection => {
+  const analysisText = isolatedVariableDeclarationText(source, declaration);
+  if (shouldIsolateVariableDeclaration(source, declaration, selectedDeclarations)) {
+    return { analysisText, declarationText: analysisText };
+  }
+  const declarationText = source.slice(declaration.statementStart, declaration.statementEnd + 1);
+  return { analysisText, declarationText };
+};
+
+const bindingProjection = (
+  source: string,
+  code: string,
+  declaration: ModuleBindingDeclaration,
+  selectedDeclarations: readonly ModuleBindingDeclaration[],
+): ExportedDeclarationProjection | undefined => {
+  if (declaration.kind === 'variable') {
+    return variableProjection(source, declaration, selectedDeclarations);
+  }
+  const declarationText = namedExportDeclarationText(source, code, declaration);
+  if (declarationText === undefined) {
+    return undefined;
+  }
+  return { analysisText: declarationText, declarationText };
+};
+
+const addNamedExportDeclarations = (
+  source: string,
+  code: string,
+  declarations: ReadonlyMap<string, readonly ModuleBindingDeclaration[]>,
+  exportedList: string,
+): readonly ExportedDeclarationProjection[] => {
+  const selectedDeclarations = pipe(
+    exportedNamesFromList(exportedList),
+    Array.flatMap((exportedName) => declarations.get(exportedName) ?? []),
+  );
+  const declarationsByStatement = new Map<number, ModuleBindingDeclaration[]>();
+  for (const declaration of selectedDeclarations) {
+    const statementDeclarations = declarationsByStatement.get(declaration.statementStart);
+    if (statementDeclarations === undefined) {
+      declarationsByStatement.set(declaration.statementStart, [declaration]);
+    } else {
+      statementDeclarations.push(declaration);
+    }
+  }
+  return pipe(
+    selectedDeclarations,
+    Array.filterMap(
+      (declaration): Option.Option<ExportedDeclarationProjection> =>
+        Option.fromNullable(
+          bindingProjection(
+            source,
+            code,
+            declaration,
+            declarationsByStatement.get(declaration.statementStart) ?? [],
+          ),
+        ),
+    ),
+  );
+};
+
+const addStatementDeclarations = (
+  source: string,
+  code: string,
+  matches: Iterable<RegExpMatchArray>,
+): string[] =>
   pipe(
     Array.fromIterable(matches),
     Array.filterMap(
@@ -125,151 +225,225 @@ const addStatementDeclarations = (source: string, matches: Iterable<RegExpMatchA
         pipe(
           Option.fromNullable(match.index),
           Option.map((index): string => {
-            const statementEnd = findStatementEnd(source, index);
+            const statementEnd = findModuleStatementEnd(source, code, index);
             return source.slice(index, statementEnd + 1);
           }),
         ),
     ),
   );
 
-const addBraceDeclarations = (source: string, matches: Iterable<RegExpMatchArray>): string[] =>
+const addBraceDeclarations = (
+  source: string,
+  code: string,
+  matches: Iterable<RegExpMatchArray>,
+): string[] =>
   pipe(
     Array.fromIterable(matches),
     Array.filterMap(
       (match): Option.Option<string> =>
         pipe(
           Option.fromNullable(match.index),
-          Option.flatMap((index) => Option.fromNullable(declarationWithBraceBody(source, index))),
+          Option.flatMap((index) =>
+            Option.fromNullable(declarationWithBraceBody(source, code, index, match[0])),
+          ),
         ),
     ),
   );
 
-const addDirectExportDeclarations = (source: string, code: string): string[] =>
+const addDirectExportDeclarations = (
+  source: string,
+  code: string,
+  moduleIndex: ModuleSourceIndex,
+): string[] =>
   pipe(
     [
       addStatementDeclarations(
         source,
-        code.matchAll(/\bexport\s+default\s+(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)?\s*=>/g),
+        code,
+        moduleLevelMatches(
+          moduleIndex,
+          /\bexport\s+default\s+(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)?\s*=>/g,
+        ),
       ),
       addBraceDeclarations(
         source,
-        code.matchAll(/\bexport\s+(?:default\s+)?(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\b/g),
+        code,
+        moduleLevelMatches(
+          moduleIndex,
+          /\bexport\s+(?:declare\s+)?(?:default\s+)?(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\b/g,
+        ),
       ),
       addStatementDeclarations(
         source,
-        code.matchAll(/\bexport\s+(?:const|let|var)\s+[A-Za-z_$][\w$]*\b/g),
+        code,
+        moduleLevelMatches(
+          moduleIndex,
+          /\bexport\s+(?:declare\s+)?(?:const|let|var)\s+(?:[A-Za-z_$][\w$]*|[{[])/g,
+        ),
       ),
-      addStatementDeclarations(source, code.matchAll(/\bexport\s+type\s+[A-Za-z_$][\w$]*\b/g)),
-      addBraceDeclarations(source, code.matchAll(/\bexport\s+interface\s+[A-Za-z_$][\w$]*\b/g)),
+      addStatementDeclarations(
+        source,
+        code,
+        moduleLevelMatches(moduleIndex, /\bexport\s+type\s+[A-Za-z_$][\w$]*\b/g),
+      ),
       addBraceDeclarations(
         source,
-        code.matchAll(/\bexport\s+(?:default\s+)?(?:abstract\s+)?class(?:\s+[A-Za-z_$][\w$]*)?\b/g),
+        code,
+        moduleLevelMatches(moduleIndex, /\bexport\s+interface\s+[A-Za-z_$][\w$]*\b/g),
+      ),
+      addBraceDeclarations(
+        source,
+        code,
+        moduleLevelMatches(
+          moduleIndex,
+          /\bexport\s+(?:declare\s+)?(?:default\s+)?(?:abstract\s+)?class(?:\s+[A-Za-z_$][\w$]*)?\b/g,
+        ),
       ),
       addStatementDeclarations(
         source,
-        code.matchAll(/\bexport\s+default\s+(?!class\b|(?:async\s+)?function\b)/g),
+        code,
+        moduleLevelMatches(
+          moduleIndex,
+          /\bexport\s+default\s+(?!(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)?\s*=>|(?:abstract\s+)?class\b|(?:async\s+)?function\b)/g,
+        ),
       ),
     ],
     Array.flatten,
   );
 
-const addNamedExportLists = (source: string, code: string): string[] =>
-  pipe(
-    Array.fromIterable(code.matchAll(/\bexport\s+(?:type\s+)?{\s*([^}]+)\s*}/g)),
-    Array.flatMap((exportMatch): string[] => {
-      const exportStatementEnd = findStatementEnd(code, exportMatch.index);
+const addNamedExportLists = (
+  source: string,
+  code: string,
+  moduleIndex: ModuleSourceIndex,
+): readonly ExportedDeclarationProjection[] => {
+  const exportLists = moduleLevelMatches(moduleIndex, /\bexport\s+(?:type\s+)?{\s*([^}]+)\s*}/g);
+  if (Array.isEmptyReadonlyArray(exportLists)) {
+    return [];
+  }
+  const declarations = moduleBindingDeclarations(moduleIndex);
+  return pipe(
+    exportLists,
+    Array.flatMap((exportMatch): readonly ExportedDeclarationProjection[] => {
+      const exportStatementEnd = findModuleStatementEnd(code, code, exportMatch.index);
       const exportStatement = code.slice(exportMatch.index, exportStatementEnd + 1);
       return Match.value(/\bfrom\s*['"]/.test(exportStatement)).pipe(
-        Match.when(true, (): string[] => []),
-        Match.orElse((): string[] => addNamedExportDeclarations(source, code, exportMatch[1])),
+        Match.when(true, (): readonly ExportedDeclarationProjection[] => []),
+        Match.orElse((): readonly ExportedDeclarationProjection[] =>
+          addNamedExportDeclarations(source, code, declarations, exportMatch[1]),
+        ),
       );
     }),
   );
+};
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+const addDefaultIdentifierExports = (
+  source: string,
+  code: string,
+  moduleIndex: ModuleSourceIndex,
+): readonly ExportedDeclarationProjection[] => {
+  const declarations = moduleBindingDeclarations(moduleIndex);
+  return pipe(
+    moduleLevelMatches(moduleIndex, /\bexport\s+default\b/g),
+    Array.flatMap((exportMatch): readonly ExportedDeclarationProjection[] => {
+      const statementEnd = findModuleStatementEnd(source, code, exportMatch.index);
+      const expressionStart = exportMatch.index + exportMatch[0].length;
+      const bindingName = defaultExportBindingName(code.slice(expressionStart, statementEnd + 1));
+      if (bindingName === undefined) {
+        return [];
+      }
+      const bindingDeclarations = declarations.get(bindingName) ?? [];
+      return pipe(
+        bindingDeclarations,
+        Array.filterMap(
+          (declaration): Option.Option<ExportedDeclarationProjection> =>
+            Option.fromNullable(bindingProjection(source, code, declaration, [declaration])),
+        ),
+      );
+    }),
+  );
+};
+
+const isTransparentDefaultBindingDeclaration = (declaration: string): boolean => {
+  if (!/^\s*export\s+default\b/.test(declaration)) {
+    return false;
+  }
+  const expression = declaration.replace(/^\s*export\s+default\s+/, '');
+  return defaultExportBindingName(stripCommentsAndStrings(expression)) !== undefined;
+};
+
+const uniqueProjections = (
+  projections: readonly ExportedDeclarationProjection[],
+): readonly ExportedDeclarationProjection[] => {
+  const keys = new Set<string>();
+  return pipe(
+    projections,
+    Array.filter((projection): boolean => {
+      const key = `${projection.declarationText}\u0000${projection.analysisText}`;
+      if (keys.has(key)) {
+        return false;
+      }
+      keys.add(key);
+      return true;
+    }),
+  );
+};
+
+const exportedDeclarationProjections = (
+  source: string,
+): readonly ExportedDeclarationProjection[] => {
+  const cachedValue = exportedDeclarationProjectionCache.get(source);
+  if (cachedValue !== undefined) {
+    return cachedValue;
+  }
+  if (!source.includes('export')) {
+    return cacheExportedDeclarationProjections(source, []);
+  }
+  const code = stripCommentsAndStrings(source);
+  const moduleIndex = createModuleSourceIndex(code);
+  const directProjections = pipe(
+    addDirectExportDeclarations(source, code, moduleIndex),
+    Array.filter((declaration): boolean => !isTransparentDefaultBindingDeclaration(declaration)),
+    Array.map(
+      (declaration): ExportedDeclarationProjection => ({
+        analysisText: declaration,
+        declarationText: declaration,
+      }),
+    ),
+  );
+  return cacheExportedDeclarationProjections(
+    source,
+    uniqueProjections([
+      ...directProjections,
+      ...addDefaultIdentifierExports(source, code, moduleIndex),
+      ...addNamedExportLists(source, code, moduleIndex),
+    ]),
+  );
+};
+
+/** @internal */
 export const exportedDeclarationTexts = (source: string): string[] => {
   const cachedValue = cachedExportedDeclarations(source);
   return pipe(
     Option.fromNullable(cachedValue),
     Option.match({
-      onNone: (): string[] => {
-        const code = stripCommentsAndStrings(source);
-        return cacheExportedDeclarations(
+      onNone: (): string[] =>
+        cacheExportedDeclarations(
           source,
-          pipe(
-            [addDirectExportDeclarations(source, code), addNamedExportLists(source, code)],
-            Array.flatten,
+          Array.fromIterable(
+            new Set(
+              pipe(
+                exportedDeclarationProjections(source),
+                Array.map((projection): string => projection.declarationText),
+              ),
+            ),
           ),
-        );
-      },
+        ),
       onSome: (value): string[] => value,
     }),
   );
 };
 
-const findAssignmentEquals = (declaration: string): number =>
-  pipe(
-    Array.range(0, declaration.length - 1),
-    Array.findFirst((index): boolean => {
-      const char = declaration[index];
-      const previousChar = declaration[index - 1];
-      const nextChar = declaration[index + 1];
-      return (
-        char === '=' &&
-        previousChar !== '=' &&
-        previousChar !== '!' &&
-        previousChar !== '<' &&
-        previousChar !== '>' &&
-        nextChar !== '=' &&
-        nextChar !== '>'
-      );
-    }),
-    Option.getOrElse((): number => -1),
-  );
-
-const arrowValueSegment = (value: string): string => {
-  const arrowIndex = value.indexOf('=>');
-  return Match.value(/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)).pipe(
-    Match.when(true, (): string => value.slice(arrowIndex + 2)),
-    Match.orElse((): string => value),
-  );
-};
-
-const declarationInitializerValue = (declaration: string): string => {
-  const equalsIndex = findAssignmentEquals(declaration);
-  return Match.value(equalsIndex).pipe(
-    Match.when(-1, (): string => declaration),
-    Match.orElse((index): string => declaration.slice(index + 1)),
-  );
-};
-
-const exportedDeclarationSegment = (declaration: string): string =>
-  Match.value(declaration).pipe(
-    Match.when(
-      (value): boolean => /^\s*export\s+default\b/.test(value),
-      (value): string => arrowValueSegment(value.replace(/^\s*export\s+default\s+/, '')),
-    ),
-    Match.when(
-      (value): boolean => /^\s*(?:export\s+)?(?:const|let|var)\b/.test(value),
-      (value): string => arrowValueSegment(declarationInitializerValue(value)),
-    ),
-    Match.orElse((value): string =>
-      Match.value(value.indexOf('{')).pipe(
-        Match.when(-1, (): string => value),
-        Match.orElse((bodyStart): string => value.slice(bodyStart)),
-      ),
-    ),
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+/** @internal */
 export const exportedDeclarationSegments = (source: string): string[] => {
   const cachedValue = exportedDeclarationSegmentCache.get(source);
   return pipe(
@@ -278,56 +452,17 @@ export const exportedDeclarationSegments = (source: string): string[] => {
       onNone: (): string[] =>
         cacheExportedDeclarationSegments(
           source,
-          pipe(exportedDeclarationTexts(source), Array.map(exportedDeclarationSegment)),
+          pipe(
+            exportedDeclarationProjections(source),
+            Array.map((projection): string => exportedDeclarationSegment(projection.analysisText)),
+          ),
         ),
       onSome: (value): string[] => value,
     }),
   );
 };
 
-const callableFunctionSegment = (declaration: string): string[] => {
-  const bodyStart = declaration.indexOf('{');
-  return Match.value(bodyStart).pipe(
-    Match.when(-1, (): string[] => []),
-    Match.orElse((start): string[] => [declaration.slice(start)]),
-  );
-};
-
-const callableDefaultSegment = (declaration: string): string[] => {
-  const value = declaration.replace(/^\s*export\s+default\s+/, '');
-  return Match.value(/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)).pipe(
-    Match.when(true, (): string[] => [value.slice(value.indexOf('=>') + 2)]),
-    Match.orElse((): string[] => []),
-  );
-};
-
-const callableVariableSegment = (declaration: string): string[] => {
-  const value = declarationInitializerValue(declaration);
-  return Match.value(/^\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(value)).pipe(
-    Match.when(true, (): string[] => [value.slice(value.indexOf('=>') + 2)]),
-    Match.orElse((): string[] => []),
-  );
-};
-
-const exportedCallableDeclarationSegment = (declaration: string): string[] =>
-  Match.value(declaration).pipe(
-    Match.when(
-      (value): boolean => /^\s*(?:export\s+)?(?:async\s+)?function\b/.test(value),
-      callableFunctionSegment,
-    ),
-    Match.when((value): boolean => /^\s*export\s+default\b/.test(value), callableDefaultSegment),
-    Match.when(
-      (value): boolean => /^\s*(?:export\s+)?(?:const|let|var)\b/.test(value),
-      callableVariableSegment,
-    ),
-    Match.orElse((): string[] => []),
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+/** @internal */
 export const exportedCallableDeclarationSegments = (source: string): string[] => {
   const cachedValue = exportedCallableDeclarationSegmentCache.get(source);
   return pipe(
@@ -336,7 +471,12 @@ export const exportedCallableDeclarationSegments = (source: string): string[] =>
       onNone: (): string[] =>
         cacheExportedCallableDeclarationSegments(
           source,
-          pipe(exportedDeclarationTexts(source), Array.flatMap(exportedCallableDeclarationSegment)),
+          pipe(
+            exportedDeclarationProjections(source),
+            Array.flatMap((projection): string[] =>
+              exportedCallableDeclarationSegment(projection.analysisText),
+            ),
+          ),
         ),
       onSome: (value): string[] => value,
     }),

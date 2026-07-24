@@ -2,13 +2,15 @@
 /*      Core runtime for source-backed and AST-backed Effect lint rules.      */
 /* -------------------------------------------------------------------------- */
 import { Array, Option, String, pipe } from 'effect';
-import { canonicalizeEffectAPIAliases } from './effect-rule-aliases';
+import type { CanonicalizedEffectSource } from './effect-alias-canonicalization';
+import { canonicalIndexToOriginal } from './effect-alias-canonicalization';
+import { canonicalizeEffectAPIAliasesWithMap } from './effect-rule-aliases';
 import { effectDiagnosticMessage } from './diagnostic-guidance';
 import { readCachedSource } from './source-cache';
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
 /**
- * Internal helper exported for package-local composition.
+ * Describes the Oxlint context exposed to composed Effect rules.
  *
  * @internal
  */
@@ -27,7 +29,7 @@ export interface Context {
 }
 
 /**
- * Internal helper exported for package-local composition.
+ * Describes a source-backed Effect rule and its visitor factories.
  *
  * @internal
  */
@@ -53,7 +55,7 @@ export interface SourceRule {
 type VisitorMap = Record<string, ((node: object) => void) | undefined>;
 
 /**
- * Internal helper exported for package-local composition.
+ * Describes one generated Effect lint rule.
  *
  * @internal
  */
@@ -81,8 +83,6 @@ const lineStartCache = new Map<string, readonly number[]>();
 const globalPatternCache = new WeakMap<RegExp, RegExp>();
 const tokenGateCache = new WeakMap<readonly string[], Map<string, boolean>>();
 const sourceTokenPresenceCache = new Map<string, Map<string, boolean>>();
-
-const readSource = (context: Context): string => readCachedSource(context);
 
 const matchesIn = (source: string, pattern: RegExp): readonly RegExpExecArray[] =>
   pipe(source.matchAll(pattern), Array.fromIterable);
@@ -121,34 +121,23 @@ const toGlobalRegExp = (pattern: RegExp): RegExp =>
     }),
   );
 
-const cachedLineStarts = (source: string): readonly number[] | undefined =>
-  lineStartCache.get(source);
-
-const evictFirstLineStart = (): void => {
-  if (lineStartCache.size < LINE_START_CACHE_MAX) {
-    return;
-  }
-  pipe(
-    Option.fromNullable(lineStartCache.keys().next().value),
-    Option.map((firstKey): boolean => lineStartCache.delete(firstKey)),
-  );
-};
-
-const computeLineStarts = (source: string): number[] =>
-  pipe(
-    matchesIn(source, /\n/g),
-    Array.map((match): number => match.index + 1),
-    Array.prepend(0),
-  );
-
 const lineStartsFor = (source: string): readonly number[] => {
-  const cachedStarts = cachedLineStarts(source);
+  const cachedStarts = lineStartCache.get(source);
   if (cachedStarts !== undefined) {
     return cachedStarts;
   }
 
-  const starts = computeLineStarts(source);
-  evictFirstLineStart();
+  const starts = pipe(
+    matchesIn(source, /\n/g),
+    Array.map((match): number => match.index + 1),
+    Array.prepend(0),
+  );
+  if (lineStartCache.size >= LINE_START_CACHE_MAX) {
+    const firstKey = lineStartCache.keys().next().value;
+    if (firstKey !== undefined) {
+      lineStartCache.delete(firstKey);
+    }
+  }
   lineStartCache.set(source, starts);
   return starts;
 };
@@ -173,14 +162,22 @@ const locFromIndex = (source: string, index: number): { column: number; line: nu
   const starts = lineStartsFor(source);
   const lineIndex = lineIndexFor(starts, index);
   const lineStart = starts[lineIndex] ?? 0;
-  const line = lineIndex + 1;
-  return { column: index - lineStart, line };
+  return { column: index - lineStart, line: lineIndex + 1 };
 };
 
+interface SourceView {
+  canonicalized: CanonicalizedEffectSource;
+  original: string;
+}
+
+const locFromCanonicalIndex = (view: SourceView, index: number): { column: number; line: number } =>
+  locFromIndex(view.original, canonicalIndexToOriginal(view.canonicalized, index));
+
 const firstPatternLOC = (
-  source: string,
+  view: SourceView,
   patterns: readonly RegExp[],
 ): { column: number; line: number } | undefined => {
+  const { source } = view.canonicalized;
   let strippedSource: string | undefined = undefined;
   return pipe(
     patterns,
@@ -193,7 +190,7 @@ const firstPatternLOC = (
             return isCodeAt(strippedSource, match.index);
           }),
           Option.map((match): { column: number; line: number } =>
-            locFromIndex(source, match.index),
+            locFromCanonicalIndex(view, match.index),
           ),
         ),
     ),
@@ -203,6 +200,7 @@ const firstPatternLOC = (
 };
 
 interface ReportPatternMatchesInput {
+  canonicalized: CanonicalizedEffectSource;
   context: Context;
   node: object;
   source: string;
@@ -210,11 +208,12 @@ interface ReportPatternMatchesInput {
 }
 
 const reportPatternMatches = (input: ReportPatternMatchesInput): void => {
-  const { context, node, source, spec } = input;
+  const { canonicalized, context, node, source, spec } = input;
+  const view = { canonicalized, original: source };
   const message = effectDiagnosticMessage(spec.name, spec.message);
   if (!spec.countPatterns) {
     context.report({
-      loc: firstPatternLOC(source, spec.patterns ?? []),
+      loc: firstPatternLOC(view, spec.patterns ?? []),
       message,
       node,
     });
@@ -225,18 +224,20 @@ const reportPatternMatches = (input: ReportPatternMatchesInput): void => {
 };
 
 const reportCountedPatternMatches = (input: ReportPatternMatchesInput, message: string): void => {
-  const { context, node, source, spec } = input;
+  const { canonicalized, context, node, source, spec } = input;
+  const canonicalSource = canonicalized.source;
+  const view = { canonicalized, original: source };
   let strippedSource: string | undefined = undefined;
   pipe(
     spec.countPatterns ?? [],
     Array.flatMap((pattern): readonly RegExpExecArray[] =>
-      matchesIn(source, toGlobalRegExp(pattern)),
+      matchesIn(canonicalSource, toGlobalRegExp(pattern)),
     ),
     Array.forEach((match): void => {
-      strippedSource ??= stripCommentsAndStrings(source);
+      strippedSource ??= stripCommentsAndStrings(canonicalSource);
       if (isCodeAt(strippedSource, match.index)) {
         context.report({
-          loc: locFromIndex(source, match.index),
+          loc: locFromCanonicalIndex(view, match.index),
           message,
           node,
         });
@@ -252,15 +253,7 @@ const checkResultIndex = (result: boolean | number | { index: number }): number 
   if (typeof result === 'object') {
     return result.index;
   }
-
   return undefined;
-};
-
-const isCheckViolation = (result: boolean | number | { index: number }): boolean => {
-  if (typeof result === 'boolean') {
-    return result;
-  }
-  return true;
 };
 
 const cachedSourceTokenPresence = (source: string): Map<string, boolean> =>
@@ -297,9 +290,6 @@ const hasAnyToken = (source: string, tokens: readonly string[]): boolean =>
     Array.some((token): boolean => hasTokenInSourceCached(source, token)),
   );
 
-const cachedTokenGate = (source: string, tokens: readonly string[]): boolean | undefined =>
-  tokenGateCache.get(tokens)?.get(source);
-
 const cacheTokenGate = (source: string, tokens: readonly string[], hasToken: boolean): boolean => {
   const sourceCache = pipe(
     Option.fromNullable(tokenGateCache.get(tokens)),
@@ -321,7 +311,7 @@ const cacheTokenGate = (source: string, tokens: readonly string[], hasToken: boo
 };
 
 const hasAnyTokenCached = (source: string, tokens: readonly string[]): boolean => {
-  const cachedValue = cachedTokenGate(source, tokens);
+  const cachedValue = tokenGateCache.get(tokens)?.get(source);
   if (cachedValue !== undefined) {
     return cachedValue;
   }
@@ -345,26 +335,23 @@ const shouldSkipSource = (
   Boolean(requiredTokenGroups && !hasEveryTokenGroup(source, requiredTokenGroups));
 
 const checkResultLOC = (
+  canonicalized: CanonicalizedEffectSource,
   source: string,
   spec: RuleSpec,
   checkResult: CheckResult,
 ): { column: number; line: number } | undefined => {
+  const view = { canonicalized, original: source };
   const index = checkResultIndex(checkResult);
   if (index !== undefined) {
-    return locFromIndex(source, index);
+    return locFromCanonicalIndex(view, index);
   }
-  return firstPatternLOC(source, spec.patterns ?? []);
+  return firstPatternLOC(view, spec.patterns ?? []);
 };
 
-const reportCheckResult = (
-  context: Context,
-  node: object,
-  source: string,
-  spec: RuleSpec,
-  checkResult: CheckResult,
-): void => {
+const reportCheckResult = (input: ReportPatternMatchesInput, checkResult: CheckResult): void => {
+  const { canonicalized, context, node, source, spec } = input;
   context.report({
-    loc: checkResultLOC(source, spec, checkResult),
+    loc: checkResultLOC(canonicalized, source, spec, checkResult),
     message: effectDiagnosticMessage(spec.name, spec.message),
     node,
   });
@@ -397,19 +384,18 @@ interface RunProgramRuleInput {
 
 const runProgramRule = (input: RunProgramRuleInput): void => {
   const { context, node, source, spec } = input;
-  const canonicalSource = canonicalizeEffectAPIAliases(source);
+  const canonicalized = canonicalizeEffectAPIAliasesWithMap(source);
+  const canonicalSource = canonicalized.source;
   const checkResult = spec.check?.(canonicalSource, context);
   if (checkResult !== undefined) {
-    if (!isCheckViolation(checkResult)) {
-      return;
+    if (typeof checkResult !== 'boolean' || checkResult) {
+      reportCheckResult({ canonicalized, context, node, source, spec }, checkResult);
     }
-
-    reportCheckResult(context, node, canonicalSource, spec, checkResult);
     return;
   }
 
   if (hasPattern(canonicalSource, spec.patterns ?? [])) {
-    reportPatternMatches({ context, node, source: canonicalSource, spec });
+    reportPatternMatches({ canonicalized, context, node, source, spec });
   }
 };
 
@@ -432,7 +418,7 @@ const makeProgramOnlyRule = (spec: RuleSpec, options: MakeRulesOptions): SourceR
           runProgramRule({ context, node, source, spec });
         },
         before() {
-          source = readSource(context);
+          source = readCachedSource(context);
           isSkipped = shouldSkipSource(source, requiredTokens, requiredTokenGroups);
           if (isSkipped) {
             return false;
@@ -449,7 +435,7 @@ const makeASTCapableRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRu
   const requiredTokenGroups = spec.tokenGroups;
   const rule: SourceRule = {
     create(context: Context) {
-      const source = readSource(context);
+      const source = readCachedSource(context);
       if (shouldSkipSource(source, requiredTokens, requiredTokenGroups)) {
         return {
           Program(): void {},
@@ -458,9 +444,11 @@ const makeASTCapableRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRu
 
       const astContext = guidedContext(context, spec);
       const astVisitors = spec.ast?.(astContext, source) ?? {};
+      const astProgram = astVisitors.Program;
       return {
         ...astVisitors,
         Program(node: object): void {
+          astProgram?.(node);
           if (spec.ast && globalThis.Array.isArray((node as { body?: unknown }).body)) {
             return;
           }
@@ -488,7 +476,7 @@ const makeProgramRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRule 
 };
 
 /**
- * Internal helper exported for package-local composition.
+ * Builds named Effect rules from declarative rule specifications.
  *
  * @internal
  */

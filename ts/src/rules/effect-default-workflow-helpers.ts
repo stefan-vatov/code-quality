@@ -13,11 +13,12 @@ import {
   findBalancedCallEnd,
   findMatchingBrace,
   findStatementEnd,
-  isInsideCall,
   stripComments,
   stripCommentsAndStrings,
 } from './effect-source-helpers';
-import { hasRuntimeCall } from './effect-rule-core';
+import { hasRecursiveEffectSource } from './effect-recursion-source';
+import { hasRuntimeCall } from './effect-rule-aliases';
+import { hasSyncForPromiseSource } from './effect-sync-promise-source';
 
 /**
  * Internal helper exported for package-local composition.
@@ -25,7 +26,7 @@ import { hasRuntimeCall } from './effect-rule-core';
  * @internal
  */
 export const hasRuntimeInEffect = (source: string): boolean =>
-  someEffectWorkflowBody(source, (body): boolean => hasRuntimeCall(body));
+  someEffectWorkflowBody(source, (body): boolean => hasRuntimeCall(body, source));
 
 /**
  * Internal helper exported for package-local composition.
@@ -200,14 +201,7 @@ export const hasAsyncAwaitInEffect = (source: string): boolean =>
  *
  * @internal
  */
-export const hasSyncForPromise = (source: string): boolean =>
-  pipe(
-    effectCallBodies(source, effectCallPattern(source, 'sync')),
-    Array.some((body): boolean => {
-      const code = stripCommentsAndStrings(body);
-      return /^\s*async\b/.test(code) || /\b(?:fetch|Promise\.)\s*\(/.test(code);
-    }),
-  );
+export const hasSyncForPromise = hasSyncForPromiseSource;
 
 /**
  * Internal helper exported for package-local composition.
@@ -298,64 +292,9 @@ export const hasTryPromiseWithoutTypedCatch = (source: string): boolean => {
   );
 };
 
-const hasUnsafeRecursiveBody = (name: string, body: string): boolean => {
-  const code = stripCommentsAndStrings(body);
-  return Match.value(/\bEffect\.(?:flatMap|forEach|gen)\b/.test(code)).pipe(
-    Match.when(false, (): boolean => false),
-    Match.orElse((): boolean => {
-      const recursiveCallPattern = new RegExp(`\\b${name}\\s*\\(`, 'g');
-      return pipe(
-        Array.fromIterable(code.matchAll(recursiveCallPattern)),
-        Array.some((match): boolean => !isInsideCall(code, match.index, /Effect\.suspend\s*\(/g)),
-      );
-    }),
-  );
-};
-
-const hasUnsafeRecursiveFunction = (source: string): boolean =>
-  pipe(
-    Array.fromIterable(source.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*{/g)),
-    Array.some((match): boolean => {
-      const [, name] = match;
-      const bodyStart = source.indexOf('{', match.index);
-      const bodyEnd = findMatchingBrace(source, bodyStart);
-      return bodyEnd !== -1 && hasUnsafeRecursiveBody(name, source.slice(bodyStart + 1, bodyEnd));
-    }),
-  );
-
-const recursiveArrowBody = (source: string, bodyStart: number): string => {
-  const expressionEnd = source.indexOf(';', bodyStart);
-  return Match.value(source[bodyStart]).pipe(
-    Match.when('{', (): string =>
-      source.slice(bodyStart + 1, findMatchingBrace(source, bodyStart)),
-    ),
-    Match.orElse((): string =>
-      Match.value(expressionEnd).pipe(
-        Match.when(-1, (): string => source.slice(bodyStart, source.length)),
-        Match.orElse((end): string => source.slice(bodyStart, end)),
-      ),
-    ),
-  );
-};
-
-const hasUnsafeRecursiveArrow = (source: string): boolean =>
-  pipe(
-    Array.fromIterable(
-      source.matchAll(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*/g),
-    ),
-    Array.some((match): boolean => {
-      const [, name] = match;
-      return hasUnsafeRecursiveBody(
-        name,
-        recursiveArrowBody(source, match.index + match[0].length),
-      );
-    }),
-  );
-
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const hasRecursiveEffectWithoutSuspend = (source: string): boolean =>
-  hasUnsafeRecursiveFunction(source) || hasUnsafeRecursiveArrow(source);
+export const hasRecursiveEffectWithoutSuspend = hasRecursiveEffectSource;

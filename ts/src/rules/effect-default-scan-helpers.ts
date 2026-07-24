@@ -84,7 +84,7 @@ export const effectCallPattern = (source: string, methods: string): RegExp => {
     Option.match({
       onNone: (): RegExp => {
         const pattern = new RegExp(
-          `\\b(?:${effectAliasesPattern(source)})\\.(?:${methods})\\s*\\(`,
+          `(?:^|[^\\w$])(?:${effectAliasesPattern(source)})\\.(?:${methods})\\s*\\(`,
           'g',
         );
         sourceCache.set(methods, pattern);

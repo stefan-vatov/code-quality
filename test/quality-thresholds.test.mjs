@@ -154,6 +154,57 @@ describe('quality threshold configuration', () => {
     expect(releaseWorkflow).not.toContain('ci(ts): verify published oxlint config [skip ci]');
   });
 
+  it('runs native plugin compatibility against the exact minimum Oxlint peer', () => {
+    const packageJSON = rootJSON('package.json');
+    const ciWorkflow = rootText('.github/workflows/ci.yml');
+    const verifier = rootText('ts/test/oxlint-min-peer/verify.mjs');
+
+    expect(packageJSON.scripts['test:oxlint-min-peer']).toBe(
+      'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs',
+    );
+    expect(packageJSON.scripts['test:oxlint-min-peer']).not.toContain('oxlint@^1.63');
+    expect(ciWorkflow).toContain('oxlint-min-peer:');
+    expect(ciWorkflow).toContain('name: Oxlint 1.63.0 minimum peer compatibility');
+    expect(ciWorkflow).toContain('run: pnpm run test:oxlint-min-peer');
+    expect(verifier).toContain("'oxlint@1.63.0'");
+    expect(verifier).not.toContain("'oxlint@^1.63'");
+    expect(verifier).toContain("'--format'");
+    expect(verifier).toContain("'json'");
+    expect(verifier).toMatch(
+      /assert\.equal\(\s*diagnostics\.length\s*,\s*expectedRuleIDs\.length\s*\)/u,
+    );
+    expect(verifier).toMatch(
+      /assert\.deepStrictEqual\(\s*ruleIDs\.toSorted\(\)\s*,\s*expectedRuleIDs\.toSorted\(\)\s*\)/u,
+    );
+    expect(verifier).toMatch(/runOxlint\(\s*temporarySafePath\s*,\s*\[\s*'--fix'\s*\]\s*\)/u);
+    expect(verifier).toMatch(/assert\.equal\(\s*safeResult\.status\s*,\s*0\s*,/u);
+    expect(verifier).toMatch(
+      /assert\.equal\(\s*JSON\.parse\(safeResult\.stdout\)\.diagnostics\.length\s*,\s*0\s*\)/u,
+    );
+    expect(verifier).toMatch(/assert\.equal\(\s*afterFix\s*,\s*beforeFix\s*\)/u);
+
+    const compatibilityConfig = rootText('ts/test/oxlint-min-peer/oxlint.config.mjs');
+    const invalidFixture = rootText('ts/test/oxlint-min-peer/invalid.ts');
+    const safeFixture = rootText('ts/test/oxlint-min-peer/safe.ts');
+
+    for (const ruleName of [
+      'thethracian/no-commented-out-code',
+      'thethracian/effect-no-sync-for-promise',
+      'thethracian/effect-no-global-fetch',
+      'thethracian/effect-prefer-map-over-flatMap-succeed',
+    ]) {
+      expect(compatibilityConfig).toContain(`'${ruleName}': 'error'`);
+    }
+
+    expect(invalidFixture).toContain('// const discarded = Effect.succeed(0);');
+    expect(invalidFixture).toContain('Effect.sync(() => Promise.resolve(1))');
+    expect(invalidFixture).toContain("try: () => fetch('/users')");
+    expect(invalidFixture).toContain(
+      'Effect.flatMap(promised, (value) => Effect.succeed(value + 1))',
+    );
+    expect(safeFixture).toContain('Effect.succeed(1).pipe(Effect.map((value) => value + 1))');
+  });
+
   it('enforces coverage watermarks for the TypeScript package source', () => {
     const config = rootText('vitest.config.mts');
 
@@ -174,9 +225,9 @@ describe('quality threshold configuration', () => {
     const config = rootJSON('stryker.config.json');
 
     expect(config.thresholds).toStrictEqual({
-      break: 80,
+      break: 82,
       high: 90,
-      low: 80,
+      low: 82,
     });
   });
 

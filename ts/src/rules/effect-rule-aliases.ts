@@ -3,9 +3,11 @@
 /* -------------------------------------------------------------------------- */
 import { Array, HashSet, Option, pipe } from 'effect';
 import { stripComments, stripCommentsAndStrings } from './effect-source-helpers';
+import type { CanonicalizedEffectSource } from './effect-alias-canonicalization';
+import { buildCanonicalizedEffectSource } from './effect-alias-canonicalization';
 
 /**
- * Internal helper exported for package-local composition.
+ * Matches supported Effect runtime execution calls.
  *
  * @internal
  */
@@ -17,7 +19,7 @@ const ALIAS_CACHE_MAX = 256;
 const BOOLEAN_CACHE_MAX = 512;
 const effectAliasCache = new Map<string, string[]>();
 const runtimeFunctionAliasCache = new Map<string, string[]>();
-const canonicalSourceCache = new Map<string, string>();
+const canonicalSourceCache = new Map<string, CanonicalizedEffectSource>();
 const effectSignalCache = new Map<string, boolean>();
 const runtimeCallCache = new Map<string, boolean>();
 
@@ -51,6 +53,9 @@ const cacheBoolean = (cache: Map<string, boolean>, source: string, value: boolea
 
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+
+const exactIdentifierPattern = (identifier: string, suffix: string, flags = ''): RegExp =>
+  new RegExp(`(?:^|[^\\w$])${escapeRegExp(identifier)}${suffix}`, flags);
 
 const hasLocalEffectBinding = (source: string): boolean =>
   /\b(?:const|let|var|function|class|namespace)\s+Effect\b/.test(stripCommentsAndStrings(source));
@@ -174,11 +179,7 @@ const hasEffectValueImport = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+/** Finds local identifiers bound to the Effect namespace. @internal */
 export const effectImportAliases = (source: string): string[] => {
   const cachedValue = cachedAliases(effectAliasCache, source);
   if (cachedValue) {
@@ -198,11 +199,7 @@ export const effectImportAliases = (source: string): string[] => {
   return cacheAliases(effectAliasCache, source, [...aliases]);
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+/** Finds local identifiers bound to a named Effect API module. @internal */
 export const effectAPIAliases = (source: string, APIName: string): string[] => {
   const aliases = new Set<string>();
   const commentFreeSource = stripComments(source);
@@ -230,11 +227,7 @@ export const effectAPIAliases = (source: string, APIName: string): string[] => {
   return [...aliases];
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+/** Finds local names for functions imported from an Effect API module. @internal */
 export const effectFunctionAliases = (
   source: string,
   moduleName: string,
@@ -327,30 +320,44 @@ const evictCanonicalSourceCache = (): void => {
   );
 };
 
+const buildCanonicalSource = (source: string): CanonicalizedEffectSource => {
+  const aliases = canonicalImportAliases(source);
+  if (aliases.size === 0) {
+    return { indexMap: [], source };
+  }
+
+  const alternatives = pipe(
+    Array.fromIterable(aliases.keys()),
+    Array.map(escapeRegExp),
+    Array.join('|'),
+  );
+  const pattern = new RegExp(`(^|[^\\w$])(${alternatives})(?=\\.)`, 'g');
+  return buildCanonicalizedEffectSource(source, aliases, pattern);
+};
+
 /**
- * Internal helper exported for package-local composition.
+ * Canonicalizes Effect API aliases while retaining original positions.
  *
  * @internal
  */
-export const canonicalizeEffectAPIAliases = (source: string): string =>
+export const canonicalizeEffectAPIAliasesWithMap = (source: string): CanonicalizedEffectSource =>
   pipe(
     Option.fromNullable(canonicalSourceCache.get(source)),
-    Option.getOrElse((): string => {
-      const canonicalSource = pipe(
-        Array.fromIterable(canonicalImportAliases(source)),
-        Array.reduce(source, (currentSource, [localName, canonicalName]): string =>
-          currentSource.replace(
-            new RegExp(`\\b${escapeRegExp(localName)}\\.`, 'g'),
-            `${canonicalName}.`,
-          ),
-        ),
-      );
-
+    Option.getOrElse((): CanonicalizedEffectSource => {
+      const canonicalSource = buildCanonicalSource(source);
       evictCanonicalSourceCache();
       canonicalSourceCache.set(source, canonicalSource);
       return canonicalSource;
     }),
   );
+
+/**
+ * Canonicalizes local Effect API aliases to their imported names.
+ *
+ * @internal
+ */
+export const canonicalizeEffectAPIAliases = (source: string): string =>
+  canonicalizeEffectAPIAliasesWithMap(source).source;
 
 const runtimeNames = HashSet.make(
   'runFork',
@@ -381,38 +388,61 @@ const effectRuntimeFunctionAliases = (source: string): string[] => {
   return cacheAliases(runtimeFunctionAliasCache, source, [...aliases]);
 };
 
+const hasCanonicalRuntimeCall = (
+  code: string,
+  aliases: readonly string[],
+  aliasSource: string,
+): boolean =>
+  (!hasLocalEffectBinding(aliasSource) &&
+    aliases.includes('Effect') &&
+    runtimeCallPattern.test(code)) ||
+  /(?:^|[^\w$])[A-Za-z_$][\w$]*Runtime\.runMain\s*\(/.test(code);
+
+const hasContextualRuntimeCall = (
+  code: string,
+  aliases: readonly string[],
+  aliasSource: string,
+): boolean =>
+  aliases.some((alias): boolean =>
+    exactIdentifierPattern(
+      alias,
+      String.raw`\.(?:runPromise|runPromiseExit|runSync|runSyncExit|runFork)\s*\(`,
+    ).test(code),
+  ) ||
+  effectRuntimeFunctionAliases(aliasSource).some((alias): boolean =>
+    exactIdentifierPattern(alias, String.raw`\s*\(`).test(code),
+  );
+
+const cachedRuntimeResult = (source: string, aliasSource: string, hasRuntime: boolean): boolean => {
+  if (aliasSource !== source) {
+    return hasRuntime;
+  }
+  return cacheBoolean(runtimeCallCache, source, hasRuntime);
+};
+
 /**
- * Internal helper exported for package-local composition.
+ * Determines whether source contains a supported Effect runtime call.
  *
  * @internal
  */
-export const hasRuntimeCall = (source: string): boolean => {
+export const hasRuntimeCall = (source: string, aliasSource: string = source): boolean => {
   const cachedValue = cachedBoolean(runtimeCallCache, source);
-  if (cachedValue !== undefined) {
+  if (aliasSource === source && cachedValue !== undefined) {
     return cachedValue;
   }
 
   const code = stripCommentsAndStrings(source);
-  if (runtimeCallPattern.test(code)) {
-    return cacheBoolean(runtimeCallCache, source, true);
+  const aliases = effectImportAliases(aliasSource);
+  if (hasCanonicalRuntimeCall(code, aliases, aliasSource)) {
+    return cachedRuntimeResult(source, aliasSource, true);
   }
 
-  return cacheBoolean(
-    runtimeCallCache,
-    source,
-    effectImportAliases(source).some((alias): boolean =>
-      new RegExp(
-        `\\b${alias}\\.(?:runPromise|runPromiseExit|runSync|runSyncExit|runFork)\\s*\\(`,
-      ).test(code),
-    ) ||
-      effectRuntimeFunctionAliases(source).some((alias): boolean =>
-        new RegExp(`\\b${alias}\\s*\\(`).test(code),
-      ),
-  );
+  const hasContextualRuntime = hasContextualRuntimeCall(code, aliases, aliasSource);
+  return cachedRuntimeResult(source, aliasSource, hasContextualRuntime);
 };
 
 /**
- * Internal helper exported for package-local composition.
+ * Determines whether source contains an Effect value-level signal.
  *
  * @internal
  */
@@ -432,13 +462,13 @@ export const hasEffectSignal = (source: string): boolean => {
     source,
     hasEffectValueImport(source) ||
       effectImportAliases(source).some((alias): boolean =>
-        new RegExp(`\\b${escapeRegExp(alias)}\\.`, 'u').test(codeOnly),
+        exactIdentifierPattern(alias, String.raw`\.`).test(codeOnly),
       ),
   );
 };
 
 /**
- * Internal helper exported for package-local composition.
+ * Determines whether a file is an Effect execution boundary.
  *
  * @internal
  */
@@ -446,7 +476,7 @@ export const isBoundaryFile = (filename: string | undefined): boolean =>
   Boolean(filename && boundaryFilePattern.test(filename));
 
 /**
- * Internal helper exported for package-local composition.
+ * Determines whether a file path names a test module.
  *
  * @internal
  */
