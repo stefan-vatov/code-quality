@@ -135,6 +135,14 @@ The default bucket checks for patterns such as:
 - Effect Solutions `packages/cli/src/update-notifier.ts` ([source](https://github.com/kitlangton/effect-solutions/blob/09f82e6c5c928e7232cd32daf04d7c6a830b63f7/packages/cli/src/update-notifier.ts#L50-L52))
 - Typed `packages/fx/src/RefSubject.ts` ([source](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/fx/src/RefSubject.ts#L834))
 
+`effect-prefer-succeedSome` is always on and reports `Effect.succeed(Option.some(value))` in favor of `Effect.succeedSome(value)`. Its import-aware matcher recognizes aliases while respecting lexical shadowing, and it preserves explicit generic arguments and TypeScript wrappers around the inner call for type safety. The rule supports both Effect 3.21 and Effect v4; the mined corpus contains 158 verbose targets and 35 canonical uses:
+
+- Effect v4 `succeedSome` API ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/Effect.ts#L1054))
+- Effect 3.21 identical internal implementation ([source](https://github.com/Effect-TS/effect/blob/39c934c1476be389f7469433910fdf30fc4dad82/packages/effect/src/internal/core-effect.ts#L1400))
+- Effect `SchemaGetter.ts`: [canonical use](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/SchemaGetter.ts#L122) and [verbose target](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/SchemaGetter.ts#L459)
+- Typed: [verbose target](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/fx/src/internal/core.ts#L2226) and [canonical use](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/router/src/Matcher.ts#L218)
+- T3 Code: [verbose target](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/persistence/Layers/ProjectionCheckpoints.ts#L194) and [canonical use](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/bootstrap.ts#L123)
+
 Disable the Effect bucket for non-Effect projects:
 
 ```js
