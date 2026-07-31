@@ -45,6 +45,7 @@ import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferMapOverFlatMapSucceedRule from './effect-prefer-map-over-flatmap-succeed';
 import preferSucceedForStableValuesRule from './effect-prefer-succeed-for-stable-values';
+import preferSucceedNoneRule from './effect-prefer-succeed-none';
 import { strictPathOptionsSchema } from './effect-path-options';
 
 type RuleSpec = Parameters<typeof makeRules>[0][number];
@@ -391,6 +392,7 @@ const effectDefaultRules = {
   }),
   'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,
   'effect-prefer-succeed-for-stable-values': preferSucceedForStableValuesRule,
+  'effect-prefer-succeedNone': preferSucceedNoneRule,
 };
 
 export default effectDefaultRules;

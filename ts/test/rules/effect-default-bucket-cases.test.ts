@@ -38,6 +38,11 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',
   },
   {
+    name: 'effect-prefer-succeedNone',
+    invalid: 'import { Effect, Option } from "effect"; Effect.succeed(Option.none());',
+    valid: 'import { Effect } from "effect"; Effect.succeedNone;',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',
