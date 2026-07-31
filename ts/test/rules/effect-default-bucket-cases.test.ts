@@ -65,6 +65,12 @@ const defaultCases: RuleCase[] = [
       'import { Effect } from "effect"; program.pipe(Effect.mapBoth({ onFailure, onSuccess }));',
   },
   {
+    name: 'effect-prefer-tap-over-flatMap-as',
+    invalid:
+      'import { flatMap, as as preserve } from "effect/Effect"; flatMap(program, (value) => preserve(audit(value), value));',
+    valid: 'import { Effect } from "effect"; program.pipe(Effect.tap((value) => audit(value)));',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',

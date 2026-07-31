@@ -167,6 +167,14 @@ The default bucket checks for patterns such as:
 - T3 Code v4 contains the reverse `mapError` then `map` target ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/web/src/connection/storage.ts#L470-L476))
 - Effect AWS v3 contains an adjacent `map` then `mapError` target ([source](https://github.com/floydspace/effect-aws/blob/0dfe6cb7d6a74890b7fb5aeeaece09daa67788c1/packages/s3/src/internal/s3FileSystem.ts#L119-L126))
 
+`effect-prefer-tap-over-flatMap-as` is always on and reports imported data-first or pipeable `Effect.flatMap` calls only when their single-parameter callback's entire body returns imported `Effect.as(sideEffect, originalBinding)` or `sideEffect.pipe(Effect.as(originalBinding))`. It recommends `Effect.tap`, uses a diagnostic-only import-aware matcher, recognizes aliases, and respects lexical shadowing. The exact Effect-returning pattern is equivalent in Effect v3.21 and v4; the rule deliberately excludes the plain-value and `PromiseLike` callbacks accepted only by v3 `Effect.tap`. The mined corpus contains 3 exact verbose targets alongside 507 canonical `Effect.tap` AST call sites:
+
+- Effect v3.21 implements the Effect-returning `tap` branch as `flatMap` followed by `as` ([source](https://github.com/Effect-TS/effect/blob/39c934c1476be389f7469433910fdf30fc4dad82/packages/effect/src/internal/core.ts#L1222-L1290))
+- Effect v4 implements `tap` as `flatMap` followed by `as` ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/internal/effect.ts#L1427-L1449))
+- Birdclaw v3 contains an exact `flatMap` plus pipeable `as` target ([source](https://github.com/steipete/birdclaw/blob/3c173a7e706a35087d7fa14cad198bef03119108/src/lib/mention-threads-live.ts#L710-L722))
+- T3 Code v4 contains an exact `flatMap` plus pipeable `as` target ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/provider/Layers/CursorProvider.ts#L1144-L1146))
+- Distilled v4 contains an exact `flatMap` plus pipeable `as` target ([source](https://github.com/alchemy-run/distilled/blob/d9fa6d104839dce6606f069205165c10b0cdd737/packages/workos/test/UserlandUserInvitesControllerCreate.test.ts#L20-L25))
+
 Disable the Effect bucket for non-Effect projects:
 
 ```js
