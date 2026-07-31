@@ -151,6 +151,14 @@ The default bucket checks for patterns such as:
 - Effect v4 `packages/effect/src/unstable/cluster/Reply.ts` verbose target ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/unstable/cluster/Reply.ts#L457))
 - Typed `packages/fx/src/internal/effect-operator.ts` verbose target ([source](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/fx/src/internal/effect-operator.ts#L88))
 
+`effect-prefer-as-over-map-constant` is always on and reports imported data-first or pipeable `Effect.map` calls whose synchronous zero-argument expression callback returns a primitive literal, static template, or unary numeric literal, optionally parenthesized or asserted `as const`; it recommends `Effect.as`. The rule supports Effect 3.21 and Effect v4 and deliberately provides no autofix. Allocations, calls, and identifiers are excluded because `Effect.as` captures its replacement at construction while a `map` callback evaluates after a successful Effect. The non-mirrored mined corpus contains 44 exact targets (1 official, 8 maintainer, and 35 exemplar) alongside 381 canonical `as` uses:
+
+- Effect v4 official verbose target ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/vitest/test/index.test.ts#L82))
+- Visual Effect v3 maintainer verbose target ([source](https://github.com/kitlangton/visual-effect/blob/2f910e4a2fe2910ed6f6f550e7531ca5afe73e94/src/examples/effect-validate.tsx#L144))
+- T3 Code v4 exemplar verbose target ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/sourceControl/SourceControlRepositoryService.ts#L251))
+- Typed v3 canonical use ([source](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/fx/src/internal/effect-operator.ts#L248))
+- Effect v4 official canonical use ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/FileSystem.ts#L783))
+
 Disable the Effect bucket for non-Effect projects:
 
 ```js

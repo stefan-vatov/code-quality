@@ -53,6 +53,11 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; Effect.asSome(program);',
   },
   {
+    name: 'effect-prefer-as-over-map-constant',
+    invalid: 'import { Effect } from "effect"; Effect.map(program, () => "done");',
+    valid: 'import { Effect } from "effect"; Effect.as(program, "done");',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',
