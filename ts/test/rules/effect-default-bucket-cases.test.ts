@@ -58,6 +58,13 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; Effect.as(program, "done");',
   },
   {
+    name: 'effect-prefer-mapBoth',
+    invalid:
+      'import { Effect } from "effect"; program.pipe(Effect.map(onSuccess), Effect.mapError(onFailure));',
+    valid:
+      'import { Effect } from "effect"; program.pipe(Effect.mapBoth({ onFailure, onSuccess }));',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',

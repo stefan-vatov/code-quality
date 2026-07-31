@@ -45,6 +45,7 @@ import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferAsOverMapConstantRule from './effect-prefer-as-over-map-constant';
 import preferAsSomeRule from './effect-prefer-as-some';
+import preferMapBothRule from './effect-prefer-map-both';
 import preferMapOverFlatMapSucceedRule from './effect-prefer-map-over-flatmap-succeed';
 import preferSucceedForStableValuesRule from './effect-prefer-succeed-for-stable-values';
 import preferSucceedNoneRule from './effect-prefer-succeed-none';
@@ -396,6 +397,7 @@ const effectDefaultRules = {
   'effect-prefer-as-over-map-constant': preferAsOverMapConstantRule,
   'effect-prefer-asSome': preferAsSomeRule,
   'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,
+  'effect-prefer-mapBoth': preferMapBothRule,
   'effect-prefer-succeed-for-stable-values': preferSucceedForStableValuesRule,
   'effect-prefer-succeedNone': preferSucceedNoneRule,
   'effect-prefer-succeedSome': preferSucceedSomeRule,

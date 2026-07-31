@@ -15,6 +15,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-gen-for-nested-flatmap',
   'effect-prefer-as-over-map-constant',
   'effect-prefer-asSome',
+  'effect-prefer-mapBoth',
   'effect-prefer-map-over-flatMap-succeed',
   'effect-prefer-succeedNone',
   'effect-prefer-succeedSome',

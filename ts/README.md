@@ -159,6 +159,14 @@ The default bucket checks for patterns such as:
 - Typed v3 canonical use ([source](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/fx/src/internal/effect-operator.ts#L248))
 - Effect v4 official canonical use ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/FileSystem.ts#L783))
 
+`effect-prefer-mapBoth` is always on and reports adjacent imported `Effect.map` and `Effect.mapError` stages, in either order, in ordinary `.pipe(...)` chains and exact nested data-first calls. It recommends the shared Effect v3/v4 `Effect.mapBoth` API, which represents both channel transformations with one Effect stage. The matcher recognizes aliases, respects lexical shadowing, reports non-overlapping pairs, and deliberately provides no autofix so callback expressions can retain their original JavaScript evaluation order. The rule was mined from these concrete sources:
+
+- Effect v3.21 and Effect v4 expose the same `mapBoth` contract ([v3 source](https://github.com/Effect-TS/effect/blob/39c934c1476be389f7469433910fdf30fc4dad82/packages/effect/src/Effect.ts#L10026-L10100), [v4 source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/Effect.ts#L3630-L3638))
+- Effect Docgen v3 uses canonical `mapBoth` for adjacent success/error normalization ([source](https://github.com/Effect-TS/docgen/blob/bcc9c14f91c8466ee611bddb36f9e05ed7932166/src/Parser.ts#L541-L559))
+- Effect v4 EventJournal contains an adjacent `map` then `mapError` target ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/unstable/eventlog/SqlEventJournal.ts#L209-L214))
+- T3 Code v4 contains the reverse `mapError` then `map` target ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/web/src/connection/storage.ts#L470-L476))
+- Effect AWS v3 contains an adjacent `map` then `mapError` target ([source](https://github.com/floydspace/effect-aws/blob/0dfe6cb7d6a74890b7fb5aeeaece09daa67788c1/packages/s3/src/internal/s3FileSystem.ts#L119-L126))
+
 Disable the Effect bucket for non-Effect projects:
 
 ```js
