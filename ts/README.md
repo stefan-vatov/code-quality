@@ -143,6 +143,14 @@ The default bucket checks for patterns such as:
 - Typed: [verbose target](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/fx/src/internal/core.ts#L2226) and [canonical use](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/router/src/Matcher.ts#L218)
 - T3 Code: [verbose target](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/persistence/Layers/ProjectionCheckpoints.ts#L194) and [canonical use](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/bootstrap.ts#L123)
 
+`effect-prefer-asSome` is always on and reports direct imported `Effect.map(effect, Option.some)` and pipeable `Effect.map(Option.some)` calls in favor of `Effect.asSome`. The matcher is import-aware, recognizes aliases, and respects lexical shadowing. It supports both Effect 3.21 and Effect v4 and deliberately provides no autofix so projects can preserve their chosen import style. The mined corpus contains 39 exact verbose sites (2 official, 9 maintainer, and 28 exemplar) and 47 canonical `asSome` references (30 official, 14 maintainer, 2 exemplar, and 1 language-service fixture):
+
+- Effect v4 `asSome` API and canonical example ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/Effect.ts#L2450-L2466))
+- Effect v4 exact `map(Option.some)` implementation ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/internal/effect.ts#L1388-L1391))
+- Effect 3.21 exact `map(Option.some)` implementation ([source](https://github.com/Effect-TS/effect/blob/39c934c1476be389f7469433910fdf30fc4dad82/packages/effect/src/internal/core-effect.ts#L74-L79))
+- Effect v4 `packages/effect/src/unstable/cluster/Reply.ts` verbose target ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/unstable/cluster/Reply.ts#L457))
+- Typed `packages/fx/src/internal/effect-operator.ts` verbose target ([source](https://github.com/TylorS/typed/blob/3b44be752873fb43497539783e47ffc642411182/packages/fx/src/internal/effect-operator.ts#L88))
+
 Disable the Effect bucket for non-Effect projects:
 
 ```js

@@ -13,6 +13,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-require-yield-star',
   'effect-require-return-yield-star',
   'effect-prefer-gen-for-nested-flatmap',
+  'effect-prefer-asSome',
   'effect-prefer-map-over-flatMap-succeed',
   'effect-prefer-succeedNone',
   'effect-prefer-succeedSome',

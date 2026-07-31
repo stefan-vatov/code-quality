@@ -43,6 +43,7 @@ import {
 import { hasEffectSignal, makeRules } from './effect-rule-core';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
+import preferAsSomeRule from './effect-prefer-as-some';
 import preferMapOverFlatMapSucceedRule from './effect-prefer-map-over-flatmap-succeed';
 import preferSucceedForStableValuesRule from './effect-prefer-succeed-for-stable-values';
 import preferSucceedNoneRule from './effect-prefer-succeed-none';
@@ -391,6 +392,7 @@ const effectDefaultRules = {
     defaultTokens: effectDefaultRuleTokens,
     schema: strictPathOptionsSchema,
   }),
+  'effect-prefer-asSome': preferAsSomeRule,
   'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,
   'effect-prefer-succeed-for-stable-values': preferSucceedForStableValuesRule,
   'effect-prefer-succeedNone': preferSucceedNoneRule,
