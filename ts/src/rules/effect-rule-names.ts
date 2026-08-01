@@ -24,6 +24,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-layer-sync',
   'effect-prefer-mapBoth',
   'effect-prefer-map-over-flatMap-succeed',
+  'effect-prefer-option-getOrElse',
   'effect-prefer-option-nullish-getters',
   'effect-prefer-succeedNone',
   'effect-prefer-succeedSome',
