@@ -742,6 +742,16 @@
       "p95LimitNs": 1252680,
       "runs": 20
     },
+    "effect-prefer-all-discard": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3510,
+      "observedP95Ns": 7869,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
     "effect-prefer-andThen-over-flatMap-discarded-value": {
       "inputSamples": 7,
       "iterations": 20,

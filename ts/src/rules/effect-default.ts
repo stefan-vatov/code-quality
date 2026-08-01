@@ -41,6 +41,7 @@ import {
   hasYieldWithoutStarInGen,
 } from './effect-default-helpers';
 import { hasEffectSignal, makeRules } from './effect-rule-core';
+import preferAllDiscardRule, { preferForEachDiscardRule } from './effect-prefer-all-discard';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
@@ -48,7 +49,6 @@ import preferAsOverMapConstantRule from './effect-prefer-as-over-map-constant';
 import preferAsSomeRule from './effect-prefer-as-some';
 import preferCatchIfOverConditionalCatchRule from './effect-prefer-catchif-over-conditional-catch';
 import preferFilterOrFailOverFlatMapGuardRule from './effect-prefer-filter-or-fail-over-flatmap-guard';
-import preferForEachDiscardRule from './effect-prefer-foreach-discard';
 import preferMapBothRule from './effect-prefer-map-both';
 import preferMapOverFlatMapSucceedRule from './effect-prefer-map-over-flatmap-succeed';
 import preferSucceedForStableValuesRule from './effect-prefer-succeed-for-stable-values';
@@ -399,6 +399,7 @@ const effectDefaultRules = {
     defaultTokens: effectDefaultRuleTokens,
     schema: strictPathOptionsSchema,
   }),
+  'effect-prefer-all-discard': preferAllDiscardRule,
   'effect-prefer-andThen-over-flatMap-discarded-value': preferAndThenOverFlatMapDiscardedValueRule,
   'effect-prefer-as-over-map-constant': preferAsOverMapConstantRule,
   'effect-prefer-asSome': preferAsSomeRule,

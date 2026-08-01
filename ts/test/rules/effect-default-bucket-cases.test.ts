@@ -27,6 +27,13 @@ const defaultCases: RuleCase[] = [
     valid: 'a.pipe(Effect.flatMap((value) => b(value)));',
   },
   {
+    name: 'effect-prefer-all-discard',
+    invalid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.all([first, second]); });',
+    valid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.all([first, second], { discard: true }); });',
+  },
+  {
     name: 'effect-prefer-map-over-flatMap-succeed',
     invalid:
       'import { Effect } from "effect"; Effect.flatMap(program, (value) => Effect.succeed(value));',
