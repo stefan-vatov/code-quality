@@ -76,6 +76,13 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; Effect.andThen(first, () => second);',
   },
   {
+    name: 'effect-prefer-catchIf-over-conditional-catch',
+    invalid:
+      'import { Effect } from "effect"; Effect.catchAll(program, error => isRecoverable(error) ? recover(error) : Effect.fail(error));',
+    valid:
+      'import { Effect } from "effect"; program.pipe(Effect.catchIf(isRecoverable, error => recover(error)));',
+  },
+  {
     name: 'effect-prefer-filterOrFail-over-flatMap-guard',
     invalid:
       'import { Effect } from "effect"; Effect.flatMap(program, value => value.ready === true ? Effect.succeed(value) : Effect.fail(new Rejected()));',
