@@ -18,6 +18,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-as-over-map-constant',
   'effect-prefer-asSome',
   'effect-prefer-catchIf-over-conditional-catch',
+  'effect-prefer-collection-discard-over-asVoid',
   'effect-prefer-filterOrFail-over-flatMap-guard',
   'effect-prefer-forEach-discard',
   'effect-prefer-mapBoth',

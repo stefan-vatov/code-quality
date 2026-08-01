@@ -23,7 +23,7 @@ Result: native Oxlint rules + The Thracian custom rules + optional Effect policy
 
 - Strict by default: every rule is an error, not a suggestion.
 - Agent-ready TypeScript: catches debug artifacts, unsafe escape hatches, silent catches, mutation, deep nesting, and oversized code.
-- Effect-aware out of the box: 94 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
+- Effect-aware out of the box: 95 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
 - Strict Effect mode when you want it: opt in to 60 additional project-boundary rules for entrypoints, adapters, config layers, domain modules, service wiring, external calls, and test ownership.
 - Importable config: consumers import one package instead of copying linter files around a codebase.
 
@@ -159,6 +159,14 @@ The default bucket checks for patterns such as:
 - Effect Native v4 CDP traversal ([source](https://github.com/effect-native/effect-native/blob/df994cc632071e80ab78280400573586258aed3e/packages/debug/src/internal/Cdp.ts#L77-L84))
 - T3 Code v4 desktop traversal ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/desktop/src/app/DesktopApp.ts#L267-L274))
 - Official Effect v4 metric test traversal ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/test/Metric.test.ts#L451-L461))
+
+`effect-prefer-collection-discard-over-asVoid` is always on, import-aware, and report-only. It reports an exact direct `Effect.all` or `Effect.forEach` call followed by the sole pipe operator `Effect.asVoid`, recommending collection discard mode so values are never collected before being discarded. Its conservative boundary is shared by Effect 3.21.2 and Effect v4 beta.101: `Effect.all` requires a direct array literal without spreads; `Effect.forEach` accepts any iterable with no options, empty options, or only `concurrentFinalizers`, but requires a direct spread-free array literal when `concurrency` or `batching` is present. Options must be a plain static object containing only the supported collection controls, with no existing `discard`, spreads, accessors, methods, computed keys, unknown keys, or duplicate keys. The matcher recognizes root and subpath aliases, respects lexical shadowing, and rejects optional calls, explicit generics, wrappers, extra pipe operators, and other consumed results. The final mined corpus contains 6 targets across 3 files in 2 Effect v4 repositories, supported by 188 canonical discard calls across 99 files:
+
+- Hazel gateway shutdown, first collection ([source](https://github.com/HazelChat/hazel/blob/f033d6058021f0cac6a4e461c902122eab32ed91/apps/bot-gateway/src/index.ts#L49-L53))
+- Hazel gateway shutdown, second collection ([source](https://github.com/HazelChat/hazel/blob/f033d6058021f0cac6a4e461c902122eab32ed91/apps/bot-gateway/src/index.ts#L55-L61))
+- T3 Code provider cleanup traversal ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/provider/Layers/ProviderService.ts#L1024-L1031))
+- T3 Code provider directory traversal ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/provider/Layers/ProviderService.ts#L1032))
+- T3 Code ingestion traversal ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/orchestration/Layers/ProviderRuntimeIngestion.ts#L1768-L1780))
 
 `effect-prefer-succeed-for-stable-values` reports `Effect.sync` thunks that only return a literal or an already-initialized `const` from the same execution context. It is import-aware and deliberately preserves calls, getters, allocations, mutable or imported bindings, throwing blocks, and reads whose initialization does not dominate Effect construction. The rule was mined from these concrete Effect codebases:
 

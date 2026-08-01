@@ -822,6 +822,16 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
+    "effect-prefer-collection-discard-over-asVoid": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3380,
+      "observedP95Ns": 57677,
+      "operationsPerSample": 1,
+      "p95LimitNs": 346062,
+      "runs": 20
+    },
     "effect-prefer-config-redacted": {
       "inputSamples": 7,
       "iterations": 20,

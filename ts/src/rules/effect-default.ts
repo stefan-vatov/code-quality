@@ -41,7 +41,10 @@ import {
   hasYieldWithoutStarInGen,
 } from './effect-default-helpers';
 import { hasEffectSignal, makeRules } from './effect-rule-core';
-import preferAllDiscardRule, { preferForEachDiscardRule } from './effect-prefer-all-discard';
+import preferCollectionDiscardOverAsVoidRule, {
+  preferAllDiscardRule,
+  preferForEachDiscardRule,
+} from './effect-prefer-collection-discard-over-asvoid';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
@@ -404,6 +407,7 @@ const effectDefaultRules = {
   'effect-prefer-as-over-map-constant': preferAsOverMapConstantRule,
   'effect-prefer-asSome': preferAsSomeRule,
   'effect-prefer-catchIf-over-conditional-catch': preferCatchIfOverConditionalCatchRule,
+  'effect-prefer-collection-discard-over-asVoid': preferCollectionDiscardOverAsVoidRule,
   'effect-prefer-filterOrFail-over-flatMap-guard': preferFilterOrFailOverFlatMapGuardRule,
   'effect-prefer-forEach-discard': preferForEachDiscardRule,
   'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,

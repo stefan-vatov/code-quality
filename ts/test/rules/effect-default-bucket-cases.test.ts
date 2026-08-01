@@ -90,6 +90,13 @@ const defaultCases: RuleCase[] = [
       'import { Effect } from "effect"; program.pipe(Effect.catchIf(isRecoverable, error => recover(error)));',
   },
   {
+    name: 'effect-prefer-collection-discard-over-asVoid',
+    invalid:
+      'import { Effect } from "effect"; const done = Effect.all([first, second]).pipe(Effect.asVoid);',
+    valid:
+      'import { Effect } from "effect"; const done = Effect.all([first, second], { discard: true });',
+  },
+  {
     name: 'effect-prefer-filterOrFail-over-flatMap-guard',
     invalid:
       'import { Effect } from "effect"; Effect.flatMap(program, value => value.ready === true ? Effect.succeed(value) : Effect.fail(new Rejected()));',

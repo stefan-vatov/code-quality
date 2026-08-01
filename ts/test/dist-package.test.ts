@@ -67,6 +67,12 @@ const astBackedCLICases = [
       'import { Effect } from "effect";\nconst program = Effect.gen(function* () { yield* Effect.all([first, second]); });',
   },
   {
+    ruleName: 'effect-prefer-collection-discard-over-asVoid',
+    filename: 'src/domain/collection-asvoid.ts',
+    source:
+      'import { Effect } from "effect";\nconst done = Effect.all([first, second]).pipe(Effect.asVoid);',
+  },
+  {
     ruleName: 'effect-prefer-forEach-discard',
     filename: 'src/domain/foreach-discard.ts',
     source:
@@ -474,7 +480,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(154);
+        expect(parsed.effectRuleCount).toBe(155);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;
