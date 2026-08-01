@@ -118,6 +118,12 @@ const defaultCases: RuleCase[] = [
       'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4, discard: true }); });',
   },
   {
+    name: 'effect-prefer-layer-sync',
+    invalid:
+      'import { Effect, Layer } from "effect"; const live = Layer.effect(Service, Effect.sync(() => makeService()));',
+    valid: 'import { Layer } from "effect"; const live = Layer.sync(Service, () => makeService());',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',

@@ -972,6 +972,16 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
+    "effect-prefer-layer-sync": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3410,
+      "observedP95Ns": 112074,
+      "operationsPerSample": 1,
+      "p95LimitNs": 672444,
+      "runs": 20
+    },
     "effect-prefer-map-over-flatMap-succeed": {
       "inputSamples": 7,
       "iterations": 20,

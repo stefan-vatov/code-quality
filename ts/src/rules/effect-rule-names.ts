@@ -21,6 +21,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-collection-discard-over-asVoid',
   'effect-prefer-filterOrFail-over-flatMap-guard',
   'effect-prefer-forEach-discard',
+  'effect-prefer-layer-sync',
   'effect-prefer-mapBoth',
   'effect-prefer-map-over-flatMap-succeed',
   'effect-prefer-option-nullish-getters',

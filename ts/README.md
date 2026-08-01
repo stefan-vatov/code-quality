@@ -23,7 +23,7 @@ Result: native Oxlint rules + The Thracian custom rules + optional Effect policy
 
 - Strict by default: every rule is an error, not a suggestion.
 - Agent-ready TypeScript: catches debug artifacts, unsafe escape hatches, silent catches, mutation, deep nesting, and oversized code.
-- Effect-aware out of the box: 95 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
+- Effect-aware out of the box: 97 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
 - Strict Effect mode when you want it: opt in to 60 additional project-boundary rules for entrypoints, adapters, config layers, domain modules, service wiring, external calls, and test ownership.
 - Importable config: consumers import one package instead of copying linter files around a codebase.
 
@@ -175,6 +175,14 @@ The default bucket checks for patterns such as:
 - T3 Code CLI config decode in `config.ts` ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/cli/config.ts#L440))
 - Official Effect v4 `getOrNull` and `getOrUndefined` APIs ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/Option.ts#L976-L1009))
 - Effect Atom v3 canonical `getOrNull` use ([source](https://github.com/tim-smart/effect-atom/blob/ab4273b964d402cec9374577acdcd33c4a5b92b1/packages/atom/src/Result.ts#L732))
+
+`effect-prefer-layer-sync` is always on, import-aware, and report-only for both Effect v3 and Effect v4. It reports exact data-first or curried `Layer.effect(tag, Effect.sync(thunk))` construction and recommends the shared `Layer.sync(tag, thunk)` API. The matcher recognizes root, namespace, named, and subpath aliases while respecting lexical shadowing. It deliberately rejects pipe forms, wrappers, barrels, optional or computed calls, explicit generics, spreads, and inline thunks that directly return a stable primitive or identifier; that final suppression avoids competing with `effect-prefer-succeed-for-stable-values`. The rule is backed by three concrete verbose sites and two canonical official v4 uses:
+
+- Distilled Cloudflare auth layer at line 77 ([source](https://github.com/alchemy-run/distilled-cloudflare/blob/8ebd4225485be321c0bdfe8649a9f03d17e11425/src/auth.ts#L77))
+- Distilled Cloudflare auth layer at line 125 ([source](https://github.com/alchemy-run/distilled-cloudflare/blob/8ebd4225485be321c0bdfe8649a9f03d17e11425/src/auth.ts#L125))
+- Distilled Cloudflare auth layer at line 147 ([source](https://github.com/alchemy-run/distilled-cloudflare/blob/8ebd4225485be321c0bdfe8649a9f03d17e11425/src/auth.ts#L147))
+- Official Effect v4 Node HTTP client layer ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/platform-node/src/NodeHttpClient.ts#L120))
+- Official Effect v4 OpenTelemetry tracer layer ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/opentelemetry/src/OtelTracer.ts#L171))
 
 `effect-prefer-succeed-for-stable-values` reports `Effect.sync` thunks that only return a literal or an already-initialized `const` from the same execution context. It is import-aware and deliberately preserves calls, getters, allocations, mutable or imported bindings, throwing blocks, and reads whose initialization does not dominate Effect construction. The rule was mined from these concrete Effect codebases:
 
