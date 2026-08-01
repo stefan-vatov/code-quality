@@ -61,6 +61,12 @@ const astBackedCLICases = [
       'import { Effect } from "effect";\ndeclare const program: Effect.Effect<number>;\nconst result = program.pipe(Effect.flatMap((value) => Effect.succeed(value + 1)));',
   },
   {
+    ruleName: 'effect-prefer-ref-getAndUpdate',
+    filename: 'src/domain/ref-get-and-update.ts',
+    source:
+      'import { Ref } from "effect";\nconst previous = Ref.modify(ref, (current) => [current, current + 1]);',
+  },
+  {
     ruleName: 'effect-prefer-all-discard',
     filename: 'src/domain/all-discard.ts',
     source:
@@ -504,7 +510,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(159);
+        expect(parsed.effectRuleCount).toBe(160);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;

@@ -27,6 +27,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-option-getOrElse',
   'effect-prefer-option-nullish-getters',
   'effect-prefer-option-orElseSome',
+  'effect-prefer-ref-getAndUpdate',
   'effect-prefer-succeedNone',
   'effect-prefer-succeedSome',
   'effect-prefer-succeed-for-stable-values',

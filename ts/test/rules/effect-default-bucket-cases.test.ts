@@ -40,6 +40,13 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; Effect.map(program, (value) => value);',
   },
   {
+    name: 'effect-prefer-ref-getAndUpdate',
+    invalid:
+      'import { Ref } from "effect"; const previous = Ref.modify(ref, (current) => [current, current + 1]);',
+    valid:
+      'import { Ref } from "effect"; const previous = Ref.getAndUpdate(ref, (current) => current + 1);',
+  },
+  {
     name: 'effect-prefer-succeed-for-stable-values',
     invalid: 'import { Effect } from "effect"; Effect.sync(() => 1);',
     valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',
