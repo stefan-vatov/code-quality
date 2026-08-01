@@ -23,7 +23,7 @@ Result: native Oxlint rules + The Thracian custom rules + optional Effect policy
 
 - Strict by default: every rule is an error, not a suggestion.
 - Agent-ready TypeScript: catches debug artifacts, unsafe escape hatches, silent catches, mutation, deep nesting, and oversized code.
-- Effect-aware out of the box: 83 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
+- Effect-aware out of the box: 91 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
 - Strict Effect mode when you want it: opt in to 60 additional project-boundary rules for entrypoints, adapters, config layers, domain modules, service wiring, external calls, and test ownership.
 - Importable config: consumers import one package instead of copying linter files around a codebase.
 
@@ -126,6 +126,14 @@ The default bucket checks for patterns such as:
 - Effect MCP v4 `scripts/copy-package-json.ts` ([source](https://github.com/tim-smart/effect-mcp/blob/83a768303839b9e125f6c286369a5d9cc26c666e/scripts/copy-package-json.ts#L38-L41))
 - T3 Code v4 `apps/server/src/serverRuntimeStartup.ts` ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/serverRuntimeStartup.ts#L121-L125))
 - Distilled v4 `packages/aws/test/services/kinesis.test.ts` ([source](https://github.com/alchemy-run/distilled/blob/d9fa6d104839dce6606f069205165c10b0cdd737/packages/aws/test/services/kinesis.test.ts#L55-L61))
+
+`effect-prefer-filterOrFail-over-flatMap-guard` is always on, import-aware, and report-only. It recognizes exact data-first and pipeable `flatMap` guards whose single-parameter arrow returns `predicate ? Effect.succeed(parameter) : Effect.fail(error)`, including a sole `return` statement. For equivalent narrowing in Effect 3.21.2 and Effect v4 beta.101, the predicate is limited to strict equality, inequality, or relational comparisons between a literal and the parameter or a static property path rooted at it; `typeof path ===/!== "type"`; and `"property" in path`. The error must be independent of the parameter and remains in a lazy error callback. Predicates using outer identifiers, optional or computed members, calls, compound conditions, `instanceof`, or classic functions are excluded because they can change cross-version narrowing or runtime semantics. The shared contract was verified against the [v3 API](https://github.com/Effect-TS/effect/blob/39c934c1476be389f7469433910fdf30fc4dad82/packages/effect/src/Effect.ts#L8418-L8492), [v3 implementation](https://github.com/Effect-TS/effect/blob/39c934c1476be389f7469433910fdf30fc4dad82/packages/effect/src/internal/core-effect.ts#L651-L694), [v4 API](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/Effect.ts#L5160-L5223), and [v4 implementation](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/internal/effect.ts#L2293-L2336). The final mined target contains 5 calls in 3 files across 3 repositories, while the broader canonical signal contains 22 examples in 17 files across 9 repositories:
+
+- Effect Stream `n <= 2` ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/test/Stream.test.ts#L3971-L3982))
+- Distilled S3 `r.Status === "Enabled"` ([source](https://github.com/alchemy-run/distilled/blob/d9fa6d104839dce6606f069205165c10b0cdd737/packages/aws/test/services/s3.test.ts#L925-L961))
+- Distilled S3 `r.Status === "Suspended"` ([source](https://github.com/alchemy-run/distilled/blob/d9fa6d104839dce6606f069205165c10b0cdd737/packages/aws/test/services/s3.test.ts#L925-L961))
+- T3 Code archived-thread guard `thread.archivedAt !== null` ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/orchestration/commandInvariants.ts#L116-L151))
+- T3 Code non-archived-thread guard `thread.archivedAt === null` ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/orchestration/commandInvariants.ts#L116-L151))
 
 `effect-prefer-succeed-for-stable-values` reports `Effect.sync` thunks that only return a literal or an already-initialized `const` from the same execution context. It is import-aware and deliberately preserves calls, getters, allocations, mutable or imported bindings, throwing blocks, and reads whose initialization does not dominate Effect construction. The rule was mined from these concrete Effect codebases:
 

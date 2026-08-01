@@ -46,6 +46,7 @@ import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
 import preferAsOverMapConstantRule from './effect-prefer-as-over-map-constant';
 import preferAsSomeRule from './effect-prefer-as-some';
+import preferFilterOrFailOverFlatMapGuardRule from './effect-prefer-filter-or-fail-over-flatmap-guard';
 import preferMapBothRule from './effect-prefer-map-both';
 import preferMapOverFlatMapSucceedRule from './effect-prefer-map-over-flatmap-succeed';
 import preferSucceedForStableValuesRule from './effect-prefer-succeed-for-stable-values';
@@ -399,6 +400,7 @@ const effectDefaultRules = {
   'effect-prefer-andThen-over-flatMap-discarded-value': preferAndThenOverFlatMapDiscardedValueRule,
   'effect-prefer-as-over-map-constant': preferAsOverMapConstantRule,
   'effect-prefer-asSome': preferAsSomeRule,
+  'effect-prefer-filterOrFail-over-flatMap-guard': preferFilterOrFailOverFlatMapGuardRule,
   'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,
   'effect-prefer-mapBoth': preferMapBothRule,
   'effect-prefer-succeed-for-stable-values': preferSucceedForStableValuesRule,

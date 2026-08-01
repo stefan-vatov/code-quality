@@ -852,6 +852,16 @@
       "p95LimitNs": 451356,
       "runs": 20
     },
+    "effect-prefer-filterOrFail-over-flatMap-guard": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3370,
+      "observedP95Ns": 8260,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
     "effect-prefer-flatMap-over-map-flatten": {
       "inputSamples": 7,
       "iterations": 20,

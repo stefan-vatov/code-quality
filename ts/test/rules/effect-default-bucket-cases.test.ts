@@ -76,6 +76,13 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; Effect.andThen(first, () => second);',
   },
   {
+    name: 'effect-prefer-filterOrFail-over-flatMap-guard',
+    invalid:
+      'import { Effect } from "effect"; Effect.flatMap(program, value => value.ready === true ? Effect.succeed(value) : Effect.fail(new Rejected()));',
+    valid:
+      'import { Effect } from "effect"; Effect.filterOrFail(program, (value) => value.ready === true, () => new Rejected());',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',

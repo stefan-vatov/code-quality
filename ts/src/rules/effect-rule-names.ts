@@ -16,6 +16,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-andThen-over-flatMap-discarded-value',
   'effect-prefer-as-over-map-constant',
   'effect-prefer-asSome',
+  'effect-prefer-filterOrFail-over-flatMap-guard',
   'effect-prefer-mapBoth',
   'effect-prefer-map-over-flatMap-succeed',
   'effect-prefer-succeedNone',
