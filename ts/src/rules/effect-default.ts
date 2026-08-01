@@ -41,7 +41,7 @@ import {
   hasYieldWithoutStarInGen,
 } from './effect-default-helpers';
 import { hasEffectSignal, makeRules } from './effect-rule-core';
-import preferRefGetAndUpdateRule, {
+import preferYieldableErrorOverFailRule, {
   preferAllDiscardRule,
   preferCollectionDiscardOverAsVoidRule,
   preferForEachDiscardRule,
@@ -49,7 +49,8 @@ import preferRefGetAndUpdateRule, {
   preferOptionGetOrElseRule,
   preferOptionNullishGettersRule,
   preferOptionOrElseSomeRule,
-} from './effect-prefer-ref-get-and-update';
+  preferRefGetAndUpdateRule,
+} from './effect-prefer-yieldable-error-over-fail';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
@@ -426,6 +427,7 @@ const effectDefaultRules = {
   'effect-prefer-succeedNone': preferSucceedNoneRule,
   'effect-prefer-succeedSome': preferSucceedSomeRule,
   'effect-prefer-tap-over-flatMap-as': preferTapOverFlatMapAsRule,
+  'effect-prefer-yieldable-error-over-fail': preferYieldableErrorOverFailRule,
 };
 
 export default effectDefaultRules;

@@ -8,9 +8,9 @@ import theThracianOxlint from '../../src/index';
 
 describe('Effect rule buckets', (): void => {
   it('keeps bucket names, implementations, and plugin registration in exact sync', (): void => {
-    expect(effectDefaultRuleNames).toHaveLength(100);
+    expect(effectDefaultRuleNames).toHaveLength(101);
     expect(effectStrictRuleNames).toHaveLength(60);
-    expect(new Set([...effectDefaultRuleNames, ...effectStrictRuleNames]).size).toBe(160);
+    expect(new Set([...effectDefaultRuleNames, ...effectStrictRuleNames]).size).toBe(161);
     expect(sorted(Object.keys(effectDefaultRules))).toEqual(sorted(effectDefaultRuleNames));
     expect(sorted(Object.keys(effectStrictRules))).toEqual(sorted(effectStrictRuleNames));
 

@@ -1132,6 +1132,16 @@
       "p95LimitNs": 538716,
       "runs": 20
     },
+    "effect-prefer-yieldable-error-over-fail": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3630,
+      "observedP95Ns": 36108,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
     "effect-require-acquire-release": {
       "inputSamples": 7,
       "iterations": 20,

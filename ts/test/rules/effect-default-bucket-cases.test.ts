@@ -47,6 +47,13 @@ const defaultCases: RuleCase[] = [
       'import { Ref } from "effect"; const previous = Ref.getAndUpdate(ref, (current) => current + 1);',
   },
   {
+    name: 'effect-prefer-yieldable-error-over-fail',
+    invalid:
+      'import { Data, Effect } from "effect"; class NotFound extends Data.TaggedError("NotFound")<{}> {} const program = Effect.gen(function* () { return yield* Effect.fail(new NotFound()); });',
+    valid:
+      'import { Data, Effect } from "effect"; class NotFound extends Data.TaggedError("NotFound")<{}> {} const program = Effect.gen(function* () { return yield* new NotFound(); });',
+  },
+  {
     name: 'effect-prefer-succeed-for-stable-values',
     invalid: 'import { Effect } from "effect"; Effect.sync(() => 1);',
     valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',

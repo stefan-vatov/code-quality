@@ -67,6 +67,12 @@ const astBackedCLICases = [
       'import { Ref } from "effect";\nconst previous = Ref.modify(ref, (current) => [current, current + 1]);',
   },
   {
+    ruleName: 'effect-prefer-yieldable-error-over-fail',
+    filename: 'src/domain/yieldable-error-over-fail.ts',
+    source:
+      'import { Data, Effect } from "effect";\nclass NotFound extends Data.TaggedError("NotFound")<{}> {}\nconst program = Effect.gen(function* () { return yield* Effect.fail(new NotFound()); });',
+  },
+  {
     ruleName: 'effect-prefer-all-discard',
     filename: 'src/domain/all-discard.ts',
     source:
@@ -510,7 +516,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(160);
+        expect(parsed.effectRuleCount).toBe(161);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;
