@@ -41,7 +41,7 @@ export interface ImportedEffectCallMatcher {
 
 interface MatcherState {
   bindings: Map<string, Binding>;
-  fallbackCalls: WeakSet<object>;
+  fallbackReferences: WeakSet<object>;
   nativeReferences: WeakMap<object, NativeReference> | undefined;
   sourceCode: NativeSourceCode | undefined;
 }
@@ -287,21 +287,17 @@ const isShadowed = (name: string, scopes: ScopeStack): boolean => {
   return false;
 };
 
-const addFallbackCall = (
+const addFallbackReference = (
   node: ASTNode,
   state: MatcherState,
   APIName: string,
   names: ReadonlySet<string>,
   scopes: ScopeStack,
 ): void => {
-  if (node.type !== 'CallExpression') {
-    return;
-  }
-  const callee = childNode(node, 'callee');
-  const reference = calleeReference(callee, state, APIName, names);
+  const reference = calleeReference(node, state, APIName, names);
   const referenceName = reference && identifierName(reference.node);
-  if (callee && referenceName && !isShadowed(referenceName, scopes)) {
-    state.fallbackCalls.add(callee);
+  if (referenceName && !isShadowed(referenceName, scopes)) {
+    state.fallbackReferences.add(node);
   }
 };
 
@@ -333,7 +329,7 @@ const visitFallbackNode = (
   scopes: ScopeStack,
 ): void => {
   const nodeScopes = withNodeScope(scopes, node);
-  addFallbackCall(node, state, APIName, names, nodeScopes);
+  addFallbackReference(node, state, APIName, names, nodeScopes);
   for (const [key, value] of Object.entries(node)) {
     if (key !== 'parent') {
       visitFallbackValue(
@@ -386,7 +382,7 @@ export const importedEffectCallMatcher = (
   const sourceCode = nativeSourceCodeFor(context);
   const state: MatcherState = {
     bindings: new Map(),
-    fallbackCalls: new WeakSet(),
+    fallbackReferences: new WeakSet(),
     nativeReferences: undefined,
     sourceCode,
   };
@@ -408,7 +404,7 @@ export const importedEffectCallMatcher = (
         return false;
       }
       if (!sourceCode) {
-        return state.fallbackCalls.has(callee);
+        return state.fallbackReferences.has(callee);
       }
       const reference = calleeReference(callee, state, APIName, names);
       return Boolean(reference && isNativeReference(reference, state));

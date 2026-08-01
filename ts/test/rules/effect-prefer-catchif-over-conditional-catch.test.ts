@@ -81,6 +81,29 @@ describe('effect-prefer-catchIf-over-conditional-catch', (): void => {
 
   it.each([
     [
+      'a direct _tag equality check',
+      dataFirst(
+        'catchAll',
+        arrow('error._tag === "NotFound" ? recover(error) : Effect.fail(error)'),
+      ),
+    ],
+    [
+      'a reversed _tag equality check',
+      pipeable('catch', arrow('"NotFound" === error._tag ? recover(error) : Effect.fail(error)')),
+    ],
+    [
+      'a negated _tag equality check with the fail branch first',
+      dataFirst(
+        'catchAll',
+        arrow('error._tag !== "NotFound" ? Effect.fail(error) : recover(error)'),
+      ),
+    ],
+  ])('defers %s to the more specific catchTag rule', (_name, source): void => {
+    expect(reportsFor(source)).toHaveLength(0);
+  });
+
+  it.each([
+    [
       'a root Effect alias',
       'import { Effect as Fx } from "effect"; Fx.catchAll(program, error => isRecoverable(error) ? recover(error) : Fx.fail(error));',
     ],

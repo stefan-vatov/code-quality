@@ -9,6 +9,7 @@ import type { ASTNode } from './effect-ast';
 import type { ImportedEffectCallMatcher } from './effect-imported-call-matcher';
 import { diagnosticMessage } from './diagnostic-guidance';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
+import { isSchemaTaggedErrorSuperclass } from './effect-yieldable-schema-superclass';
 import { readCachedSource } from './source-cache';
 import { strictPathOptionsSchema } from './effect-path-options';
 
@@ -24,6 +25,7 @@ export {
 } from './effect-prefer-ref-get-and-update';
 
 interface MatcherState {
+  dataError: ImportedEffectCallMatcher;
   dataTaggedError: ImportedEffectCallMatcher;
   directRootEffectAPIs: ImportedEffectCallMatcher;
   directRootTaggedError: ImportedEffectCallMatcher;
@@ -33,6 +35,7 @@ interface MatcherState {
   eligibleClasses: ReadonlySet<string>;
   indexedYields: WeakMap<object, ASTNode>;
   scannedHostCallbacks: WeakSet<object>;
+  schemaTaggedError: ImportedEffectCallMatcher;
   unsafeClasses: ReadonlySet<string>;
 }
 type ScopeStack = readonly ReadonlySet<string>[];
@@ -44,8 +47,9 @@ const MESSAGE = diagnosticMessage({
     'const program = Effect.gen(function* () {\n' +
     '  return yield* new NotFound({ id })\n' +
     '})',
-  fix: 'Remove Effect.fail and yield the new Data.TaggedError instance directly.',
-  summary: 'Yield Data.TaggedError instances directly instead of wrapping them in Effect.fail.',
+  fix: 'Remove Effect.fail and yield the recognized Cause.YieldableError instance directly.',
+  summary:
+    'Yield recognized Cause.YieldableError instances directly instead of wrapping them in Effect.fail.',
 });
 
 const literalString = (node: ASTNode | undefined): string | undefined => {
@@ -60,7 +64,7 @@ const literalString = (node: ASTNode | undefined): string | undefined => {
 };
 const hasEffectImport = (statement: ASTNode): boolean =>
   statement.type === 'ImportDeclaration' &&
-  ['effect', 'effect/Data', 'effect/Effect'].includes(
+  ['effect', 'effect/Data', 'effect/Effect', 'effect/Schema'].includes(
     literalString(childNode(statement, 'source')) ?? '',
   );
 const hasRuntimeImports = (program: ASTNode): boolean =>
@@ -108,7 +112,7 @@ const isEmptyUndecoratedClass = (node: ASTNode): boolean => {
   );
 };
 
-const isTaggedErrorSuperclass = (node: ASTNode | undefined, state: MatcherState): boolean => {
+const isDataTaggedErrorSuperclass = (node: ASTNode | undefined, state: MatcherState): boolean => {
   if (node?.type !== 'CallExpression') {
     return false;
   }
@@ -121,6 +125,14 @@ const isTaggedErrorSuperclass = (node: ASTNode | undefined, state: MatcherState)
     isImportedCall(callee, state.dataTaggedError, state.directRootTaggedError)
   );
 };
+
+const isDataErrorSuperclass = (node: ASTNode | undefined, state: MatcherState): boolean =>
+  Boolean(node && !hasUnsupportedMemberAccess(node) && state.dataError.matches(node));
+
+const isKnownYieldableErrorSuperclass = (node: ASTNode | undefined, state: MatcherState): boolean =>
+  isDataErrorSuperclass(node, state) ||
+  isDataTaggedErrorSuperclass(node, state) ||
+  isSchemaTaggedErrorSuperclass(node, state.schemaTaggedError);
 
 const topLevelDeclaration = (statement: ASTNode): ASTNode | undefined => {
   if (
@@ -138,7 +150,7 @@ const eligibleClassName = (statement: ASTNode, state: MatcherState): string | un
     return undefined;
   }
   const name = identifierName(childNode(declaration, 'id'));
-  if (!name || !isTaggedErrorSuperclass(childNode(declaration, 'superClass'), state)) {
+  if (!name || !isKnownYieldableErrorSuperclass(childNode(declaration, 'superClass'), state)) {
     return undefined;
   }
   return name;
@@ -407,7 +419,7 @@ const scanNode = (
   scanChildren(node, nodeScopes, state, childCanIndexYields);
 };
 
-const candidateTokens = ['effect', 'yield', 'fail', 'TaggedError', 'new'] as const;
+const candidateTokens = ['effect', 'yield', 'fail', 'Error', 'new'] as const;
 
 const hasCandidateTokens = (source: string): boolean =>
   candidateTokens.every((token): boolean => source.includes(token));
@@ -425,6 +437,7 @@ const initializedMatcher = (
 
 const indexedMatcherState = (context: Context, program: ASTNode): MatcherState => {
   const state: MatcherState = {
+    dataError: initializedMatcher(context, program, 'Data', ['Error']),
     dataTaggedError: initializedMatcher(context, program, 'Data', ['TaggedError']),
     directRootEffectAPIs: initializedMatcher(context, program, 'Data', [
       'fail',
@@ -439,6 +452,7 @@ const indexedMatcherState = (context: Context, program: ASTNode): MatcherState =
     eligibleClasses: new Set<string>(),
     indexedYields: new WeakMap(),
     scannedHostCallbacks: new WeakSet(),
+    schemaTaggedError: initializedMatcher(context, program, 'Schema', ['TaggedError']),
     unsafeClasses: new Set<string>(),
   };
   const classes = eligibleClassNames(program, state);

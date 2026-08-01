@@ -142,6 +142,32 @@ const callbackParameterName = (node: ASTNode | undefined): string | undefined =>
   return identifierName(parameters[0]);
 };
 
+const isTagMember = (node: ASTNode | undefined, parameterName: string): boolean =>
+  node?.type === 'MemberExpression' &&
+  Reflect.get(node, 'computed') !== true &&
+  Reflect.get(node, 'optional') !== true &&
+  identifierName(childNode(node, 'object')) === parameterName &&
+  identifierName(childNode(node, 'property')) === '_tag';
+
+const isStringLiteral = (node: ASTNode | undefined): boolean =>
+  typeof literalString(node) === 'string';
+
+const isTagComparison = (node: ASTNode | undefined, parameterName: string): boolean => {
+  if (node?.type !== 'BinaryExpression') {
+    return false;
+  }
+  const operator: unknown = Reflect.get(node, 'operator');
+  if (operator !== '===' && operator !== '!==') {
+    return false;
+  }
+  const left = childNode(node, 'left');
+  const right = childNode(node, 'right');
+  return (
+    (isTagMember(left, parameterName) && isStringLiteral(right)) ||
+    (isStringLiteral(left) && isTagMember(right, parameterName))
+  );
+};
+
 const isExactRefail = (
   branch: ASTNode | undefined,
   parameterName: string,
@@ -177,7 +203,7 @@ const isConditionalCatch = (call: ASTNode, state: MatcherState): boolean => {
     return false;
   }
   const conditional = returnedConditional(callback);
-  if (!conditional) {
+  if (!conditional || isTagComparison(childNode(conditional, 'test'), parameterName)) {
     return false;
   }
   const consequentRefails = isExactRefail(

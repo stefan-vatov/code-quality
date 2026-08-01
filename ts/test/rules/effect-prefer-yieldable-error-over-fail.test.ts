@@ -7,8 +7,8 @@ import theThracianOxlint from '../../src/index';
 
 const RULE_NAME = 'effect-prefer-yieldable-error-over-fail';
 const EXPECTED_MESSAGE =
-  'Yield Data.TaggedError instances directly instead of wrapping them in Effect.fail.\n' +
-  'Fix: Remove Effect.fail and yield the new Data.TaggedError instance directly.\n' +
+  'Yield recognized Cause.YieldableError instances directly instead of wrapping them in Effect.fail.\n' +
+  'Fix: Remove Effect.fail and yield the recognized Cause.YieldableError instance directly.\n' +
   'Example:\n```ts\nimport { Data, Effect } from "effect"\n\n' +
   'class NotFound extends Data.TaggedError("NotFound")<{ id: string }> {}\n\n' +
   'const program = Effect.gen(function* () {\n' +
@@ -143,6 +143,22 @@ const positiveCases = [
       'class NotFound extends Data.TaggedError("MissingResource")<{ id: string }> {}',
     ),
   ],
+  [
+    'a Data.Error class',
+    rootYield('Effect.fail(new NotFound({ id }))', 'class NotFound extends Data.Error {}'),
+  ],
+  [
+    'an aliased effect/Data Error class',
+    'import { Effect } from "effect"; import { Error as DataError } from "effect/Data"; class NotFound extends DataError {} Effect.gen(function* () { return yield* Effect.fail(new NotFound({ id })); });',
+  ],
+  [
+    'a root Schema.TaggedError class',
+    'import { Effect, Schema } from "effect"; class NotFound extends Schema.TaggedError<NotFound>("NotFound")("NotFound", { id: Schema.String }) {} Effect.gen(function* () { return yield* Effect.fail(new NotFound({ id })); });',
+  ],
+  [
+    'an aliased effect/Schema TaggedError class',
+    'import { Effect } from "effect"; import { TaggedError as SchemaTaggedError, String } from "effect/Schema"; class NotFound extends SchemaTaggedError<NotFound>("NotFound")("NotFound", { id: String }) {} Effect.gen(function* () { return yield* Effect.fail(new NotFound({ id })); });',
+  ],
 ] as const;
 
 const negativeCases = [
@@ -252,11 +268,7 @@ const negativeCases = [
     ),
   ],
   [
-    'Data.Error',
-    rootYield('Effect.fail(new NotFound({}))', 'class NotFound extends Data.Error {}'),
-  ],
-  [
-    'Schema.TaggedError',
+    'an incomplete Schema.TaggedError factory',
     rootYield(
       'Effect.fail(new NotFound({}))',
       'class NotFound extends Schema.TaggedError("NotFound")<{}> {}',
@@ -441,17 +453,17 @@ describe('effect-prefer-yieldable-error-over-fail', (): void => {
   });
 
   it.each([
-    ['effect', 'yield fail TaggedError new'],
-    ['yield', 'effect fail TaggedError new'],
-    ['fail', 'effect yield TaggedError new'],
-    ['TaggedError', 'effect yield fail new'],
-    ['new', 'effect yield fail TaggedError'],
+    ['effect', 'yield fail Error new'],
+    ['yield', 'effect fail Error new'],
+    ['fail', 'effect yield Error new'],
+    ['Error', 'effect yield fail new'],
+    ['new', 'effect yield fail Error'],
   ])('keeps only Program when the source is missing %s', (_token, source): void => {
     expect(visitorKeysFor(source)).toStrictEqual(['Program']);
   });
 
   it('enables delegated-yield analysis when every candidate token starts at offset zero', (): void => {
-    expect(visitorKeysFor('effect yield fail TaggedError new')).toStrictEqual([
+    expect(visitorKeysFor('effect yield fail Error new')).toStrictEqual([
       'Program',
       'YieldExpression',
     ]);
