@@ -71,6 +71,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-schema-no-unsafe-sync-decode-in-effect-code',
   'effect-schema-require-parseJson-for-json-strings',
   'effect-schema-correct-number-type-for-parsed-json',
+  'effect-schema-no-redundant-tag-identifier',
   'effect-schema-prefer-taggedClass-over-manual-tag',
   'effect-schema-avoid-old-type-names',
   'effect-schema-no-cast-after-decode',

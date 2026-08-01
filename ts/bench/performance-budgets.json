@@ -1552,6 +1552,16 @@
       "p95LimitNs": 614370,
       "runs": 20
     },
+    "effect-schema-no-redundant-tag-identifier": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 2780,
+      "observedP95Ns": 7719,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
     "effect-schema-no-unknown-crossing-boundary": {
       "inputSamples": 7,
       "iterations": 20,

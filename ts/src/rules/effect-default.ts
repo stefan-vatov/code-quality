@@ -41,7 +41,7 @@ import {
   hasYieldWithoutStarInGen,
 } from './effect-default-helpers';
 import { hasEffectSignal, makeRules } from './effect-rule-core';
-import preferYieldableErrorOverFailRule, {
+import schemaNoRedundantTagIdentifierRule, {
   preferAllDiscardRule,
   preferCollectionDiscardOverAsVoidRule,
   preferForEachDiscardRule,
@@ -50,7 +50,8 @@ import preferYieldableErrorOverFailRule, {
   preferOptionNullishGettersRule,
   preferOptionOrElseSomeRule,
   preferRefGetAndUpdateRule,
-} from './effect-prefer-yieldable-error-over-fail';
+  preferYieldableErrorOverFailRule,
+} from './effect-schema-no-redundant-tag-identifier';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
@@ -428,6 +429,7 @@ const effectDefaultRules = {
   'effect-prefer-succeedSome': preferSucceedSomeRule,
   'effect-prefer-tap-over-flatMap-as': preferTapOverFlatMapAsRule,
   'effect-prefer-yieldable-error-over-fail': preferYieldableErrorOverFailRule,
+  'effect-schema-no-redundant-tag-identifier': schemaNoRedundantTagIdentifierRule,
 };
 
 export default effectDefaultRules;

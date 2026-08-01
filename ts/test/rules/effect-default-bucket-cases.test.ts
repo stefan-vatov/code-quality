@@ -54,6 +54,15 @@ const defaultCases: RuleCase[] = [
       'import { Data, Effect } from "effect"; class NotFound extends Data.TaggedError("NotFound")<{}> {} const program = Effect.gen(function* () { return yield* new NotFound(); });',
   },
   {
+    name: 'effect-schema-no-redundant-tag-identifier',
+    invalid:
+      'import { Schema } from "effect"; ' +
+      'class NotFound extends Schema.TaggedClass<NotFound>("NotFound")("NotFound", { id: Schema.String }) {}',
+    valid:
+      'import { Schema } from "effect"; ' +
+      'class NotFound extends Schema.TaggedClass<NotFound>()("NotFound", { id: Schema.String }) {}',
+  },
+  {
     name: 'effect-prefer-succeed-for-stable-values',
     invalid: 'import { Effect } from "effect"; Effect.sync(() => 1);',
     valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',

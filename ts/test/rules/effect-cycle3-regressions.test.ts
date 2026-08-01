@@ -243,11 +243,11 @@ describe('Effect cycle 3 regression coverage', () => {
         { readonly load: Effect.Effect<User, UserError, never> }
       >() {}
 
-      class User extends Schema.TaggedClass<User>("User")("User", {
+      class User extends Schema.TaggedClass<User>()("User", {
         id: Schema.String
       }) {}
 
-      class UserError extends Schema.TaggedClass<UserError>("UserError")("UserError", {
+      class UserError extends Schema.TaggedClass<UserError>()("UserError", {
         cause: Schema.Unknown
       }) {}
 

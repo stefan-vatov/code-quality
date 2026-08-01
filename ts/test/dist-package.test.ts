@@ -73,6 +73,12 @@ const astBackedCLICases = [
       'import { Data, Effect } from "effect";\nclass NotFound extends Data.TaggedError("NotFound")<{}> {}\nconst program = Effect.gen(function* () { return yield* Effect.fail(new NotFound()); });',
   },
   {
+    ruleName: 'effect-schema-no-redundant-tag-identifier',
+    filename: 'src/domain/redundant-schema-tag-identifier.ts',
+    source:
+      'import { Schema } from "effect";\nclass NotFound extends Schema.TaggedClass<NotFound>("NotFound")("NotFound", { id: Schema.String }) {}',
+  },
+  {
     ruleName: 'effect-prefer-all-discard',
     filename: 'src/domain/all-discard.ts',
     source:
@@ -516,7 +522,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(161);
+        expect(parsed.effectRuleCount).toBe(162);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;
