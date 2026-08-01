@@ -742,6 +742,46 @@
       "p95LimitNs": 1252680,
       "runs": 20
     },
+    "effect-prefer-all-discard": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3510,
+      "observedP95Ns": 7869,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-andThen-over-flatMap-discarded-value": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3800,
+      "observedP95Ns": 73026,
+      "operationsPerSample": 1,
+      "p95LimitNs": 438156,
+      "runs": 20
+    },
+    "effect-prefer-as-over-map-constant": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 4049,
+      "observedP95Ns": 45358,
+      "operationsPerSample": 1,
+      "p95LimitNs": 272148,
+      "runs": 20
+    },
+    "effect-prefer-asSome": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3450,
+      "observedP95Ns": 7869,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
     "effect-prefer-asVoid": {
       "inputSamples": 7,
       "iterations": 20,
@@ -770,6 +810,26 @@
       "observedP95Ns": 8920,
       "operationsPerSample": 1,
       "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-catchIf-over-conditional-catch": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3320,
+      "observedP95Ns": 7500,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-collection-discard-over-asVoid": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3380,
+      "observedP95Ns": 57677,
+      "operationsPerSample": 1,
+      "p95LimitNs": 346062,
       "runs": 20
     },
     "effect-prefer-config-redacted": {
@@ -822,6 +882,16 @@
       "p95LimitNs": 451356,
       "runs": 20
     },
+    "effect-prefer-filterOrFail-over-flatMap-guard": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3370,
+      "observedP95Ns": 8260,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
     "effect-prefer-flatMap-over-map-flatten": {
       "inputSamples": 7,
       "iterations": 20,
@@ -830,6 +900,16 @@
       "observedP95Ns": 12110,
       "operationsPerSample": 1,
       "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-forEach-discard": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 39600,
+      "observedMedianNs": 6600,
+      "observedP95Ns": 140362,
+      "operationsPerSample": 1,
+      "p95LimitNs": 842172,
       "runs": 20
     },
     "effect-prefer-fork-scoped-for-listeners": {
@@ -892,6 +972,16 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
+    "effect-prefer-layer-sync": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3410,
+      "observedP95Ns": 112074,
+      "operationsPerSample": 1,
+      "p95LimitNs": 672444,
+      "runs": 20
+    },
     "effect-prefer-map-over-flatMap-succeed": {
       "inputSamples": 7,
       "iterations": 20,
@@ -900,6 +990,16 @@
       "observedP95Ns": 52347,
       "operationsPerSample": 1,
       "p95LimitNs": 314082,
+      "runs": 20
+    },
+    "effect-prefer-mapBoth": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3600,
+      "observedP95Ns": 8630,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
       "runs": 20
     },
     "effect-prefer-mapError-over-catchAll-rethrow": {
@@ -912,12 +1012,52 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
+    "effect-prefer-option-getOrElse": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3030,
+      "observedP95Ns": 6700,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-option-nullish-getters": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3160,
+      "observedP95Ns": 17800,
+      "operationsPerSample": 1,
+      "p95LimitNs": 106800,
+      "runs": 20
+    },
+    "effect-prefer-option-orElseSome": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3400,
+      "observedP95Ns": 17339,
+      "operationsPerSample": 1,
+      "p95LimitNs": 104034,
+      "runs": 20
+    },
     "effect-prefer-pubsub-for-broadcast": {
       "inputSamples": 7,
       "iterations": 20,
       "medianLimitNs": 26880,
       "observedMedianNs": 4480,
       "observedP95Ns": 16080,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-ref-getAndUpdate": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 2980,
+      "observedP95Ns": 6489,
       "operationsPerSample": 1,
       "p95LimitNs": 100000,
       "runs": 20
@@ -958,6 +1098,46 @@
       "medianLimitNs": 28800,
       "observedMedianNs": 4800,
       "observedP95Ns": 16270,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-succeedNone": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3430,
+      "observedP95Ns": 7079,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-succeedSome": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3250,
+      "observedP95Ns": 7070,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "effect-prefer-tap-over-flatMap-as": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3960,
+      "observedP95Ns": 89786,
+      "operationsPerSample": 1,
+      "p95LimitNs": 538716,
+      "runs": 20
+    },
+    "effect-prefer-yieldable-error-over-fail": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3630,
+      "observedP95Ns": 36108,
       "operationsPerSample": 1,
       "p95LimitNs": 100000,
       "runs": 20
@@ -1370,6 +1550,16 @@
       "observedP95Ns": 102395,
       "operationsPerSample": 1,
       "p95LimitNs": 614370,
+      "runs": 20
+    },
+    "effect-schema-no-redundant-tag-identifier": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 2780,
+      "observedP95Ns": 7719,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
       "runs": 20
     },
     "effect-schema-no-unknown-crossing-boundary": {

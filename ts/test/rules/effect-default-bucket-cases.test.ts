@@ -27,15 +27,138 @@ const defaultCases: RuleCase[] = [
     valid: 'a.pipe(Effect.flatMap((value) => b(value)));',
   },
   {
+    name: 'effect-prefer-all-discard',
+    invalid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.all([first, second]); });',
+    valid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.all([first, second], { discard: true }); });',
+  },
+  {
     name: 'effect-prefer-map-over-flatMap-succeed',
     invalid:
       'import { Effect } from "effect"; Effect.flatMap(program, (value) => Effect.succeed(value));',
     valid: 'import { Effect } from "effect"; Effect.map(program, (value) => value);',
   },
   {
+    name: 'effect-prefer-ref-getAndUpdate',
+    invalid:
+      'import { Ref } from "effect"; const previous = Ref.modify(ref, (current) => [current, current + 1]);',
+    valid:
+      'import { Ref } from "effect"; const previous = Ref.getAndUpdate(ref, (current) => current + 1);',
+  },
+  {
+    name: 'effect-prefer-yieldable-error-over-fail',
+    invalid:
+      'import { Data, Effect } from "effect"; class NotFound extends Data.TaggedError("NotFound")<{}> {} const program = Effect.gen(function* () { return yield* Effect.fail(new NotFound()); });',
+    valid:
+      'import { Data, Effect } from "effect"; class NotFound extends Data.TaggedError("NotFound")<{}> {} const program = Effect.gen(function* () { return yield* new NotFound(); });',
+  },
+  {
+    name: 'effect-schema-no-redundant-tag-identifier',
+    invalid:
+      'import { Schema } from "effect"; ' +
+      'class NotFound extends Schema.TaggedClass<NotFound>("NotFound")("NotFound", { id: Schema.String }) {}',
+    valid:
+      'import { Schema } from "effect"; ' +
+      'class NotFound extends Schema.TaggedClass<NotFound>()("NotFound", { id: Schema.String }) {}',
+  },
+  {
     name: 'effect-prefer-succeed-for-stable-values',
     invalid: 'import { Effect } from "effect"; Effect.sync(() => 1);',
     valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',
+  },
+  {
+    name: 'effect-prefer-succeedNone',
+    invalid: 'import { Effect, Option } from "effect"; Effect.succeed(Option.none());',
+    valid: 'import { Effect } from "effect"; Effect.succeedNone;',
+  },
+  {
+    name: 'effect-prefer-succeedSome',
+    invalid: 'import { Effect, Option } from "effect"; Effect.succeed(Option.some(1));',
+    valid: 'import { Effect } from "effect"; Effect.succeedSome(1);',
+  },
+  {
+    name: 'effect-prefer-asSome',
+    invalid: 'import { Effect, Option } from "effect"; Effect.map(program, Option.some);',
+    valid: 'import { Effect } from "effect"; Effect.asSome(program);',
+  },
+  {
+    name: 'effect-prefer-as-over-map-constant',
+    invalid: 'import { Effect } from "effect"; Effect.map(program, () => "done");',
+    valid: 'import { Effect } from "effect"; Effect.as(program, "done");',
+  },
+  {
+    name: 'effect-prefer-mapBoth',
+    invalid:
+      'import { Effect } from "effect"; program.pipe(Effect.map(onSuccess), Effect.mapError(onFailure));',
+    valid:
+      'import { Effect } from "effect"; program.pipe(Effect.mapBoth({ onFailure, onSuccess }));',
+  },
+  {
+    name: 'effect-prefer-option-nullish-getters',
+    invalid:
+      'import { Option } from "effect"; const decoded = decode(); const value = Option.isSome(decoded) ? decoded.value : undefined;',
+    valid:
+      'import { Option } from "effect"; const decoded = decode(); const value = Option.getOrUndefined(decoded);',
+  },
+  {
+    name: 'effect-prefer-option-getOrElse',
+    invalid:
+      'import { Option } from "effect"; const value = Option.match(decoded, { onNone: () => fallback, onSome: (item) => item });',
+    valid:
+      'import { Option } from "effect"; const value = Option.getOrElse(decoded, () => fallback);',
+  },
+  {
+    name: 'effect-prefer-option-orElseSome',
+    invalid:
+      'import { Option } from "effect"; const value = Option.orElse(decoded, () => Option.some(fallback));',
+    valid:
+      'import { Option } from "effect"; const value = Option.orElseSome(decoded, () => fallback);',
+  },
+  {
+    name: 'effect-prefer-tap-over-flatMap-as',
+    invalid:
+      'import { flatMap, as as preserve } from "effect/Effect"; flatMap(program, (value) => preserve(audit(value), value));',
+    valid: 'import { Effect } from "effect"; program.pipe(Effect.tap((value) => audit(value)));',
+  },
+  {
+    name: 'effect-prefer-andThen-over-flatMap-discarded-value',
+    invalid: 'import { Effect } from "effect"; Effect.flatMap(first, () => second);',
+    valid: 'import { Effect } from "effect"; Effect.andThen(first, () => second);',
+  },
+  {
+    name: 'effect-prefer-catchIf-over-conditional-catch',
+    invalid:
+      'import { Effect } from "effect"; Effect.catchAll(program, error => isRecoverable(error) ? recover(error) : Effect.fail(error));',
+    valid:
+      'import { Effect } from "effect"; program.pipe(Effect.catchIf(isRecoverable, error => recover(error)));',
+  },
+  {
+    name: 'effect-prefer-collection-discard-over-asVoid',
+    invalid:
+      'import { Effect } from "effect"; const done = Effect.all([first, second]).pipe(Effect.asVoid);',
+    valid:
+      'import { Effect } from "effect"; const done = Effect.all([first, second], { discard: true });',
+  },
+  {
+    name: 'effect-prefer-filterOrFail-over-flatMap-guard',
+    invalid:
+      'import { Effect } from "effect"; Effect.flatMap(program, value => value.ready === true ? Effect.succeed(value) : Effect.fail(new Rejected()));',
+    valid:
+      'import { Effect } from "effect"; Effect.filterOrFail(program, (value) => value.ready === true, () => new Rejected());',
+  },
+  {
+    name: 'effect-prefer-forEach-discard',
+    invalid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4 }); });',
+    valid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4, discard: true }); });',
+  },
+  {
+    name: 'effect-prefer-layer-sync',
+    invalid:
+      'import { Effect, Layer } from "effect"; const live = Layer.effect(Service, Effect.sync(() => makeService()));',
+    valid: 'import { Layer } from "effect"; const live = Layer.sync(Service, () => makeService());',
   },
   {
     name: 'effect-no-function-returning-gen',

@@ -41,10 +41,30 @@ import {
   hasYieldWithoutStarInGen,
 } from './effect-default-helpers';
 import { hasEffectSignal, makeRules } from './effect-rule-core';
+import schemaNoRedundantTagIdentifierRule, {
+  preferAllDiscardRule,
+  preferCollectionDiscardOverAsVoidRule,
+  preferForEachDiscardRule,
+  preferLayerSyncRule,
+  preferOptionGetOrElseRule,
+  preferOptionNullishGettersRule,
+  preferOptionOrElseSomeRule,
+  preferRefGetAndUpdateRule,
+  preferYieldableErrorOverFailRule,
+} from './effect-schema-no-redundant-tag-identifier';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
+import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
+import preferAsOverMapConstantRule from './effect-prefer-as-over-map-constant';
+import preferAsSomeRule from './effect-prefer-as-some';
+import preferCatchIfOverConditionalCatchRule from './effect-prefer-catchif-over-conditional-catch';
+import preferFilterOrFailOverFlatMapGuardRule from './effect-prefer-filter-or-fail-over-flatmap-guard';
+import preferMapBothRule from './effect-prefer-map-both';
 import preferMapOverFlatMapSucceedRule from './effect-prefer-map-over-flatmap-succeed';
 import preferSucceedForStableValuesRule from './effect-prefer-succeed-for-stable-values';
+import preferSucceedNoneRule from './effect-prefer-succeed-none';
+import preferSucceedSomeRule from './effect-prefer-succeed-some';
+import preferTapOverFlatMapAsRule from './effect-prefer-tap-over-flatmap-as';
 import { strictPathOptionsSchema } from './effect-path-options';
 
 type RuleSpec = Parameters<typeof makeRules>[0][number];
@@ -389,8 +409,27 @@ const effectDefaultRules = {
     defaultTokens: effectDefaultRuleTokens,
     schema: strictPathOptionsSchema,
   }),
+  'effect-prefer-all-discard': preferAllDiscardRule,
+  'effect-prefer-andThen-over-flatMap-discarded-value': preferAndThenOverFlatMapDiscardedValueRule,
+  'effect-prefer-as-over-map-constant': preferAsOverMapConstantRule,
+  'effect-prefer-asSome': preferAsSomeRule,
+  'effect-prefer-catchIf-over-conditional-catch': preferCatchIfOverConditionalCatchRule,
+  'effect-prefer-collection-discard-over-asVoid': preferCollectionDiscardOverAsVoidRule,
+  'effect-prefer-filterOrFail-over-flatMap-guard': preferFilterOrFailOverFlatMapGuardRule,
+  'effect-prefer-forEach-discard': preferForEachDiscardRule,
+  'effect-prefer-layer-sync': preferLayerSyncRule,
   'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,
+  'effect-prefer-mapBoth': preferMapBothRule,
+  'effect-prefer-option-getOrElse': preferOptionGetOrElseRule,
+  'effect-prefer-option-nullish-getters': preferOptionNullishGettersRule,
+  'effect-prefer-option-orElseSome': preferOptionOrElseSomeRule,
+  'effect-prefer-ref-getAndUpdate': preferRefGetAndUpdateRule,
   'effect-prefer-succeed-for-stable-values': preferSucceedForStableValuesRule,
+  'effect-prefer-succeedNone': preferSucceedNoneRule,
+  'effect-prefer-succeedSome': preferSucceedSomeRule,
+  'effect-prefer-tap-over-flatMap-as': preferTapOverFlatMapAsRule,
+  'effect-prefer-yieldable-error-over-fail': preferYieldableErrorOverFailRule,
+  'effect-schema-no-redundant-tag-identifier': schemaNoRedundantTagIdentifierRule,
 };
 
 export default effectDefaultRules;

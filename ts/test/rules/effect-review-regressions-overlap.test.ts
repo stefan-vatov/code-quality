@@ -1,25 +1,24 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import plugin from '../../src/rules/plugin';
+import { dirname, join } from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { runAllRules, runRule, runRuleAtPath } from './effect-rule-test-utils';
 import type { Report } from './effect-rule-test-utils';
+import plugin from '../../src/rules/plugin';
+import { tmpdir } from 'node:os';
 
-describe('Effect review overlap regressions', () => {
-  function reportedEffectRules(source: string, filename?: string): string[] {
-    return runAllRules(source, filename)
+describe('Effect review overlap regressions', (): void => {
+  const reportedEffectRules = (source: string, filename?: string): string[] =>
+    runAllRules(source, filename)
       .map((report) => report.ruleName)
       .filter((ruleName): ruleName is string => Boolean(ruleName?.startsWith('effect-')));
-  }
 
-  it('does not duplicate string and untagged error diagnostics', () => {
+  it('does not duplicate string and untagged error diagnostics', (): void => {
     expect(reportedEffectRules('const failure = Effect.fail("bad");')).toStrictEqual([
       'effect-no-string-errors',
     ]);
   });
 
-  it('does not duplicate catchAll-to-mapError diagnostics', () => {
+  it('does not duplicate catchAll-to-mapError diagnostics', (): void => {
     const source = `
       const recovered = program.pipe(
         Effect.catchAll((error) => Effect.fail(new Wrapped({ error })))
@@ -29,7 +28,21 @@ describe('Effect review overlap regressions', () => {
     expect(reportedEffectRules(source)).toStrictEqual(['effect-no-catchAll-with-mapError']);
   });
 
-  it('still reports broad catchAll when a separate rethrow is mapped in the same file', () => {
+  it('prioritizes catchTag over catchIf for direct _tag recovery', (): void => {
+    const source = `
+      import { Effect } from "effect";
+
+      const recovered = program.pipe(
+        Effect.catchAll((error) =>
+          error._tag === "NotFound" ? recover(error) : Effect.fail(error)
+        )
+      );
+    `;
+
+    expect(reportedEffectRules(source)).toStrictEqual(['effect-prefer-catchTag-over-catchAll']);
+  });
+
+  it('still reports broad catchAll when a separate rethrow is mapped in the same file', (): void => {
     const source = `
       const transformed = first.pipe(
         Effect.catchAll((error) => Effect.fail(new Wrapped({ error })))
@@ -42,7 +55,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-prefer-catchTag-over-catchAll', source)).toHaveLength(1);
   });
 
-  it('does not duplicate exported Effect.gen API diagnostics', () => {
+  it('does not duplicate exported Effect.gen API diagnostics', (): void => {
     const exportedConst = `
       export const load = () => Effect.gen(function* () {
         return yield* loadUser;
@@ -62,13 +75,13 @@ describe('Effect review overlap regressions', () => {
     ]);
   });
 
-  it('does not require onExit for correctly scoped acquireRelease resources', () => {
+  it('does not require onExit for correctly scoped acquireRelease resources', (): void => {
     const source = 'Effect.scoped(Effect.acquireRelease(openConnection, cleanup));';
 
     expect(runRule('effect-require-onExit-for-cleanup', source)).toHaveLength(0);
   });
 
-  it('does not let one scoped acquireRelease hide another unscoped acquireRelease', () => {
+  it('does not let one scoped acquireRelease hide another unscoped acquireRelease', (): void => {
     const source = `
       const scoped = Effect.scoped(Effect.acquireRelease(openOne, closeOne));
       const unscoped = Effect.acquireRelease(openTwo, closeTwo);
@@ -77,7 +90,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-require-scoped-for-acquireRelease', source)).toHaveLength(1);
   });
 
-  it('does not let one acquireRelease hide a separate unreleased resource acquisition', () => {
+  it('does not let one acquireRelease hide a separate unreleased resource acquisition', (): void => {
     const source = `
       const managed = Effect.acquireRelease(openConnection, closeConnection);
       const raw = Effect.sync(() => openSocket());
@@ -86,7 +99,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-require-acquire-release', source)).toHaveLength(1);
   });
 
-  it('does not let one Effect.suspend hide unrelated eager Effect construction', () => {
+  it('does not let one Effect.suspend hide unrelated eager Effect construction', (): void => {
     const source = `
       const deferred = Effect.suspend(() => Effect.succeed(Date.now()));
       const eager = Effect.succeed(Date.now());
@@ -95,7 +108,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-require-suspend-for-lazy-evaluation', source)).toHaveLength(1);
   });
 
-  it('checks runFork observation per fork instead of per file', () => {
+  it('checks runFork observation per fork instead of per file', (): void => {
     const source = `
       const observed = Effect.runFork(program);
       observed.addObserver(() => undefined);
@@ -105,7 +118,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-no-runfork-without-observer', source)).toHaveLength(1);
   });
 
-  it('checks TestClock fork ordering per test body instead of per file', () => {
+  it('checks TestClock fork ordering per test body instead of per file', (): void => {
     const source = `
       it.effect("forks", () =>
         Effect.gen(function* () {
@@ -126,19 +139,19 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-testClock-requires-fork', source, 'src/user.test.ts')).toHaveLength(1);
   });
 
-  it('allows current HttpClient request effects without requiring per-request scoping', () => {
+  it('allows current HttpClient request effects without requiring per-request scoping', (): void => {
     const source = 'const response = yield* HttpClient.get(url);';
 
     expect(runRule('effect-require-scoped-for-resources', source)).toHaveLength(0);
   });
 
-  it('allows current Effect types whose success channel name looks environment-like', () => {
+  it('allows current Effect types whose success channel name looks environment-like', (): void => {
     const source = 'const value: Effect.Effect<UserEnv, DomainError, RuntimeContext> = program;';
 
     expect(runRule('effect-no-global-error-channel', source)).toHaveLength(0);
   });
 
-  it('allows service tags in configured domain service contracts', () => {
+  it('allows service tags in configured domain service contracts', (): void => {
     const source = `
       class UserRepo extends Context.Tag("UserRepo")<UserRepo, Service>() {}
     `;
@@ -148,13 +161,13 @@ describe('Effect review overlap regressions', () => {
     ).toHaveLength(0);
   });
 
-  it('requires typed catch handlers for object-form tryPromise', () => {
+  it('requires typed catch handlers for object-form tryPromise', (): void => {
     const source = 'const task = Effect.tryPromise({ try: () => fetch("/users") });';
 
     expect(runRule('effect-require-typed-error-in-trypromise', source)).toHaveLength(1);
   });
 
-  it('allows returned fibers as explicit ownership transfer', () => {
+  it('allows returned fibers as explicit ownership transfer', (): void => {
     const source = `
       const program = Effect.gen(function* () {
         return yield* Effect.fork(worker);
@@ -164,7 +177,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-no-floating-fiber', source)).toHaveLength(0);
   });
 
-  it('allows ignored failures that are logged before being ignored', () => {
+  it('allows ignored failures that are logged before being ignored', (): void => {
     const valid = `
       import { Effect } from "effect";
 
@@ -184,7 +197,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-prefer-ignore-logged', invalid)).toHaveLength(1);
   });
 
-  it('does not let one logged ignore hide a separate unlogged ignore', () => {
+  it('does not let one logged ignore hide a separate unlogged ignore', (): void => {
     const source = `
       const observed = first.pipe(
         Effect.tapError((error) => Effect.logError(error)),
@@ -196,7 +209,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-prefer-ignore-logged', source)).toHaveLength(1);
   });
 
-  it('allows TestClock adjustment after the time-dependent work is forked', () => {
+  it('allows TestClock adjustment after the time-dependent work is forked', (): void => {
     const valid = `
       import { Effect, TestClock } from "effect";
       import { it } from "@effect/vitest";
@@ -226,7 +239,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-testClock-requires-fork', invalid, 'src/user.test.ts')).toHaveLength(1);
   });
 
-  it('does not let TestClock usage hide a real sleep in another test', () => {
+  it('does not let TestClock usage hide a real sleep in another test', (): void => {
     const source = `
       it.effect("virtual", () =>
         Effect.gen(function* () {
@@ -244,7 +257,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-no-real-sleep-in-tests', source, 'src/user.test.ts')).toHaveLength(1);
   });
 
-  it('allows memoized Layer constants and rejects layer factories', () => {
+  it('allows memoized Layer constants and rejects layer factories', (): void => {
     const valid = `
       import { Layer } from "effect";
 
@@ -261,7 +274,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-require-layer-memoization-constant', invalid)).toHaveLength(1);
   });
 
-  it('allows service construction inside layers but not in domain logic', () => {
+  it('allows service construction inside layers but not in domain logic', (): void => {
     const valid = `
       import { Layer } from "effect";
 
@@ -278,7 +291,7 @@ describe('Effect review overlap regressions', () => {
     expect(runRule('effect-no-service-construction-outside-layer', invalid)).toHaveLength(1);
   });
 
-  it('keeps Schema sync, Promise, and parse-error rules non-overlapping', () => {
+  it('keeps Schema sync, Promise, and parse-error rules non-overlapping', (): void => {
     const syncDecodeInsideEffect = `
       import { Effect, Schema } from "effect";
 
@@ -333,7 +346,7 @@ describe('Effect review overlap regressions', () => {
     ).toHaveLength(1);
   });
 
-  it('names current-style generator adapter guidance without deprecated API wording', () => {
+  it('names current-style generator adapter guidance without deprecated API wording', (): void => {
     const adapterGen = `
       import { Effect } from "effect";
 
@@ -351,7 +364,7 @@ describe('Effect review overlap regressions', () => {
     );
   });
 
-  it('uses current Schema.parseJson naming for JSON string decoding guidance', () => {
+  it('uses current Schema.parseJson naming for JSON string decoding guidance', (): void => {
     const jsonStringDecode = `
       import { Schema } from "effect";
 
@@ -369,7 +382,7 @@ describe('Effect review overlap regressions', () => {
     ).not.toContain('fromJsonString');
   });
 
-  it('honors configured strict unit and integration test globs', () => {
+  it('honors configured strict unit and integration test globs', (): void => {
     const options = {
       integrationTests: ['tests/integration/**'],
       unitTests: ['tests/unit/**'],

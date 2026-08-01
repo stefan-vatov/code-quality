@@ -61,6 +61,72 @@ const astBackedCLICases = [
       'import { Effect } from "effect";\ndeclare const program: Effect.Effect<number>;\nconst result = program.pipe(Effect.flatMap((value) => Effect.succeed(value + 1)));',
   },
   {
+    ruleName: 'effect-prefer-ref-getAndUpdate',
+    filename: 'src/domain/ref-get-and-update.ts',
+    source:
+      'import { Ref } from "effect";\nconst previous = Ref.modify(ref, (current) => [current, current + 1]);',
+  },
+  {
+    ruleName: 'effect-prefer-yieldable-error-over-fail',
+    filename: 'src/domain/yieldable-error-over-fail.ts',
+    source:
+      'import { Data, Effect } from "effect";\nclass NotFound extends Data.TaggedError("NotFound")<{}> {}\nconst program = Effect.gen(function* () { return yield* Effect.fail(new NotFound()); });',
+  },
+  {
+    ruleName: 'effect-schema-no-redundant-tag-identifier',
+    filename: 'src/domain/redundant-schema-tag-identifier.ts',
+    source:
+      'import { Schema } from "effect";\nclass NotFound extends Schema.TaggedClass<NotFound>("NotFound")("NotFound", { id: Schema.String }) {}',
+  },
+  {
+    ruleName: 'effect-prefer-all-discard',
+    filename: 'src/domain/all-discard.ts',
+    source:
+      'import { Effect } from "effect";\nconst program = Effect.gen(function* () { yield* Effect.all([first, second]); });',
+  },
+  {
+    ruleName: 'effect-prefer-collection-discard-over-asVoid',
+    filename: 'src/domain/collection-asvoid.ts',
+    source:
+      'import { Effect } from "effect";\nconst done = Effect.all([first, second]).pipe(Effect.asVoid);',
+  },
+  {
+    ruleName: 'effect-prefer-option-nullish-getters',
+    filename: 'src/domain/option-nullish-getter.ts',
+    source:
+      'import { Option } from "effect";\nconst decoded = decode();\nconst value = Option.isSome(decoded) ? decoded.value : undefined;',
+  },
+  {
+    ruleName: 'effect-prefer-option-getOrElse',
+    filename: 'src/domain/option-get-or-else.ts',
+    source:
+      'import { Option } from "effect";\nconst value = Option.match(decoded, { onNone: () => fallback, onSome: (item) => item });',
+  },
+  {
+    ruleName: 'effect-prefer-option-orElseSome',
+    filename: 'src/domain/option-or-else-some.ts',
+    source:
+      'import { Option } from "effect";\nconst value = Option.orElse(decoded, () => Option.some(fallback));',
+  },
+  {
+    ruleName: 'effect-prefer-forEach-discard',
+    filename: 'src/domain/foreach-discard.ts',
+    source:
+      'import { Effect } from "effect";\nconst program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4 }); });',
+  },
+  {
+    ruleName: 'effect-prefer-layer-sync',
+    filename: 'src/domain/layer-sync.ts',
+    source:
+      'import { Effect, Layer } from "effect";\nconst live = Layer.effect(Service, Effect.sync(() => makeService()));',
+  },
+  {
+    ruleName: 'effect-prefer-catchIf-over-conditional-catch',
+    filename: 'src/domain/conditional-catch.ts',
+    source:
+      'import { Effect } from "effect";\nconst program = Effect.catchAll(task, error => isRecoverable(error) ? recover(error) : Effect.fail(error));',
+  },
+  {
     ruleName: 'effect-no-console-log-in-effect-code',
     filename: 'src/domain/console.ts',
     source: 'import { Effect } from "effect";\nconsole.log(Effect.succeed(1));',
@@ -456,7 +522,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(143);
+        expect(parsed.effectRuleCount).toBe(162);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;
