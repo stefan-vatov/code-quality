@@ -23,7 +23,7 @@ Result: native Oxlint rules + The Thracian custom rules + optional Effect policy
 
 - Strict by default: every rule is an error, not a suggestion.
 - Agent-ready TypeScript: catches debug artifacts, unsafe escape hatches, silent catches, mutation, deep nesting, and oversized code.
-- Effect-aware out of the box: 91 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
+- Effect-aware out of the box: 92 always-on Effect rules target lazy values, generator style, Promise boundaries, typed errors, Schema boundaries, resources, tests, and common hallucinated APIs.
 - Strict Effect mode when you want it: opt in to 60 additional project-boundary rules for entrypoints, adapters, config layers, domain modules, service wiring, external calls, and test ownership.
 - Importable config: consumers import one package instead of copying linter files around a codebase.
 
@@ -134,6 +134,16 @@ The default bucket checks for patterns such as:
 - Distilled S3 `r.Status === "Suspended"` ([source](https://github.com/alchemy-run/distilled/blob/d9fa6d104839dce6606f069205165c10b0cdd737/packages/aws/test/services/s3.test.ts#L925-L961))
 - T3 Code archived-thread guard `thread.archivedAt !== null` ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/orchestration/commandInvariants.ts#L116-L151))
 - T3 Code non-archived-thread guard `thread.archivedAt === null` ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/server/src/orchestration/commandInvariants.ts#L116-L151))
+
+`effect-prefer-forEach-discard` is always on, import-aware, and report-only. It reports data-first `Effect.forEach(iterable, callback[, options])` only when the call is directly delegated by `yield*` as an ignored expression inside a direct, unannotated `Effect.gen(function* () {})` callback. Adding `{ discard: true }` then avoids collecting an array that the generator immediately discards. The matcher accepts absent options or a plain object containing only `concurrency` and the v3-only `batching` or `concurrentFinalizers` controls. It rejects consumed results, data-last calls, explicit generics, nested generators, annotated callbacks, existing `discard`, and options with spreads, accessors, methods, computed or unknown keys. Type and runtime probes against Effect 3.21.2 and Effect v4 beta.101 preserved errors, defects, interruption, finalizers, callback order, concurrency, and the generator's `void` result. The exact mined pattern contains 72 calls across 34 files in 10 repositories, alongside 119 canonical `{ discard: true }` calls across 74 files in 17 repositories:
+
+- Effect v3 implementation skips sequential result writes when `discard` is enabled ([source](https://github.com/Effect-TS/effect/blob/39c934c1476be389f7469433910fdf30fc4dad82/packages/effect/src/internal/core.ts#L918-L959))
+- Effect v4 implementation shares the same sequential and concurrent discard path ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/src/internal/effect.ts#L4592-L4666))
+- AnswerOverflow v3 indexing traversal ([source](https://github.com/AnswerOverflow/AnswerOverflow/blob/f2f443f3c01a67d0e98dbdd1443f9519dd21251b/apps/discord-bot/src/services/indexing.ts#L458-L465))
+- Confect v3 code generation traversal ([source](https://github.com/rjdellecese/confect/blob/de717afe30b5814fb309ed9438a177b6becad8e5/packages/cli/src/confect/codegen.ts#L254-L263))
+- Effect Native v4 CDP traversal ([source](https://github.com/effect-native/effect-native/blob/df994cc632071e80ab78280400573586258aed3e/packages/debug/src/internal/Cdp.ts#L77-L84))
+- T3 Code v4 desktop traversal ([source](https://github.com/pingdotgg/t3code/blob/b41e89eba9cd232cc3257b400fc30972a9b53438/apps/desktop/src/app/DesktopApp.ts#L267-L274))
+- Official Effect v4 metric test traversal ([source](https://github.com/Effect-TS/effect/blob/ed2afb3424e90f3b98a6e4740f4e12cc08e3cc11/packages/effect/test/Metric.test.ts#L451-L461))
 
 `effect-prefer-succeed-for-stable-values` reports `Effect.sync` thunks that only return a literal or an already-initialized `const` from the same execution context. It is import-aware and deliberately preserves calls, getters, allocations, mutable or imported bindings, throwing blocks, and reads whose initialization does not dominate Effect construction. The rule was mined from these concrete Effect codebases:
 

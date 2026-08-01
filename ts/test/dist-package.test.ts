@@ -61,6 +61,12 @@ const astBackedCLICases = [
       'import { Effect } from "effect";\ndeclare const program: Effect.Effect<number>;\nconst result = program.pipe(Effect.flatMap((value) => Effect.succeed(value + 1)));',
   },
   {
+    ruleName: 'effect-prefer-forEach-discard',
+    filename: 'src/domain/foreach-discard.ts',
+    source:
+      'import { Effect } from "effect";\nconst program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4 }); });',
+  },
+  {
     ruleName: 'effect-no-console-log-in-effect-code',
     filename: 'src/domain/console.ts',
     source: 'import { Effect } from "effect";\nconsole.log(Effect.succeed(1));',
@@ -456,7 +462,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(151);
+        expect(parsed.effectRuleCount).toBe(152);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;

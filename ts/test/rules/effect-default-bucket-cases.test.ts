@@ -83,6 +83,13 @@ const defaultCases: RuleCase[] = [
       'import { Effect } from "effect"; Effect.filterOrFail(program, (value) => value.ready === true, () => new Rejected());',
   },
   {
+    name: 'effect-prefer-forEach-discard',
+    invalid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4 }); });',
+    valid:
+      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4, discard: true }); });',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',

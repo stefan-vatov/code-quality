@@ -872,6 +872,16 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
+    "effect-prefer-forEach-discard": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 39600,
+      "observedMedianNs": 6600,
+      "observedP95Ns": 140362,
+      "operationsPerSample": 1,
+      "p95LimitNs": 842172,
+      "runs": 20
+    },
     "effect-prefer-fork-scoped-for-listeners": {
       "inputSamples": 7,
       "iterations": 20,
