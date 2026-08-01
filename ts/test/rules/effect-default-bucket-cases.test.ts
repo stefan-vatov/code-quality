@@ -72,6 +72,13 @@ const defaultCases: RuleCase[] = [
       'import { Effect } from "effect"; program.pipe(Effect.mapBoth({ onFailure, onSuccess }));',
   },
   {
+    name: 'effect-prefer-option-nullish-getters',
+    invalid:
+      'import { Option } from "effect"; const decoded = decode(); const value = Option.isSome(decoded) ? decoded.value : undefined;',
+    valid:
+      'import { Option } from "effect"; const decoded = decode(); const value = Option.getOrUndefined(decoded);',
+  },
+  {
     name: 'effect-prefer-tap-over-flatMap-as',
     invalid:
       'import { flatMap, as as preserve } from "effect/Effect"; flatMap(program, (value) => preserve(audit(value), value));',

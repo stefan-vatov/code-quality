@@ -23,6 +23,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-forEach-discard',
   'effect-prefer-mapBoth',
   'effect-prefer-map-over-flatMap-succeed',
+  'effect-prefer-option-nullish-getters',
   'effect-prefer-succeedNone',
   'effect-prefer-succeedSome',
   'effect-prefer-succeed-for-stable-values',

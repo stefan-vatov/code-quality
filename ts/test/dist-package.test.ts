@@ -73,6 +73,12 @@ const astBackedCLICases = [
       'import { Effect } from "effect";\nconst done = Effect.all([first, second]).pipe(Effect.asVoid);',
   },
   {
+    ruleName: 'effect-prefer-option-nullish-getters',
+    filename: 'src/domain/option-nullish-getter.ts',
+    source:
+      'import { Option } from "effect";\nconst decoded = decode();\nconst value = Option.isSome(decoded) ? decoded.value : undefined;',
+  },
+  {
     ruleName: 'effect-prefer-forEach-discard',
     filename: 'src/domain/foreach-discard.ts',
     source:
@@ -480,7 +486,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(155);
+        expect(parsed.effectRuleCount).toBe(156);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;
