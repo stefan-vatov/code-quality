@@ -71,6 +71,11 @@ const defaultCases: RuleCase[] = [
     valid: 'import { Effect } from "effect"; program.pipe(Effect.tap((value) => audit(value)));',
   },
   {
+    name: 'effect-prefer-andThen-over-flatMap-discarded-value',
+    invalid: 'import { Effect } from "effect"; Effect.flatMap(first, () => second);',
+    valid: 'import { Effect } from "effect"; Effect.andThen(first, () => second);',
+  },
+  {
     name: 'effect-no-function-returning-gen',
     invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
     valid: 'export const load = Effect.fn("load")(function* () { return 1; });',

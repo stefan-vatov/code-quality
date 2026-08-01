@@ -456,7 +456,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(149);
+        expect(parsed.effectRuleCount).toBe(150);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;

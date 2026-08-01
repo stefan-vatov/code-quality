@@ -43,6 +43,7 @@ import {
 import { hasEffectSignal, makeRules } from './effect-rule-core';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
+import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
 import preferAsOverMapConstantRule from './effect-prefer-as-over-map-constant';
 import preferAsSomeRule from './effect-prefer-as-some';
 import preferMapBothRule from './effect-prefer-map-both';
@@ -395,6 +396,7 @@ const effectDefaultRules = {
     defaultTokens: effectDefaultRuleTokens,
     schema: strictPathOptionsSchema,
   }),
+  'effect-prefer-andThen-over-flatMap-discarded-value': preferAndThenOverFlatMapDiscardedValueRule,
   'effect-prefer-as-over-map-constant': preferAsOverMapConstantRule,
   'effect-prefer-asSome': preferAsSomeRule,
   'effect-prefer-map-over-flatMap-succeed': preferMapOverFlatMapSucceedRule,
