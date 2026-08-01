@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 - 2026-08-01
+
+### Features
+
+- feat: idiomatic effect rules (#25) (ea9850f)
+
 ## 0.4.0 - 2026-07-24
 
 ### Features
