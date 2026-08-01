@@ -86,6 +86,13 @@ const defaultCases: RuleCase[] = [
       'import { Option } from "effect"; const value = Option.getOrElse(decoded, () => fallback);',
   },
   {
+    name: 'effect-prefer-option-orElseSome',
+    invalid:
+      'import { Option } from "effect"; const value = Option.orElse(decoded, () => Option.some(fallback));',
+    valid:
+      'import { Option } from "effect"; const value = Option.orElseSome(decoded, () => fallback);',
+  },
+  {
     name: 'effect-prefer-tap-over-flatMap-as',
     invalid:
       'import { flatMap, as as preserve } from "effect/Effect"; flatMap(program, (value) => preserve(audit(value), value));',

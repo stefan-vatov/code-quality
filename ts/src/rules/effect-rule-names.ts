@@ -26,6 +26,7 @@ export const effectDefaultRuleNames = Array.make(
   'effect-prefer-map-over-flatMap-succeed',
   'effect-prefer-option-getOrElse',
   'effect-prefer-option-nullish-getters',
+  'effect-prefer-option-orElseSome',
   'effect-prefer-succeedNone',
   'effect-prefer-succeedSome',
   'effect-prefer-succeed-for-stable-values',

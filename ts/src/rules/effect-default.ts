@@ -41,13 +41,14 @@ import {
   hasYieldWithoutStarInGen,
 } from './effect-default-helpers';
 import { hasEffectSignal, makeRules } from './effect-rule-core';
-import preferOptionGetOrElseRule, {
+import preferOptionOrElseSomeRule, {
   preferAllDiscardRule,
   preferCollectionDiscardOverAsVoidRule,
   preferForEachDiscardRule,
   preferLayerSyncRule,
+  preferOptionGetOrElseRule,
   preferOptionNullishGettersRule,
-} from './effect-prefer-option-get-or-else';
+} from './effect-prefer-option-or-else-some';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
 import preferAndThenOverFlatMapDiscardedValueRule from './effect-prefer-andthen-over-flatmap-discarded-value';
@@ -418,6 +419,7 @@ const effectDefaultRules = {
   'effect-prefer-mapBoth': preferMapBothRule,
   'effect-prefer-option-getOrElse': preferOptionGetOrElseRule,
   'effect-prefer-option-nullish-getters': preferOptionNullishGettersRule,
+  'effect-prefer-option-orElseSome': preferOptionOrElseSomeRule,
   'effect-prefer-succeed-for-stable-values': preferSucceedForStableValuesRule,
   'effect-prefer-succeedNone': preferSucceedNoneRule,
   'effect-prefer-succeedSome': preferSucceedSomeRule,

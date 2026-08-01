@@ -1032,6 +1032,16 @@
       "p95LimitNs": 106800,
       "runs": 20
     },
+    "effect-prefer-option-orElseSome": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3400,
+      "observedP95Ns": 17339,
+      "operationsPerSample": 1,
+      "p95LimitNs": 104034,
+      "runs": 20
+    },
     "effect-prefer-pubsub-for-broadcast": {
       "inputSamples": 7,
       "iterations": 20,

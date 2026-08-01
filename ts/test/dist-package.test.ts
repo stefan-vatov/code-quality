@@ -85,6 +85,12 @@ const astBackedCLICases = [
       'import { Option } from "effect";\nconst value = Option.match(decoded, { onNone: () => fallback, onSome: (item) => item });',
   },
   {
+    ruleName: 'effect-prefer-option-orElseSome',
+    filename: 'src/domain/option-or-else-some.ts',
+    source:
+      'import { Option } from "effect";\nconst value = Option.orElse(decoded, () => Option.some(fallback));',
+  },
+  {
     ruleName: 'effect-prefer-forEach-discard',
     filename: 'src/domain/foreach-discard.ts',
     source:
@@ -498,7 +504,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(158);
+        expect(parsed.effectRuleCount).toBe(159);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;
