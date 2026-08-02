@@ -191,21 +191,17 @@ const hasFloatingEffectLines = (
   aliases: string,
 ): boolean => {
   const patterns = floatingEffectPatterns(aliases);
-  const scanLine = (state: ReturnType<typeof floatingLineState>): boolean =>
-    Match.value(state).pipe(
-      Match.when(
-        (currentState): boolean => isFloatingEffectCandidate(currentState, aliasNeedles, patterns),
-        (): boolean => true,
-      ),
-      Match.when(
-        (currentState): boolean => currentState.nextStart === undefined,
-        (): boolean => false,
-      ),
-      Match.orElse((currentState): boolean =>
-        scanLine(floatingLineState(code, currentState.nextStart ?? 0, currentState.nextPrevious)),
-      ),
-    );
-  return scanLine(floatingLineState(code, 0, ''));
+  let state = floatingLineState(code, 0, '');
+
+  while (true) {
+    if (isFloatingEffectCandidate(state, aliasNeedles, patterns)) {
+      return true;
+    }
+    if (state.nextStart === undefined) {
+      return false;
+    }
+    state = floatingLineState(code, state.nextStart, state.nextPrevious);
+  }
 };
 
 const hasFloatingPipeStatement = (code: string): boolean =>

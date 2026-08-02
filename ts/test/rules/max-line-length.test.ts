@@ -29,4 +29,10 @@ describe('max-line-length rule logic', (): void => {
       { line: 2, length: 151 },
     ]);
   });
+
+  it('completes a scan of 10,000 short lines without overflowing the call stack', (): void => {
+    const source = Array.from({ length: 10_000 }, (): string => 'short').join('\n');
+
+    expect(() => findLongLines(source)).not.toThrow();
+  });
 });

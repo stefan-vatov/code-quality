@@ -104,17 +104,18 @@ const collectLongLines = (
   cursor: LineCursor,
   violations: readonly LineLengthViolation[],
 ): readonly LineLengthViolation[] => {
-  const lineEnd = nextLineEnd(source, cursor.lineStart);
-  const nextViolations = appendCursorViolation(violations, source, maxLength, cursor);
-  return Match.value(lineEnd).pipe(
-    Match.when(
-      (end): boolean => end === source.length,
-      (): readonly LineLengthViolation[] => nextViolations,
-    ),
-    Match.orElse((end): readonly LineLengthViolation[] =>
-      collectLongLines(source, maxLength, nextLineCursor(cursor, end), nextViolations),
-    ),
-  );
+  let currentCursor = cursor;
+  let currentViolations = violations;
+
+  while (true) {
+    const lineEnd = nextLineEnd(source, currentCursor.lineStart);
+    currentViolations = appendCursorViolation(currentViolations, source, maxLength, currentCursor);
+
+    if (lineEnd === source.length) {
+      return currentViolations;
+    }
+    currentCursor = nextLineCursor(currentCursor, lineEnd);
+  }
 };
 
 /**
