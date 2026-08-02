@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 - 2026-08-02
+
+### Fixes
+
+- fix: avoid recursive source line scans (1fa51d1)
+
 ## 0.5.0 - 2026-08-01
 
 ### Features
