@@ -1,167 +1,55 @@
 /* -------------------------------------------------------------------------- */
 /*      Source navigation helpers for Effect lint rule implementations.       */
 /* -------------------------------------------------------------------------- */
-import { Array, Match, Option, pipe } from 'effect';
-import { findBalancedCallEnd, findMatchingBrace } from './effect-source-scan';
-import { nextSourceLexicalIndex } from './effect-source-navigation-lexer';
+import { Match, Option, pipe } from 'effect';
+import { findMatchingBrace, stripCommentsAndStrings } from './effect-source-scan';
+import type { SourceNavigationIndex } from './effect-source-navigation-index';
+import { sourceNavigationIndex } from './effect-source-navigation-index';
 
-const CHAR_CODE_BRACE_CLOSE = 125;
-const CHAR_CODE_BRACE_OPEN = 123;
-const CHAR_CODE_BRACKET_CLOSE = 93;
-const CHAR_CODE_BRACKET_OPEN = 91;
-const CHAR_CODE_PAREN_CLOSE = 41;
-const CHAR_CODE_PAREN_OPEN = 40;
 const CHAR_CODE_SEMICOLON = 59;
+const EFFECT_CALL_PATTERN = /\bEffect\.(?:gen|fn)\s*\(/g;
+
+const lazySourceNavigationIndex = (source: string): (() => SourceNavigationIndex) => {
+  let navigationIndex: SourceNavigationIndex | undefined = undefined;
+  return (): SourceNavigationIndex => {
+    if (navigationIndex !== undefined) {
+      return navigationIndex;
+    }
+    navigationIndex = sourceNavigationIndex(source);
+    return navigationIndex;
+  };
+};
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const isInsideCall = (source: string, targetIndex: number, callPattern: RegExp): boolean =>
-  pipe(
-    Array.fromIterable(source.matchAll(callPattern)),
-    Array.some((match): boolean => {
-      const openParenIndex = source.indexOf('(', match.index);
-      return (
-        openParenIndex !== -1 &&
-        openParenIndex <= targetIndex &&
-        targetIndex <= findBalancedCallEnd(source, openParenIndex)
-      );
-    }),
-  );
+export const isInsideCall = (source: string, targetIndex: number, callPattern: RegExp): boolean => {
+  const code = stripCommentsAndStrings(source);
+  const getNavigationIndex = lazySourceNavigationIndex(source);
+  for (const match of source.matchAll(callPattern)) {
+    const matchIndex = match.index;
+    const openParenIndex = source.indexOf('(', matchIndex);
+    const isCandidate =
+      code.startsWith(match[0], matchIndex) &&
+      openParenIndex !== -1 &&
+      openParenIndex <= targetIndex;
+    if (isCandidate && targetIndex <= getNavigationIndex().matchingCall(openParenIndex)) {
+      return true;
+    }
+  }
+  return false;
+};
 
 interface StatementEnd {
   endIndex: number;
   isEnd: boolean;
 }
 
-const nextEnclosingBraceScanIndex = (
-  source: string,
-  targetIndex: number,
-  stack: number[],
-  index: number,
-): number => {
-  const charCode = source.charCodeAt(index);
-  const nextIndex = nextSourceLexicalIndex(source, index, targetIndex, charCode);
-  if (nextIndex !== index) {
-    return nextIndex;
-  }
-  if (charCode === CHAR_CODE_BRACE_OPEN) {
-    stack.push(index);
-  } else if (charCode === CHAR_CODE_BRACE_CLOSE) {
-    stack.pop();
-  }
-  return index + 1;
-};
-
-const findEnclosingBraceOpen = (source: string, targetIndex: number): number => {
-  const stack: number[] = [];
-  let index = 0;
-  while (index < targetIndex) {
-    index = nextEnclosingBraceScanIndex(source, targetIndex, stack, index);
-  }
-  return stack.at(-1) ?? -1;
-};
-
-const isDelimiterOpen = (charCode: number): boolean =>
-  charCode === CHAR_CODE_BRACE_OPEN ||
-  charCode === CHAR_CODE_BRACKET_OPEN ||
-  charCode === CHAR_CODE_PAREN_OPEN;
-
-const isDelimiterClose = (charCode: number): boolean =>
-  charCode === CHAR_CODE_BRACE_CLOSE ||
-  charCode === CHAR_CODE_BRACKET_CLOSE ||
-  charCode === CHAR_CODE_PAREN_CLOSE;
-
-const hasTargetStackPrefix = (
-  stack: readonly number[],
-  targetStack: readonly number[],
-): boolean => {
-  if (stack.length > targetStack.length) {
-    return false;
-  }
-  for (let index = 0; index < stack.length; index += 1) {
-    if (stack[index] !== targetStack[index]) {
-      return false;
-    }
-  }
-  return true;
-};
-
-interface StatementScanState {
-  delimiterStack: number[];
-  index: number;
-  targetStack: readonly number[] | undefined;
-}
-
-interface StatementScanStep {
-  state: StatementScanState;
-  statementEnd: StatementEnd | undefined;
-}
-
-const captureTargetStack = (
-  state: StatementScanState,
-  startIndex: number,
-  nextIndex: number,
-): readonly number[] | undefined => {
-  if (state.targetStack !== undefined) {
-    return state.targetStack;
-  }
-  if (state.index === startIndex || (startIndex >= state.index && startIndex < nextIndex)) {
-    return [...state.delimiterStack];
-  }
-  return undefined;
-};
-
-const updateDelimiterStack = (delimiterStack: number[], charCode: number, index: number): void => {
-  if (isDelimiterOpen(charCode)) {
-    delimiterStack.push(index);
-  } else if (isDelimiterClose(charCode)) {
-    delimiterStack.pop();
-  }
-};
-
-const nextStatementScanStep = (
-  source: string,
-  sourceLength: number,
-  startIndex: number,
-  state: StatementScanState,
-): StatementScanStep => {
-  const charCode = source.charCodeAt(state.index);
-  const nextIndex = nextSourceLexicalIndex(source, state.index, sourceLength, charCode);
-  const targetStack = captureTargetStack(state, startIndex, nextIndex);
-  if (nextIndex !== state.index) {
-    return { state: { ...state, index: nextIndex, targetStack }, statementEnd: undefined };
-  }
-  if (
-    charCode === CHAR_CODE_SEMICOLON &&
-    state.index >= startIndex &&
-    hasTargetStackPrefix(state.delimiterStack, targetStack ?? state.delimiterStack)
-  ) {
-    return {
-      state,
-      statementEnd: { endIndex: state.index, isEnd: true },
-    };
-  }
-  updateDelimiterStack(state.delimiterStack, charCode, state.index);
-  return {
-    state: { ...state, index: state.index + 1, targetStack },
-    statementEnd: undefined,
-  };
-};
-
 const scanStatementEnd = (source: string, startIndex: number): StatementEnd => {
-  const sourceLength = source.length;
-  let state: StatementScanState = { delimiterStack: [], index: 0, targetStack: undefined };
-  while (state.index < sourceLength) {
-    const step = nextStatementScanStep(source, sourceLength, startIndex, state);
-    if (step.statementEnd !== undefined) {
-      return step.statementEnd;
-    }
-    ({ state } = step);
-  }
-  return { endIndex: sourceLength - 1, isEnd: false };
+  const endIndex = sourceNavigationIndex(source).statementEnd(startIndex);
+  return { endIndex, isEnd: source.charCodeAt(endIndex) === CHAR_CODE_SEMICOLON };
 };
 
 /**
@@ -188,27 +76,41 @@ export const statementAfter = (source: string, targetIndex: number, maxLength = 
   );
 };
 
-const enclosingEffectCallTail = (source: string, targetIndex: number): string | undefined =>
-  pipe(
-    Array.fromIterable(source.matchAll(/\bEffect\.(?:gen|fn)\s*\(/g)),
-    Array.findFirst((match): boolean => {
-      const openParenIndex = source.indexOf('(', match.index);
-      return (
-        openParenIndex !== -1 &&
-        openParenIndex <= targetIndex &&
-        targetIndex <= findBalancedCallEnd(source, openParenIndex)
-      );
-    }),
-    Option.map((match): string => {
-      const openParenIndex = source.indexOf('(', match.index);
-      const endIndex = findBalancedCallEnd(source, openParenIndex);
-      return source.slice(targetIndex, endIndex + 1);
-    }),
-    Option.getOrUndefined,
-  );
+const effectCallTailForMatch = (
+  source: string,
+  code: string,
+  targetIndex: number,
+  getNavigationIndex: () => SourceNavigationIndex,
+  match: RegExpMatchArray,
+): string | undefined => {
+  const matchIndex = match.index;
+  const openParenIndex = source.indexOf('(', matchIndex);
+  const isCandidate =
+    code.startsWith(match[0], matchIndex) && openParenIndex !== -1 && openParenIndex <= targetIndex;
+  if (!isCandidate) {
+    return undefined;
+  }
+  const endIndex = getNavigationIndex().matchingCall(openParenIndex);
+  if (targetIndex > endIndex) {
+    return undefined;
+  }
+  return source.slice(targetIndex, endIndex + 1);
+};
+
+const enclosingEffectCallTail = (source: string, targetIndex: number): string | undefined => {
+  const code = stripCommentsAndStrings(source);
+  const getNavigationIndex = lazySourceNavigationIndex(source);
+  for (const match of source.matchAll(EFFECT_CALL_PATTERN)) {
+    const tail = effectCallTailForMatch(source, code, targetIndex, getNavigationIndex, match);
+    if (tail !== undefined) {
+      return tail;
+    }
+  }
+  return undefined;
+};
 
 const enclosingBraceTail = (source: string, targetIndex: number): string | undefined => {
-  const openBrace = findEnclosingBraceOpen(source, targetIndex);
+  const openBrace = sourceNavigationIndex(source).enclosingBraceOpen(targetIndex);
   return Match.value(openBrace).pipe(
     Match.when(-1, (): undefined => undefined),
     Match.orElse((braceIndex): string | undefined => {

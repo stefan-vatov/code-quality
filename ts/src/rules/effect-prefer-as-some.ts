@@ -10,16 +10,16 @@ import {
   nativeReferenceIndexFor,
   nativeSourceCodeFor,
 } from './effect-native-references';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { ScopeStack } from './effect-ast-scope';
 import { diagnosticMessage } from './diagnostic-guidance';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 import { readCachedSource } from './source-cache';
+import { scopeHasBinding } from './effect-ast-scope';
 import { strictPathOptionsSchema } from './effect-path-options';
+import { visitASTWithStack } from './effect-ast-stack-safe-walker';
 
 type OptionBinding = 'namespace' | 'rootNamespace' | 'some';
-type ASTProperty = ASTNode | readonly ASTProperty[] | boolean | null | number | string | undefined;
 
 interface OptionReference {
   expression: ASTNode;
@@ -189,11 +189,7 @@ const optionSomeReference = (
   );
 };
 
-const isShadowed = (name: string, scopes: ScopeStack): boolean =>
-  scopes.some((scope): boolean => scope.has(name));
-
-const isASTPropertyArray = (value: ASTProperty): value is readonly ASTProperty[] =>
-  Array.isArray(value);
+const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
 
 const addFallbackReference = (
   node: ASTNode,
@@ -204,37 +200,6 @@ const addFallbackReference = (
   const name = reference && identifierName(reference.importIdentifier);
   if (reference && name && !isShadowed(name, scopes)) {
     state.fallbackReferences.add(reference.expression);
-  }
-};
-
-const visitFallbackValue = (
-  value: ASTProperty,
-  state: OptionReferenceState,
-  scopes: ScopeStack,
-): void => {
-  if (isASTPropertyArray(value)) {
-    for (const item of value) {
-      visitFallbackValue(item, state, scopes);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    visitFallbackNode(child, state, scopes);
-  }
-};
-
-const visitFallbackNode = (
-  node: ASTNode,
-  state: OptionReferenceState,
-  scopes: ScopeStack,
-): void => {
-  const nodeScopes = withNodeScope(scopes, node);
-  addFallbackReference(node, state, nodeScopes);
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      visitFallbackValue(value as ASTProperty, state, scopesForChild(nodeScopes, node, key));
-    }
   }
 };
 
@@ -266,12 +231,16 @@ const hasTypeArguments = (call: ASTNode): boolean =>
   Boolean(childNode(call, 'typeArguments') || childNode(call, 'typeParameters'));
 
 const hasOptionalMemberAccess = (node: ASTNode | undefined): boolean => {
-  if (node?.type !== 'MemberExpression') {
-    return false;
+  const seen = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression' && !seen.has(current)) {
+    seen.add(current);
+    if (Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    current = childNode(current, 'object');
   }
-  return (
-    Reflect.get(node, 'optional') === true || hasOptionalMemberAccess(childNode(node, 'object'))
-  );
+  return false;
 };
 
 const isPlainCall = (call: ASTNode): boolean =>
@@ -344,7 +313,15 @@ const rule: SourceRule = {
         isInitialized = true;
         effectMap.initialize(program);
         if (!state.sourceCode) {
-          visitFallbackNode(program, state, []);
+          visitASTWithStack({
+            context: state,
+            onNode(node, nodeScopes): { context: OptionReferenceState; visitChildren: boolean } {
+              addFallbackReference(node, state, nodeScopes);
+              return { context: state, visitChildren: true };
+            },
+            root: program,
+            scopes: [],
+          });
         }
       },
     };

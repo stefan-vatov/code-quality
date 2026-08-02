@@ -1,11 +1,38 @@
 /* -------------------------------------------------------------------------- */
 /*           Schema boundary predicates for always-on Effect rules.           */
 /* -------------------------------------------------------------------------- */
-import { Array, Match, Option, pipe } from 'effect';
+import { Array, pipe } from 'effect';
 import { isInsideCall, stripCommentsAndStrings } from './effect-source-helpers';
 import { localCallSegment, someEffectWorkflowBody } from './effect-default-scan-helpers';
 
 const SCHEMA_ASSERTION_SCAN_WINDOW = 240;
+const SCHEMA_DECODE_PATTERN = /Schema\.decode[A-Za-z]*\s*\(/g;
+const SCHEMA_DECODE_BINDING_PATTERN =
+  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)/g;
+const SCHEMA_BINDING_DECLARATION_PATTERN =
+  /\b(?:const|let|var)[^\S\n]+([A-Za-z_$][\w$]*)[^\S\n]*=/g;
+const SCHEMA_ASSERTION_PATTERN = /\b([A-Za-z_$][\w$]*)\s+as\s+[A-Za-z_$][\w$]*/g;
+const INLINE_SCHEMA_DECODE_CAST_PATTERN =
+  /Schema\.decode[A-Za-z]*[^\S\n]*\([^)\n]*\)[^\S\n]*\([^)\n]*\)[^\S\n]+as[^\S\n]+[A-Za-z_$][\w$]*/g;
+const SCHEMA_DECODE_ERROR_PIPE_PATTERN =
+  /Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)\.pipe\s*\(\s*Effect\.(?:orDie|ignore)\b/;
+const SCHEMA_HANDLED_BINDING_PATTERN = /(?:yield\*\s+|return\s+(?!yield\*))([A-Za-z_$][\w$]*)\b/g;
+const SCHEMA_DECODE_UNKNOWN_BINDING_PATTERN =
+  /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)/g;
+
+const firstIndexAtOrAfter = (indexes: readonly number[], targetIndex: number): number => {
+  let low = 0;
+  let high = indexes.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if ((indexes[middle] ?? Number.POSITIVE_INFINITY) < targetIndex) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+};
 
 /**
  * Internal helper exported for package-local composition.
@@ -44,74 +71,198 @@ export const hasExternalJSONWithoutDecodeUnknown = (source: string): boolean => 
   );
 };
 
-const schemaDecodeLine = (code: string, index: number): string => {
-  const lineStart = Math.max(code.lastIndexOf(';', index) + 1, code.lastIndexOf('\n', index) + 1);
-  const lineBreakIndex = code.indexOf('\n', index);
-  const lineEnd = Match.value(lineBreakIndex).pipe(
-    Match.when(
-      (breakIndex): boolean => breakIndex === -1,
-      (): number => code.length,
-    ),
-    Match.orElse((breakIndex): number => breakIndex),
+const hasBindingAssertionInRange = (
+  positions: ReadonlyMap<string, readonly number[]>,
+  bindingName: string | undefined,
+  startIndex: number,
+): boolean => {
+  if (bindingName === undefined) {
+    return false;
+  }
+  const bindingPositions = positions.get(bindingName);
+  if (bindingPositions === undefined) {
+    return false;
+  }
+  const assertionIndex = firstIndexAtOrAfter(bindingPositions, startIndex);
+  const assertionPosition = bindingPositions[assertionIndex];
+  return (
+    assertionPosition !== undefined && assertionPosition < startIndex + SCHEMA_ASSERTION_SCAN_WINDOW
   );
-  return code.slice(lineStart, lineEnd);
 };
 
-const schemaAssertionTail = (code: string, match: RegExpMatchArray): string =>
-  code.slice(
-    (match.index ?? 0) + match[0].length,
-    (match.index ?? 0) + match[0].length + SCHEMA_ASSERTION_SCAN_WINDOW,
-  );
+const collectMatchIndexes = (code: string, pattern: RegExp): number[] => {
+  const indexes: number[] = [];
+  for (const match of code.matchAll(pattern)) {
+    indexes.push(match.index);
+  }
+  return indexes;
+};
 
-const hasBindingAssertion = (bindingName: string | undefined, tail: string): boolean =>
-  pipe(
-    Option.fromNullable(bindingName),
-    Option.match({
-      onNone: (): boolean => false,
-      onSome: (name): boolean => new RegExp(`\\b${name}\\s+as\\s+[A-Za-z_$][\\w$]*`).test(tail),
-    }),
-  );
+const collectSchemaAssertions = (code: string): Map<string, number[]> => {
+  const positions = new Map<string, number[]>();
+  for (const match of code.matchAll(SCHEMA_ASSERTION_PATTERN)) {
+    const [, bindingName] = match;
+    if (bindingName !== undefined) {
+      const bindingPositions = positions.get(bindingName) ?? [];
+      bindingPositions.push(match.index);
+      positions.set(bindingName, bindingPositions);
+    }
+  }
+  return positions;
+};
 
-const hasInlineSchemaDecodeCast = (line: string): boolean =>
-  /Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)\s+as\s+[A-Za-z_$][\w$]*/.test(line);
+interface SchemaBindingDeclaration {
+  readonly index: number;
+  readonly name: string;
+}
 
-const hasCastAfterSchemaDecodeMatch = (code: string, match: RegExpMatchArray): boolean =>
-  pipe(
-    Option.fromNullable(match.index),
-    Option.match({
-      onNone: (): boolean => false,
-      onSome: (index): boolean => {
-        const line = schemaDecodeLine(code, index);
-        return Match.value(line).pipe(
-          Match.when(
-            (schemaLine): boolean => hasInlineSchemaDecodeCast(schemaLine),
-            (): boolean => true,
-          ),
-          Match.orElse((schemaLine): boolean => {
-            const bindingName = pipe(
-              Option.fromNullable(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/.exec(schemaLine)),
-              Option.flatMapNullable((bindingMatch): string | undefined => bindingMatch[1]),
-              Option.getOrUndefined,
-            );
-            return hasBindingAssertion(bindingName, schemaAssertionTail(code, match));
-          }),
-        );
-      },
-    }),
-  );
+const collectSchemaBindingDeclarations = (code: string): SchemaBindingDeclaration[] => {
+  const declarations: SchemaBindingDeclaration[] = [];
+  for (const match of code.matchAll(SCHEMA_BINDING_DECLARATION_PATTERN)) {
+    const [, name] = match;
+    if (name !== undefined) {
+      declarations.push({ index: match.index, name });
+    }
+  }
+  return declarations;
+};
 
-const hasCastAfterSchemaDecodeBinding = (code: string): boolean =>
-  pipe(
-    [
-      ...code.matchAll(
-        /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)/g,
-      ),
-    ],
-    Array.some((match): boolean => {
-      const [, bindingName] = match;
-      return hasBindingAssertion(bindingName, schemaAssertionTail(code, match));
-    }),
-  );
+interface SourceLineBounds {
+  readonly end: number;
+  readonly start: number;
+}
+
+const sourceLineBoundsScanner = (code: string): ((matchIndex: number) => SourceLineBounds) => {
+  let scanIndex = 0;
+  let lineStart = 0;
+  let lineEnd = code.indexOf('\n');
+  return (matchIndex): SourceLineBounds => {
+    while (scanIndex < matchIndex) {
+      if (code[scanIndex] === ';' || code[scanIndex] === '\n') {
+        lineStart = scanIndex + 1;
+      }
+      scanIndex += 1;
+    }
+    while (lineEnd !== -1 && lineEnd < matchIndex) {
+      lineEnd = code.indexOf('\n', lineEnd + 1);
+    }
+    let end = lineEnd;
+    if (end === -1) {
+      end = code.length;
+    }
+    return { end, start: lineStart };
+  };
+};
+
+const firstSchemaDeclarationScanner = (
+  declarations: readonly SchemaBindingDeclaration[],
+): ((lineStart: number, lineEnd: number) => SchemaBindingDeclaration | undefined) => {
+  let declarationIndex = 0;
+  return (lineStart, lineEnd): SchemaBindingDeclaration | undefined => {
+    while (declarationIndex < declarations.length) {
+      const declaration = declarations[declarationIndex];
+      if (declaration === undefined || declaration.index >= lineStart) {
+        break;
+      }
+      declarationIndex += 1;
+    }
+    const declaration = declarations[declarationIndex];
+    if (declaration !== undefined && declaration.index < lineEnd) {
+      return declaration;
+    }
+    return undefined;
+  };
+};
+
+const hasInlineSchemaCastInRange = (
+  indexes: readonly number[],
+  lineStart: number,
+  lineEnd: number,
+): boolean => {
+  const inlineCastIndex = firstIndexAtOrAfter(indexes, lineStart);
+  const inlineCastPosition = indexes[inlineCastIndex];
+  return inlineCastPosition !== undefined && inlineCastPosition < lineEnd;
+};
+
+const hasSchemaDecodeCastOnLine = (
+  code: string,
+  assertions: ReadonlyMap<string, readonly number[]>,
+  inlineCastIndexes: readonly number[],
+  declarations: readonly SchemaBindingDeclaration[],
+): boolean => {
+  const getLineBounds = sourceLineBoundsScanner(code);
+  const getDeclaration = firstSchemaDeclarationScanner(declarations);
+  for (const match of code.matchAll(SCHEMA_DECODE_PATTERN)) {
+    const bounds = getLineBounds(match.index);
+    if (hasInlineSchemaCastInRange(inlineCastIndexes, bounds.start, bounds.end)) {
+      return true;
+    }
+    const declaration = getDeclaration(bounds.start, bounds.end);
+    if (
+      declaration !== undefined &&
+      hasBindingAssertionInRange(assertions, declaration.name, match.index + match[0].length)
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const hasSchemaDecodeBindingCast = (
+  code: string,
+  assertions: ReadonlyMap<string, readonly number[]>,
+): boolean => {
+  for (const match of code.matchAll(SCHEMA_DECODE_BINDING_PATTERN)) {
+    const [, bindingName] = match;
+    if (hasBindingAssertionInRange(assertions, bindingName, match.index + match[0].length)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const collectHandledBindingPositions = (code: string): Map<string, number[]> => {
+  const positions = new Map<string, number[]>();
+  for (const match of code.matchAll(SCHEMA_HANDLED_BINDING_PATTERN)) {
+    const [, bindingName] = match;
+    if (bindingName !== undefined) {
+      const bindingPositions = positions.get(bindingName) ?? [];
+      bindingPositions.push(match.index);
+      positions.set(bindingName, bindingPositions);
+    }
+  }
+  return positions;
+};
+
+const hasHandledBindingAfter = (
+  positions: ReadonlyMap<string, readonly number[]>,
+  bindingName: string | undefined,
+  startIndex: number,
+): boolean => {
+  if (bindingName === undefined) {
+    return false;
+  }
+  const bindingPositions = positions.get(bindingName);
+  if (bindingPositions === undefined) {
+    return false;
+  }
+  return firstIndexAtOrAfter(bindingPositions, startIndex) < bindingPositions.length;
+};
+
+const hasUnhandledSchemaDecodeBinding = (
+  code: string,
+  handledBindingPositions: ReadonlyMap<string, readonly number[]>,
+): boolean => {
+  for (const match of code.matchAll(SCHEMA_DECODE_UNKNOWN_BINDING_PATTERN)) {
+    const [, bindingName] = match;
+    if (
+      !hasHandledBindingAfter(handledBindingPositions, bindingName, match.index + match[0].length)
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
 
 /**
  * Internal helper exported for package-local composition.
@@ -120,11 +271,13 @@ const hasCastAfterSchemaDecodeBinding = (code: string): boolean =>
  */
 export const hasCastAfterSchemaDecode = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
+  const assertions = collectSchemaAssertions(code);
+  const inlineCastIndexes = collectMatchIndexes(code, INLINE_SCHEMA_DECODE_CAST_PATTERN);
+  const declarations = collectSchemaBindingDeclarations(code);
   return (
-    pipe(
-      [...code.matchAll(/Schema\.decode[A-Za-z]*\s*\(/g)],
-      Array.some((match): boolean => hasCastAfterSchemaDecodeMatch(code, match)),
-    ) || hasCastAfterSchemaDecodeBinding(code)
+    hasSchemaDecodeCastOnLine(code, assertions, inlineCastIndexes, declarations) ||
+    hasSchemaDecodeBindingCast(code, assertions) ||
+    SCHEMA_DECODE_ERROR_PIPE_PATTERN.test(code)
   );
 };
 
@@ -135,25 +288,10 @@ export const hasCastAfterSchemaDecode = (source: string): boolean => {
  */
 export const hasUnhandledSchemaEffectDecode = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
+  const handledBindingPositions = collectHandledBindingPositions(code);
   return (
-    pipe(
-      [
-        ...code.matchAll(
-          /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)/g,
-        ),
-      ],
-      Array.some((match): boolean => {
-        const [, bindingName] = match;
-        const tail = code.slice(match.index + match[0].length);
-        const handledPattern = new RegExp(
-          `(?:yield\\*\\s+${bindingName}\\b|return\\s+${bindingName}\\b)`,
-        );
-        return !handledPattern.test(tail);
-      }),
-    ) ||
-    /Schema\.decodeUnknown\s*\([^)]*\)\s*\([^)]*\)\.pipe\s*\(\s*Effect\.(?:orDie|ignore)\b/.test(
-      code,
-    )
+    hasUnhandledSchemaDecodeBinding(code, handledBindingPositions) ||
+    SCHEMA_DECODE_ERROR_PIPE_PATTERN.test(code)
   );
 };
 

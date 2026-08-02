@@ -2,7 +2,11 @@
 /*       Callable provenance and argument shapes for Promise execution.       */
 /* -------------------------------------------------------------------------- */
 
-export { containerHelperScopes, functionHeaderScopes } from './effect-promise-callable-scopes';
+export {
+  appendHelperScope,
+  containerHelperScopes,
+  functionHeaderScopes,
+} from './effect-promise-callable-scopes';
 export {
   callableBinding,
   memberPropertyName,

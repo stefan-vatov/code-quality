@@ -4,7 +4,6 @@
 
 import type { Context, SourceRule } from './effect-rule-core';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { ImportedEffectCallMatcher } from './effect-imported-call-matcher';
 import type { NativeSourceCode } from './effect-native-references';
@@ -13,7 +12,9 @@ import { diagnosticMessage } from './diagnostic-guidance';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 import { nativeSourceCodeFor } from './effect-native-references';
 import { readCachedSource } from './source-cache';
+import { scopeContainingBinding } from './effect-ast-scope';
 import { strictPathOptionsSchema } from './effect-path-options';
+import { visitASTWithStack } from './effect-ast-stack-safe-walker';
 
 export {
   default as preferCollectionDiscardOverAsVoidRule,
@@ -41,6 +42,11 @@ interface RuleState {
   seen: WeakSet<object>;
   sourceCode: NativeSourceCode | undefined;
   stableConsts: WeakMap<ReadonlySet<string>, Map<string, StableConstBinding>>;
+}
+
+interface OptionTraversalContext {
+  executionContext: ASTNode;
+  switchCase: ASTNode | undefined;
 }
 
 const MESSAGE = diagnosticMessage({
@@ -121,15 +127,8 @@ const rootPackageNamespaces = (program: ASTNode): ReadonlySet<string> => {
   return names;
 };
 
-const scopeContaining = (name: string, scopes: ScopeStack): ReadonlySet<string> | undefined => {
-  for (let index = scopes.length - 1; index >= 0; index -= 1) {
-    const scope = scopes.at(index);
-    if (scope?.has(name)) {
-      return scope;
-    }
-  }
-  return undefined;
-};
+const scopeContaining = (name: string, scopes: ScopeStack): ReadonlySet<string> | undefined =>
+  scopeContainingBinding(name, scopes);
 
 const registerStableDeclarator = (
   declarator: ASTNode,
@@ -189,76 +188,21 @@ const switchCaseFor = (node: ASTNode, current: ASTNode | undefined): ASTNode | u
   return current;
 };
 
-const indexChildValue = (
-  value: unknown,
-  scopes: ScopeStack,
-  state: RuleState,
-  executionContext: ASTNode,
-  switchCase: ASTNode | undefined,
-): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      indexChildValue(item, scopes, state, executionContext, switchCase);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    indexNode(child, scopes, state, executionContext, switchCase);
-  }
-};
-
-const indexChildren = (
-  node: ASTNode,
-  scopes: ScopeStack,
-  state: RuleState,
-  executionContext: ASTNode,
-  switchCase: ASTNode | undefined,
-): void => {
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      indexChildValue(
-        value,
-        scopesForChild(scopes, node, key),
-        state,
-        executionContext,
-        switchCase,
-      );
-    }
-  }
-};
-
-const indexNode = (
-  node: ASTNode,
-  scopes: ScopeStack,
-  state: RuleState,
-  executionContext: ASTNode,
-  switchCase: ASTNode | undefined,
-): void => {
-  if (state.seen.has(node)) {
-    return;
-  }
-  state.seen.add(node);
-  const nodeScopes = withNodeScope(scopes, node);
-  const nodeExecutionContext = executionContextFor(node, executionContext);
-  const nodeSwitchCase = switchCaseFor(node, switchCase);
-  if (node.type === 'ConditionalExpression') {
-    state.candidates.set(node, {
-      executionContext: nodeExecutionContext,
-      scopes: nodeScopes,
-      switchCase: nodeSwitchCase,
-    });
-  }
-  registerStableConsts(node, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
-  indexChildren(node, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
-};
-
 const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
-const hasOptionalMemberAccess = (node: ASTNode | undefined): boolean =>
-  node?.type === 'MemberExpression' &&
-  (Reflect.get(node, 'optional') === true || hasOptionalMemberAccess(childNode(node, 'object')));
+const hasOptionalMemberAccess = (node: ASTNode | undefined): boolean => {
+  const seen = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression' && !seen.has(current)) {
+    seen.add(current);
+    if (Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    current = childNode(current, 'object');
+  }
+  return false;
+};
 
 const exactArgument = (call: ASTNode): ASTNode | undefined => {
   if (
@@ -386,7 +330,36 @@ const indexProgram = (value: object, state: RuleState): void => {
   for (const name of rootPackageNamespaces(program)) {
     state.rootPackageNamespaces.add(name);
   }
-  indexNode(program, [], state, program, undefined);
+  visitASTWithStack<OptionTraversalContext>({
+    context: { executionContext: program, switchCase: undefined },
+    onNode(
+      node,
+      nodeScopes,
+      _inheritedScopes,
+      traversalContext,
+    ): {
+      context: OptionTraversalContext;
+      visitChildren: boolean;
+    } {
+      const nodeExecutionContext = executionContextFor(node, traversalContext.executionContext);
+      const nodeSwitchCase = switchCaseFor(node, traversalContext.switchCase);
+      if (node.type === 'ConditionalExpression') {
+        state.candidates.set(node, {
+          executionContext: nodeExecutionContext,
+          scopes: nodeScopes,
+          switchCase: nodeSwitchCase,
+        });
+      }
+      registerStableConsts(node, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
+      return {
+        context: { executionContext: nodeExecutionContext, switchCase: nodeSwitchCase },
+        visitChildren: true,
+      };
+    },
+    root: program,
+    scopes: [],
+    seenNodes: state.seen,
+  });
 };
 
 const hasCandidateTokens = (source: string): boolean =>

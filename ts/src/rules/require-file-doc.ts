@@ -24,29 +24,28 @@ const MIN_DIVIDER_DASHES = 3;
 const isWhitespace = (code: number): boolean =>
   code === CH_SPACE || code === CH_NEWLINE || code === CH_RETURN || code === CH_TAB;
 
-const skipShebangLinesFrom = (source: string, emptyResult: number, pos: number): number =>
-  Match.value(pos < source.length && source.charCodeAt(pos) === CH_HASH).pipe(
-    Match.when(false, (): number => pos),
-    Match.orElse((): number => {
-      const nextLine = source.indexOf('\n', pos);
-      return Match.value(nextLine).pipe(
-        Match.when(-1, (): number => emptyResult),
-        Match.orElse((lineEnd): number => skipShebangLinesFrom(source, emptyResult, lineEnd + 1)),
-      );
-    }),
-  );
+const skipShebangLinesFrom = (source: string, emptyResult: number, start: number): number => {
+  let pos = start;
+  while (pos < source.length && source.charCodeAt(pos) === CH_HASH) {
+    const nextLine = source.indexOf('\n', pos);
+    if (nextLine === -1) {
+      return emptyResult;
+    }
+    pos = nextLine + 1;
+  }
+  return pos;
+};
 
 const skipShebangLines = (source: string, emptyResult: number): number =>
   skipShebangLinesFrom(source, emptyResult, 0);
 
-const skipLeadingWhitespace = (source: string, start: number): number =>
-  Match.value(start).pipe(
-    Match.when(
-      (pos): boolean => pos >= source.length || !isWhitespace(source.charCodeAt(pos)),
-      (pos): number => pos,
-    ),
-    Match.orElse((pos): number => skipLeadingWhitespace(source, pos + 1)),
-  );
+const skipLeadingWhitespace = (source: string, start: number): number => {
+  let pos = start;
+  while (pos < source.length && isWhitespace(source.charCodeAt(pos))) {
+    pos += 1;
+  }
+  return pos;
+};
 
 const trimLineEnd = (line: string): string => line.replace(/\r$/u, '');
 
@@ -66,17 +65,20 @@ const isSkippableToolDirectiveLine = (line: string): boolean => {
 };
 
 const skipToolDirectiveLines = (source: string, start: number): number => {
-  const pos = skipLeadingWhitespace(source, start);
-  if (pos >= source.length) {
-    return pos;
-  }
+  let pos = start;
+  while (true) {
+    pos = skipLeadingWhitespace(source, pos);
+    if (pos >= source.length) {
+      return pos;
+    }
 
-  const line = lineTextAt(source, pos);
-  if (!isSkippableToolDirectiveLine(line)) {
-    return pos;
-  }
+    const line = lineTextAt(source, pos);
+    if (!isSkippableToolDirectiveLine(line)) {
+      return pos;
+    }
 
-  return skipToolDirectiveLines(source, nextLineStartAt(source, pos));
+    pos = nextLineStartAt(source, pos);
+  }
 };
 
 const leadingContentPosition = (source: string, emptyResult: number): number =>
@@ -124,25 +126,25 @@ const dividerHeaderBodyEndFrom = (
   cursor: number,
   hasMeaningfulBody: boolean,
 ): number | undefined => {
-  if (cursor >= source.length) {
-    return undefined;
+  let hasBody = hasMeaningfulBody;
+  for (let pos = cursor; pos < source.length; pos = nextLineStartAt(source, pos)) {
+    const line = lineTextAt(source, pos);
+    const end = lineEndAt(source, pos);
+
+    if (isDividerRuleLine(line)) {
+      return Match.value(hasBody).pipe(
+        Match.when(true, (): number => end),
+        Match.orElse((): undefined => undefined),
+      );
+    }
+
+    if (!isDividerTextLine(line)) {
+      return undefined;
+    }
+
+    hasBody = true;
   }
-
-  const line = lineTextAt(source, cursor);
-  const end = lineEndAt(source, cursor);
-
-  if (isDividerRuleLine(line)) {
-    return Match.value(hasMeaningfulBody).pipe(
-      Match.when(true, (): number => end),
-      Match.orElse((): undefined => undefined),
-    );
-  }
-
-  if (!isDividerTextLine(line)) {
-    return undefined;
-  }
-
-  return dividerHeaderBodyEndFrom(source, nextLineStartAt(source, cursor), true);
+  return undefined;
 };
 
 const dividerHeaderEnd = (source: string, pos: number): number | undefined => {

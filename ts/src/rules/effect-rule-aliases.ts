@@ -5,6 +5,7 @@ import { Array, HashSet, Option, pipe } from 'effect';
 import { stripComments, stripCommentsAndStrings } from './effect-source-helpers';
 import type { CanonicalizedEffectSource } from './effect-alias-canonicalization';
 import { buildCanonicalizedEffectSource } from './effect-alias-canonicalization';
+import { createWeightedCache } from './source-cache';
 
 /**
  * Matches supported Effect runtime execution calls.
@@ -17,39 +18,82 @@ const boundaryFilePattern = /(?:^|\/)src\/(?:main|server|cli)\.ts$|\.entry\.ts$/
 const testFilePattern = /\.(?:test|spec)\.tsx?$/;
 const ALIAS_CACHE_MAX = 256;
 const BOOLEAN_CACHE_MAX = 512;
-const effectAliasCache = new Map<string, string[]>();
-const runtimeFunctionAliasCache = new Map<string, string[]>();
-const canonicalSourceCache = new Map<string, CanonicalizedEffectSource>();
-const effectSignalCache = new Map<string, boolean>();
-const runtimeCallCache = new Map<string, boolean>();
+const BYTES_PER_KIBIBYTE = 1024;
+const BYTES_PER_MEBIBYTE = BYTES_PER_KIBIBYTE * BYTES_PER_KIBIBYTE;
+const EFFECT_ALIAS_CACHE_MAX_WEIGHT = 2 * BYTES_PER_MEBIBYTE;
+const RUNTIME_FUNCTION_ALIAS_CACHE_MAX_WEIGHT = 2 * BYTES_PER_MEBIBYTE;
+const CANONICAL_SOURCE_CACHE_MAX_WEIGHT = 2 * BYTES_PER_MEBIBYTE;
+const BOOLEAN_CACHE_MAX_WEIGHT = BYTES_PER_MEBIBYTE;
+const UTF16_CODE_UNIT_BYTES = 2;
+const CACHE_ENTRY_BYTES = 128;
+const ARRAY_BASE_BYTES = 128;
+const INDEX_MAP_NUMBER_BYTES = 8;
+type AliasCache = ReturnType<typeof createWeightedCache<string, string[]>>;
+type BooleanCache = ReturnType<typeof createWeightedCache<string, boolean>>;
+type CanonicalSourceCache = ReturnType<
+  typeof createWeightedCache<string, CanonicalizedEffectSource>
+>;
+const effectAliasCache: AliasCache = createWeightedCache({
+  maxEntries: ALIAS_CACHE_MAX,
+  maxWeight: EFFECT_ALIAS_CACHE_MAX_WEIGHT,
+});
+const runtimeFunctionAliasCache: AliasCache = createWeightedCache({
+  maxEntries: ALIAS_CACHE_MAX,
+  maxWeight: RUNTIME_FUNCTION_ALIAS_CACHE_MAX_WEIGHT,
+});
+const canonicalSourceCache: CanonicalSourceCache = createWeightedCache({
+  maxEntries: ALIAS_CACHE_MAX,
+  maxWeight: CANONICAL_SOURCE_CACHE_MAX_WEIGHT,
+});
+const effectSignalCache: BooleanCache = createWeightedCache({
+  maxEntries: BOOLEAN_CACHE_MAX,
+  maxWeight: BOOLEAN_CACHE_MAX_WEIGHT,
+});
+const runtimeCallCache: BooleanCache = createWeightedCache({
+  maxEntries: BOOLEAN_CACHE_MAX,
+  maxWeight: BOOLEAN_CACHE_MAX_WEIGHT,
+});
 
-const cachedAliases = (cache: Map<string, string[]>, source: string): string[] | undefined =>
-  pipe(Option.fromNullable(cache.get(source)), Option.getOrUndefined);
+const UTF16Bytes = (value: string): number => value.length * UTF16_CODE_UNIT_BYTES;
+const bytesForUTF16 = UTF16Bytes;
 
-const cacheAliases = (cache: Map<string, string[]>, source: string, value: string[]): string[] => {
-  if (cache.size >= ALIAS_CACHE_MAX) {
-    pipe(
-      Option.fromNullable(cache.keys().next().value),
-      Option.map((firstKey): boolean => cache.delete(firstKey)),
-    );
+const aliasArrayWeight = (aliases: readonly string[]): number =>
+  ARRAY_BASE_BYTES +
+  aliases.reduce((weight, alias): number => weight + CACHE_ENTRY_BYTES + bytesForUTF16(alias), 0);
+
+const aliasCacheWeight = (source: string, aliases: readonly string[]): number =>
+  bytesForUTF16(source) + CACHE_ENTRY_BYTES + aliasArrayWeight(aliases);
+
+const canonicalSourceWeight = (
+  source: string,
+  canonicalSource: CanonicalizedEffectSource,
+): number => {
+  let canonicalSourceBytes = 0;
+  if (canonicalSource.source !== source) {
+    canonicalSourceBytes = bytesForUTF16(canonicalSource.source);
   }
-  cache.set(source, value);
-  return value;
+  return (
+    bytesForUTF16(source) +
+    CACHE_ENTRY_BYTES +
+    canonicalSourceBytes +
+    ARRAY_BASE_BYTES +
+    canonicalSource.indexMap.length * INDEX_MAP_NUMBER_BYTES
+  );
 };
 
-const cachedBoolean = (cache: Map<string, boolean>, source: string): boolean | undefined =>
-  pipe(Option.fromNullable(cache.get(source)), Option.getOrUndefined);
+const cachedAliases = (cache: AliasCache, source: string): string[] | undefined =>
+  cache.get(source);
 
-const cacheBoolean = (cache: Map<string, boolean>, source: string, value: boolean): boolean => {
-  if (cache.size >= BOOLEAN_CACHE_MAX) {
-    pipe(
-      Option.fromNullable(cache.keys().next().value),
-      Option.map((firstKey): boolean => cache.delete(firstKey)),
-    );
-  }
-  cache.set(source, value);
-  return value;
-};
+const cacheAliases = (cache: AliasCache, source: string, value: string[]): string[] =>
+  cache.set(source, value, aliasCacheWeight(source, value));
+
+const booleanCacheWeight = (source: string): number => bytesForUTF16(source) + CACHE_ENTRY_BYTES;
+
+const cachedBoolean = (cache: BooleanCache, source: string): boolean | undefined =>
+  cache.get(source);
+
+const cacheBoolean = (cache: BooleanCache, source: string, value: boolean): boolean =>
+  cache.set(source, value, booleanCacheWeight(source));
 
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
@@ -310,16 +354,6 @@ const canonicalImportAliases = (source: string): Map<string, string> => {
   return aliases;
 };
 
-const evictCanonicalSourceCache = (): void => {
-  if (canonicalSourceCache.size < ALIAS_CACHE_MAX) {
-    return;
-  }
-  pipe(
-    Option.fromNullable(canonicalSourceCache.keys().next().value),
-    Option.map((firstKey): boolean => canonicalSourceCache.delete(firstKey)),
-  );
-};
-
 const buildCanonicalSource = (source: string): CanonicalizedEffectSource => {
   const aliases = canonicalImportAliases(source);
   if (aliases.size === 0) {
@@ -340,16 +374,18 @@ const buildCanonicalSource = (source: string): CanonicalizedEffectSource => {
  *
  * @internal
  */
-export const canonicalizeEffectAPIAliasesWithMap = (source: string): CanonicalizedEffectSource =>
-  pipe(
-    Option.fromNullable(canonicalSourceCache.get(source)),
-    Option.getOrElse((): CanonicalizedEffectSource => {
-      const canonicalSource = buildCanonicalSource(source);
-      evictCanonicalSourceCache();
-      canonicalSourceCache.set(source, canonicalSource);
-      return canonicalSource;
-    }),
+export const canonicalizeEffectAPIAliasesWithMap = (source: string): CanonicalizedEffectSource => {
+  const cachedSource = canonicalSourceCache.get(source);
+  if (cachedSource !== undefined) {
+    return cachedSource;
+  }
+  const canonicalSource = buildCanonicalSource(source);
+  return canonicalSourceCache.set(
+    source,
+    canonicalSource,
+    canonicalSourceWeight(source, canonicalSource),
   );
+};
 
 /**
  * Canonicalizes local Effect API aliases to their imported names.

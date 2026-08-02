@@ -3,12 +3,6 @@
 /* -------------------------------------------------------------------------- */
 import { Match, Predicate } from 'effect';
 
-interface ImportDepthState {
-  depth: number;
-  index: number;
-  path: string;
-}
-
 /**
  * Count leading `../` segments in an import path. Returns 0 for non-relative imports (no leading
  * `..`).
@@ -16,13 +10,7 @@ interface ImportDepthState {
 const countImportDepth = (path: string): number =>
   Match.value(path).pipe(
     Match.when(Predicate.not(isParentRelativePath), () => NO_PARENT_IMPORT_DEPTH),
-    Match.orElse((parentPath) =>
-      countParentDirectorySegments({
-        depth: NO_PARENT_IMPORT_DEPTH,
-        index: FIRST_CHAR_INDEX,
-        path: parentPath,
-      }),
-    ),
+    Match.orElse(countParentDirectorySegments),
   );
 
 export default countImportDepth;
@@ -36,24 +24,21 @@ const NO_PARENT_IMPORT_DEPTH = 0;
 const PARENT_DIRECTORY_SEGMENT_LENGTH = 3;
 const PARENT_DIRECTORY_TOKEN_LENGTH = 2;
 
-const nextParentDirectorySegment = (state: ImportDepthState): ImportDepthState => ({
-  ...state,
-  depth: state.depth + 1,
-  index: state.index + PARENT_DIRECTORY_SEGMENT_LENGTH,
-});
+const countParentDirectorySegments = (path: string): number => {
+  let depth = NO_PARENT_IMPORT_DEPTH;
+  let index = FIRST_CHAR_INDEX;
 
-const countParentDirectorySegments = (state: ImportDepthState): number =>
-  Match.value(state).pipe(
-    Match.when(
-      ({ index, path }): boolean => hasParentDirectorySegment(path, index),
-      (currentState) => countParentDirectorySegments(nextParentDirectorySegment(currentState)),
-    ),
-    Match.when(
-      ({ index, path }): boolean => hasTrailingParentDirectory(path, index),
-      ({ depth }) => depth + 1,
-    ),
-    Match.orElse(({ depth }) => depth),
-  );
+  while (hasParentDirectorySegment(path, index)) {
+    depth += 1;
+    index += PARENT_DIRECTORY_SEGMENT_LENGTH;
+  }
+
+  if (hasTrailingParentDirectory(path, index)) {
+    return depth + 1;
+  }
+
+  return depth;
+};
 
 const isParentRelativePath = (path: string): boolean => {
   if (path.length < PARENT_DIRECTORY_TOKEN_LENGTH) {

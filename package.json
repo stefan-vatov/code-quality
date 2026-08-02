@@ -45,7 +45,8 @@
     "knip": "knip --cache --strict",
     "knip:watch": "knip --watch --strict",
     "knip:ci": "knip --cache --strict",
-    "performance:gate": "tsx ts/bench/performance-gate.ts --check",
+    "performance:gate": "pnpm run performance:handler-scaling && tsx ts/bench/performance-gate.ts --check",
+    "performance:handler-scaling": "timeout --signal=TERM --kill-after=5s 30s tsx ts/bench/effect-strict-handler-scaling.ts",
     "performance:calibrate": "tsx ts/bench/performance-gate.ts --update --runs 20",
     "performance:estimate": "tsx ts/bench/performance-estimate.ts"
   },

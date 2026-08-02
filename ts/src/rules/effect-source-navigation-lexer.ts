@@ -2,6 +2,11 @@
 /*      Lexical state machines shared by Effect source-navigation rules.      */
 /* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
+import {
+  findLineTerminatorIndex,
+  indexAfterLineTerminator,
+  isLineTerminatorCode,
+} from './effect-source-line-terminators';
 import { findREGEXLiteralEnd, isREGEXLiteralStart } from './effect-source-regex-scan';
 import { Match } from 'effect';
 
@@ -9,13 +14,11 @@ const CHAR_CODE_BACKSLASH = 92;
 const CHAR_CODE_BLOCK_COMMENT = 42;
 const CHAR_CODE_BRACE_CLOSE = 125;
 const CHAR_CODE_BRACE_OPEN = 123;
-const CHAR_CODE_CARRIAGE_RETURN = 13;
 const CHAR_CODE_DOLLAR = 36;
 const CHAR_CODE_DOUBLE_QUOTE = 34;
 const CHAR_CODE_GREATER_THAN = 62;
 const CHAR_CODE_LESS_THAN = 60;
 const CHAR_CODE_LINE_COMMENT = 47;
-const CHAR_CODE_NEWLINE = 10;
 const CHAR_CODE_SINGLE_QUOTE = 39;
 const CHAR_CODE_SPACE = 32;
 const CHAR_CODE_TAB = 9;
@@ -23,14 +26,13 @@ const CHAR_CODE_TEMPLATE_QUOTE = 96;
 const CHAR_CODE_UNDERSCORE = 95;
 const LETTER_MASK = CLS_LOWER | CLS_UPPER;
 
-const indexOrFallback = (index: number, fallback: number): number =>
-  Match.value(index).pipe(
-    Match.when(-1, (): number => fallback),
-    Match.orElse((value): number => value),
-  );
-
-const skipLineCommentIndex = (source: string, index: number, fallback: number): number =>
-  indexOrFallback(source.indexOf('\n', index + 2), fallback);
+const skipLineCommentIndex = (source: string, index: number, fallback: number): number => {
+  const lineEnd = findLineTerminatorIndex(source, index + 2);
+  if (lineEnd === source.length) {
+    return fallback;
+  }
+  return indexAfterLineTerminator(source, lineEnd) - 1;
+};
 
 const skipBlockCommentIndex = (source: string, index: number, fallback: number): number =>
   Match.value(source.indexOf('*/', index + 2)).pipe(
@@ -83,79 +85,164 @@ const nextStatementCodeIndex = (source: string, index: number, sourceLength: num
   return index;
 };
 
-interface BraceScanState {
+interface JSXElementScanState {
   depth: number;
   index: number;
 }
 
-const nextBraceScanState = (
-  source: string,
-  sourceLength: number,
-  state: BraceScanState,
-): BraceScanState => {
-  const { depth, index } = state;
-  const charCode = source.charCodeAt(index);
-  return Match.value(charCode).pipe(
-    Match.when(
-      (code): boolean => code === CHAR_CODE_DOUBLE_QUOTE || code === CHAR_CODE_SINGLE_QUOTE,
-      (code): BraceScanState => ({ depth, index: findQuotedEnd(source, index, code) }),
-    ),
-    Match.when(
-      CHAR_CODE_TEMPLATE_QUOTE,
-      (): BraceScanState => ({ depth, index: findTemplateEnd(source, index) }),
-    ),
-    Match.when(
-      CHAR_CODE_LINE_COMMENT,
-      (): BraceScanState => ({
-        depth,
-        index: nextStatementCodeIndex(source, index, sourceLength),
-      }),
-    ),
-    Match.when(
-      CHAR_CODE_BRACE_OPEN,
-      (): BraceScanState => ({ depth: depth + 1, index: index + 1 }),
-    ),
-    Match.when(
-      CHAR_CODE_BRACE_CLOSE,
-      (): BraceScanState => ({ depth: depth - 1, index: index + 1 }),
-    ),
-    Match.orElse((): BraceScanState => ({ depth, index: index + 1 })),
-  );
-};
+interface CodeBraceScanFrame {
+  depth: number;
+  index: number;
+  kind: 'code-brace';
+}
 
-const findCodeBraceEnd = (source: string, startIndex: number): number => {
-  let state: BraceScanState = { depth: 1, index: startIndex + 1 };
-  while (state.index < source.length && state.depth > 0) {
-    state = nextBraceScanState(source, source.length, state);
+interface TemplateScanFrame {
+  index: number;
+  kind: 'template';
+}
+
+type LexicalRegionFrame = CodeBraceScanFrame | TemplateScanFrame;
+
+interface AdvanceLexicalStep {
+  frame: LexicalRegionFrame;
+  kind: 'advance';
+}
+
+interface PushLexicalStep {
+  frame: LexicalRegionFrame;
+  kind: 'push';
+}
+
+interface CompleteLexicalStep {
+  endIndex: number;
+  kind: 'complete';
+}
+
+type LexicalStep = AdvanceLexicalStep | CompleteLexicalStep | PushLexicalStep;
+
+const nextCodeBraceIndex = (source: string, index: number): number => {
+  const nextIndex = nextStatementCodeIndex(source, index, source.length);
+  if (nextIndex === index) {
+    return index + 1;
   }
-  return state.index;
+  return nextIndex;
 };
 
-const nextTemplateIndex = (source: string, index: number): number => {
+const stepTemplateFrame = (source: string, frame: TemplateScanFrame): LexicalStep => {
+  const { index } = frame;
   const charCode = source.charCodeAt(index);
   if (charCode === CHAR_CODE_BACKSLASH) {
-    return index + 2;
+    return { frame: { ...frame, index: index + 2 }, kind: 'advance' };
   }
   if (charCode === CHAR_CODE_TEMPLATE_QUOTE) {
-    return -(index + 1);
+    return { endIndex: index + 1, kind: 'complete' };
   }
   if (charCode === CHAR_CODE_DOLLAR && source.charCodeAt(index + 1) === CHAR_CODE_BRACE_OPEN) {
-    return findCodeBraceEnd(source, index + 1);
+    return { frame: { depth: 1, index: index + 2, kind: 'code-brace' }, kind: 'push' };
   }
-  return index + 1;
+  return { frame: { ...frame, index: index + 1 }, kind: 'advance' };
 };
 
-const findTemplateEnd = (source: string, startIndex: number): number => {
-  let index = startIndex + 1;
-  while (index < source.length) {
-    const nextIndex = nextTemplateIndex(source, index);
-    if (nextIndex < 0) {
-      return -nextIndex;
+const skipCodeBraceRegion = (
+  source: string,
+  frame: CodeBraceScanFrame,
+): LexicalStep | undefined => {
+  const { index } = frame;
+  const charCode = source.charCodeAt(index);
+  if (isQuoteCode(charCode)) {
+    return { frame: { ...frame, index: findQuotedEnd(source, index, charCode) }, kind: 'advance' };
+  }
+  if (charCode === CHAR_CODE_TEMPLATE_QUOTE) {
+    return { frame: { index, kind: 'template' }, kind: 'push' };
+  }
+  if (charCode !== CHAR_CODE_LINE_COMMENT) {
+    return undefined;
+  }
+  return { frame: { ...frame, index: nextCodeBraceIndex(source, index) }, kind: 'advance' };
+};
+
+const stepCodeBraceDelimiter = (frame: CodeBraceScanFrame, charCode: number): LexicalStep => {
+  const { index } = frame;
+  if (charCode === CHAR_CODE_BRACE_OPEN) {
+    return { frame: { ...frame, depth: frame.depth + 1, index: index + 1 }, kind: 'advance' };
+  }
+  if (charCode !== CHAR_CODE_BRACE_CLOSE) {
+    return { frame: { ...frame, index: index + 1 }, kind: 'advance' };
+  }
+  const nextFrame = { ...frame, depth: frame.depth - 1, index: index + 1 };
+  if (nextFrame.depth !== 0) {
+    return { frame: nextFrame, kind: 'advance' };
+  }
+  return { endIndex: nextFrame.index, kind: 'complete' };
+};
+
+const stepCodeBraceFrame = (source: string, frame: CodeBraceScanFrame): LexicalStep => {
+  const { index } = frame;
+  const charCode = source.charCodeAt(index);
+  const regionStep = skipCodeBraceRegion(source, frame);
+  if (regionStep !== undefined) {
+    return regionStep;
+  }
+  return stepCodeBraceDelimiter(frame, charCode);
+};
+
+const stepLexicalRegion = (source: string, frames: LexicalRegionFrame[]): LexicalStep => {
+  const frame = frames.at(-1);
+  if (frame === undefined) {
+    return { endIndex: source.length, kind: 'complete' };
+  }
+  if (frame.index >= source.length) {
+    return { endIndex: source.length, kind: 'complete' };
+  }
+  if (frame.kind === 'template') {
+    return stepTemplateFrame(source, frame);
+  }
+  return stepCodeBraceFrame(source, frame);
+};
+
+const completeLexicalStep = (
+  frames: LexicalRegionFrame[],
+  endIndex: number,
+): number | undefined => {
+  frames.pop();
+  const parent = frames.at(-1);
+  if (parent === undefined) {
+    return endIndex;
+  }
+  frames.pop();
+  frames.push({ ...parent, index: endIndex });
+  return undefined;
+};
+
+const applyLexicalStep = (frames: LexicalRegionFrame[], step: LexicalStep): number | undefined => {
+  if (step.kind === 'advance') {
+    frames.pop();
+    frames.push(step.frame);
+    return undefined;
+  }
+  if (step.kind === 'push') {
+    frames.push(step.frame);
+    return undefined;
+  }
+  return completeLexicalStep(frames, step.endIndex);
+};
+
+const scanLexicalRegion = (source: string, initialFrame: LexicalRegionFrame): number => {
+  const frames: LexicalRegionFrame[] = [initialFrame];
+  while (frames.length > 0) {
+    const endIndex = applyLexicalStep(frames, stepLexicalRegion(source, frames));
+    if (endIndex !== undefined) {
+      return endIndex;
     }
-    index = nextIndex;
   }
   return source.length;
 };
+
+const findCodeBraceEnd = (source: string, startIndex: number): number =>
+  scanLexicalRegion(source, { depth: 1, index: startIndex + 1, kind: 'code-brace' });
+
+const findTemplateEnd = (source: string, startIndex: number): number =>
+  scanLexicalRegion(source, { index: startIndex + 1, kind: 'template' });
 
 interface JSXTag {
   endIndex: number;
@@ -169,10 +256,7 @@ const isJSXNameCode = (charCode: number): boolean =>
   (charCode < CHAR_CLASS.length && (CHAR_CLASS[charCode] & LETTER_MASK) !== 0);
 
 const isWhitespaceCode = (charCode: number): boolean =>
-  charCode === CHAR_CODE_TAB ||
-  charCode === CHAR_CODE_NEWLINE ||
-  charCode === CHAR_CODE_CARRIAGE_RETURN ||
-  charCode === CHAR_CODE_SPACE;
+  charCode === CHAR_CODE_TAB || isLineTerminatorCode(charCode) || charCode === CHAR_CODE_SPACE;
 
 interface JSXTagStart {
   index: number;
@@ -251,7 +335,7 @@ const jsxDepthAfterTag = (depth: number, tag: JSXTag): number =>
     Match.orElse((): number => depth + 1),
   );
 
-const nextJSXElementState = (source: string, state: BraceScanState): BraceScanState => {
+const nextJSXElementState = (source: string, state: JSXElementScanState): JSXElementScanState => {
   const charCode = source.charCodeAt(state.index);
   if (charCode === CHAR_CODE_BRACE_OPEN) {
     return { ...state, index: findCodeBraceEnd(source, state.index) };
@@ -266,7 +350,10 @@ const nextJSXElementState = (source: string, state: BraceScanState): BraceScanSt
   return { depth: jsxDepthAfterTag(state.depth, tag), index: tag.endIndex + 1 };
 };
 
-const initialJSXElementState = (source: string, startIndex: number): BraceScanState | number => {
+const initialJSXElementState = (
+  source: string,
+  startIndex: number,
+): JSXElementScanState | number => {
   const root = findJSXTag(source, startIndex);
   if (root === undefined || root.isClosing) {
     return startIndex;

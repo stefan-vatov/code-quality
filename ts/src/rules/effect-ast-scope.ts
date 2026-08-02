@@ -4,6 +4,9 @@
 
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
 import type { ASTNode } from './effect-ast';
+import { extendScopeStack } from './effect-ast-scope-stack';
+
+export { scopeContainingBinding, scopeHasBinding } from './effect-ast-scope-stack';
 
 export type { ASTNode } from './effect-ast';
 export type ScopeStack = readonly ReadonlySet<string>[];
@@ -172,51 +175,95 @@ const addVarDeclarationBindings = (bindings: Set<string>, node: ASTNode): void =
   }
 };
 
-const addHoistedVarValues = (
-  bindings: Set<string>,
-  values: readonly unknown[],
-  seen: WeakSet<object>,
-): void => {
-  for (const value of values) {
-    addHoistedVarBindings(bindings, value, seen);
-  }
-};
-
-const addHoistedVarNode = (bindings: Set<string>, node: ASTNode, seen: WeakSet<object>): void => {
-  seen.add(node);
-  if (isVarTraversalBoundary(node)) {
-    return;
-  }
-  addVarDeclarationBindings(bindings, node);
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      addHoistedVarBindings(bindings, value, seen);
+const pushHoistedVarChildren = (pending: unknown[], node: ASTNode): void => {
+  const entries = Object.entries(node);
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry && entry[0] !== 'parent') {
+      pending.push(entry[1]);
     }
   }
 };
 
-const addHoistedVarBindings = (
+const pushHoistedVarArrayValues = (pending: unknown[], values: readonly unknown[]): void => {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    pending.push(values[index]);
+  }
+};
+
+const addHoistedVarArray = (
+  pending: unknown[],
+  values: readonly unknown[],
+  seenArrays: WeakSet<object>,
+): void => {
+  if (!seenArrays.has(values)) {
+    seenArrays.add(values);
+    pushHoistedVarArrayValues(pending, values);
+  }
+};
+
+const addHoistedVarNodeValue = (
   bindings: Set<string>,
+  pending: unknown[],
   value: unknown,
-  seen: WeakSet<object>,
+  seenNodes: WeakSet<object>,
+): void => {
+  const child = asNode(value);
+  if (!child || seenNodes.has(child)) {
+    return;
+  }
+  seenNodes.add(child);
+  if (isVarTraversalBoundary(child)) {
+    return;
+  }
+  addVarDeclarationBindings(bindings, child);
+  pushHoistedVarChildren(pending, child);
+};
+
+const addHoistedVarValue = (
+  bindings: Set<string>,
+  pending: unknown[],
+  value: unknown,
+  seenNodes: WeakSet<object>,
+  seenArrays: WeakSet<object>,
 ): void => {
   if (Array.isArray(value)) {
-    addHoistedVarValues(bindings, value, seen);
+    addHoistedVarArray(pending, value, seenArrays);
     return;
   }
-  const node = asNode(value);
-  if (!node || seen.has(node)) {
-    return;
+  addHoistedVarNodeValue(bindings, pending, value, seenNodes);
+};
+
+const hoistedVarBindingsCache = new WeakMap<object, ReadonlySet<string>>();
+
+const collectHoistedVarBindings = (node: ASTNode): ReadonlySet<string> => {
+  const seenNodes = new WeakSet();
+  const seenArrays = new WeakSet();
+  const pending: unknown[] = [];
+  const bindings = new Set<string>();
+  pushHoistedVarChildren(pending, node);
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (value !== undefined) {
+      addHoistedVarValue(bindings, pending, value, seenNodes, seenArrays);
+    }
   }
-  addHoistedVarNode(bindings, node, seen);
+  return bindings;
+};
+
+const hoistedVarBindingsForChildren = (node: ASTNode): ReadonlySet<string> => {
+  const cached = hoistedVarBindingsCache.get(node);
+  if (cached) {
+    return cached;
+  }
+  const bindings = collectHoistedVarBindings(node);
+  hoistedVarBindingsCache.set(node, bindings);
+  return bindings;
 };
 
 const addHoistedVarsFromChildren = (bindings: Set<string>, node: ASTNode): void => {
-  const seen = new WeakSet();
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      addHoistedVarBindings(bindings, value, seen);
-    }
+  for (const name of hoistedVarBindingsForChildren(node)) {
+    bindings.add(name);
   }
 };
 
@@ -283,13 +330,6 @@ const nodeBindings = (node: ASTNode): Set<string> => {
   return bindings;
 };
 
-const extendScopes = (scopes: ScopeStack, bindings: ReadonlySet<string>): ScopeStack => {
-  if (bindings.size === 0) {
-    return scopes;
-  }
-  return [...scopes, bindings];
-};
-
 /**
  * Extend an AST traversal scope stack with bindings introduced by a node.
  *
@@ -303,7 +343,7 @@ export const withNodeScope = (scopes: ScopeStack, node: ASTNode): ScopeStack => 
   if (!canIntroduceBindings(node)) {
     return scopes;
   }
-  return extendScopes(scopes, nodeBindings(node));
+  return extendScopeStack(scopes, nodeBindings(node));
 };
 
 /**
@@ -324,12 +364,12 @@ export const scopesForChild = (
   if (isFunctionNode(parent) && childKey === 'body') {
     const bindings = new Set<string>();
     addFunctionBodyVarBindings(bindings, parent);
-    return extendScopes(nodeScopes, bindings);
+    return extendScopeStack(nodeScopes, bindings);
   }
   if (parent.type === 'SwitchStatement' && childKey === 'cases') {
     const bindings = new Set<string>();
     addSwitchBindings(bindings, parent);
-    return extendScopes(nodeScopes, bindings);
+    return extendScopeStack(nodeScopes, bindings);
   }
   return nodeScopes;
 };

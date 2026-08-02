@@ -17,26 +17,110 @@ export interface SourceContext {
   };
 }
 
-const SOURCE_CACHE_MAX = 512;
 interface CachedFileSource {
   mtimeMs: number;
   size: number;
   source: string;
 }
 
-const fileSourceCache = new Map<string, CachedFileSource>();
+const CACHE_MEBIBYTE_BYTES = 1_048_576;
+const UTF16_CODE_UNIT_BYTES = 2;
+const FILE_SOURCE_CACHE_MAX_ENTRIES = 32;
+const FILE_SOURCE_CACHE_MAX_MEBIBYTES = 10;
+const FILE_SOURCE_CACHE_MAX_WEIGHT = FILE_SOURCE_CACHE_MAX_MEBIBYTES * CACHE_MEBIBYTE_BYTES;
+const FILE_SOURCE_CACHE_METADATA_AND_OBJECT_OVERHEAD_BYTES = 128;
+
+interface WeightedCacheConfig {
+  maxEntries: number;
+  maxWeight: number;
+}
+
+interface WeightedCacheEntry<Value> {
+  value: Value;
+  weight: number;
+}
+
+interface WeightedCache<Key, Value> {
+  readonly size: number;
+  get: (key: Key) => Value | undefined;
+  set: (key: Key, value: Value, explicitWeight?: number) => Value;
+}
+
+/**
+ * Creates a deterministic FIFO cache bounded by entry count and aggregate weight.
+ *
+ * @internal
+ */
+export const createWeightedCache = <Key, Value>(
+  config: WeightedCacheConfig,
+): WeightedCache<Key, Value> => {
+  const entries = new Map<Key, WeightedCacheEntry<Value>>();
+  let totalWeight = 0;
+
+  const isRetainableWeight = (weight: number): boolean =>
+    Number.isFinite(weight) && weight > 0 && weight <= config.maxWeight;
+
+  const evictToBounds = (): void => {
+    while (entries.size > config.maxEntries || totalWeight > config.maxWeight) {
+      const oldest = entries.entries().next();
+      if (oldest.done) {
+        return;
+      }
+      entries.delete(oldest.value[0]);
+      totalWeight -= oldest.value[1].weight;
+    }
+  };
+
+  const removeEntry = (key: Key): void => {
+    const existingEntry = entries.get(key);
+    if (existingEntry === undefined) {
+      return;
+    }
+    entries.delete(key);
+    totalWeight -= existingEntry.weight;
+  };
+
+  const replaceEntry = (key: Key, value: Value, weight: number): void => {
+    const existingEntry = entries.get(key);
+    if (existingEntry !== undefined) {
+      totalWeight -= existingEntry.weight;
+    }
+    totalWeight += weight;
+    entries.set(key, { value, weight });
+  };
+
+  return {
+    get: (key: Key): Value | undefined => entries.get(key)?.value,
+    set: (key: Key, value: Value, explicitWeight = 1): Value => {
+      if (!isRetainableWeight(explicitWeight)) {
+        removeEntry(key);
+        return value;
+      }
+
+      replaceEntry(key, value, explicitWeight);
+      evictToBounds();
+      return value;
+    },
+    get size(): number {
+      return entries.size;
+    },
+  };
+};
+
+const fileSourceCache: WeightedCache<string, CachedFileSource> = createWeightedCache({
+  maxEntries: FILE_SOURCE_CACHE_MAX_ENTRIES,
+  maxWeight: FILE_SOURCE_CACHE_MAX_WEIGHT,
+});
 const sourceCodeTextCache = new WeakMap<NonNullable<SourceContext['sourceCode']>, string>();
 
-const cacheFileSource = (filename: string, cachedFileSource: CachedFileSource): string => {
-  if (fileSourceCache.size >= SOURCE_CACHE_MAX) {
-    const firstKey = fileSourceCache.keys().next().value;
-    if (firstKey !== undefined) {
-      fileSourceCache.delete(firstKey);
-    }
-  }
-  fileSourceCache.set(filename, cachedFileSource);
-  return cachedFileSource.source;
-};
+const fileSourceCacheWeight = (filename: string, cachedFileSource: CachedFileSource): number =>
+  filename.length * UTF16_CODE_UNIT_BYTES +
+  cachedFileSource.source.length * UTF16_CODE_UNIT_BYTES +
+  FILE_SOURCE_CACHE_METADATA_AND_OBJECT_OVERHEAD_BYTES;
+
+const cacheFileSource = (filename: string, cachedFileSource: CachedFileSource): string =>
+  fileSourceCache.set(filename, cachedFileSource, fileSourceCacheWeight(filename, cachedFileSource))
+    .source;
 
 const uncachedSourceCodeText = (sourceCode: NonNullable<SourceContext['sourceCode']>): string => {
   const source = pipe(

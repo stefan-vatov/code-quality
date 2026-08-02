@@ -2,6 +2,12 @@
 /*         Lexical source index for the Effect.sync Promise fallback.         */
 /* -------------------------------------------------------------------------- */
 
+import {
+  SOURCE_SCOPE_CACHE_MAX_WEIGHT,
+  sourceScopeIndexCacheWeight,
+} from './effect-source-cache-weights';
+import type { SourceWeightedCache } from './effect-source-cache-weights';
+import { createWeightedCache } from './source-cache';
 import { findMatchingBrace } from './effect-source-helpers';
 
 /**
@@ -24,12 +30,13 @@ export const BINDING_PROMISE = 2;
 export const BINDING_GLOBAL_THIS = 4;
 
 const NO_BINDING = 0;
-const SOURCE_SCOPE_CACHE_MAX = 128;
+const SOURCE_SCOPE_CACHE_MAX_ENTRIES = 128;
 const DECLARATION_PATTERN = /\b(?:class|const|function|let|var)\s+(Promise|fetch|globalThis)\b/g;
 const IMPORT_PATTERN = /\bimport\s+(?!type\b)([^;]*?)\s+from\s*["']/g;
 const ARROW_PATTERN = /=>/g;
 const FUNCTION_PATTERN = /\bfunction(?:\s+[A-Za-z_$][\w$]*)?\s*(?:<[^>{;]*>)?\s*\(/g;
 const CATCH_PATTERN = /\bcatch\s*\(/g;
+const BINDING_BITS = [BINDING_FETCH, BINDING_PROMISE, BINDING_GLOBAL_THIS] as const;
 
 interface SourceScope {
   bindingMask: number;
@@ -57,11 +64,13 @@ export interface SourceScopeIndex {
 
 interface ScopeScan {
   parentheses: Parentheses[];
+  parenthesesByOpen: ReadonlyMap<number, number>;
   scopes: SourceScope[];
 }
 
 interface DelimiterScan {
   parentheses: Parentheses[];
+  parenthesesByOpen: Map<number, number>;
   parenthesisStack: number[];
   scopes: SourceScope[];
   scopeStack: number[];
@@ -74,7 +83,14 @@ interface NestingDepth {
   parenthesis: number;
 }
 
-const sourceScopeCache = new Map<string, SourceScopeIndex>();
+const sourceScopeCache: SourceWeightedCache<SourceScopeIndex> = createWeightedCache({
+  maxEntries: SOURCE_SCOPE_CACHE_MAX_ENTRIES,
+  maxWeight: SOURCE_SCOPE_CACHE_MAX_WEIGHT,
+});
+const parameterRangeCache = new WeakMap<
+  readonly ParameterScope[],
+  ReadonlyMap<number, readonly SourceScope[]>
+>();
 
 const bindingMaskFor = (name: string): number => {
   if (name === 'Promise') {
@@ -136,17 +152,20 @@ const closeScope = (scopes: SourceScope[], scopeStack: number[], index: number):
 
 const closeParenthesis = (
   parentheses: Parentheses[],
+  parenthesesByOpen: Map<number, number>,
   parenthesisStack: number[],
   index: number,
 ): void => {
   const open = parenthesisStack.pop();
   if (open !== undefined) {
     parentheses.push({ close: index, open });
+    parenthesesByOpen.set(open, index);
   }
 };
 
 const scanDelimiter = (character: string | undefined, index: number, scan: DelimiterScan): void => {
-  const { parentheses, parenthesisStack, scopes, scopeStack, sourceLength } = scan;
+  const { parentheses, parenthesesByOpen, parenthesisStack, scopes, scopeStack, sourceLength } =
+    scan;
   if (character === '{') {
     openScope(scopes, scopeStack, sourceLength, index);
   } else if (character === '}') {
@@ -154,7 +173,7 @@ const scanDelimiter = (character: string | undefined, index: number, scan: Delim
   } else if (character === '(') {
     parenthesisStack.push(index);
   } else if (character === ')') {
-    closeParenthesis(parentheses, parenthesisStack, index);
+    closeParenthesis(parentheses, parenthesesByOpen, parenthesisStack, index);
   }
 };
 
@@ -165,19 +184,43 @@ const scanSourceScopes = (code: string): ScopeScan => {
   const scopeStack = [0];
   const parenthesisStack: number[] = [];
   const parentheses: Parentheses[] = [];
-  const scan = { parentheses, parenthesisStack, scopeStack, scopes, sourceLength: code.length };
+  const parenthesesByOpen = new Map<number, number>();
+  const scan = {
+    parentheses,
+    parenthesesByOpen,
+    parenthesisStack,
+    scopeStack,
+    scopes,
+    sourceLength: code.length,
+  };
   for (let index = 0; index < code.length; index += 1) {
     scanDelimiter(code[index], index, scan);
   }
-  return { parentheses, scopes };
+  return { parentheses, parenthesesByOpen, scopes };
+};
+
+const lastScopeBefore = (scopes: readonly SourceScope[], index: number): number => {
+  let low = 0;
+  let high = scopes.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if ((scopes[middle]?.start ?? Number.POSITIVE_INFINITY) <= index) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return Math.max(0, low - 1);
 };
 
 const scopeAt = (scopes: readonly SourceScope[], index: number): number => {
-  for (let scopeIndex = scopes.length - 1; scopeIndex >= 0; scopeIndex -= 1) {
+  let scopeIndex = lastScopeBefore(scopes, index);
+  while (scopeIndex > 0) {
     const scope = scopes[scopeIndex];
-    if (scope && scope.start <= index && index < scope.end) {
+    if (scope && index < scope.end) {
       return scopeIndex;
     }
+    scopeIndex = scope?.parent ?? 0;
   }
   return 0;
 };
@@ -249,29 +292,47 @@ const parameterBindingMask = (parameters: string): number => {
   return bindingMask;
 };
 
+const lastParenthesisBefore = (parentheses: readonly Parentheses[], arrowIndex: number): number => {
+  let low = 0;
+  let high = parentheses.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if ((parentheses[middle]?.close ?? Number.POSITIVE_INFINITY) < arrowIndex) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low - 1;
+};
+
 const matchingParameterPair = (
   code: string,
   parentheses: readonly Parentheses[],
   arrowIndex: number,
 ): Parentheses | undefined => {
-  for (let index = parentheses.length - 1; index >= 0; index -= 1) {
-    const pair = parentheses[index];
-    if (
-      pair &&
-      pair.close < arrowIndex &&
-      /^\s*(?::[^=;{}]*)?$/.test(code.slice(pair.close + 1, arrowIndex))
-    ) {
-      return pair;
-    }
+  const pair = parentheses[lastParenthesisBefore(parentheses, arrowIndex)];
+  if (
+    pair &&
+    pair.close < arrowIndex &&
+    /^\s*(?::[^=;{}]*)?$/.test(code.slice(pair.close + 1, arrowIndex))
+  ) {
+    return pair;
   }
   return undefined;
 };
 
 const singleArrowParameterMask = (code: string, arrowIndex: number): number => {
-  const prefix = code.slice(0, arrowIndex);
-  const match = /(?:^|[^\w$])(?:async\s+)?(Promise|fetch|globalThis)\s*$/.exec(prefix);
-  const name = match?.[1];
-  if (!name) {
+  let end = arrowIndex;
+  while (end > 0 && /\s/.test(code[end - 1] ?? '')) {
+    end -= 1;
+  }
+  let start = end;
+  while (start > 0 && /[\w$]/.test(code[start - 1] ?? '')) {
+    start -= 1;
+  }
+  const name = code.slice(start, end);
+  if (name !== 'Promise' && name !== 'fetch' && name !== 'globalThis') {
     return NO_BINDING;
   }
   return bindingMaskFor(name);
@@ -380,9 +441,10 @@ const functionBodyScope = (
 const functionParameterScope = (
   code: string,
   match: RegExpExecArray,
+  parenthesesByOpen: ReadonlyMap<number, number>,
 ): ParameterScope | undefined => {
   const open = code.indexOf('(', match.index);
-  const close = matchingParenthesisEnd(code, open);
+  const close = parenthesesByOpen.get(open) ?? code.length;
   const bindingMask = parameterBindingMask(code.slice(open + 1, close));
   if (bindingMask === NO_BINDING) {
     return undefined;
@@ -393,26 +455,54 @@ const functionParameterScope = (
 const addFunctionParameterScopes = (
   code: string,
   pattern: RegExp,
+  parenthesesByOpen: ReadonlyMap<number, number>,
   parameterScopes: ParameterScope[],
 ): void => {
   for (const match of code.matchAll(pattern)) {
-    const scope = functionParameterScope(code, match);
+    const scope = functionParameterScope(code, match, parenthesesByOpen);
     if (scope) {
       parameterScopes.push(scope);
     }
   }
 };
 
-const cacheSourceScopeIndex = (code: string, value: SourceScopeIndex): SourceScopeIndex => {
-  if (sourceScopeCache.size >= SOURCE_SCOPE_CACHE_MAX) {
-    const firstKey = sourceScopeCache.keys().next().value;
-    if (firstKey !== undefined) {
-      sourceScopeCache.delete(firstKey);
-    }
+const parameterRangesFor = (
+  scopes: readonly ParameterScope[],
+  bindingMask: number,
+): SourceScope[] => {
+  let maxEnd = -1;
+  return scopes
+    .filter((scope): boolean => (scope.bindingMask & bindingMask) !== 0 && scope.start < scope.end)
+    .sort((left, right) => left.start - right.start)
+    .map(({ end, start }) => {
+      maxEnd = Math.max(maxEnd, end);
+      return { bindingMask: NO_BINDING, end: maxEnd, parent: -1, start };
+    });
+};
+
+const parameterRangesIndex = (
+  scopes: readonly ParameterScope[],
+): ReadonlyMap<number, readonly SourceScope[]> => {
+  const cached = parameterRangeCache.get(scopes);
+  if (cached) {
+    return cached;
   }
-  sourceScopeCache.set(code, value);
+  const value = new Map(
+    BINDING_BITS.map((bindingMask) => [bindingMask, parameterRangesFor(scopes, bindingMask)]),
+  );
+  parameterRangeCache.set(scopes, value);
   return value;
 };
+
+const cacheSourceScopeIndex = (code: string, value: SourceScopeIndex): SourceScopeIndex =>
+  sourceScopeCache.set(
+    code,
+    value,
+    sourceScopeIndexCacheWeight(code.length, {
+      parameterScopeCount: value.parameterScopes.length,
+      scopeCount: value.scopes.length,
+    }),
+  );
 
 /** Build or retrieve the lexical scope index for stripped source. @internal */
 export const sourceScopeIndex = (code: string): SourceScopeIndex => {
@@ -424,8 +514,8 @@ export const sourceScopeIndex = (code: string): SourceScopeIndex => {
   addDeclaredBindings(code, scan.scopes);
   const parameterScopes: ParameterScope[] = [];
   addArrowParameterScopes(code, scan.parentheses, parameterScopes);
-  addFunctionParameterScopes(code, FUNCTION_PATTERN, parameterScopes);
-  addFunctionParameterScopes(code, CATCH_PATTERN, parameterScopes);
+  addFunctionParameterScopes(code, FUNCTION_PATTERN, scan.parenthesesByOpen, parameterScopes);
+  addFunctionParameterScopes(code, CATCH_PATTERN, scan.parenthesesByOpen, parameterScopes);
   return cacheSourceScopeIndex(code, { parameterScopes, scopes: scan.scopes });
 };
 
@@ -434,16 +524,17 @@ const isParameterBound = (
   targetIndex: number,
   bindingMask: number,
 ): boolean => {
-  for (const scope of parameterScopes) {
-    if (
+  const ranges = parameterRangesIndex(parameterScopes);
+  return BINDING_BITS.some((bindingBit) => {
+    const bindingRanges = ranges.get(bindingBit);
+    const scope = bindingRanges?.[lastScopeBefore(bindingRanges, targetIndex)];
+    return (
+      (bindingMask & bindingBit) !== 0 &&
+      scope !== undefined &&
       scope.start <= targetIndex &&
-      targetIndex < scope.end &&
-      (scope.bindingMask & bindingMask) !== 0
-    ) {
-      return true;
-    }
-  }
-  return false;
+      scope.end > targetIndex
+    );
+  });
 };
 
 /** Check whether a Promise or fetch reference resolves to a local value. @internal */

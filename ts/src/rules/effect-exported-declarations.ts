@@ -9,68 +9,105 @@ import {
   moduleLevelMatches,
 } from './effect-module-source-index';
 import {
+  declarationsGroupedByStatement,
+  privateEffectsByStatement,
+  privateSiblingHasEffect,
+} from './effect-exported-declaration-projection';
+import {
   exportedCallableDeclarationSegment,
   exportedDeclarationSegment,
 } from './effect-export-segments';
 import type { ModuleBindingDeclaration } from './effect-module-source-index';
+import { createWeightedCache } from './source-cache';
 import { declarationWithBraceBody } from './effect-export-declaration-boundaries';
 import { defaultExportBindingName } from './effect-export-default-binding';
-import { stripCommentsAndStrings } from './effect-source-scan';
+import { exportedSourceCode } from './effect-export-source-code';
 
 type ModuleSourceIndex = ReturnType<typeof createModuleSourceIndex>;
 interface ExportedDeclarationProjection {
   readonly analysisText: string;
   readonly declarationText: string;
 }
+interface WeightedSourceCache<Value> {
+  readonly get: (source: string) => Value | undefined;
+  readonly set: (source: string, value: Value, explicitWeight?: number) => Value;
+}
+type WeightedProjectionCache = WeightedSourceCache<readonly ExportedDeclarationProjection[]>;
 
-const EXPORTED_DECLARATION_CACHE_MAX = 256;
-const exportedDeclarationCache = new Map<string, string[]>();
-const exportedDeclarationSegmentCache = new Map<string, string[]>();
-const exportedCallableDeclarationSegmentCache = new Map<string, string[]>();
-const exportedDeclarationProjectionCache = new Map<
-  string,
-  readonly ExportedDeclarationProjection[]
->();
+const UTF16_BYTES_PER_CODE_UNIT = 2;
+const STRING_CONTAINER_BYTES = 128;
+const ARRAY_CONTAINER_BYTES = 128;
+const OBJECT_CONTAINER_BYTES = 256;
+const REFERENCE_BYTES = 8;
+
+const exportedDeclarationCache: WeightedSourceCache<string[]> = createWeightedCache({
+  maxEntries: 256,
+  maxWeight: 5_767_168,
+});
+const exportedDeclarationSegmentCache: WeightedSourceCache<string[]> = createWeightedCache({
+  maxEntries: 256,
+  maxWeight: 5_767_168,
+});
+const exportedCallableDeclarationSegmentCache: WeightedSourceCache<string[]> = createWeightedCache({
+  maxEntries: 256,
+  maxWeight: 5_767_168,
+});
+const exportedDeclarationProjectionCache: WeightedProjectionCache = createWeightedCache({
+  maxEntries: 256,
+  maxWeight: 5_767_168,
+});
+
+const stringWeight = (value: string): number =>
+  value.length * UTF16_BYTES_PER_CODE_UNIT + STRING_CONTAINER_BYTES;
+
+const stringArrayWeight = (source: string, values: readonly string[]): number =>
+  stringWeight(source) +
+  ARRAY_CONTAINER_BYTES +
+  values.length * REFERENCE_BYTES +
+  values.reduce((weight, value): number => weight + stringWeight(value), 0);
+
+const projectionWeight = (
+  source: string,
+  projections: readonly ExportedDeclarationProjection[],
+): number =>
+  stringWeight(source) +
+  ARRAY_CONTAINER_BYTES +
+  projections.length * REFERENCE_BYTES +
+  projections.reduce(
+    (weight, { analysisText, declarationText }): number =>
+      weight +
+      OBJECT_CONTAINER_BYTES +
+      REFERENCE_BYTES * 2 +
+      stringWeight(analysisText) +
+      stringWeight(declarationText),
+    0,
+  );
+
 const cachedExportedDeclarations = (source: string): string[] | undefined =>
   exportedDeclarationCache.get(source);
 
-const cacheValue = <Value>(cache: Map<string, Value>, source: string, value: Value): Value => {
-  pipe(
-    Match.value(cache.size),
-    Match.when(
-      (size): boolean => size >= EXPORTED_DECLARATION_CACHE_MAX,
-      (): void => {
-        pipe(
-          Option.fromNullable(cache.keys().next().value),
-          Option.match({
-            onNone: (): void => undefined,
-            onSome: (firstKey): void => {
-              cache.delete(firstKey);
-            },
-          }),
-        );
-      },
-    ),
-    Match.orElse((): void => undefined),
-  );
-  cache.set(source, value);
-  return value;
-};
-
 const cacheExportedDeclarations = (source: string, declarations: string[]): string[] =>
-  cacheValue(exportedDeclarationCache, source, declarations);
+  exportedDeclarationCache.set(source, declarations, stringArrayWeight(source, declarations));
 
 const cacheExportedDeclarationSegments = (source: string, segments: string[]): string[] =>
-  cacheValue(exportedDeclarationSegmentCache, source, segments);
+  exportedDeclarationSegmentCache.set(source, segments, stringArrayWeight(source, segments));
 
 const cacheExportedCallableDeclarationSegments = (source: string, segments: string[]): string[] =>
-  cacheValue(exportedCallableDeclarationSegmentCache, source, segments);
+  exportedCallableDeclarationSegmentCache.set(
+    source,
+    segments,
+    stringArrayWeight(source, segments),
+  );
 
 const cacheExportedDeclarationProjections = (
   source: string,
   projections: readonly ExportedDeclarationProjection[],
 ): readonly ExportedDeclarationProjection[] =>
-  cacheValue(exportedDeclarationProjectionCache, source, projections);
+  exportedDeclarationProjectionCache.set(
+    source,
+    projections,
+    projectionWeight(source, projections),
+  );
 
 const exportedNamesFromList = (exportedList: string): string[] =>
   pipe(
@@ -119,43 +156,20 @@ const isolatedVariableDeclarationText = (
   return `${prefix} ${declarator}`;
 };
 
-const privateSiblingText = (
-  source: string,
-  statementStart: number,
-  statementEnd: number,
-  selectedDeclarations: readonly ModuleBindingDeclaration[],
-): string => {
-  let text = '';
-  let sourceIndex = statementStart;
-  for (const declaration of selectedDeclarations) {
-    text += source.slice(sourceIndex, declaration.declaratorStart);
-    sourceIndex = declaration.declaratorEnd;
-  }
-  return text + source.slice(sourceIndex, statementEnd + 1);
-};
-
 const shouldIsolateVariableDeclaration = (
-  source: string,
   declaration: ModuleBindingDeclaration,
   selectedDeclarations: readonly ModuleBindingDeclaration[],
-): boolean =>
-  declaration.siblingCount > selectedDeclarations.length &&
-  /\b(?:Effect|Promise)\b/.test(
-    privateSiblingText(
-      source,
-      declaration.statementStart,
-      declaration.statementEnd,
-      selectedDeclarations,
-    ),
-  );
+  hasPrivateEffect: boolean,
+): boolean => declaration.siblingCount > selectedDeclarations.length && hasPrivateEffect;
 
 const variableProjection = (
   source: string,
   declaration: ModuleBindingDeclaration,
   selectedDeclarations: readonly ModuleBindingDeclaration[],
+  hasPrivateEffect: boolean,
 ): ExportedDeclarationProjection => {
   const analysisText = isolatedVariableDeclarationText(source, declaration);
-  if (shouldIsolateVariableDeclaration(source, declaration, selectedDeclarations)) {
+  if (shouldIsolateVariableDeclaration(declaration, selectedDeclarations, hasPrivateEffect)) {
     return { analysisText, declarationText: analysisText };
   }
   const declarationText = source.slice(declaration.statementStart, declaration.statementEnd + 1);
@@ -167,9 +181,10 @@ const bindingProjection = (
   code: string,
   declaration: ModuleBindingDeclaration,
   selectedDeclarations: readonly ModuleBindingDeclaration[],
+  hasPrivateEffect: boolean,
 ): ExportedDeclarationProjection | undefined => {
   if (declaration.kind === 'variable') {
-    return variableProjection(source, declaration, selectedDeclarations);
+    return variableProjection(source, declaration, selectedDeclarations, hasPrivateEffect);
   }
   const declarationText = namedExportDeclarationText(source, code, declaration);
   if (declarationText === undefined) {
@@ -188,15 +203,8 @@ const addNamedExportDeclarations = (
     exportedNamesFromList(exportedList),
     Array.flatMap((exportedName) => declarations.get(exportedName) ?? []),
   );
-  const declarationsByStatement = new Map<number, ModuleBindingDeclaration[]>();
-  for (const declaration of selectedDeclarations) {
-    const statementDeclarations = declarationsByStatement.get(declaration.statementStart);
-    if (statementDeclarations === undefined) {
-      declarationsByStatement.set(declaration.statementStart, [declaration]);
-    } else {
-      statementDeclarations.push(declaration);
-    }
-  }
+  const declarationsByStatement = declarationsGroupedByStatement(selectedDeclarations);
+  const privateEffectByStatement = privateEffectsByStatement(source, declarationsByStatement);
   return pipe(
     selectedDeclarations,
     Array.filterMap(
@@ -207,6 +215,7 @@ const addNamedExportDeclarations = (
             code,
             declaration,
             declarationsByStatement.get(declaration.statementStart) ?? [],
+            privateEffectByStatement.get(declaration.statementStart) ?? false,
           ),
         ),
     ),
@@ -356,7 +365,20 @@ const addDefaultIdentifierExports = (
         bindingDeclarations,
         Array.filterMap(
           (declaration): Option.Option<ExportedDeclarationProjection> =>
-            Option.fromNullable(bindingProjection(source, code, declaration, [declaration])),
+            Option.fromNullable(
+              bindingProjection(
+                source,
+                code,
+                declaration,
+                [declaration],
+                privateSiblingHasEffect(
+                  source,
+                  declaration.statementStart,
+                  declaration.statementEnd,
+                  [declaration],
+                ),
+              ),
+            ),
         ),
       );
     }),
@@ -368,7 +390,7 @@ const isTransparentDefaultBindingDeclaration = (declaration: string): boolean =>
     return false;
   }
   const expression = declaration.replace(/^\s*export\s+default\s+/, '');
-  return defaultExportBindingName(stripCommentsAndStrings(expression)) !== undefined;
+  return defaultExportBindingName(exportedSourceCode(expression)) !== undefined;
 };
 
 const uniqueProjections = (
@@ -398,7 +420,7 @@ const exportedDeclarationProjections = (
   if (!source.includes('export')) {
     return cacheExportedDeclarationProjections(source, []);
   }
-  const code = stripCommentsAndStrings(source);
+  const code = exportedSourceCode(source);
   const moduleIndex = createModuleSourceIndex(code);
   const directProjections = pipe(
     addDirectExportDeclarations(source, code, moduleIndex),

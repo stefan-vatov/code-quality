@@ -338,14 +338,31 @@ const negatedTruthiness = (
   expression: ASTNode,
   context: RuntimeValueContext,
 ): boolean | undefined => {
-  const operand = runtimeTruthiness(
-    runtimeValue(childNode(expression, 'argument'), context),
-    context,
-  );
-  if (operand === undefined) {
+  let current = expression;
+  let isNegated = false;
+  while (current.type === 'UnaryExpression' && Reflect.get(current, 'operator') === '!') {
+    isNegated = !isNegated;
+    const value = runtimeValue(childNode(current, 'argument'), context);
+    const nested = runtimeNode(value);
+    if (!nested || nested.type !== 'UnaryExpression' || Reflect.get(nested, 'operator') !== '!') {
+      return applyNegation(runtimeTruthiness(value, context), isNegated);
+    }
+    current = nested;
+  }
+  return undefined;
+};
+
+const applyNegation = (
+  truthiness: boolean | undefined,
+  isNegated: boolean,
+): boolean | undefined => {
+  if (truthiness === undefined) {
     return undefined;
   }
-  return !operand;
+  if (isNegated) {
+    return !truthiness;
+  }
+  return truthiness;
 };
 
 const numericTruthiness = (

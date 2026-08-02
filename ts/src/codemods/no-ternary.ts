@@ -211,6 +211,19 @@ const arrowBaseIndent = (source: string, node: ArrowFunctionExpression): string 
   );
 };
 
+const arrowBodyRange = (
+  source: string,
+  body: ConditionalExpression,
+): { end: number; start: number } => {
+  let start = nodeStart(body);
+  let end = nodeEnd(body);
+  while (start > 0 && end < source.length && source[start - 1] === '(' && source[end] === ')') {
+    start -= 1;
+    end += 1;
+  }
+  return { end, start };
+};
+
 const arrowReplacement = (source: string, node: ArrowFunctionExpression): Replacement | undefined =>
   pipe(
     Option.some(node.body),
@@ -218,12 +231,13 @@ const arrowReplacement = (source: string, node: ArrowFunctionExpression): Replac
     Option.flatMap((body) => {
       const baseIndent = arrowBaseIndent(source, node);
       const bodyIndent = `${baseIndent}${INDENT_STEP}`;
+      const bodyRange = arrowBodyRange(source, body);
       return pipe(
         Option.fromNullable(explicitReturnText(source, body, bodyIndent)),
         Option.map(
           (branchText): Replacement => ({
-            end: nodeEnd(body),
-            start: nodeStart(body),
+            end: bodyRange.end,
+            start: bodyRange.start,
             text: `{\n${bodyIndent}${branchText}\n${baseIndent}}`,
           }),
         ),

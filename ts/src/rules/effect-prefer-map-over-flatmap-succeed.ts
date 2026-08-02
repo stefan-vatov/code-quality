@@ -9,7 +9,7 @@ import {
   nativeReferenceIndexFor,
   nativeSourceCodeFor,
 } from './effect-native-references';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
+import { scopeHasBinding, scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { ScopeStack } from './effect-ast-scope';
 import { diagnosticMessage } from './diagnostic-guidance';
@@ -43,8 +43,7 @@ const MESSAGE = diagnosticMessage({
     'Effect.map expresses this success-value transformation more directly than Effect.flatMap followed by Effect.succeed.',
 });
 
-const isShadowed = (name: string, scopes: ScopeStack): boolean =>
-  scopes.some((scope): boolean => scope.has(name));
+const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
 
 const literalString = (node: ASTNode | undefined): string | undefined => {
   if (!node) {
@@ -220,51 +219,98 @@ const flatMapCallback = (node: ASTNode): ASTNode | undefined => {
   return undefined;
 };
 
-const visitChildValue = (
-  value: unknown,
+interface FallbackWorkItem {
+  value: unknown;
+  scopes: ScopeStack;
+}
+
+const enqueueFallbackArray = (
+  value: readonly unknown[],
+  scopes: ScopeStack,
+  state: RuleState,
+  pending: FallbackWorkItem[],
+): void => {
+  if (state.seen.has(value)) {
+    return;
+  }
+  state.seen.add(value);
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    pending.push({ scopes, value: value[index] });
+  }
+};
+
+const enqueueFallbackChildren = (
+  node: ASTNode,
+  nodeScopes: ScopeStack,
+  pending: FallbackWorkItem[],
+): void => {
+  const entries = Object.entries(node);
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry && entry[0] !== 'parent') {
+      pending.push({
+        scopes: scopesForChild(nodeScopes, node, entry[0]),
+        value: entry[1],
+      });
+    }
+  }
+};
+
+const reportFallbackCandidate = (
+  node: ASTNode,
   state: RuleState,
   scopes: ScopeStack,
   context: Context,
 ): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      visitChildValue(item, state, scopes, context);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    visitNode(child, state, scopes, context);
+  if (
+    node.type === 'CallExpression' &&
+    isImportedAPI(childNode(node, 'callee'), 'flatMap', state, scopes) &&
+    isSucceedOnlyCallback(flatMapCallback(node), state, scopes)
+  ) {
+    context.report({ message: MESSAGE, node: childNode(node, 'callee') ?? node });
   }
 };
 
-const visitChildren = (
+const visitFallbackNode = (
   node: ASTNode,
+  scopes: ScopeStack,
   state: RuleState,
-  nodeScopes: ScopeStack,
   context: Context,
+  pending: FallbackWorkItem[],
 ): void => {
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      visitChildValue(value, state, scopesForChild(nodeScopes, node, key), context);
-    }
-  }
-};
-
-const visitNode = (node: ASTNode, state: RuleState, scopes: ScopeStack, context: Context): void => {
   if (state.seen.has(node)) {
     return;
   }
   state.seen.add(node);
   const nodeScopes = withNodeScope(scopes, node);
-  if (
-    node.type === 'CallExpression' &&
-    isImportedAPI(childNode(node, 'callee'), 'flatMap', state, nodeScopes) &&
-    isSucceedOnlyCallback(flatMapCallback(node), state, nodeScopes)
-  ) {
-    context.report({ message: MESSAGE, node: childNode(node, 'callee') ?? node });
+  reportFallbackCandidate(node, state, nodeScopes, context);
+  enqueueFallbackChildren(node, nodeScopes, pending);
+};
+
+const visitFallbackFrame = (
+  item: FallbackWorkItem,
+  state: RuleState,
+  context: Context,
+  pending: FallbackWorkItem[],
+): void => {
+  if (Array.isArray(item.value)) {
+    enqueueFallbackArray(item.value, item.scopes, state, pending);
+    return;
   }
-  visitChildren(node, state, nodeScopes, context);
+  const node = asNode(item.value);
+  if (node) {
+    visitFallbackNode(node, item.scopes, state, context, pending);
+  }
+};
+
+const visitFallback = (program: ASTNode, state: RuleState, context: Context): void => {
+  const pending: FallbackWorkItem[] = [{ scopes: [], value: program }];
+  while (pending.length > 0) {
+    const item = pending.pop();
+    if (item) {
+      visitFallbackFrame(item, state, context, pending);
+    }
+  }
 };
 
 const reportNativeCandidate = (value: object, state: RuleState, context: Context): void => {
@@ -394,7 +440,7 @@ const initializeFallbackState = (value: object, state: RuleState, context: Conte
   }
   indexEffectImports(program, state.imports);
   if (state.imports.size > 0) {
-    visitNode(program, state, [], context);
+    visitFallback(program, state, context);
   }
 };
 

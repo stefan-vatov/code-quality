@@ -85,14 +85,16 @@ const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
 const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean => {
-  if (node?.type !== 'MemberExpression') {
-    return false;
+  const visited = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression' && !visited.has(current)) {
+    visited.add(current);
+    if (Reflect.get(current, 'computed') === true || Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    current = childNode(current, 'object');
   }
-  return (
-    Reflect.get(node, 'computed') === true ||
-    Reflect.get(node, 'optional') === true ||
-    hasUnsupportedMemberAccess(childNode(node, 'object'))
-  );
+  return false;
 };
 
 const isPlainCall = (call: ASTNode): boolean =>
@@ -173,18 +175,25 @@ const isStringLiteral = (node: ASTNode | undefined): boolean =>
   node?.type === 'Literal' && typeof Reflect.get(node, 'value') === 'string';
 
 const isParameterReference = (node: ASTNode | undefined, parameterName: string): boolean => {
-  if (identifierName(node) === parameterName) {
-    return true;
+  const visited = new WeakSet();
+  let current = node;
+  while (current) {
+    if (identifierName(current) === parameterName) {
+      return true;
+    }
+    if (
+      current.type !== 'MemberExpression' ||
+      Reflect.get(current, 'computed') === true ||
+      Reflect.get(current, 'optional') === true ||
+      childNode(current, 'property')?.type !== 'Identifier' ||
+      visited.has(current)
+    ) {
+      return false;
+    }
+    visited.add(current);
+    current = childNode(current, 'object');
   }
-  if (
-    node?.type !== 'MemberExpression' ||
-    Reflect.get(node, 'computed') === true ||
-    Reflect.get(node, 'optional') === true ||
-    childNode(node, 'property')?.type !== 'Identifier'
-  ) {
-    return false;
-  }
-  return isParameterReference(childNode(node, 'object'), parameterName);
+  return false;
 };
 
 const isTypeofParameterReference = (node: ASTNode | undefined, parameterName: string): boolean =>
@@ -243,21 +252,70 @@ const isSupportedBinaryPredicate = (conditional: ASTNode, parameterName: string)
   );
 };
 
-const containsIdentifierValue = (value: ASTProperty, name: string): boolean => {
+interface IdentifierSearchState {
+  pending: ASTProperty[];
+  visitedArrays: WeakSet<object>;
+  visitedNodes: WeakSet<object>;
+}
+
+const enqueueIdentifierArray = (
+  value: readonly ASTProperty[],
+  state: IdentifierSearchState,
+): void => {
+  if (state.visitedArrays.has(value)) {
+    return;
+  }
+  state.visitedArrays.add(value);
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    const item = value[index];
+    if (item !== undefined) {
+      state.pending.push(item);
+    }
+  }
+};
+
+const nextIdentifierNode = (
+  value: ASTProperty,
+  state: IdentifierSearchState,
+): ASTNode | undefined => {
   if (isASTPropertyArray(value)) {
-    return value.some((item): boolean => containsIdentifierValue(item, name));
+    enqueueIdentifierArray(value, state);
+    return undefined;
   }
   const node = asNode(value);
-  return Boolean(node && containsIdentifier(node, name));
+  if (!node || state.visitedNodes.has(node)) {
+    return undefined;
+  }
+  state.visitedNodes.add(node);
+  return node;
+};
+
+const enqueueIdentifierChildren = (node: ASTNode, state: IdentifierSearchState): void => {
+  const entries = Object.entries(node);
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry && entry[0] !== 'parent') {
+      state.pending.push(entry[1] as ASTProperty);
+    }
+  }
 };
 
 const containsIdentifier = (node: ASTNode, name: string): boolean => {
-  if (identifierName(node) === name) {
-    return true;
-  }
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent' && containsIdentifierValue(value as ASTProperty, name)) {
-      return true;
+  const state: IdentifierSearchState = {
+    pending: [node],
+    visitedArrays: new WeakSet(),
+    visitedNodes: new WeakSet(),
+  };
+  while (state.pending.length > 0) {
+    const value = state.pending.pop();
+    if (value !== undefined) {
+      const current = nextIdentifierNode(value, state);
+      if (current && identifierName(current) === name) {
+        return true;
+      }
+      if (current) {
+        enqueueIdentifierChildren(current, state);
+      }
     }
   }
   return false;

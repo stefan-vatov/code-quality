@@ -17,6 +17,7 @@ import type {
   RuntimeStatementHost,
   RuntimeValue,
 } from './effect-promise-runtime-model';
+import { appendHelperScope, containerHelperScopes } from './effect-promise-callables';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
 import {
   bindCurrentRuntimePattern,
@@ -24,21 +25,11 @@ import {
 } from './effect-promise-runtime-control-patterns';
 import type { ASTNode } from './effect-ast';
 import type { HelperScopes } from './effect-promise-callable-types';
-import { applyRuntimeScalarUpdate } from './effect-promise-runtime-control-scalars';
-import { containerHelperScopes } from './effect-promise-callables';
-import { continueRuntimeResult } from './effect-promise-runtime-control-completions';
 import { executeRuntimeControlStatement } from './effect-promise-runtime-control-flow';
+import { executeRuntimeStatementSequence } from './effect-promise-runtime-statement-sequence';
 import { unwrappedExpression } from './effect-boundary-ast-shared';
 
 const NORMAL_RESULT: RuntimeResult = { completion: RUNTIME_NORMAL, value: undefined };
-
-const nodeOffset = (node: ASTNode): number => {
-  const start: unknown = Reflect.get(node, 'start');
-  if (typeof start === 'number') {
-    return start;
-  }
-  return -1;
-};
 
 const captureCallableChild = (
   host: RuntimeStatementHost,
@@ -306,45 +297,160 @@ const captureFunctionDeclarations = (
   }
 };
 
-const updateRuntimeOffsets = (statement: ASTNode, context: RuntimeExecutionContext): void => {
-  const offset = nodeOffset(statement);
-  for (const runtimeScope of context.runtimeScopes) {
-    context.offsets.set(runtimeScope, offset);
-  }
-};
-
-const executeStatementsFrom = (
-  host: RuntimeStatementHost,
-  statements: readonly ASTNode[],
-  context: RuntimeExecutionContext,
-  index: number,
-): RuntimeResult => {
-  const statement = statements[index];
-  if (!statement) {
-    return NORMAL_RESULT;
-  }
-  updateRuntimeOffsets(statement, context);
-  const result = executeRuntimeStatement(host, statement, context);
-  if (result.completion === RUNTIME_NORMAL && !result.outcomes) {
-    applyRuntimeScalarUpdate(host, statement, context);
-    return executeStatementsFrom(host, statements, context, index + 1);
-  }
-  return continueRuntimeResult(
-    host,
-    result,
-    context,
-    (): RuntimeResult => executeStatementsFrom(host, statements, context, index + 1),
-  );
-};
-
 const executeStatements = (
   host: RuntimeStatementHost,
   statements: readonly ASTNode[],
   context: RuntimeExecutionContext,
-): RuntimeResult => executeStatementsFrom(host, statements, context, 0);
+): RuntimeResult =>
+  executeRuntimeStatementSequence(host, statements, context, 0, executeRuntimeStatement);
+
+const executeInheritedContainer = (
+  host: RuntimeStatementHost,
+  statements: readonly ASTNode[],
+  inherited: RuntimeExecutionContext,
+): RuntimeResult => {
+  if (inherited.runtimeScopes.length === 0 || inherited.offsets.size === 0) {
+    return executeStatements(host, statements, inherited);
+  }
+  const { currentOffset } = inherited;
+  try {
+    return executeStatements(host, statements, inherited);
+  } finally {
+    const inheritedContext = inherited;
+    inheritedContext.currentOffset = currentOffset;
+  }
+};
 
 const hasRuntimeDeclarations = (statements: readonly ASTNode[]): boolean =>
   statements.some((statement): boolean => statement.type === 'VariableDeclaration');
+
+interface RuntimeScopePath {
+  readonly base: readonly RuntimeScope[];
+  readonly index: number;
+  readonly previous?: RuntimeScopePath;
+  readonly scope: RuntimeScope;
+  values?: readonly RuntimeScope[];
+}
+
+const runtimeScopePaths = new WeakMap<object, RuntimeScopePath>();
+
+const buildRuntimeScopeValues = (path: RuntimeScopePath): readonly RuntimeScope[] => {
+  const values: RuntimeScope[] = [];
+  values.length = path.index + 1;
+  let current: RuntimeScopePath | undefined = path;
+  while (current) {
+    values[current.index] = current.scope;
+    current = current.previous;
+  }
+  for (let index = 0; index < path.base.length; index += 1) {
+    values[index] = path.base[index];
+  }
+  return values;
+};
+
+const runtimeScopeValues = (path: RuntimeScopePath): readonly RuntimeScope[] => {
+  const cached = path.values;
+  if (cached) {
+    return cached;
+  }
+  const values = buildRuntimeScopeValues(path);
+  const currentPath = path;
+  currentPath.values = values;
+  return values;
+};
+
+const runtimeScopeIndex = (property: string | symbol): number | undefined => {
+  if (typeof property !== 'string' || property === '') {
+    return undefined;
+  }
+  const index = Number(property);
+  if (!Number.isSafeInteger(index) || index < 0 || String(index) !== property) {
+    return undefined;
+  }
+  return index;
+};
+
+const invokeRuntimeHandler = (
+  handler: (scope: RuntimeScope, index: number, scopes: readonly RuntimeScope[]) => boolean,
+  scope: RuntimeScope,
+  index: number,
+  scopes: readonly RuntimeScope[],
+): boolean => handler(scope, index, scopes);
+
+const isRuntimeScopeList = (value: unknown): value is readonly RuntimeScope[] =>
+  Array.isArray(value);
+
+const runtimeScopeReceiver = (
+  receiver: unknown,
+  fallback: readonly RuntimeScope[],
+): readonly RuntimeScope[] => {
+  if (isRuntimeScopeList(receiver)) {
+    return receiver;
+  }
+  return fallback;
+};
+
+const someRuntimeScope = (
+  values: readonly RuntimeScope[],
+  handler: (scope: RuntimeScope, index: number, scopes: readonly RuntimeScope[]) => boolean,
+  scopes: readonly RuntimeScope[],
+): boolean => {
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value && invokeRuntimeHandler(handler, value, index, scopes)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const persistentRuntimeScopes = (
+  scopes: readonly RuntimeScope[],
+  scope: RuntimeScope,
+): readonly RuntimeScope[] => {
+  const previous = runtimeScopePaths.get(scopes);
+  const path: RuntimeScopePath = {
+    base: previous?.base ?? scopes,
+    index: scopes.length,
+    previous,
+    scope,
+  };
+  const target: RuntimeScope[] = [];
+  const result = new Proxy(target, {
+    get: (current, property, receiver): unknown => {
+      if (property === 'some') {
+        return (
+          handler: (scope: RuntimeScope, index: number, scopes: readonly RuntimeScope[]) => boolean,
+        ): boolean =>
+          someRuntimeScope(
+            runtimeScopeValues(path),
+            handler,
+            runtimeScopeReceiver(receiver, target),
+          );
+      }
+      if (property === Symbol.iterator) {
+        return (): IterableIterator<RuntimeScope> => runtimeScopeValues(path)[Symbol.iterator]();
+      }
+      if (property === 'length') {
+        return path.index + 1;
+      }
+      const index = runtimeScopeIndex(property);
+      if (index !== undefined && index <= path.index) {
+        return runtimeScopeValues(path)[index];
+      }
+      return Reflect.get(current, property, receiver);
+    },
+    has: (current, property): boolean => {
+      const index = runtimeScopeIndex(property);
+      if (index !== undefined) {
+        return index <= path.index;
+      }
+      return Reflect.has(current, property);
+    },
+  });
+  runtimeScopePaths.set(result, path);
+  return result;
+};
 
 const containerTaskScopes = (
   host: RuntimeStatementHost,
@@ -362,7 +468,18 @@ const containerTaskScopes = (
   const scope: RuntimeScope = { helperScope, values: new Map() };
   host.state.scopes.add(scope);
   predeclareVariables(statements, scope);
-  return [...inherited.taskScopes, scope];
+  return persistentRuntimeScopes(inherited.taskScopes, scope);
+};
+
+const runtimeScopesForContainer = (
+  inherited: RuntimeExecutionContext,
+  helperScopes: HelperScopes,
+): HelperScopes => {
+  const newHelperScope = helperScopes.at(-1);
+  if (helperScopes === inherited.helperScopes || newHelperScope === undefined) {
+    return inherited.runtimeScopes;
+  }
+  return appendHelperScope(inherited.runtimeScopes, newHelperScope);
 };
 
 /**
@@ -378,14 +495,16 @@ export const executeRuntimeContainer = (
   const statements = childNodes(node, 'body');
   const helperScopes = containerHelperScopes(node, [], inherited.helperScopes);
   const taskScopes = containerTaskScopes(host, statements, inherited, helperScopes);
+  if (helperScopes === inherited.helperScopes && taskScopes === inherited.taskScopes) {
+    return executeInheritedContainer(host, statements, inherited);
+  }
   captureFunctionDeclarations(host, statements, taskScopes);
+  const runtimeScopes = runtimeScopesForContainer(inherited, helperScopes);
   const context: RuntimeExecutionContext = {
+    currentOffset: inherited.currentOffset,
     helperScopes,
     offsets: new Map(inherited.offsets),
-    runtimeScopes: [
-      ...inherited.runtimeScopes,
-      ...helperScopes.slice(inherited.helperScopes.length),
-    ],
+    runtimeScopes,
     taskScopes,
     thisValue: inherited.thisValue,
   };

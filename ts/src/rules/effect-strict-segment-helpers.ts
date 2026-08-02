@@ -8,10 +8,24 @@ import {
   isInsideCall,
   stripCommentsAndStrings,
 } from './effect-source-helpers';
+import { createWeightedCache } from './source-cache';
+import { enclosingEffectWrapperBounds } from './effect-strict-wrapper-index';
 
-const SEGMENT_CACHE_MAX = 256;
-const localEffectCallSegmentCache = new Map<string, Map<number, string>>();
-const enclosingEffectWrapperSegmentCache = new Map<string, Map<number, string | undefined>>();
+const UTF16_BYTES_PER_CODE_UNIT = 2;
+const STRING_CONTAINER_BYTES = 128;
+const MAP_CONTAINER_BYTES = 256;
+const MAP_ENTRY_BYTES = 96;
+const NUMBER_KEY_BYTES = 8;
+const SEGMENT_INDEX_CACHE_MAX = 128;
+const localEffectCallSegmentCache: WeightedSegmentCache<string> = createWeightedCache({
+  maxEntries: 256,
+  maxWeight: 5_242_880,
+});
+const enclosingEffectWrapperSegmentCache: WeightedSegmentCache<string | undefined> =
+  createWeightedCache({
+    maxEntries: 256,
+    maxWeight: 5_242_880,
+  });
 const CHAR_CODE_ZERO = 48;
 const CHAR_CODE_NINE = 57;
 const CHAR_CODE_UPPER_A = 65;
@@ -21,36 +35,64 @@ const CHAR_CODE_LOWER_Z = 122;
 const LOCAL_CONTEXT_WINDOW = 160;
 const RESOURCE_CONTEXT_WINDOW = 180;
 
-const sourceIndexCache = <Value>(
-  cache: Map<string, Map<number, Value>>,
+interface WeightedSegmentCache<Value> {
+  readonly get: (source: string) => Map<number, Value> | undefined;
+  readonly set: (
+    source: string,
+    value: Map<number, Value>,
+    explicitWeight?: number,
+  ) => Map<number, Value>;
+}
+
+const stringWeight = (value: string): number =>
+  value.length * UTF16_BYTES_PER_CODE_UNIT + STRING_CONTAINER_BYTES;
+
+const segmentMapWeight = <Value extends string | undefined>(
   source: string,
-): Map<number, Value> =>
-  pipe(
-    Option.fromNullable(cache.get(source)),
-    Option.getOrElse((): Map<number, Value> => {
-      pipe(
-        Match.value(cache.size),
-        Match.when(
-          (size): boolean => size >= SEGMENT_CACHE_MAX,
-          (): void => {
-            pipe(
-              Option.fromNullable(cache.keys().next().value),
-              Option.match({
-                onNone: (): void => undefined,
-                onSome: (firstKey): void => {
-                  cache.delete(firstKey);
-                },
-              }),
-            );
-          },
-        ),
-        Match.orElse((): void => undefined),
-      );
-      const indexCache = new Map<number, Value>();
-      cache.set(source, indexCache);
-      return indexCache;
-    }),
-  );
+  indexCache: ReadonlyMap<number, Value>,
+): number => {
+  let weight =
+    stringWeight(source) +
+    MAP_CONTAINER_BYTES +
+    indexCache.size * (MAP_ENTRY_BYTES + NUMBER_KEY_BYTES);
+  for (const segment of indexCache.values()) {
+    if (segment !== undefined) {
+      weight += stringWeight(segment);
+    }
+  }
+  return weight;
+};
+
+const sourceIndexCache = <Value extends string | undefined>(
+  cache: WeightedSegmentCache<Value>,
+  source: string,
+): Map<number, Value> => {
+  const cached = cache.get(source);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const indexCache = new Map<number, Value>();
+  cache.set(source, indexCache, segmentMapWeight(source, indexCache));
+  return indexCache;
+};
+
+const cacheSourceIndex = <Value extends string | undefined>(
+  cache: WeightedSegmentCache<Value>,
+  source: string,
+  targetIndex: number,
+  value: Value,
+): Value => {
+  const indexCache = sourceIndexCache(cache, source);
+  if (!indexCache.has(targetIndex) && indexCache.size >= SEGMENT_INDEX_CACHE_MAX) {
+    const firstKey = indexCache.keys().next().value;
+    if (firstKey !== undefined) {
+      indexCache.delete(firstKey);
+    }
+  }
+  indexCache.set(targetIndex, value);
+  cache.set(source, indexCache, segmentMapWeight(source, indexCache));
+  return value;
+};
 
 /**
  * Internal helper exported for package-local composition.
@@ -360,8 +402,7 @@ export const localEffectCallSegment = (source: string, targetIndex: number): str
     Option.match({
       onNone: (): string => {
         const segment = uncachedLocalEffectCallSegment(source, targetIndex);
-        indexCache.set(targetIndex, segment);
-        return segment;
+        return cacheSourceIndex(localEffectCallSegmentCache, source, targetIndex, segment);
       },
       onSome: (segment): string => segment,
     }),
@@ -376,37 +417,21 @@ export const localEffectCallSegment = (source: string, targetIndex: number): str
 export const localStatementSegment = (source: string, targetIndex: number): string =>
   source.slice(targetIndex, findStatementEnd(source, targetIndex) + 1);
 
-const effectWrapperEndIndex = (source: string, matchIndex: number, targetIndex: number): number => {
-  const openParenIndex = source.indexOf('(', matchIndex);
-  return Match.value(openParenIndex).pipe(
-    Match.when(
-      (index): boolean => index === -1 || index > targetIndex,
-      (): number => -1,
-    ),
-    Match.orElse((index): number => findBalancedCallEnd(source, index)),
-  );
-};
-
 const uncachedEnclosingEffectWrapperSegment = (
   source: string,
   targetIndex: number,
 ): string | undefined =>
-  Match.value(source).pipe(
-    Match.when(
-      (value): boolean => !value.includes('Effect.promise') && !value.includes('Effect.tryPromise'),
-      (): undefined => undefined,
-    ),
-    Match.orElse((value): string | undefined =>
-      pipe(
-        [...value.matchAll(/\bEffect\.(?:promise|tryPromise)\s*\(/g)],
-        Array.findFirst((match): boolean => {
-          const endIndex = effectWrapperEndIndex(value, match.index, targetIndex);
-          return endIndex !== -1 && targetIndex <= endIndex;
-        }),
-        Option.map((match): string => localEffectCallSegment(value, match.index)),
-        Option.getOrUndefined,
+  pipe(
+    Option.fromNullable(enclosingEffectWrapperBounds(source, targetIndex)),
+    Option.map(({ matchIndex, segmentEndIndex }): string =>
+      cacheSourceIndex(
+        localEffectCallSegmentCache,
+        source,
+        matchIndex,
+        source.slice(matchIndex, segmentEndIndex),
       ),
     ),
+    Option.getOrUndefined,
   );
 
 /**
@@ -426,8 +451,7 @@ export const enclosingEffectWrapperSegment = (
     ),
     Match.orElse((): string | undefined => {
       const segment = uncachedEnclosingEffectWrapperSegment(source, targetIndex);
-      indexCache.set(targetIndex, segment);
-      return segment;
+      return cacheSourceIndex(enclosingEffectWrapperSegmentCache, source, targetIndex, segment);
     }),
   );
 };
@@ -437,15 +461,10 @@ const isPipeOperatorAtTopLevel = (
   operatorIndex: number,
   operatorNeedle: string,
 ): boolean => {
-  const previousNonWhitespaceIndex = (index: number): number =>
-    Match.value(index).pipe(
-      Match.when(
-        (currentIndex): boolean => currentIndex >= 0 && isASCIIWhitespace(pipeBody[currentIndex]),
-        (currentIndex): number => previousNonWhitespaceIndex(currentIndex - 1),
-      ),
-      Match.orElse((currentIndex): number => currentIndex),
-    );
-  const previousIndex = previousNonWhitespaceIndex(operatorIndex - 1);
+  let previousIndex = operatorIndex - 1;
+  while (previousIndex >= 0 && isASCIIWhitespace(pipeBody[previousIndex])) {
+    previousIndex -= 1;
+  }
   const previousCharacter = pipeBody[previousIndex];
   const nextCharacter = pipeBody[operatorIndex + operatorNeedle.length];
   return (previousIndex < 0 || previousCharacter === ',') && !isIdentifierPart(nextCharacter);
@@ -473,21 +492,14 @@ const pipeBodySegment = (segment: string): string | undefined => {
 };
 
 const pipeBodyHasTopLevelOperator = (pipeBody: string, operatorNeedle: string): boolean => {
-  const scanOperator = (operatorIndex: number): boolean =>
-    Match.value(operatorIndex).pipe(
-      Match.when(
-        (index): boolean => index === -1,
-        (): boolean => false,
-      ),
-      Match.when(
-        (index): boolean => isPipeOperatorAtTopLevel(pipeBody, index, operatorNeedle),
-        (): boolean => true,
-      ),
-      Match.orElse((index): boolean =>
-        scanOperator(pipeBody.indexOf(operatorNeedle, index + operatorNeedle.length)),
-      ),
-    );
-  return scanOperator(pipeBody.indexOf(operatorNeedle));
+  let operatorIndex = pipeBody.indexOf(operatorNeedle);
+  while (operatorIndex !== -1) {
+    if (isPipeOperatorAtTopLevel(pipeBody, operatorIndex, operatorNeedle)) {
+      return true;
+    }
+    operatorIndex = pipeBody.indexOf(operatorNeedle, operatorIndex + operatorNeedle.length);
+  }
+  return false;
 };
 
 /**

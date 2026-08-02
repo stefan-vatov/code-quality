@@ -47,12 +47,16 @@ const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
 const hasOptionalMemberAccess = (node: ASTNode | undefined): boolean => {
-  if (node?.type !== 'MemberExpression') {
-    return false;
+  const visited = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression' && !visited.has(current)) {
+    visited.add(current);
+    if (Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    current = childNode(current, 'object');
   }
-  return (
-    Reflect.get(node, 'optional') === true || hasOptionalMemberAccess(childNode(node, 'object'))
-  );
+  return false;
 };
 
 const isPlainCall = (call: ASTNode): boolean =>

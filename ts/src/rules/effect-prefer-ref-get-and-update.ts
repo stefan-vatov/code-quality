@@ -59,11 +59,21 @@ const hasRefImport = (program: ASTNode): boolean => childNodes(program, 'body').
 const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
-const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean =>
-  node?.type === 'MemberExpression' &&
-  (Reflect.get(node, 'computed') === true ||
-    Reflect.get(node, 'optional') === true ||
-    hasUnsupportedMemberAccess(childNode(node, 'object')));
+const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean => {
+  const seen = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression') {
+    if (Reflect.get(current, 'computed') === true || Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    if (seen.has(current)) {
+      return false;
+    }
+    seen.add(current);
+    current = childNode(current, 'object');
+  }
+  return false;
+};
 
 const isPlainCall = (call: ASTNode): boolean =>
   Reflect.get(call, 'optional') !== true &&
@@ -93,24 +103,64 @@ const isExactConstAssertion = (node: ASTNode): boolean => {
   );
 };
 
+interface TupleUnwrapResult {
+  expression: ASTNode | undefined;
+  hasConstAssertion: boolean;
+}
+
+const tupleUnwrapStep = (
+  node: ASTNode,
+  hasConstAssertion: boolean,
+): TupleUnwrapResult | undefined => {
+  if (node.type === 'ParenthesizedExpression') {
+    return { expression: childNode(node, 'expression'), hasConstAssertion };
+  }
+  if (hasConstAssertion || !isExactConstAssertion(node)) {
+    return undefined;
+  }
+  return { expression: childNode(node, 'expression'), hasConstAssertion: true };
+};
+
+const nextTupleUnwrap = (
+  node: ASTNode,
+  seen: WeakSet<object>,
+  hasConstAssertion: boolean,
+): TupleUnwrapResult | undefined => {
+  if (seen.has(node)) {
+    return undefined;
+  }
+  seen.add(node);
+  return tupleUnwrapStep(node, hasConstAssertion);
+};
+
+const arrayExpression = (node: ASTNode | undefined): ASTNode | undefined => {
+  if (node?.type !== 'ArrayExpression') {
+    return undefined;
+  }
+  return node;
+};
+
+const unwrapTupleBody = (
+  expression: ASTNode | undefined,
+  hasConstAssertion: boolean,
+): ASTNode | undefined => {
+  const seen = new WeakSet();
+  let current = expression;
+  let hasSeenConstAssertion = hasConstAssertion;
+  while (current?.type === 'ParenthesizedExpression' || current?.type === 'TSAsExpression') {
+    const step = nextTupleUnwrap(current, seen, hasSeenConstAssertion);
+    if (!step) {
+      return undefined;
+    }
+    ({ expression: current, hasConstAssertion: hasSeenConstAssertion } = step);
+  }
+  return arrayExpression(current);
+};
+
 const tupleBody = (
   expression: ASTNode | undefined,
   hasConstAssertion = false,
-): ASTNode | undefined => {
-  if (expression?.type === 'ParenthesizedExpression') {
-    return tupleBody(childNode(expression, 'expression'), hasConstAssertion);
-  }
-  if (expression?.type === 'TSAsExpression') {
-    if (hasConstAssertion || !isExactConstAssertion(expression)) {
-      return undefined;
-    }
-    return tupleBody(childNode(expression, 'expression'), true);
-  }
-  if (expression?.type !== 'ArrayExpression') {
-    return undefined;
-  }
-  return expression;
-};
+): ASTNode | undefined => unwrapTupleBody(expression, hasConstAssertion);
 
 const isUnknownArray = (value: unknown): value is readonly unknown[] => Array.isArray(value);
 

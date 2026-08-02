@@ -9,6 +9,7 @@ import type { NativeReference } from './effect-native-references';
 import type { ScopeStack } from './effect-ast-scope';
 import { indexEffectAPIBindings } from './effect-import-bindings';
 import { isImportReference } from './effect-native-references';
+import { scopeHasBinding } from './effect-ast-scope';
 import { stripComments } from './effect-source-helpers';
 
 /**
@@ -94,14 +95,8 @@ export const indexEffectAPIBindingsFromProgram = (
 };
 
 /** Check a lexical scope stack for a value binding. @internal */
-export const isShadowed = (name: string, scopes: ScopeStack): boolean => {
-  for (const scope of scopes) {
-    if (scope.has(name)) {
-      return true;
-    }
-  }
-  return false;
-};
+export const isShadowed = (name: string, scopes: ScopeStack): boolean =>
+  scopeHasBinding(name, scopes);
 
 const staticMember = (node: ASTNode | undefined): ASTNode | undefined => {
   const member = unwrappedExpression(node);

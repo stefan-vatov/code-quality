@@ -6,6 +6,7 @@ import {
   effectAliasesPattern,
   effectCallBodies,
   effectCallPattern,
+  someEffectGenBodyMatch,
   someEffectWorkflowBody,
   strippedCallSegment,
 } from './effect-default-scan-helpers';
@@ -19,6 +20,56 @@ import {
 import { hasRecursiveEffectSource } from './effect-recursion-source';
 import { hasRuntimeCall } from './effect-rule-aliases';
 import { hasSyncForPromiseSource } from './effect-sync-promise-source';
+
+const JSON_PARSE_PATTERN = /\bJSON\.parse\s*\(/g;
+const JSON_NUMBER_FROM_STRING_PATTERN =
+  /\b(?:[A-Za-z_$][\w$]*NumberFromString|Schema\.NumberFromString)\b/g;
+
+const firstIndexAtOrAfter = (indexes: readonly number[], targetIndex: number): number => {
+  let low = 0;
+  let high = indexes.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if ((indexes[middle] ?? Number.POSITIVE_INFINITY) < targetIndex) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+};
+
+const matchIndexes = (code: string, pattern: RegExp): number[] => {
+  const indexes: number[] = [];
+  for (const match of code.matchAll(pattern)) {
+    indexes.push(match.index);
+  }
+  return indexes;
+};
+
+const statementStartScanner = (code: string): ((matchIndex: number) => number) => {
+  let scanIndex = 0;
+  let statementStart = 0;
+  return (matchIndex): number => {
+    while (scanIndex < matchIndex) {
+      if (code[scanIndex] === ';' || code[scanIndex] === '\n') {
+        statementStart = scanIndex + 1;
+      }
+      scanIndex += 1;
+    }
+    return statementStart;
+  };
+};
+
+const hasIndexAtOrBefore = (
+  indexes: readonly number[],
+  startIndex: number,
+  endIndex: number,
+): boolean => {
+  const firstIndex = firstIndexAtOrAfter(indexes, startIndex);
+  const index = indexes[firstIndex];
+  return index !== undefined && index <= endIndex;
+};
 
 /**
  * Internal helper exported for package-local composition.
@@ -85,19 +136,16 @@ export const hasUnboundedFlatMapConcurrency = (source: string): boolean => {
  */
 export const hasParsedJSONNumberFromString = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
-  return pipe(
-    Array.fromIterable(code.matchAll(/\bJSON\.parse\s*\(/g)),
-    Array.some((match): boolean => {
-      const statementStart = Math.max(
-        code.lastIndexOf(';', match.index) + 1,
-        code.lastIndexOf('\n', match.index) + 1,
-      );
-      const statementEnd = findStatementEnd(code, statementStart);
-      return /\b(?:[A-Za-z_$][\w$]*NumberFromString|Schema\.NumberFromString)\b/.test(
-        code.slice(statementStart, statementEnd + 1),
-      );
-    }),
-  );
+  const numberFromStringIndexes = matchIndexes(code, JSON_NUMBER_FROM_STRING_PATTERN);
+  const getStatementStart = statementStartScanner(code);
+  for (const match of code.matchAll(JSON_PARSE_PATTERN)) {
+    const statementStart = getStatementStart(match.index);
+    const statementEnd = findStatementEnd(code, statementStart);
+    if (hasIndexAtOrBefore(numberFromStringIndexes, statementStart, statementEnd)) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const hasEffectInCallbackCall = (source: string, callPattern: RegExp): boolean => {
@@ -139,11 +187,9 @@ export const hasEffectInPromiseCallback = (source: string): boolean =>
 export const hasReturnEffectInGen = (source: string): boolean => {
   const returnEffectPattern = new RegExp(
     `\\breturn\\s+(?:${effectAliasesPattern(source)})\\.(?!isEffect\\b|serviceFunction\\b)`,
+    'g',
   );
-  return pipe(
-    effectCallBodies(source, effectCallPattern(source, 'gen')),
-    Array.some((body): boolean => returnEffectPattern.test(stripCommentsAndStrings(body))),
-  );
+  return someEffectGenBodyMatch(source, returnEffectPattern);
 };
 
 const yieldWithoutStarIndex = (source: string, matchIndex: number): number | undefined => {

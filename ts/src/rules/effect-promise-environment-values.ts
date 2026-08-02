@@ -17,17 +17,11 @@ import type { ASTNode } from './effect-ast';
 import type { ScopeStack } from './effect-ast-scope';
 import { identifierName } from './effect-ast';
 import { resolveLexicalValue } from './effect-promise-value-scopes';
+import { scopeHasBinding } from './effect-ast-scope';
 import { unknownArgument } from './effect-promise-environment-types';
 import { unwrappedExpression } from './effect-boundary-ast-shared';
 
-const isShadowed = (name: string, scopes: ScopeStack): boolean => {
-  for (let index = scopes.length - 1; index >= 0; index -= 1) {
-    if (scopes[index]?.has(name)) {
-      return true;
-    }
-  }
-  return false;
-};
+const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
 
 /**
  * Narrow one abstract value to a concrete bound expression.

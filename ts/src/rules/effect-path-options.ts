@@ -3,6 +3,7 @@
 /* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import type { Context } from './effect-rule-core';
+import { createWeightedCache } from './source-cache';
 
 /**
  * Internal helper exported for package-local composition.
@@ -72,50 +73,60 @@ const defaultPathOptions = {
 } satisfies Readonly<Record<StrictPathOptionKey, readonly string[]>>;
 
 const testFilePattern = /\.(?:test|spec)\.tsx?$/;
+const GLOB_CACHE_MAX = 128;
+const BYTES_PER_MEBIBYTE = 1_048_576;
+const GLOB_CACHE_MAX_MEBIBYTES = 5;
+const GLOB_CACHE_MAX_WEIGHT = GLOB_CACHE_MAX_MEBIBYTES * BYTES_PER_MEBIBYTE;
+const UTF16_CODE_UNIT_BYTES = 2;
+const CACHE_ENTRY_BYTES = 128;
+const STRING_CONTAINER_BYTES = 128;
+const REGEXP_BYTES = 128;
 
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
-const globCache = new Map<string, RegExp>();
+type GlobCache = ReturnType<typeof createWeightedCache<string, RegExp>>;
+
+const globCache: GlobCache = createWeightedCache({
+  maxEntries: GLOB_CACHE_MAX,
+  maxWeight: GLOB_CACHE_MAX_WEIGHT,
+});
+
+const bytesForUTF16 = (value: string): number => value.length * UTF16_CODE_UNIT_BYTES;
+
+const globCacheWeight = (pattern: string, matcher: RegExp): number =>
+  bytesForUTF16(pattern) +
+  STRING_CONTAINER_BYTES +
+  bytesForUTF16(matcher.source) +
+  STRING_CONTAINER_BYTES +
+  REGEXP_BYTES +
+  CACHE_ENTRY_BYTES;
 
 const globToken = (pattern: string, index: number): { index: number; text: string } => {
   const char = pattern[index];
   const nextChar = pattern[index + 1];
   const afterNextChar = pattern[index + 2];
-
-  return Match.value(char).pipe(
-    Match.when(
-      (character): boolean => character === '*' && nextChar === '*' && afterNextChar === '/',
-      (): { index: number; text: string } => ({ index: index + 2, text: '(?:.*/)?' }),
-    ),
-    Match.when(
-      (character): boolean => character === '*' && nextChar === '*',
-      (): { index: number; text: string } => ({ index: index + 1, text: '.*' }),
-    ),
-    Match.when(
-      (character): boolean => character === '*',
-      (): { index: number; text: string } => ({ index, text: '[^/]*' }),
-    ),
-    Match.orElse((character): { index: number; text: string } => ({
-      index,
-      text: escapeRegExp(character ?? ''),
-    })),
-  );
+  if (char === '*' && nextChar === '*' && afterNextChar === '/') {
+    return { index: index + 2, text: '(?:.*/)?' };
+  }
+  if (char === '*' && nextChar === '*') {
+    return { index: index + 1, text: '.*' };
+  }
+  if (char === '*') {
+    return { index, text: '[^/]*' };
+  }
+  return { index, text: escapeRegExp(char ?? '') };
 };
 
 const globBody = (normalizedPattern: string): string => {
-  const appendToken = (index: number, body: string): string =>
-    Match.value(index).pipe(
-      Match.when(
-        (currentIndex): boolean => currentIndex >= normalizedPattern.length,
-        (): string => body,
-      ),
-      Match.orElse((currentIndex): string => {
-        const token = globToken(normalizedPattern, currentIndex);
-        return appendToken(token.index + 1, body + token.text);
-      }),
-    );
-  return appendToken(0, '');
+  const parts: string[] = [];
+  let index = 0;
+  while (index < normalizedPattern.length) {
+    const token = globToken(normalizedPattern, index);
+    parts.push(token.text);
+    index = token.index + 1;
+  }
+  return parts.join('');
 };
 
 const globPrefix = (normalizedPattern: string): string =>
@@ -134,8 +145,7 @@ const globToRegExp = (pattern: string): RegExp => {
         const matcher = new RegExp(
           `${globPrefix(normalizedPattern)}${globBody(normalizedPattern)}$`,
         );
-        globCache.set(pattern, matcher);
-        return matcher;
+        return globCache.set(pattern, matcher, globCacheWeight(pattern, matcher));
       },
       onSome: (matcher): RegExp => matcher,
     }),

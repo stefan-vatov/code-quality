@@ -24,11 +24,21 @@ const literalString = (node: ASTNode | undefined): string | undefined => {
 const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
-const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean =>
-  node?.type === 'MemberExpression' &&
-  (Reflect.get(node, 'computed') === true ||
-    Reflect.get(node, 'optional') === true ||
-    hasUnsupportedMemberAccess(childNode(node, 'object')));
+const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean => {
+  const seen = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression') {
+    if (seen.has(current)) {
+      return true;
+    }
+    seen.add(current);
+    if (Reflect.get(current, 'computed') === true || Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    current = childNode(current, 'object');
+  }
+  return false;
+};
 
 const isPlainCall = (node: ASTNode): boolean =>
   Reflect.get(node, 'optional') !== true &&

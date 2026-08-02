@@ -33,6 +33,11 @@ interface NativeProgramTraversalInput {
   visitorKeys: Readonly<Record<string, readonly string[]>>;
 }
 
+interface NativeTraversalFrame {
+  inherited: NativeHelperFrame | undefined;
+  value: unknown;
+}
+
 const helperFrame = (
   node: ASTNode,
   kind: HelperFrameKind,
@@ -64,50 +69,78 @@ const childFrame = (
   return inherited;
 };
 
-const visitChild = (
-  value: unknown,
-  frame: NativeHelperFrame | undefined,
-  input: NativeProgramTraversalInput,
+const pushNativeChildren = (
+  pending: NativeTraversalFrame[],
+  node: ASTNode,
+  inherited: NativeHelperFrame | undefined,
+  keys: readonly string[],
 ): void => {
-  if (Array.isArray(value)) {
-    const valueCount = value.length;
-    for (let valueIndex = 0; valueIndex < valueCount; valueIndex += 1) {
-      visitChild(value[valueIndex], frame, input);
+  for (let keyIndex = keys.length - 1; keyIndex >= 0; keyIndex -= 1) {
+    const key = keys[keyIndex];
+    if (key) {
+      pending.push({ inherited, value: Reflect.get(node, key) });
     }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    visitNode(child, frame, input);
   }
 };
 
-const visitNode = (
-  node: ASTNode,
+const pushNativeArrayValues = (
+  pending: NativeTraversalFrame[],
+  values: readonly unknown[],
   inherited: NativeHelperFrame | undefined,
+  seenArrays: WeakSet<object>,
+): void => {
+  if (seenArrays.has(values)) {
+    return;
+  }
+  seenArrays.add(values);
+  for (let valueIndex = values.length - 1; valueIndex >= 0; valueIndex -= 1) {
+    pending.push({ inherited, value: values[valueIndex] });
+  }
+};
+
+const visitNativeNode = (
+  pending: NativeTraversalFrame[],
+  current: NativeTraversalFrame,
+  seenNodes: WeakSet<object>,
   input: NativeProgramTraversalInput,
 ): void => {
-  const currentFrame = nodeFrame(node, inherited);
+  const node = asNode(current.value);
+  if (!node || seenNodes.has(node)) {
+    return;
+  }
+  seenNodes.add(node);
+  const currentFrame = nodeFrame(node, current.inherited);
   if (node.type === 'CallExpression' && currentFrame) {
     input.seenCalls.add(node);
     input.onCall(node, currentFrame);
   }
   const descendantsFrame = childFrame(node, currentFrame);
-  visitChildren(node, descendantsFrame, input);
+  pushNativeChildren(pending, node, descendantsFrame, input.visitorKeys[node.type] ?? []);
 };
 
-const visitChildren = (
-  node: ASTNode,
-  frame: NativeHelperFrame | undefined,
+const visitNativeFrame = (
+  pending: NativeTraversalFrame[],
+  current: NativeTraversalFrame,
+  seenNodes: WeakSet<object>,
+  seenArrays: WeakSet<object>,
   input: NativeProgramTraversalInput,
 ): void => {
-  const keys = input.visitorKeys[node.type] ?? [];
-  const keyCount = keys.length;
-  for (let keyIndex = 0; keyIndex < keyCount; keyIndex += 1) {
-    const key = keys[keyIndex];
-    if (key) {
-      visitChild(Reflect.get(node, key), frame, input);
-    }
+  if (Array.isArray(current.value)) {
+    pushNativeArrayValues(pending, current.value, current.inherited, seenArrays);
+    return;
+  }
+  visitNativeNode(pending, current, seenNodes, input);
+};
+
+const visitNativePending = (
+  pending: NativeTraversalFrame[],
+  seenNodes: WeakSet<object>,
+  seenArrays: WeakSet<object>,
+  input: NativeProgramTraversalInput,
+): void => {
+  const current = pending.pop();
+  if (current) {
+    visitNativeFrame(pending, current, seenNodes, seenArrays, input);
   }
 };
 
@@ -123,13 +156,15 @@ export const visitNativePromiseProgram = (
   input: NativeProgramTraversalInput,
 ): NativeHelperFrame => {
   const rootFrame = helperFrame(input.program, 'container', undefined);
+  const seenNodes = new WeakSet();
+  const seenArrays = new WeakSet();
+  seenNodes.add(input.program);
+  const pending: NativeTraversalFrame[] = [];
   const keys = input.visitorKeys[input.program.type] ?? [];
-  const keyCount = keys.length;
-  for (let keyIndex = 0; keyIndex < keyCount; keyIndex += 1) {
-    const key = keys[keyIndex];
-    if (key) {
-      visitChild(Reflect.get(input.program, key), rootFrame, input);
-    }
+  pushNativeChildren(pending, input.program, rootFrame, keys);
+
+  while (pending.length > 0) {
+    visitNativePending(pending, seenNodes, seenArrays, input);
   }
   return rootFrame;
 };

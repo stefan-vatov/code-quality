@@ -4,14 +4,15 @@
 
 import type { Context, SourceRule } from './effect-rule-core';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { ImportedEffectCallMatcher } from './effect-imported-call-matcher';
 import type { ScopeStack } from './effect-ast-scope';
 import { diagnosticMessage } from './diagnostic-guidance';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 import { readCachedSource } from './source-cache';
+import { scopeHasBinding } from './effect-ast-scope';
 import { strictPathOptionsSchema } from './effect-path-options';
+import { visitASTWithStack } from './effect-ast-stack-safe-walker';
 
 const MESSAGE = diagnosticMessage({
   example:
@@ -169,64 +170,25 @@ const asVoidReferenceName = (
   return matchingBindingName(root, 'root', bindings);
 };
 
-const isShadowed = (name: string, scopes: ScopeStack): boolean =>
-  scopes.some((scope): boolean => scope.has(name));
-
-type ASTProperty = ASTNode | readonly ASTProperty[] | boolean | null | number | string | undefined;
-
-type IndexAsVoidValue = (
-  value: ASTProperty,
-  bindings: ReadonlyMap<string, AsVoidBindingKind>,
-  references: WeakSet<object>,
-  scopes: ScopeStack,
-) => void;
-
-const isASTPropertyArray = (value: ASTProperty): value is readonly ASTProperty[] =>
-  Array.isArray(value);
-
-const indexAsVoidNode = (
-  node: ASTNode,
-  bindings: ReadonlyMap<string, AsVoidBindingKind>,
-  references: WeakSet<object>,
-  scopes: ScopeStack,
-  indexValue: IndexAsVoidValue,
-): void => {
-  const nodeScopes = withNodeScope(scopes, node);
-  const name = asVoidReferenceName(node, bindings);
-  if (name && !isShadowed(name, nodeScopes)) {
-    references.add(node);
-  }
-  for (const [key, child] of Object.entries(node)) {
-    if (key !== 'parent') {
-      indexValue(child as ASTProperty, bindings, references, scopesForChild(nodeScopes, node, key));
-    }
-  }
-};
-
-const indexAsVoidValue: IndexAsVoidValue = function indexAsVoidValue(
-  value: ASTProperty,
-  bindings: ReadonlyMap<string, AsVoidBindingKind>,
-  references: WeakSet<object>,
-  scopes: ScopeStack,
-): void {
-  if (isASTPropertyArray(value)) {
-    for (const item of value) {
-      indexAsVoidValue(item, bindings, references, scopes);
-    }
-    return;
-  }
-  const node = asNode(value);
-  if (node) {
-    indexAsVoidNode(node, bindings, references, scopes, indexAsVoidValue);
-  }
-};
+const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
 
 const indexAsVoidReferences = (
   program: ASTNode,
   bindings: ReadonlyMap<string, AsVoidBindingKind>,
 ): WeakSet<object> => {
   const references = new WeakSet();
-  indexAsVoidValue(program, bindings, references, []);
+  visitASTWithStack({
+    context: references,
+    onNode(node, nodeScopes): { context: WeakSet<object>; visitChildren: boolean } {
+      const name = asVoidReferenceName(node, bindings);
+      if (name && !isShadowed(name, nodeScopes)) {
+        references.add(node);
+      }
+      return { context: references, visitChildren: true };
+    },
+    root: program,
+    scopes: [],
+  });
   return references;
 };
 
@@ -246,14 +208,16 @@ const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
 const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean => {
-  if (node?.type !== 'MemberExpression') {
-    return false;
+  const seen = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression' && !seen.has(current)) {
+    seen.add(current);
+    if (Reflect.get(current, 'computed') === true || Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    current = childNode(current, 'object');
   }
-  return (
-    Reflect.get(node, 'computed') === true ||
-    Reflect.get(node, 'optional') === true ||
-    hasUnsupportedMemberAccess(childNode(node, 'object'))
-  );
+  return false;
 };
 
 const isPlainCall = (call: ASTNode): boolean =>

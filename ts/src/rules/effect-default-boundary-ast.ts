@@ -29,7 +29,6 @@ import {
 import { isGlobalObjectAssignCall, staticMemberNames } from './effect-object-assign-provenance';
 import { nativeReferenceIndexFor, nativeSourceCodeFor } from './effect-native-references';
 import { programBindingsFor, sourceBindingsFor } from './effect-promise-rule-bindings';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { Context } from './effect-rule-core';
 import type { HelperScopes } from './effect-promise-callables';
@@ -39,6 +38,7 @@ import type { PromiseBindingState } from './effect-promise-rule-bindings';
 import type { ScopeStack } from './effect-ast-scope';
 import { hasExecutedPromiseBoundary } from './effect-promise-execution-ast';
 import { reportPromiseRuntimeTask } from './effect-promise-runtime-reporting';
+import { visitASTWithStack } from './effect-ast-stack-safe-walker';
 
 export { effectRecursionAST } from './effect-recursion-ast';
 
@@ -60,24 +60,6 @@ interface PromiseRuleState extends PromiseBindingState {
 
 const emptyHelperScopes: HelperScopes = [];
 const emptyScopeStack: ScopeStack = [];
-
-const visitChildValue = (
-  value: unknown,
-  scopes: ScopeStack,
-  helperScopes: HelperScopes,
-  visit: (node: ASTNode, scopes: ScopeStack, helperScopes: HelperScopes) => boolean,
-): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      visitChildValue(item, scopes, helperScopes, visit);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    visitTree(child, scopes, helperScopes, visit);
-  }
-};
 
 const helperContainerScopes = (
   node: ASTNode,
@@ -107,17 +89,33 @@ const visitTree = (
   helperScopes: HelperScopes,
   visit: (node: ASTNode, scopes: ScopeStack, helperScopes: HelperScopes) => boolean,
 ): void => {
-  const nodeScopes = withNodeScope(scopes, node);
-  const nodeHelperScopes = helperContainerScopes(node, nodeScopes, helperScopes);
-  if (!visit(node, nodeScopes, nodeHelperScopes)) {
-    return;
-  }
-  const childHelperScopes = functionChildHelperScopes(node, scopes, nodeHelperScopes);
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      visitChildValue(value, scopesForChild(nodeScopes, node, key), childHelperScopes, visit);
-    }
-  }
+  visitASTWithStack({
+    context: helperScopes,
+    onNode(
+      currentNode,
+      nodeScopes,
+      inheritedScopes,
+      inheritedHelperScopes,
+    ): {
+      context: HelperScopes;
+      visitChildren: boolean;
+    } {
+      const nodeHelperScopes = helperContainerScopes(
+        currentNode,
+        nodeScopes,
+        inheritedHelperScopes,
+      );
+      if (!visit(currentNode, nodeScopes, nodeHelperScopes)) {
+        return { context: nodeHelperScopes, visitChildren: false };
+      }
+      return {
+        context: functionChildHelperScopes(currentNode, inheritedScopes, nodeHelperScopes),
+        visitChildren: true,
+      };
+    },
+    root: node,
+    scopes,
+  });
 };
 
 const isTypeOnlyImportDefinition = (definition: object): boolean => {

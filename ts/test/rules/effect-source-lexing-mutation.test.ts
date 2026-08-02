@@ -12,7 +12,7 @@ import { stripComments } from '../../src/rules/effect-source-comments';
 describe('stripComments', (): void => {
   it('preserves CRLF source positions while removing a line comment', (): void => {
     const source = 'const first = 1; // note\r\nconst second = 2;';
-    const expected = `const first = 1;${' '.repeat(9)}\nconst second = 2;`;
+    const expected = `const first = 1;${' '.repeat(8)}\r\nconst second = 2;`;
     const stripped = stripComments(source);
 
     expect(stripped).toBe(expected);
@@ -95,10 +95,36 @@ describe('regex literal navigation', (): void => {
     },
   );
 
+  it.each([
+    'value + /pattern/.test(input)',
+    'value - /pattern/.test(input)',
+    'value * /pattern/.test(input)',
+    'value / /pattern/.test(input)',
+    'const matcher = () => /pattern/.test(input)',
+    'await /pattern/.test(input)',
+    'if (enabled) /pattern/.test(input)',
+    'return /* reason */ /pattern/.test(input)',
+  ])('accepts a regex literal in expression position: %s', (source): void => {
+    expect(isREGEXLiteralStart(source, source.lastIndexOf('/pattern/'))).toBe(true);
+  });
+
+  it('does not treat a keyword-named property division as a regex literal', (): void => {
+    const source = 'obj.return / divisor';
+
+    expect(isREGEXLiteralStart(source, source.indexOf('/'))).toBe(false);
+  });
+
   it('finds the final flag after an escaped slash', (): void => {
     const source = String.raw`/a\/b/giu`;
 
     expect(findREGEXLiteralEnd(source, 0)).toBe(8);
+  });
+
+  it('recognizes a regex at the first token inside a template interpolation', (): void => {
+    const source = 'const matcher = `${/pattern/gi}`;';
+    const slashIndex = source.indexOf('/');
+
+    expect(isREGEXLiteralStart(source, slashIndex)).toBe(true);
   });
 
   it('does not treat a slash inside a character class as the closing delimiter', (): void => {
@@ -112,6 +138,15 @@ describe('regex literal navigation', (): void => {
 
     expect(findREGEXLiteralEnd(source, 0)).toBe(10);
   });
+
+  it.each(['\r', '\u2028', '\u2029'])(
+    'stops an unterminated regex at the %s line terminator',
+    (terminator): void => {
+      const source = `/left${terminator}right/`;
+
+      expect(findREGEXLiteralEnd(source, 0)).toBe(0);
+    },
+  );
 });
 
 describe('source navigation', (): void => {

@@ -67,7 +67,7 @@ export interface PromiseBlockFlowInput extends PromiseFlowInput {
 interface BlockContext {
   environments: ParameterEnvironments;
   helperScopes: HelperScopes;
-  values: Map<string, ArgumentValue>;
+  values?: Map<string, ArgumentValue>;
 }
 
 interface StatementContext extends PromiseFlowInput {
@@ -78,7 +78,11 @@ const blockContext = (
   blockHelpers: HelperScopes,
   inheritedHelpers: HelperScopes,
   environments: ParameterEnvironments,
+  hasLocalDeclarations: boolean,
 ): BlockContext => {
+  if (!hasLocalDeclarations) {
+    return { environments, helperScopes: blockHelpers };
+  }
   const values = new Map<string, ArgumentValue>();
   let helperScopes = blockHelpers;
   let marker = blockHelpers[blockHelpers.length - 1];
@@ -296,8 +300,14 @@ export const visitPromiseBlock = (
   visitor: PromiseFlowVisitor,
   input: PromiseBlockFlowInput,
 ): PromiseEvaluation => {
-  const context = blockContext(input.helperScopes, input.inheritedHelperScopes, input.environments);
-  for (const statement of childNodes(input.node, 'body')) {
+  const statements = childNodes(input.node, 'body');
+  const context = blockContext(
+    input.helperScopes,
+    input.inheritedHelperScopes,
+    input.environments,
+    statements.some((statement): boolean => statement.type === 'VariableDeclaration'),
+  );
+  for (const statement of statements) {
     const result = visitStatement(visitor, {
       environments: context.environments,
       helperScopes: context.helperScopes,

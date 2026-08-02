@@ -17,6 +17,7 @@ import {
 import type { ASTNode } from './effect-ast';
 import type { ScopeStack } from './effect-ast-scope';
 import { childNode } from './effect-ast';
+import { scopeHasBinding } from './effect-ast-scope';
 import { unknownArgument } from './effect-promise-environment-types';
 import { unwrappedExpression } from './effect-boundary-ast-shared';
 
@@ -181,14 +182,7 @@ const structuralTruthiness = (expression: ASTNode | undefined): boolean | undefi
   return undefined;
 };
 
-const isShadowed = (name: string, scopes: ScopeStack): boolean => {
-  for (let index = scopes.length - 1; index >= 0; index -= 1) {
-    if (scopes[index]?.has(name)) {
-      return true;
-    }
-  }
-  return false;
-};
+const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
 
 const globalNumericTruthiness = (
   expression: ASTNode | undefined,

@@ -48,6 +48,8 @@ interface ScanInput {
   localScopeCache: WeakMap<object, ReadonlyMap<string, LocalBinding>>;
   localScopes: LocalFunctionScopes;
   resolutionBindings: EffectResolutionBindings;
+  seenArrays: WeakSet<object>;
+  seenNodes: WeakSet<object>;
 }
 
 const suppliedArgument: InvocationArguments = {
@@ -195,27 +197,6 @@ const invocationArguments = (node: ASTNode): InvocationArguments => {
     return boundArguments(node, bindCall);
   }
   return ordinaryArguments(node);
-};
-
-const scanChildValue = (value: unknown, scopes: ScopeStack, input: ScanInput): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      scanChildValue(item, scopes, input);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    scanRecursiveNode(child, scopes, input);
-  }
-};
-
-const scanRecursiveChildren = (node: ASTNode, scopes: ScopeStack, input: ScanInput): void => {
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      scanChildValue(value, scopesForChild(scopes, node, key), input);
-    }
-  }
 };
 
 const shouldExecuteDefault = (
@@ -391,18 +372,138 @@ const recursiveNodeContext = (
   return [nodeScopes, nodeInput, invocationTarget(node, nodeScopes, nodeInput)];
 };
 
-const scanRecursiveNode = (node: ASTNode, scopes: ScopeStack, input: ScanInput): void => {
-  if (isFunctionNode(node)) {
+interface RecursiveScanFrame {
+  input?: ScanInput;
+  kind: 'callbacks' | 'invoke' | 'node' | 'value';
+  node?: ASTNode;
+  scopes: ScopeStack;
+  target?: InvocationTarget;
+  value?: unknown;
+}
+
+const appendRecursiveValue = (
+  pending: RecursiveScanFrame[],
+  value: unknown,
+  scopes: ScopeStack,
+  input: ScanInput,
+): void => {
+  pending.push({ input, kind: 'value', scopes, value });
+};
+
+const appendArrayValues = (
+  pending: RecursiveScanFrame[],
+  values: readonly unknown[],
+  scopes: ScopeStack,
+  input: ScanInput,
+): void => {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    appendRecursiveValue(pending, values[index], scopes, input);
+  }
+};
+
+const processValueFrame = (
+  frame: RecursiveScanFrame,
+  pending: RecursiveScanFrame[],
+  rootInput: ScanInput,
+): void => {
+  const input = frame.input ?? rootInput;
+  const { value } = frame;
+  if (Array.isArray(value)) {
+    if (!input.seenArrays.has(value)) {
+      input.seenArrays.add(value);
+      appendArrayValues(pending, value, frame.scopes, input);
+    }
     return;
   }
-  const [nodeScopes, nodeInput, target] = recursiveNodeContext(node, scopes, input);
+  const child = asNode(value);
+  if (child) {
+    pending.push({ input, kind: 'node', node: child, scopes: frame.scopes });
+  }
+};
+
+const appendNodeChildren = (
+  pending: RecursiveScanFrame[],
+  node: ASTNode,
+  scopes: ScopeStack,
+  input: ScanInput,
+): void => {
+  const entries = Object.entries(node);
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry && entry[0] !== 'parent') {
+      appendRecursiveValue(pending, entry[1], scopesForChild(scopes, node, entry[0]), input);
+    }
+  }
+};
+
+const appendPostNodeFrames = (
+  pending: RecursiveScanFrame[],
+  node: ASTNode,
+  scopes: ScopeStack,
+  target: InvocationTarget | undefined,
+  input: ScanInput,
+): void => {
+  pending.push({ input, kind: 'invoke', node, scopes, target });
+  pending.push({ input, kind: 'callbacks', node, scopes });
+};
+
+// oxlint-disable-next-line max-statements -- processes one explicit DFS frame without call-stack growth.
+const processNodeFrame = (
+  frame: RecursiveScanFrame,
+  pending: RecursiveScanFrame[],
+  rootInput: ScanInput,
+): void => {
+  const { node } = frame;
+  if (!node) {
+    return;
+  }
+  const input = frame.input ?? rootInput;
+  if (input.seenNodes.has(node) || isFunctionNode(node)) {
+    return;
+  }
+  input.seenNodes.add(node);
+  const [nodeScopes, nodeInput, target] = recursiveNodeContext(node, frame.scopes, input);
   recordNodeFacts(node, nodeScopes, target, nodeInput);
   if (nodeInput.facts.hasEffectCall && nodeInput.facts.hasUnsuspendedSelfCall) {
     return;
   }
-  scanRecursiveChildren(node, nodeScopes, nodeInput);
-  scanEagerCallbacks(node, nodeScopes, nodeInput);
-  scanInvocationTarget(node, nodeScopes, target, nodeInput);
+  appendPostNodeFrames(pending, node, nodeScopes, target, nodeInput);
+  appendNodeChildren(pending, node, nodeScopes, nodeInput);
+};
+
+// oxlint-disable-next-line max-statements -- dispatches the four explicit DFS frame kinds.
+const processScanFrame = (
+  frame: RecursiveScanFrame,
+  pending: RecursiveScanFrame[],
+  input: ScanInput,
+): void => {
+  if (frame.kind === 'value') {
+    processValueFrame(frame, pending, input);
+    return;
+  }
+  const { node, input: frameInput } = frame;
+  if (!node || !frameInput) {
+    return;
+  }
+  if (frame.kind === 'callbacks') {
+    scanEagerCallbacks(node, frame.scopes, frameInput);
+    return;
+  }
+  if (frame.kind === 'invoke') {
+    scanInvocationTarget(node, frame.scopes, frame.target, frameInput);
+    return;
+  }
+  processNodeFrame(frame, pending, input);
+};
+
+const scanRecursiveNode = (node: ASTNode, scopes: ScopeStack, input: ScanInput): void => {
+  const pending: RecursiveScanFrame[] = [{ input, kind: 'node', node, scopes }];
+  while (pending.length > 0) {
+    const frame = pending.pop();
+    if (frame) {
+      processScanFrame(frame, pending, input);
+    }
+  }
 };
 
 /**
@@ -431,6 +532,8 @@ export const recursiveEffectFacts = (
     localScopeCache: new WeakMap(),
     localScopes: [],
     resolutionBindings,
+    seenArrays: new WeakSet(),
+    seenNodes: new WeakSet(),
   };
   scanExecutedFunction(node, [], input, undefined, allowGenerator);
   return facts;

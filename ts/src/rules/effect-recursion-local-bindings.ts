@@ -129,24 +129,36 @@ const targetWithoutBinding = (
   return undefined;
 };
 
+const nextAliasName = (
+  binding: LocalBinding,
+  seenAliases: Set<LocalBinding>,
+): string | undefined => {
+  if (binding.kind !== 'alias' || seenAliases.has(binding)) {
+    return undefined;
+  }
+  seenAliases.add(binding);
+  return binding.name;
+};
+
 const resolveLocalTargetAt = (
   name: string,
   functionName: string,
   scopes: LocalFunctionScopes,
-  seenAliases: Set<LocalBinding>,
 ): LocalInvocationTarget | undefined => {
-  const binding = localBindingFor(name, scopes);
-  if (!binding) {
-    return targetWithoutBinding(name, functionName);
+  let currentName: string | undefined = name;
+  const seenAliases = new Set<LocalBinding>();
+
+  while (currentName !== undefined) {
+    const binding = localBindingFor(currentName, scopes);
+    if (!binding) {
+      return targetWithoutBinding(currentName, functionName);
+    }
+    if (binding.kind === 'function') {
+      return { functionNode: binding.node, isSelfCall: false };
+    }
+    currentName = nextAliasName(binding, seenAliases);
   }
-  if (binding.kind === 'function') {
-    return { functionNode: binding.node, isSelfCall: false };
-  }
-  if (seenAliases.has(binding)) {
-    return undefined;
-  }
-  seenAliases.add(binding);
-  return resolveLocalTargetAt(binding.name, functionName, scopes, seenAliases);
+  return undefined;
 };
 
 /**
@@ -158,4 +170,4 @@ export const resolveLocalTarget = (
   name: string,
   functionName: string,
   scopes: LocalFunctionScopes,
-): LocalInvocationTarget | undefined => resolveLocalTargetAt(name, functionName, scopes, new Set());
+): LocalInvocationTarget | undefined => resolveLocalTargetAt(name, functionName, scopes);

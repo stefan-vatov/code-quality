@@ -79,12 +79,31 @@ export const RUNTIME_OUTCOME_CAP = 8;
  * @internal
  */
 export interface RuntimeExecutionContext {
+  currentOffset?: number;
   helperScopes: HelperScopes;
   offsets: Map<HelperScope, number>;
   runtimeScopes: readonly HelperScope[];
   taskScopes: readonly RuntimeScope[];
   thisValue?: RuntimeValue;
 }
+
+/**
+ * Materialize lexical offsets only when a runtime task captures them.
+ *
+ * @internal
+ */
+export const runtimeOffsetsAt = (
+  context: RuntimeExecutionContext,
+): ReadonlyMap<HelperScope, number> => {
+  if (context.currentOffset === undefined || context.runtimeScopes.length === 0) {
+    return context.offsets;
+  }
+  const offsets = new Map(context.offsets);
+  for (const scope of context.runtimeScopes) {
+    offsets.set(scope, context.currentOffset);
+  }
+  return offsets;
+};
 
 /**
  * One exact completion alternative and its transactional state.

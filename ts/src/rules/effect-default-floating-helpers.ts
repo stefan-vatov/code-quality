@@ -1,13 +1,22 @@
 /* -------------------------------------------------------------------------- */
 /*                   Floating Effect expression detection.                    */
 /* -------------------------------------------------------------------------- */
-import { Array, Match, Option, pipe } from 'effect';
+import { Array, Match, pipe } from 'effect';
 import { findBalancedCallEnd, stripCommentsAndStrings } from './effect-source-helpers';
+import { createWeightedCache } from './source-cache';
 import { effectAliasesPattern } from './effect-default-scan-helpers';
 import { effectImportAliases } from './effect-rule-core';
 
 const EFFECT_PATTERN_CACHE_MAX = 256;
-const floatingEffectPatternCache = new Map<string, FloatingEffectPatterns>();
+const BYTES_PER_KIBIBYTE = 1024;
+const BYTES_PER_MEBIBYTE = BYTES_PER_KIBIBYTE * BYTES_PER_KIBIBYTE;
+const FLOATING_EFFECT_PATTERN_CACHE_MEBIBYTES = 4;
+const FLOATING_EFFECT_PATTERN_CACHE_MAX_WEIGHT =
+  FLOATING_EFFECT_PATTERN_CACHE_MEBIBYTES * BYTES_PER_MEBIBYTE;
+const UTF16_CODE_UNIT_BYTES = 2;
+const CACHE_ENTRY_BYTES = 128;
+const OBJECT_BASE_BYTES = 256;
+const REGEXP_BYTES = 128;
 
 interface FloatingEffectPatterns {
   floatingEffectCall: RegExp;
@@ -17,66 +26,65 @@ interface FloatingEffectPatterns {
   ternaryEffectCall: RegExp;
 }
 
+type FloatingEffectPatternCache = ReturnType<
+  typeof createWeightedCache<string, FloatingEffectPatterns>
+>;
+const floatingEffectPatternCache: FloatingEffectPatternCache = createWeightedCache({
+  maxEntries: EFFECT_PATTERN_CACHE_MAX,
+  maxWeight: FLOATING_EFFECT_PATTERN_CACHE_MAX_WEIGHT,
+});
+
 interface FloatingLineInput {
   line: string;
   patterns: FloatingEffectPatterns;
   previous: string;
 }
 
-const setBoundedCacheValue = <Value>(
-  cache: Map<string, Value>,
-  key: string,
-  value: Value,
-): Value => {
-  pipe(
-    Match.value(cache.size),
-    Match.when(
-      (size): boolean => size >= EFFECT_PATTERN_CACHE_MAX,
-      (): void => {
-        pipe(
-          Option.fromNullable(cache.keys().next().value),
-          Option.match({
-            onNone: (): void => undefined,
-            onSome: (firstKey): void => {
-              cache.delete(firstKey);
-            },
-          }),
-        );
-      },
-    ),
-    Match.orElse((): void => undefined),
-  );
-  cache.set(key, value);
-  return value;
-};
+const UTF16Bytes = (value: string): number => value.length * UTF16_CODE_UNIT_BYTES;
+const bytesForUTF16 = UTF16Bytes;
+
+const floatingEffectPatternsWeight = (
+  aliasPattern: string,
+  patterns: FloatingEffectPatterns,
+): number =>
+  bytesForUTF16(aliasPattern) +
+  CACHE_ENTRY_BYTES +
+  OBJECT_BASE_BYTES +
+  [
+    patterns.floatingEffectCall,
+    patterns.guardedAndEffectCall,
+    patterns.guardedOrEffectCall,
+    patterns.inlineIfEffectCall,
+    patterns.ternaryEffectCall,
+  ].reduce((weight, pattern): number => weight + REGEXP_BYTES + bytesForUTF16(pattern.source), 0);
 
 const floatingEffectPatterns = (aliasPattern: string): FloatingEffectPatterns => {
   const cachedPatterns = floatingEffectPatternCache.get(aliasPattern);
-  return pipe(
-    Option.fromNullable(cachedPatterns),
-    Option.match({
-      onNone: (): FloatingEffectPatterns => {
-        const runtimeMethods = 'runPromise|runPromiseExit|runSync|runSyncExit|runFork';
-        return setBoundedCacheValue(floatingEffectPatternCache, aliasPattern, {
-          floatingEffectCall: new RegExp(
-            `^(?:void\\s+)?\\(*\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-          ),
-          guardedAndEffectCall: new RegExp(
-            `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*&&\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-          ),
-          guardedOrEffectCall: new RegExp(
-            `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*\\|\\|\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-          ),
-          inlineIfEffectCall: new RegExp(
-            `^if\\s*\\([^)]*\\)\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-          ),
-          ternaryEffectCall: new RegExp(
-            `\\?\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
-          ),
-        });
-      },
-      onSome: (patterns): FloatingEffectPatterns => patterns,
-    }),
+  if (cachedPatterns !== undefined) {
+    return cachedPatterns;
+  }
+  const runtimeMethods = 'runPromise|runPromiseExit|runSync|runSyncExit|runFork';
+  const patterns: FloatingEffectPatterns = {
+    floatingEffectCall: new RegExp(
+      `^(?:void\\s+)?\\(*\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    guardedAndEffectCall: new RegExp(
+      `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*&&\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    guardedOrEffectCall: new RegExp(
+      `^[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)?\\s*\\|\\|\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    inlineIfEffectCall: new RegExp(
+      `^if\\s*\\([^)]*\\)\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+    ternaryEffectCall: new RegExp(
+      `\\?\\s*(?:${aliasPattern})\\.(?!(?:${runtimeMethods})\\b)[A-Za-z_$][\\w$]*\\s*\\(`,
+    ),
+  };
+  return floatingEffectPatternCache.set(
+    aliasPattern,
+    patterns,
+    floatingEffectPatternsWeight(aliasPattern, patterns),
   );
 };
 
@@ -124,6 +132,14 @@ const isStandaloneFloatingCall = (input: FloatingLineInput): boolean =>
 
 const isFloatingPipeCall = (line: string, previous: string): boolean =>
   /^[A-Za-z_$][\w$]*\.pipe\s*\([\s\S]*?\bEffect\./.test(line) && !/[=(:,[]\s*$/.test(previous);
+
+const FLOATING_PIPE_STATEMENT_PATTERN = /^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?\.pipe\s*\(/gm;
+const FLOATING_PIPE_PREFIX_CHARACTERS = '=(:,[';
+const FLOATING_PIPE_WHITESPACE_CHARACTERS =
+  '\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff';
+
+const isFloatingPipeWhitespace = (character: string | undefined): boolean =>
+  character !== undefined && FLOATING_PIPE_WHITESPACE_CHARACTERS.includes(character);
 
 const isFloatingDecodeCall = (line: string): boolean =>
   /^Schema\.decode[A-Za-z]*\s*\([^)]*\)\s*\([^)]*\)\s*;?$/.test(line);
@@ -204,24 +220,61 @@ const hasFloatingEffectLines = (
   }
 };
 
-const hasFloatingPipeStatement = (code: string): boolean =>
-  pipe(
-    [...code.matchAll(/^\s*[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?\.pipe\s*\(/gm)],
-    Array.some((match): boolean => {
-      const statementPrefix = code.slice(code.lastIndexOf(';', match.index) + 1, match.index);
-      return Match.value(statementPrefix.trimEnd()).pipe(
-        Match.when(
-          (prefix): boolean => /[=(:,[]\s*$/.test(prefix),
-          (): boolean => false,
-        ),
-        Match.orElse((): boolean => {
-          const openParenIndex = code.indexOf('(', match.index);
-          const pipeCall = code.slice(match.index, findBalancedCallEnd(code, openParenIndex) + 1);
-          return /\bEffect\./.test(pipeCall);
-        }),
-      );
-    }),
+const previousNonWhitespaceIndexBefore = (
+  code: string,
+  startIndex: number,
+  endIndex: number,
+  previousIndex: number,
+): number => {
+  let index = startIndex;
+  let lastIndex = previousIndex;
+  while (index < endIndex) {
+    if (!isFloatingPipeWhitespace(code[index])) {
+      lastIndex = index;
+    }
+    index += 1;
+  }
+  return lastIndex;
+};
+
+const isFloatingPipeStatementPrefixAllowed = (
+  code: string,
+  previousNonWhitespaceIndex: number,
+): boolean => {
+  const previousCharacter = code[previousNonWhitespaceIndex];
+  return (
+    previousCharacter === undefined || !FLOATING_PIPE_PREFIX_CHARACTERS.includes(previousCharacter)
   );
+};
+
+const hasFloatingEffectInPipeCall = (code: string, matchIndex: number): boolean => {
+  const openParenIndex = code.indexOf('(', matchIndex);
+  const pipeCall = code.slice(matchIndex, findBalancedCallEnd(code, openParenIndex) + 1);
+  return /\bEffect\./.test(pipeCall);
+};
+
+const hasFloatingPipeStatement = (code: string): boolean => {
+  let previousNonWhitespaceIndex = -1;
+  let scannedIndex = 0;
+
+  for (const match of code.matchAll(FLOATING_PIPE_STATEMENT_PATTERN)) {
+    previousNonWhitespaceIndex = previousNonWhitespaceIndexBefore(
+      code,
+      scannedIndex,
+      match.index,
+      previousNonWhitespaceIndex,
+    );
+    scannedIndex = match.index;
+    if (
+      isFloatingPipeStatementPrefixAllowed(code, previousNonWhitespaceIndex) &&
+      hasFloatingEffectInPipeCall(code, match.index)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 /**
  * Internal helper exported for package-local composition.

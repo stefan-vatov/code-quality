@@ -7,6 +7,7 @@ import {
   RUNTIME_NONTERMINATING,
   RUNTIME_NORMAL,
   RUNTIME_RETURN,
+  runtimeOffsetsAt,
   sameRuntimeSnapshotValues,
   snapshotRuntimeStore,
 } from './effect-promise-runtime-model';
@@ -350,8 +351,9 @@ class RuntimeInterpreter implements RuntimeStatementHost {
     const helpers = functionHeaderScopes(binding.node, binding);
     const scopes = [...captured];
     const context: RuntimeExecutionContext = {
+      currentOffset: caller.currentOffset,
       helperScopes: helpers,
-      offsets: new Map(caller.offsets),
+      offsets: new Map(runtimeOffsetsAt(caller)),
       runtimeScopes: helpers.slice(binding.helperScopes.length),
       taskScopes: scopes,
       thisValue: callable.boundThis,

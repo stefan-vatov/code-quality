@@ -5,11 +5,11 @@ import { Array, Option, pipe } from 'effect';
 import {
   exportedDeclarationTexts,
   findBalancedCallEnd,
-  findMatchingBrace,
   findStatementEnd,
   stripComments,
   stripCommentsAndStrings,
 } from './effect-source-helpers';
+import { hasRunSyncInServerRequestHandlerSource } from './effect-strict-server-handler-source';
 import { isConfiguredPath } from './effect-path-options';
 
 interface RuleContext {
@@ -147,44 +147,12 @@ export const hasExportedRunPromiseAPI = (source: string): boolean =>
     ),
   );
 
-const functionBodySegment = (code: string, matchIndex: number): string | undefined => {
-  const bodyStart = code.indexOf('{', matchIndex);
-  if (bodyStart === -1) {
-    return undefined;
-  }
-  const bodyEnd = findMatchingBrace(code, bodyStart);
-  if (bodyEnd === -1) {
-    return undefined;
-  }
-  return code.slice(bodyStart, bodyEnd + 1);
-};
-
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const hasRunSyncInServerRequestHandler = (source: string): boolean => {
-  const code = stripCommentsAndStrings(source);
-  return (
-    pipe(
-      matchesIn(code, /\b(?:handler|route|loader|action)\s*=/g),
-      Array.some((match): boolean => {
-        const segment = code.slice(match.index, findStatementEnd(code, match.index) + 1);
-        return /\bEffect\.runSync\s*\(/.test(segment);
-      }),
-    ) ||
-    pipe(
-      matchesIn(code, /\bfunction\s+(?:handler|route|loader|action)\s*\(/g),
-      Array.some((match): boolean =>
-        pipe(
-          Option.fromNullable(functionBodySegment(code, match.index)),
-          Option.exists((body): boolean => /\bEffect\.runSync\s*\(/.test(body)),
-        ),
-      ),
-    )
-  );
-};
+export const hasRunSyncInServerRequestHandler = hasRunSyncInServerRequestHandlerSource;
 
 /**
  * Internal helper exported for package-local composition.

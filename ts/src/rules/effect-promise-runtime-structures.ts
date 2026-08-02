@@ -233,6 +233,20 @@ const arrayElement = (
   return result;
 };
 
+interface RuntimeArrayFrame {
+  builder: RuntimeArrayBuilder;
+  context: RuntimeExecutionContext;
+  elements: readonly unknown[];
+  index: number;
+  pendingElement: ASTNode | undefined;
+  reference: RuntimeObjectRef;
+}
+
+interface RuntimeArrayCompletion {
+  done: boolean;
+  result: RuntimeResult | undefined;
+}
+
 const arrayElements = (node: ASTNode): readonly unknown[] => {
   const raw: unknown = Reflect.get(node, 'elements');
   if (Array.isArray(raw)) {
@@ -241,21 +255,137 @@ const arrayElements = (node: ASTNode): readonly unknown[] => {
   return [];
 };
 
+const arrayFrameFor = (
+  host: RuntimeStatementHost,
+  node: ASTNode,
+  context: RuntimeExecutionContext,
+): RuntimeArrayFrame => ({
+  builder: new RuntimeArrayBuilder(),
+  context,
+  elements: arrayElements(node),
+  index: 0,
+  pendingElement: undefined,
+  reference: allocateRuntimeObject(host.state, true, node),
+});
+
+const nestedArrayNode = (element: ASTNode | undefined): ASTNode | undefined => {
+  if (element?.type === 'SpreadElement') {
+    return childNode(element, 'argument');
+  }
+  return element;
+};
+
+const appendNestedArrayResult = (
+  host: RuntimeStatementHost,
+  element: ASTNode,
+  result: RuntimeResult,
+  frame: RuntimeArrayFrame,
+): RuntimeResult => {
+  if (result.completion !== RUNTIME_NORMAL) {
+    return result;
+  }
+  if (element.type === 'SpreadElement') {
+    return spreadArrayValues(host, result, frame.reference, frame.builder);
+  }
+  frame.builder.append(host, frame.reference, result.value);
+  return { completion: RUNTIME_NORMAL, value: frame.reference };
+};
+
+const visitArrayElement = (
+  host: RuntimeStatementHost,
+  pending: RuntimeArrayFrame[],
+): RuntimeResult | undefined => {
+  const frame = pending[pending.length - 1];
+  const value = frame.elements[frame.index];
+  frame.index += 1;
+  const element = asNode(value);
+  const nested = nestedArrayNode(element);
+  if (element && nested?.type === 'ArrayExpression') {
+    frame.pendingElement = element;
+    pending.push(arrayFrameFor(host, nested, frame.context));
+    return undefined;
+  }
+  return arrayElement(host, value, frame.reference, frame.builder, frame.context);
+};
+
+const completeArrayFrame = (frame: RuntimeArrayFrame): RuntimeResult => {
+  const { builder, reference } = frame;
+  reference.arrayLength = builder.length();
+  return { completion: RUNTIME_NORMAL, value: reference };
+};
+
+const finishNestedArrayFrame = (
+  host: RuntimeStatementHost,
+  pending: RuntimeArrayFrame[],
+  completed: RuntimeResult,
+): RuntimeArrayCompletion => {
+  const parent = pending[pending.length - 1];
+  const element = parent.pendingElement;
+  parent.pendingElement = undefined;
+  if (!element) {
+    return { done: false, result: undefined };
+  }
+  const result = appendNestedArrayResult(host, element, completed, parent);
+  if (result.completion !== RUNTIME_NORMAL) {
+    return { done: true, result };
+  }
+  return { done: false, result: undefined };
+};
+
+const finishArrayFrame = (
+  host: RuntimeStatementHost,
+  pending: RuntimeArrayFrame[],
+): RuntimeArrayCompletion => {
+  const frame = pending.pop();
+  if (!frame) {
+    return {
+      done: true,
+      result: { completion: RUNTIME_NORMAL, value: undefined },
+    };
+  }
+  const completed = completeArrayFrame(frame);
+  const parent = pending[pending.length - 1];
+  if (!parent) {
+    return { done: true, result: completed };
+  }
+  return finishNestedArrayFrame(host, pending, completed);
+};
+
+const arrayCompletionResult = (completion: RuntimeArrayCompletion): RuntimeResult | undefined => {
+  if (!completion.done) {
+    return undefined;
+  }
+  return completion.result ?? { completion: RUNTIME_NORMAL, value: undefined };
+};
+
+const advanceArrayFrame = (
+  host: RuntimeStatementHost,
+  pending: RuntimeArrayFrame[],
+): RuntimeResult | undefined => {
+  const frame = pending[pending.length - 1];
+  if (frame.index >= frame.elements.length) {
+    return arrayCompletionResult(finishArrayFrame(host, pending));
+  }
+  const result = visitArrayElement(host, pending);
+  if (result && result.completion !== RUNTIME_NORMAL) {
+    return result;
+  }
+  return undefined;
+};
+
 const arrayExpression = (
   host: RuntimeStatementHost,
   node: ASTNode,
   context: RuntimeExecutionContext,
 ): RuntimeResult => {
-  const reference = allocateRuntimeObject(host.state, true, node);
-  const builder = new RuntimeArrayBuilder();
-  for (const element of arrayElements(node)) {
-    const result = arrayElement(host, element, reference, builder, context);
-    if (result.completion !== RUNTIME_NORMAL) {
+  const pending: RuntimeArrayFrame[] = [arrayFrameFor(host, node, context)];
+  while (pending.length > 0) {
+    const result = advanceArrayFrame(host, pending);
+    if (result) {
       return result;
     }
   }
-  reference.arrayLength = builder.length();
-  return { completion: RUNTIME_NORMAL, value: reference };
+  return { completion: RUNTIME_NORMAL, value: undefined };
 };
 
 /**

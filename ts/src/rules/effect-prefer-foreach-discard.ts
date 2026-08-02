@@ -10,6 +10,7 @@ import { diagnosticMessage } from './diagnostic-guidance';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 import { readCachedSource } from './source-cache';
 import { strictPathOptionsSchema } from './effect-path-options';
+import { visitASTWithStack } from './effect-ast-stack-safe-walker';
 
 const MESSAGE = diagnosticMessage({
   example:
@@ -90,14 +91,16 @@ const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
 const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean => {
-  if (node?.type !== 'MemberExpression') {
-    return false;
+  const seen = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression' && !seen.has(current)) {
+    seen.add(current);
+    if (Reflect.get(current, 'computed') === true || Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    current = childNode(current, 'object');
   }
-  return (
-    Reflect.get(node, 'computed') === true ||
-    Reflect.get(node, 'optional') === true ||
-    hasUnsupportedMemberAccess(childNode(node, 'object'))
-  );
+  return false;
 };
 
 const isPlainCall = (call: ASTNode): boolean =>
@@ -197,56 +200,29 @@ const reportIgnoredForEach = (
   }
 };
 
-const isUnknownArray = (value: unknown): value is readonly unknown[] => Array.isArray(value);
-
-const scanValue = (
-  context: Context,
-  value: unknown,
-  parent: ASTNode,
-  state: MatcherState,
-): void => {
-  if (isUnknownArray(value)) {
-    for (const item of value) {
-      const child = asNode(item);
-      if (child) {
-        scanNode(context, child, parent, state);
-      }
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    scanNode(context, child, parent, state);
-  }
-};
-
 const isFunction = (node: ASTNode): boolean =>
   node.type === 'ArrowFunctionExpression' ||
   node.type === 'FunctionDeclaration' ||
   node.type === 'FunctionExpression';
 
-const scanNode = (
-  context: Context,
-  node: ASTNode,
-  parent: ASTNode | undefined,
-  state: MatcherState,
-): void => {
-  if (isFunction(node)) {
-    return;
-  }
-  reportIgnoredForEach(context, node, parent, state);
-  for (const key of Object.keys(node)) {
-    if (
-      key !== 'parent' &&
-      key !== 'type' &&
-      key !== 'start' &&
-      key !== 'end' &&
-      key !== 'loc' &&
-      key !== 'range'
-    ) {
-      scanValue(context, Reflect.get(node, key), node, state);
-    }
-  }
+interface DiscardTraversalContext {
+  parent: ASTNode | undefined;
+}
+
+const scanGeneratorBody = (context: Context, body: ASTNode, state: MatcherState): void => {
+  const initialTraversalContext: DiscardTraversalContext = { parent: undefined };
+  visitASTWithStack({
+    context: initialTraversalContext,
+    onNode(node, _nodeScopes, _inheritedScopes, traversalContext) {
+      reportIgnoredForEach(context, node, traversalContext.parent, state);
+      return {
+        context: { parent: node },
+        visitChildren: !isFunction(node),
+      };
+    },
+    root: body,
+    scopes: [],
+  });
 };
 
 const supportedGenerator = (call: ASTNode): ASTNode | undefined => {
@@ -276,7 +252,7 @@ const scanGenCall = (context: Context, call: ASTNode, state: MatcherState): void
   const generator = supportedGenerator(call);
   const body = generator && childNode(generator, 'body');
   if (body) {
-    scanNode(context, body, undefined, state);
+    scanGeneratorBody(context, body, state);
   }
 };
 

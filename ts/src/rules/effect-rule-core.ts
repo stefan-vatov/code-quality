@@ -2,11 +2,18 @@
 /*      Core runtime for source-backed and AST-backed Effect lint rules.      */
 /* -------------------------------------------------------------------------- */
 import { Array, Option, String, pipe } from 'effect';
+import {
+  LINE_START_CACHE_MAX_WEIGHT,
+  SOURCE_TOKEN_PRESENCE_CACHE_MAX_WEIGHT,
+  lineStartCacheWeight,
+  sourceTokenPresenceCacheWeight,
+} from './effect-source-cache-weights';
+import { createWeightedCache, readCachedSource } from './source-cache';
 import type { CanonicalizedEffectSource } from './effect-alias-canonicalization';
+import type { SourceWeightedCache } from './effect-source-cache-weights';
 import { canonicalIndexToOriginal } from './effect-alias-canonicalization';
 import { canonicalizeEffectAPIAliasesWithMap } from './effect-rule-aliases';
 import { effectDiagnosticMessage } from './diagnostic-guidance';
-import { readCachedSource } from './source-cache';
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
 /**
@@ -77,33 +84,110 @@ interface MakeRulesOptions {
   schema?: object;
 }
 
-const LINE_START_CACHE_MAX = 256;
-const TOKEN_GATE_CACHE_MAX = 512;
-const lineStartCache = new Map<string, readonly number[]>();
+const LINE_START_CACHE_MAX_ENTRIES = 256;
+const SOURCE_TOKEN_PRESENCE_CACHE_MAX_ENTRIES = 512;
+const SOURCE_TOKEN_PRESENCE_MAX_TOKENS = 64;
+const lineTerminatorPattern = /\r\n|[\r\n\u2028\u2029]/g;
+const lineStartCache: SourceWeightedCache<readonly number[]> = createWeightedCache({
+  maxEntries: LINE_START_CACHE_MAX_ENTRIES,
+  maxWeight: LINE_START_CACHE_MAX_WEIGHT,
+});
 const globalPatternCache = new WeakMap<RegExp, RegExp>();
-const tokenGateCache = new WeakMap<readonly string[], Map<string, boolean>>();
-const sourceTokenPresenceCache = new Map<string, Map<string, boolean>>();
-
-const matchesIn = (source: string, pattern: RegExp): readonly RegExpExecArray[] =>
-  pipe(source.matchAll(pattern), Array.fromIterable);
+const sourceTokenPresenceCache: SourceWeightedCache<Map<string, boolean>> = createWeightedCache({
+  maxEntries: SOURCE_TOKEN_PRESENCE_CACHE_MAX_ENTRIES,
+  maxWeight: SOURCE_TOKEN_PRESENCE_CACHE_MAX_WEIGHT,
+});
 
 const isCodeAt = (strippedSource: string, index: number): boolean =>
-  strippedSource[index]?.trim() !== '';
+  index < strippedSource.length && strippedSource[index]?.trim() !== '';
+
+const advanceStringIndex = (source: string, index: number, isUnicodeMode: boolean): number => {
+  const codePoint = source.codePointAt(index);
+  if (isUnicodeMode && codePoint !== undefined && codePoint !== source.charCodeAt(index)) {
+    return index + 2;
+  }
+  return index + 1;
+};
+
+const nextPatternIndex = (
+  source: string,
+  index: number,
+  match: RegExpExecArray,
+  isUnicodeMode: boolean,
+): number => {
+  if (match[0] !== '') {
+    return index;
+  }
+  return advanceStringIndex(source, index, isUnicodeMode);
+};
+
+const scanPatternMatches = (
+  source: string,
+  globalPattern: RegExp,
+  isUnicodeMode: boolean,
+  visit: (match: RegExpExecArray) => boolean,
+): void => {
+  const scanner = globalPattern;
+  let match = scanner.exec(source);
+  while (match !== null) {
+    const nextIndex = scanner.lastIndex;
+    const shouldStop = visit(match);
+    scanner.lastIndex = nextIndex;
+    if (shouldStop) {
+      return;
+    }
+    scanner.lastIndex = nextPatternIndex(source, nextIndex, match, isUnicodeMode);
+    match = scanner.exec(source);
+  }
+};
+
+const scanPattern = (
+  source: string,
+  pattern: RegExp,
+  visit: (match: RegExpExecArray) => boolean,
+): void => {
+  const globalPattern = toGlobalRegExp(pattern);
+  const isUnicodeMode = globalPattern.flags.includes('u') || globalPattern.flags.includes('v');
+  globalPattern.lastIndex = 0;
+  try {
+    scanPatternMatches(source, globalPattern, isUnicodeMode, visit);
+  } finally {
+    globalPattern.lastIndex = 0;
+  }
+};
+
+const firstCodeMatchIndex = (
+  source: string,
+  pattern: RegExp,
+  strippedSource?: string,
+): { index?: number; strippedSource?: string } => {
+  let projectedSource = strippedSource;
+  let matchIndex: number | undefined = undefined;
+  scanPattern(source, pattern, (match): boolean => {
+    projectedSource ??= stripCommentsAndStrings(source);
+    if (!isCodeAt(projectedSource, match.index)) {
+      return false;
+    }
+    matchIndex = match.index;
+    return true;
+  });
+  return { index: matchIndex, strippedSource: projectedSource };
+};
 
 const hasPattern = (source: string, patterns: readonly RegExp[]): boolean => {
   let strippedSource: string | undefined = undefined;
-  return pipe(
-    patterns,
-    Array.some((pattern): boolean =>
-      pipe(
-        matchesIn(source, toGlobalRegExp(pattern)),
-        Array.some((match): boolean => {
-          strippedSource ??= stripCommentsAndStrings(source);
-          return isCodeAt(strippedSource, match.index);
-        }),
-      ),
-    ),
-  );
+  for (const pattern of patterns) {
+    const { index, strippedSource: nextStrippedSource } = firstCodeMatchIndex(
+      source,
+      pattern,
+      strippedSource,
+    );
+    strippedSource = nextStrippedSource;
+    if (index !== undefined) {
+      return true;
+    }
+  }
+  return false;
 };
 
 const toGlobalRegExp = (pattern: RegExp): RegExp =>
@@ -121,24 +205,23 @@ const toGlobalRegExp = (pattern: RegExp): RegExp =>
     }),
   );
 
+const lineStartsFrom = (source: string): number[] => {
+  const starts: number[] = [0];
+  scanPattern(source, lineTerminatorPattern, (match): boolean => {
+    starts.push(match.index + match[0].length);
+    return false;
+  });
+  return starts;
+};
+
 const lineStartsFor = (source: string): readonly number[] => {
   const cachedStarts = lineStartCache.get(source);
   if (cachedStarts !== undefined) {
     return cachedStarts;
   }
 
-  const starts = pipe(
-    matchesIn(source, /\n/g),
-    Array.map((match): number => match.index + 1),
-    Array.prepend(0),
-  );
-  if (lineStartCache.size >= LINE_START_CACHE_MAX) {
-    const firstKey = lineStartCache.keys().next().value;
-    if (firstKey !== undefined) {
-      lineStartCache.delete(firstKey);
-    }
-  }
-  lineStartCache.set(source, starts);
+  const starts = lineStartsFrom(source);
+  lineStartCache.set(source, starts, lineStartCacheWeight(source.length, starts.length));
   return starts;
 };
 
@@ -179,24 +262,18 @@ const firstPatternLOC = (
 ): { column: number; line: number } | undefined => {
   const { source } = view.canonicalized;
   let strippedSource: string | undefined = undefined;
-  return pipe(
-    patterns,
-    Array.filterMap(
-      (pattern): Option.Option<{ column: number; line: number }> =>
-        pipe(
-          matchesIn(source, toGlobalRegExp(pattern)),
-          Array.findFirst((match): boolean => {
-            strippedSource ??= stripCommentsAndStrings(source);
-            return isCodeAt(strippedSource, match.index);
-          }),
-          Option.map((match): { column: number; line: number } =>
-            locFromCanonicalIndex(view, match.index),
-          ),
-        ),
-    ),
-    Array.head,
-    Option.getOrUndefined,
-  );
+  for (const pattern of patterns) {
+    const { index, strippedSource: nextStrippedSource } = firstCodeMatchIndex(
+      source,
+      pattern,
+      strippedSource,
+    );
+    strippedSource = nextStrippedSource;
+    if (index !== undefined) {
+      return locFromCanonicalIndex(view, index);
+    }
+  }
+  return undefined;
 };
 
 interface ReportPatternMatchesInput {
@@ -228,12 +305,8 @@ const reportCountedPatternMatches = (input: ReportPatternMatchesInput, message: 
   const canonicalSource = canonicalized.source;
   const view = { canonicalized, original: source };
   let strippedSource: string | undefined = undefined;
-  pipe(
-    spec.countPatterns ?? [],
-    Array.flatMap((pattern): readonly RegExpExecArray[] =>
-      matchesIn(canonicalSource, toGlobalRegExp(pattern)),
-    ),
-    Array.forEach((match): void => {
+  for (const pattern of spec.countPatterns ?? []) {
+    scanPattern(canonicalSource, pattern, (match): boolean => {
       strippedSource ??= stripCommentsAndStrings(canonicalSource);
       if (isCodeAt(strippedSource, match.index)) {
         context.report({
@@ -242,8 +315,9 @@ const reportCountedPatternMatches = (input: ReportPatternMatchesInput, message: 
           node,
         });
       }
-    }),
-  );
+      return false;
+    });
+  }
 };
 
 const checkResultIndex = (result: boolean | number | { index: number }): number | undefined => {
@@ -256,21 +330,19 @@ const checkResultIndex = (result: boolean | number | { index: number }): number 
   return undefined;
 };
 
-const cachedSourceTokenPresence = (source: string): Map<string, boolean> =>
-  pipe(
-    Option.fromNullable(sourceTokenPresenceCache.get(source)),
-    Option.getOrElse((): Map<string, boolean> => {
-      if (sourceTokenPresenceCache.size >= TOKEN_GATE_CACHE_MAX) {
-        pipe(
-          Option.fromNullable(sourceTokenPresenceCache.keys().next().value),
-          Option.map((firstKey): boolean => sourceTokenPresenceCache.delete(firstKey)),
-        );
-      }
-      const tokenPresence = new Map<string, boolean>();
-      sourceTokenPresenceCache.set(source, tokenPresence);
-      return tokenPresence;
-    }),
+const cachedSourceTokenPresence = (source: string): Map<string, boolean> => {
+  const cached = sourceTokenPresenceCache.get(source);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const tokenPresence = new Map<string, boolean>();
+  sourceTokenPresenceCache.set(
+    source,
+    tokenPresence,
+    sourceTokenPresenceCacheWeight(source.length, tokenPresence.keys()),
   );
+  return tokenPresence;
+};
 
 const hasTokenInSourceCached = (source: string, token: string): boolean => {
   const tokenPresence = cachedSourceTokenPresence(source);
@@ -280,7 +352,14 @@ const hasTokenInSourceCached = (source: string, token: string): boolean => {
   }
 
   const hasToken = pipe(source, String.includes(token));
-  tokenPresence.set(token, hasToken);
+  if (tokenPresence.size < SOURCE_TOKEN_PRESENCE_MAX_TOKENS) {
+    tokenPresence.set(token, hasToken);
+    sourceTokenPresenceCache.set(
+      source,
+      tokenPresence,
+      sourceTokenPresenceCacheWeight(source.length, tokenPresence.keys()),
+    );
+  }
   return hasToken;
 };
 
@@ -290,34 +369,7 @@ const hasAnyToken = (source: string, tokens: readonly string[]): boolean =>
     Array.some((token): boolean => hasTokenInSourceCached(source, token)),
   );
 
-const cacheTokenGate = (source: string, tokens: readonly string[], hasToken: boolean): boolean => {
-  const sourceCache = pipe(
-    Option.fromNullable(tokenGateCache.get(tokens)),
-    Option.getOrElse((): Map<string, boolean> => {
-      const newSourceCache = new Map<string, boolean>();
-      tokenGateCache.set(tokens, newSourceCache);
-      return newSourceCache;
-    }),
-  );
-
-  if (sourceCache.size >= TOKEN_GATE_CACHE_MAX) {
-    pipe(
-      Option.fromNullable(sourceCache.keys().next().value),
-      Option.map((firstKey): boolean => sourceCache.delete(firstKey)),
-    );
-  }
-  sourceCache.set(source, hasToken);
-  return hasToken;
-};
-
-const hasAnyTokenCached = (source: string, tokens: readonly string[]): boolean => {
-  const cachedValue = tokenGateCache.get(tokens)?.get(source);
-  if (cachedValue !== undefined) {
-    return cachedValue;
-  }
-
-  return cacheTokenGate(source, tokens, hasAnyToken(source, tokens));
-};
+const hasAnyTokenCached = hasAnyToken;
 
 const hasEveryTokenGroup = (source: string, tokenGroups: readonly (readonly string[])[]): boolean =>
   pipe(
@@ -375,14 +427,9 @@ const guidedContext = (context: Context, spec: RuleSpec): Context => ({
   },
 });
 
-interface RunProgramRuleInput {
-  context: Context;
-  node: object;
-  source: string;
-  spec: RuleSpec;
-}
-
-const runProgramRule = (input: RunProgramRuleInput): void => {
+const runProgramRule = (
+  input: Pick<ReportPatternMatchesInput, 'context' | 'node' | 'source' | 'spec'>,
+): void => {
   const { context, node, source, spec } = input;
   const canonicalized = canonicalizeEffectAPIAliasesWithMap(source);
   const canonicalSource = canonicalized.source;

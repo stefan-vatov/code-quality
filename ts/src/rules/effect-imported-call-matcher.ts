@@ -9,7 +9,7 @@ import {
   nativeReferenceIndexFor,
   nativeSourceCodeFor,
 } from './effect-native-references';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
+import { scopeHasBinding, scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { Context } from './effect-rule-core';
 import type { ScopeStack } from './effect-ast-scope';
@@ -277,15 +277,7 @@ const calleeReference = (
   );
 };
 
-const isShadowed = (name: string, scopes: ScopeStack): boolean => {
-  const scopeCount = scopes.length;
-  for (let scopeIndex = 0; scopeIndex < scopeCount; scopeIndex += 1) {
-    if (scopes[scopeIndex]?.has(name)) {
-      return true;
-    }
-  }
-  return false;
-};
+const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
 
 const addFallbackReference = (
   node: ASTNode,
@@ -301,44 +293,108 @@ const addFallbackReference = (
   }
 };
 
-const visitFallbackValue = (
-  value: ASTProperty,
-  state: MatcherState,
-  APIName: string,
-  names: ReadonlySet<string>,
+type FallbackWorkItem =
+  | { kind: 'visit'; value: ASTProperty; scopes: ScopeStack }
+  | { kind: 'leave-node'; node: ASTNode }
+  | { kind: 'leave-array'; value: readonly ASTProperty[] };
+
+const pushFallbackArray = (
+  value: readonly ASTProperty[],
   scopes: ScopeStack,
+  pending: FallbackWorkItem[],
 ): void => {
-  if (isASTPropertyArray(value)) {
-    const valueCount = value.length;
-    for (let valueIndex = 0; valueIndex < valueCount; valueIndex += 1) {
-      visitFallbackValue(value[valueIndex], state, APIName, names, scopes);
-    }
-    return;
+  pending.push({ kind: 'leave-array', value });
+  for (let valueIndex = value.length - 1; valueIndex >= 0; valueIndex -= 1) {
+    pending.push({ kind: 'visit', scopes, value: value[valueIndex] });
   }
-  const child = asNode(value);
-  if (child) {
-    visitFallbackNode(child, state, APIName, names, scopes);
+};
+
+const pushFallbackNodeChildren = (
+  node: ASTNode,
+  nodeScopes: ScopeStack,
+  pending: FallbackWorkItem[],
+): void => {
+  pending.push({ kind: 'leave-node', node });
+  const entries = Object.entries(node);
+  for (let entryIndex = entries.length - 1; entryIndex >= 0; entryIndex -= 1) {
+    const entry = entries[entryIndex];
+    if (entry && entry[0] !== 'parent') {
+      pending.push({
+        kind: 'visit',
+        scopes: scopesForChild(nodeScopes, node, entry[0]),
+        value: entry[1] as ASTProperty,
+      });
+    }
+  }
+};
+
+interface FallbackTraversalContext {
+  APIName: string;
+  activeArrays: WeakSet<object>;
+  activeNodes: WeakSet<object>;
+  names: ReadonlySet<string>;
+  pending: FallbackWorkItem[];
+  state: MatcherState;
+}
+
+const visitFallbackArray = (
+  value: readonly ASTProperty[],
+  scopes: ScopeStack,
+  traversal: FallbackTraversalContext,
+): void => {
+  if (!traversal.activeArrays.has(value)) {
+    traversal.activeArrays.add(value);
+    pushFallbackArray(value, scopes, traversal.pending);
   }
 };
 
 const visitFallbackNode = (
-  node: ASTNode,
+  value: ASTProperty,
+  scopes: ScopeStack,
+  traversal: FallbackTraversalContext,
+): void => {
+  const node = asNode(value);
+  if (node && !traversal.activeNodes.has(node)) {
+    traversal.activeNodes.add(node);
+    const nodeScopes = withNodeScope(scopes, node);
+    addFallbackReference(node, traversal.state, traversal.APIName, traversal.names, nodeScopes);
+    pushFallbackNodeChildren(node, nodeScopes, traversal.pending);
+  }
+};
+
+const visitFallbackWorkItem = (
+  item: FallbackWorkItem,
+  traversal: FallbackTraversalContext,
+): void => {
+  if (item.kind === 'leave-node') {
+    traversal.activeNodes.delete(item.node);
+  } else if (item.kind === 'leave-array') {
+    traversal.activeArrays.delete(item.value);
+  } else if (isASTPropertyArray(item.value)) {
+    visitFallbackArray(item.value, item.scopes, traversal);
+  } else {
+    visitFallbackNode(item.value, item.scopes, traversal);
+  }
+};
+
+const visitFallbackTree = (
+  program: ASTNode,
   state: MatcherState,
   APIName: string,
   names: ReadonlySet<string>,
-  scopes: ScopeStack,
 ): void => {
-  const nodeScopes = withNodeScope(scopes, node);
-  addFallbackReference(node, state, APIName, names, nodeScopes);
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      visitFallbackValue(
-        value as ASTProperty,
-        state,
-        APIName,
-        names,
-        scopesForChild(nodeScopes, node, key),
-      );
+  const traversal: FallbackTraversalContext = {
+    APIName,
+    activeArrays: new WeakSet(),
+    activeNodes: new WeakSet(),
+    names,
+    pending: [{ kind: 'visit', scopes: [], value: program }],
+    state,
+  };
+  while (traversal.pending.length > 0) {
+    const item = traversal.pending.pop();
+    if (item) {
+      visitFallbackWorkItem(item, traversal);
     }
   }
 };
@@ -395,7 +451,7 @@ export const importedEffectCallMatcher = (
       }
       state.bindings = collectBindings(program, APIName, names);
       if (!sourceCode) {
-        visitFallbackNode(program, state, APIName, names, []);
+        visitFallbackTree(program, state, APIName, names);
       }
     },
     matches(value): boolean {

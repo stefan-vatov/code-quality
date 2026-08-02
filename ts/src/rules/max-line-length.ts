@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*    Maximum source line length helper used by the custom Oxlint plugin.     */
 /* -------------------------------------------------------------------------- */
-import { Array, Match, Option, pipe } from 'effect';
+import { Match, Option } from 'effect';
 
 interface LineLengthViolation {
   line: number;
@@ -23,15 +23,12 @@ interface LineCursor {
 
 const DEFAULT_MAX_LENGTH = 150;
 const CHAR_CODE_CARRIAGE_RETURN = 13;
+const URL_PROTOCOL_PATTERN = /https?:\/\//;
 
-const lineContainsURL = (source: string, start: number, end: number): boolean =>
-  pipe(
-    ['http://', 'https://'],
-    Array.some((protocol): boolean => {
-      const protocolIndex = source.indexOf(protocol, start);
-      return protocolIndex !== -1 && protocolIndex < end;
-    }),
-  );
+const lineContainsURL = (source: string, start: number, end: number): boolean => {
+  const line = source.slice(start, end);
+  return URL_PROTOCOL_PATTERN.test(line);
+};
 
 const nextLineEnd = (source: string, lineStart: number): number => {
   const newlineIndex = source.indexOf('\n', lineStart);
@@ -76,43 +73,38 @@ const nextLineCursor = (cursor: LineCursor, lineEnd: number): LineCursor => ({
 });
 
 const appendCursorViolation = (
-  violations: readonly LineLengthViolation[],
+  violations: LineLengthViolation[],
   source: string,
   maxLength: number,
   cursor: LineCursor,
-): readonly LineLengthViolation[] => {
-  const lineEnd = nextLineEnd(source, cursor.lineStart);
-  return pipe(
-    lineViolationForCheck({
-      lineEnd,
-      lineNumber: cursor.lineNumber,
-      lineStart: cursor.lineStart,
-      maxLength,
-      source,
-    }),
-    Option.match({
-      onNone: (): readonly LineLengthViolation[] => violations,
-      onSome: (violation): readonly LineLengthViolation[] =>
-        pipe(violations, Array.append(violation)),
-    }),
-  );
+  lineEnd: number,
+): void => {
+  const violation = lineViolationForCheck({
+    lineEnd,
+    lineNumber: cursor.lineNumber,
+    lineStart: cursor.lineStart,
+    maxLength,
+    source,
+  });
+  if (Option.isSome(violation)) {
+    violations.push(violation.value);
+  }
 };
 
 const collectLongLines = (
   source: string,
   maxLength: number,
   cursor: LineCursor,
-  violations: readonly LineLengthViolation[],
-): readonly LineLengthViolation[] => {
+  violations: LineLengthViolation[],
+): void => {
   let currentCursor = cursor;
-  let currentViolations = violations;
 
   while (true) {
     const lineEnd = nextLineEnd(source, currentCursor.lineStart);
-    currentViolations = appendCursorViolation(currentViolations, source, maxLength, currentCursor);
+    appendCursorViolation(violations, source, maxLength, currentCursor, lineEnd);
 
     if (lineEnd === source.length) {
-      return currentViolations;
+      return;
     }
     currentCursor = nextLineCursor(currentCursor, lineEnd);
   }
@@ -134,8 +126,10 @@ export default function findLongLines(
       (length): boolean => length <= maxLength,
       (): LineLengthViolation[] => [],
     ),
-    Match.orElse((): LineLengthViolation[] => [
-      ...collectLongLines(source, maxLength, { lineNumber: 1, lineStart: 0 }, []),
-    ]),
+    Match.orElse((): LineLengthViolation[] => {
+      const violations: LineLengthViolation[] = [];
+      collectLongLines(source, maxLength, { lineNumber: 1, lineStart: 0 }, violations);
+      return violations;
+    }),
   );
 }

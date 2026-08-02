@@ -43,6 +43,7 @@ import {
 import { isConfiguredPath, isEffectTestPath, isUnitTestPath } from './effect-path-options';
 import type { RuleSpec } from './effect-rule-core';
 import { hasRunForkWithoutObserver } from './effect-default-helpers';
+import { runSyncServerHandlerAST } from './effect-strict-server-handler-ast';
 
 /**
  * Internal helper exported for package-local composition.
@@ -72,10 +73,11 @@ export const effectStrictCoreSpecs: readonly RuleSpec[] = pipe(
       tokens: ['Effect.run', 'effect/Effect', 'runPromise', 'runSync', 'runFork'],
     },
     {
+      ast: runSyncServerHandlerAST,
       check: hasRunSyncInServerRequestHandler,
       message: 'Server handlers must not synchronously run Effects.',
       name: 'effect-no-runSync-in-server-request-handlers',
-      tokens: ['Effect.runSync'],
+      tokens: ['runSync'],
     },
     {
       check: hasPromiseReturningPublicAPI,

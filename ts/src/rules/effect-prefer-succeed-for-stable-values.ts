@@ -12,13 +12,14 @@ import {
   unwrappedExpression,
 } from './effect-boundary-ast-shared';
 import { nativeReferenceIndexFor, nativeSourceCodeFor } from './effect-native-references';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
+import { scopeContainingBinding, scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { EffectAPIBindings } from './effect-boundary-ast-shared';
 import type { ScopeStack } from './effect-ast-scope';
 import { diagnosticMessage } from './diagnostic-guidance';
 import { readCachedSource } from './source-cache';
 import { strictPathOptionsSchema } from './effect-path-options';
+import { visitASTWithStack } from './effect-ast-stack-safe-walker';
 
 interface StableRuleState {
   bindings: EffectAPIBindings;
@@ -44,6 +45,11 @@ interface StableConstBinding {
 interface ReturnedExpression {
   expression?: ASTNode;
   scopes: ScopeStack;
+}
+
+interface StableTraversalContext {
+  executionContext: ASTNode;
+  switchCase: ASTNode | undefined;
 }
 
 const MESSAGE = diagnosticMessage({
@@ -93,15 +99,8 @@ const hasSyncBinding = (bindings: EffectAPIBindings): boolean =>
   bindings.rootNamespaces.size > 0 ||
   bindings.syncFunctions.size > 0;
 
-const scopeContaining = (name: string, scopes: ScopeStack): ReadonlySet<string> | undefined => {
-  for (let scopeIndex = scopes.length - 1; scopeIndex >= 0; scopeIndex -= 1) {
-    const scope = scopes.at(scopeIndex);
-    if (scope?.has(name)) {
-      return scope;
-    }
-  }
-  return undefined;
-};
+const scopeContaining = (name: string, scopes: ScopeStack): ReadonlySet<string> | undefined =>
+  scopeContainingBinding(name, scopes);
 
 const registerStableDeclarator = (
   declarator: ASTNode,
@@ -146,25 +145,6 @@ const registerStableConsts = (
   }
 };
 
-const indexChildValue = (
-  value: unknown,
-  scopes: ScopeStack,
-  state: StableRuleState,
-  executionContext: ASTNode,
-  switchCase: ASTNode | undefined,
-): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      indexChildValue(item, scopes, state, executionContext, switchCase);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    indexNode(child, scopes, state, executionContext, switchCase);
-  }
-};
-
 const isFunctionContext = (node: ASTNode): boolean =>
   node.type === 'ArrowFunctionExpression' ||
   node.type === 'FunctionDeclaration' ||
@@ -197,45 +177,6 @@ const registerCallSite = (
   if (node.type === 'CallExpression') {
     state.callSites.set(node, { executionContext, scopes, switchCase });
   }
-};
-
-const indexChildren = (
-  node: ASTNode,
-  scopes: ScopeStack,
-  state: StableRuleState,
-  executionContext: ASTNode,
-  switchCase: ASTNode | undefined,
-): void => {
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      indexChildValue(
-        value,
-        scopesForChild(scopes, node, key),
-        state,
-        executionContext,
-        switchCase,
-      );
-    }
-  }
-};
-
-const indexNode = (
-  node: ASTNode,
-  scopes: ScopeStack,
-  state: StableRuleState,
-  executionContext: ASTNode,
-  switchCase: ASTNode | undefined,
-): void => {
-  if (state.seen.has(node)) {
-    return;
-  }
-  state.seen.add(node);
-  const nodeScopes = withNodeScope(scopes, node);
-  const nodeExecutionContext = executionContextFor(node, executionContext);
-  const nodeSwitchCase = switchCaseFor(node, switchCase);
-  registerCallSite(node, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
-  registerStableConsts(node, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
-  indexChildren(node, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
 };
 
 const isSupportedThunk = (node: ASTNode | undefined): node is ASTNode =>
@@ -386,7 +327,33 @@ const indexProgram = (node: object, state: StableRuleState): void => {
   }
   indexImports(program, state.bindings);
   if (hasSyncBinding(state.bindings)) {
-    indexNode(program, [], state, program, undefined);
+    visitASTWithStack<StableTraversalContext>({
+      context: { executionContext: program, switchCase: undefined },
+      onNode(
+        currentNode,
+        nodeScopes,
+        _inheritedScopes,
+        traversalContext,
+      ): {
+        context: StableTraversalContext;
+        visitChildren: boolean;
+      } {
+        const nodeExecutionContext = executionContextFor(
+          currentNode,
+          traversalContext.executionContext,
+        );
+        const nodeSwitchCase = switchCaseFor(currentNode, traversalContext.switchCase);
+        registerCallSite(currentNode, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
+        registerStableConsts(currentNode, nodeScopes, state, nodeExecutionContext, nodeSwitchCase);
+        return {
+          context: { executionContext: nodeExecutionContext, switchCase: nodeSwitchCase },
+          visitChildren: true,
+        };
+      },
+      root: program,
+      scopes: [],
+      seenNodes: state.seen,
+    });
   }
 };
 

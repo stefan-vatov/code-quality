@@ -9,6 +9,7 @@ import {
 } from './effect-strict-segment-helpers';
 import { isInsideCall, stripComments, stripCommentsAndStrings } from './effect-source-helpers';
 import { hasEffectSignal } from './effect-rule-core';
+import { isInsideEffectRetryCall } from './effect-strict-wrapper-index';
 
 const EXTERNAL_CALL_PATTERN =
   /\b(?:HttpClient\.(?:get|post|put|patch|delete|request)|fetch|FileSystem\.[A-Za-z_$][\w$]*|SqlClient\.[A-Za-z_$][\w$]*)\s*\(/g;
@@ -171,4 +172,4 @@ const shouldReportMissingRetry = (
 ): boolean => !shouldSkipFetch && !isMutatingFetch && isMissingRetryPolicy(code, index, segment);
 
 const isMissingRetryPolicy = (code: string, index: number, segment: string): boolean =>
-  !isInsideCall(code, index, /Effect\.retry\s*\(/g) && !hasTopLevelPipeOperator(segment, 'retry');
+  !hasTopLevelPipeOperator(segment, 'retry') && !isInsideEffectRetryCall(code, index);

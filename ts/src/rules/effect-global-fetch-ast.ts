@@ -13,11 +13,12 @@ import {
   nativeReferenceIndexFor,
   nativeSourceCodeFor,
 } from './effect-native-references';
-import { scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode } from './effect-ast';
 import type { Context } from './effect-rule-core';
 import type { GlobalFetchImportIndex } from './effect-global-fetch-imports';
 import type { ScopeStack } from './effect-ast-scope';
+import { scopeHasBinding } from './effect-ast-scope';
+import { visitFallbackTree } from './effect-global-fetch-ast-traversal';
 
 type VisitorMap = Record<string, (node: object) => void>;
 
@@ -36,14 +37,7 @@ interface FetchRuleState extends GlobalFetchImportIndex {
 
 const nativeReferenceCaches = new WeakMap<FetchRuleState, WeakMap<object, NativeReference>>();
 
-const isShadowed = (name: string, scopes: ScopeStack): boolean => {
-  for (const scope of scopes) {
-    if (scope.has(name)) {
-      return true;
-    }
-  }
-  return false;
-};
+const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
 
 const stringValue = (node: ASTNode | undefined): string | undefined => {
   if (node?.type !== 'Literal') {
@@ -56,125 +50,8 @@ const stringValue = (node: ASTNode | undefined): string | undefined => {
   return undefined;
 };
 
-const visitChildValue = (
-  value: unknown,
-  scopes: ScopeStack,
-  visit: (node: ASTNode, scopes: ScopeStack) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      visitChildValue(item, scopes, visit, visitorKeys);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    visitTree(child, scopes, visit, visitorKeys);
-  }
-};
-
-const visitTree = (
-  node: ASTNode,
-  scopes: ScopeStack,
-  visit: (node: ASTNode, scopes: ScopeStack) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  const nodeScopes = withNodeScope(scopes, node);
-  if (!visit(node, nodeScopes)) {
-    return;
-  }
-  const keys = visitorKeys?.[node.type];
-  if (keys) {
-    visitChildKeys(node, nodeScopes, keys, visit, visitorKeys);
-    return;
-  }
-  visitReflectedChildren(node, nodeScopes, visit, visitorKeys);
-};
-
-const visitChildKeys = (
-  node: ASTNode,
-  scopes: ScopeStack,
-  keys: readonly string[],
-  visit: (node: ASTNode, scopes: ScopeStack) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  for (const key of keys) {
-    visitChildValue(Reflect.get(node, key), scopesForChild(scopes, node, key), visit, visitorKeys);
-  }
-};
-
-const visitReflectedChildren = (
-  node: ASTNode,
-  scopes: ScopeStack,
-  visit: (node: ASTNode, scopes: ScopeStack) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      visitChildValue(value, scopesForChild(scopes, node, key), visit, visitorKeys);
-    }
-  }
-};
-
-const visitNativeChildValue = (
-  value: unknown,
-  visit: (node: ASTNode) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      visitNativeChildValue(item, visit, visitorKeys);
-    }
-    return;
-  }
-  const child = asNode(value);
-  if (child) {
-    visitNativeTree(child, visit, visitorKeys);
-  }
-};
-
-const visitNativeKeys = (
-  node: ASTNode,
-  keys: readonly string[],
-  visit: (node: ASTNode) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  for (const key of keys) {
-    visitNativeChildValue(Reflect.get(node, key), visit, visitorKeys);
-  }
-};
-
-const visitNativeReflectedChildren = (
-  node: ASTNode,
-  visit: (node: ASTNode) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  for (const [key, value] of Object.entries(node)) {
-    if (key !== 'parent') {
-      visitNativeChildValue(value, visit, visitorKeys);
-    }
-  }
-};
-
-const visitNativeTree = (
-  node: ASTNode,
-  visit: (node: ASTNode) => boolean,
-  visitorKeys?: Readonly<Record<string, readonly string[]>>,
-): void => {
-  if (!visit(node)) {
-    return;
-  }
-  const keys = visitorKeys?.[node.type];
-  if (keys) {
-    visitNativeKeys(node, keys, visit, visitorKeys);
-    return;
-  }
-  visitNativeReflectedChildren(node, visit, visitorKeys);
-};
-
 const indexFallbackScopes = (state: FetchRuleState, program: ASTNode): void => {
-  visitTree(program, [state.fallbackImportBindings], (node, scopes): boolean => {
+  visitFallbackTree(program, [state.fallbackImportBindings], (node, scopes): boolean => {
     state.fallbackScopes.set(node, scopes);
     return true;
   });
@@ -360,6 +237,116 @@ const reportFetch = (state: FetchRuleState, node: ASTNode): void => {
   });
 };
 
+type NativeWorkItem =
+  | { kind: 'visit'; value: unknown }
+  | { kind: 'leave-node'; node: ASTNode }
+  | { kind: 'leave-array'; value: readonly unknown[] };
+
+interface NativeTraversal {
+  activeArrays: WeakSet<object>;
+  activeNodes: WeakSet<object>;
+  pending: NativeWorkItem[];
+  visit: (node: ASTNode) => boolean;
+  visitorKeys?: Readonly<Record<string, readonly string[]>>;
+}
+
+const pushNativeArray = (value: readonly unknown[], pending: NativeWorkItem[]): void => {
+  pending.push({ kind: 'leave-array', value });
+  for (let index = value.length - 1; index >= 0; index -= 1) {
+    pending.push({ kind: 'visit', value: value[index] });
+  }
+};
+
+const pushNativeKeyChildren = (
+  node: ASTNode,
+  keys: readonly string[],
+  pending: NativeWorkItem[],
+): void => {
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const key = keys[index];
+    if (key !== undefined) {
+      pending.push({ kind: 'visit', value: Reflect.get(node, key) });
+    }
+  }
+};
+
+const pushNativeReflectedChildren = (node: ASTNode, pending: NativeWorkItem[]): void => {
+  const entries = Object.entries(node);
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry && entry[0] !== 'parent') {
+      pending.push({ kind: 'visit', value: entry[1] });
+    }
+  }
+};
+
+const pushNativeNodeChildren = (
+  node: ASTNode,
+  pending: NativeWorkItem[],
+  visitorKeys?: Readonly<Record<string, readonly string[]>>,
+): void => {
+  pending.push({ kind: 'leave-node', node });
+  const keys = visitorKeys?.[node.type];
+  if (keys) {
+    pushNativeKeyChildren(node, keys, pending);
+    return;
+  }
+  pushNativeReflectedChildren(node, pending);
+};
+
+const visitNativeArray = (value: readonly unknown[], traversal: NativeTraversal): void => {
+  if (traversal.activeArrays.has(value)) {
+    return;
+  }
+  traversal.activeArrays.add(value);
+  pushNativeArray(value, traversal.pending);
+};
+
+const visitNativeNode = (value: unknown, traversal: NativeTraversal): void => {
+  const node = asNode(value);
+  if (!node || traversal.activeNodes.has(node)) {
+    return;
+  }
+  traversal.activeNodes.add(node);
+  if (!traversal.visit(node)) {
+    traversal.activeNodes.delete(node);
+    return;
+  }
+  pushNativeNodeChildren(node, traversal.pending, traversal.visitorKeys);
+};
+
+const visitNativeWorkItem = (item: NativeWorkItem, traversal: NativeTraversal): void => {
+  if (item.kind === 'leave-node') {
+    traversal.activeNodes.delete(item.node);
+  } else if (item.kind === 'leave-array') {
+    traversal.activeArrays.delete(item.value);
+  } else if (Array.isArray(item.value)) {
+    visitNativeArray(item.value, traversal);
+  } else {
+    visitNativeNode(item.value, traversal);
+  }
+};
+
+const visitNativeTree = (
+  node: ASTNode,
+  visit: (node: ASTNode) => boolean,
+  visitorKeys?: Readonly<Record<string, readonly string[]>>,
+): void => {
+  const traversal: NativeTraversal = {
+    activeArrays: new WeakSet(),
+    activeNodes: new WeakSet(),
+    pending: [{ kind: 'visit', value: node }],
+    visit,
+    visitorKeys,
+  };
+  while (traversal.pending.length > 0) {
+    const item = traversal.pending.pop();
+    if (item) {
+      visitNativeWorkItem(item, traversal);
+    }
+  }
+};
+
 const scanNativeWrapperArguments = (state: FetchRuleState, wrapper: ASTNode): void => {
   for (const argument of childNodes(wrapper, 'arguments')) {
     visitNativeTree(
@@ -383,7 +370,7 @@ const scanFallbackWrapperArguments = (
 ): void => {
   for (const argument of childNodes(wrapper, 'arguments')) {
     const argumentScopes = state.fallbackScopes.get(argument) ?? wrapperScopes;
-    visitTree(
+    visitFallbackTree(
       argument,
       argumentScopes,
       (node, scopes): boolean => {

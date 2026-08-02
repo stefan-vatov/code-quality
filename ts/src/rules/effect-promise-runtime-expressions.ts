@@ -8,6 +8,7 @@ import {
   RUNTIME_THROW,
   appendRuntimeExecution,
   runtimeLexicalValue,
+  runtimeOffsetsAt,
   safeRuntimeValue,
   unknownRuntimeValue,
 } from './effect-promise-runtime-model';
@@ -100,25 +101,88 @@ const directValue = (
   return runtimeStructure(host, node, context);
 };
 
+const isDefaultChildNode = (node: ASTNode): boolean =>
+  node.type !== 'LogicalExpression' &&
+  node.type !== 'ConditionalExpression' &&
+  node.type !== 'AssignmentExpression' &&
+  node.type !== 'MemberExpression' &&
+  node.type !== 'CallExpression' &&
+  !(node.type === 'UnaryExpression' && Reflect.get(node, 'operator') === 'delete');
+
+const pushChildValues = (host: RuntimeExpressionHost, node: ASTNode, pending: unknown[]): void => {
+  const keys = host.input.visitorKeys?.[node.type] ?? Object.keys(node);
+  for (let index = keys.length - 1; index >= 0; index -= 1) {
+    const key = keys[index];
+    if (key && key !== 'parent') {
+      pending.push(Reflect.get(node, key));
+    }
+  }
+};
+
+const pushArrayValues = (values: readonly unknown[], pending: unknown[]): void => {
+  for (let index = values.length - 1; index >= 0; index -= 1) {
+    pending.push(values[index]);
+  }
+};
+
+const hasEnqueuedUnwrapped = (node: ASTNode, pending: unknown[]): boolean => {
+  const unwrapped = unwrappedExpression(node);
+  if (unwrapped && unwrapped !== node) {
+    pending.push(unwrapped);
+    return true;
+  }
+  return false;
+};
+
+const processChildNode = (
+  host: RuntimeExpressionHost,
+  node: ASTNode,
+  context: RuntimeExecutionContext,
+  pending: unknown[],
+): RuntimeResult => {
+  const direct = directValue(host, node, context);
+  if (direct) {
+    return direct;
+  }
+  if (hasEnqueuedUnwrapped(node, pending)) {
+    return NORMAL_RESULT;
+  }
+  if (isDefaultChildNode(node)) {
+    pushChildValues(host, node, pending);
+    return NORMAL_RESULT;
+  }
+  return executeRuntimeExpression(host, node, context);
+};
+
+const processChildValue = (
+  host: RuntimeExpressionHost,
+  value: unknown,
+  context: RuntimeExecutionContext,
+  pending: unknown[],
+): RuntimeResult => {
+  if (Array.isArray(value)) {
+    pushArrayValues(value, pending);
+    return NORMAL_RESULT;
+  }
+  const node = asNode(value);
+  if (!node) {
+    return NORMAL_RESULT;
+  }
+  return processChildNode(host, node, context, pending);
+};
+
 const childValue = (
   host: RuntimeExpressionHost,
   value: unknown,
   context: RuntimeExecutionContext,
 ): RuntimeResult => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const result = childValue(host, item, context);
-      if (result.completion !== RUNTIME_NORMAL) {
-        return result;
-      }
-    }
-    return NORMAL_RESULT;
+  const pending: unknown[] = [value];
+  let result = NORMAL_RESULT;
+  while (pending.length > 0 && result.completion === RUNTIME_NORMAL) {
+    const current = pending.pop();
+    result = processChildValue(host, current, context, pending);
   }
-  const node = asNode(value);
-  if (node) {
-    return executeRuntimeExpression(host, node, context);
-  }
-  return NORMAL_RESULT;
+  return result;
 };
 
 const childKey = (
@@ -248,7 +312,7 @@ const runTask = (
   host.deferredSyncCalls.add(task.syncCall);
   appendRuntimeExecution(host.state, {
     call: node,
-    offsets: new Map(context.offsets),
+    offsets: new Map(runtimeOffsetsAt(context)),
     syncCall: task.syncCall,
     task,
     values: lexicalValues(task.scopes),

@@ -2,60 +2,45 @@
 /*  Exported-declaration documentation requirement helper for custom Oxlint   */
 /*                                   Rules.                                   */
 /* -------------------------------------------------------------------------- */
-import { Array, HashSet, Match, Option, String, pipe } from 'effect';
+import type { IgnoredTextIndex } from './require-function-doc-ignored-text';
+import { createIgnoredTextIndex } from './require-function-doc-ignored-text';
 import { isDocumentedLocalExportList } from './require-function-doc-local-exports';
-import { isInsideIgnoredText } from './require-function-doc-ignored-text';
 
-const CHAR_CODE_SPACE = 32;
-const CHAR_CODE_TAB = 9;
-const CHAR_CODE_NEWLINE = 10;
-const CHAR_CODE_CARRIAGE_RETURN = 13;
-const CHAR_CODE_ASTERISK = 42;
-const CHAR_CODE_SLASH = 47;
-const CHAR_CODE_HASH = 35;
-const CHAR_CODE_AT_SIGN = 64;
-const CHAR_CODE_OPEN_PAREN = 40;
-const CHAR_CODE_OPEN_BRACE = 123;
-const CHAR_CODE_SEMICOLON = 59;
-const CHAR_CODE_LESS_THAN = 60;
-const CHAR_CODE_LOWER_A = 97;
-const CHAR_CODE_LOWER_C = 99;
-const CHAR_CODE_LOWER_D = 100;
-const CHAR_CODE_LOWER_E = 101;
-const CHAR_CODE_LOWER_F = 102;
-const CHAR_CODE_LOWER_I = 105;
-const CHAR_CODE_LOWER_L = 108;
-const CHAR_CODE_LOWER_N = 110;
-const CHAR_CODE_LOWER_T = 116;
-const CHAR_CODE_LOWER_V = 118;
-const CHAR_CODE_UPPER_C = 67;
-const CHAR_CODE_UPPER_E = 69;
-const CHAR_CODE_UPPER_F = 70;
-const CHAR_CODE_UPPER_I = 73;
-const CHAR_CODE_UPPER_L = 76;
-const CHAR_CODE_UPPER_N = 78;
-const CHAR_CODE_UPPER_V = 86;
-const ASYNC_KEYWORD_LENGTH = 'async '.length;
-const TYPE_KEYWORD_LENGTH = 'type '.length;
-const EXPORT_KEYWORD_LENGTH = 'export '.length;
-const DEFAULT_KEYWORD_LENGTH = 'default '.length;
-const DECLARE_KEYWORD_LENGTH = 'declare '.length;
-const ABSTRACT_KEYWORD_LENGTH = 'abstract '.length;
-
-const sourceIncludes =
-  (needle: string) =>
-  (source: string): boolean =>
-    pipe(source, String.includes(needle));
-
-const indexesBetween = (start: number, endExclusive: number): readonly number[] => {
-  if (start >= endExclusive) {
-    return Array.empty();
-  }
-  return Array.range(start, endExclusive - 1);
-};
-
-const matchesIn = (source: string, pattern: RegExp): readonly RegExpExecArray[] =>
-  pipe(source.matchAll(pattern), Array.fromIterable);
+const CHAR_CODE_SPACE = 32,
+  CHAR_CODE_TAB = 9,
+  CHAR_CODE_NEWLINE = 10,
+  CHAR_CODE_CARRIAGE_RETURN = 13;
+const CHAR_CODE_ASTERISK = 42,
+  CHAR_CODE_SLASH = 47,
+  CHAR_CODE_HASH = 35,
+  CHAR_CODE_AT_SIGN = 64;
+const CHAR_CODE_OPEN_PAREN = 40,
+  CHAR_CODE_OPEN_BRACE = 123,
+  CHAR_CODE_SEMICOLON = 59,
+  CHAR_CODE_LESS_THAN = 60;
+const CHAR_CODE_LOWER_A = 97,
+  CHAR_CODE_LOWER_C = 99,
+  CHAR_CODE_LOWER_D = 100,
+  CHAR_CODE_LOWER_E = 101,
+  CHAR_CODE_LOWER_F = 102,
+  CHAR_CODE_LOWER_I = 105,
+  CHAR_CODE_LOWER_L = 108,
+  CHAR_CODE_LOWER_N = 110,
+  CHAR_CODE_LOWER_T = 116,
+  CHAR_CODE_LOWER_V = 118;
+const CHAR_CODE_UPPER_C = 67,
+  CHAR_CODE_UPPER_E = 69,
+  CHAR_CODE_UPPER_F = 70,
+  CHAR_CODE_UPPER_I = 73,
+  CHAR_CODE_UPPER_L = 76,
+  CHAR_CODE_UPPER_N = 78,
+  CHAR_CODE_UPPER_V = 86;
+const ASYNC_KEYWORD_LENGTH = 'async '.length,
+  TYPE_KEYWORD_LENGTH = 'type '.length,
+  EXPORT_KEYWORD_LENGTH = 'export '.length,
+  DEFAULT_KEYWORD_LENGTH = 'default '.length,
+  DECLARE_KEYWORD_LENGTH = 'declare '.length,
+  ABSTRACT_KEYWORD_LENGTH = 'abstract '.length;
 
 const isWhitespace = (code: number): boolean =>
   code === CHAR_CODE_SPACE ||
@@ -68,108 +53,98 @@ const firstIndexNotMatching = (
   start: number,
   endExclusive: number,
   predicate: (code: number) => boolean,
-): number =>
-  pipe(
-    indexesBetween(start, endExclusive),
-    Array.findFirst((index): boolean => !predicate(source.charCodeAt(index))),
-    Option.getOrElse((): number => endExclusive),
-  );
+): number => {
+  let cursor = start;
+  while (cursor < endExclusive && predicate(source.charCodeAt(cursor))) {
+    cursor += 1;
+  }
+  return cursor;
+};
 
 const skipLinePrefix = (source: string, pos: number, lineEnd: number): number => {
   const contentStart = firstIndexNotMatching(source, pos, lineEnd, isWhitespace);
-  const afterAsterisk = Match.value(contentStart).pipe(
-    Match.when(
-      (cursor): boolean => cursor < lineEnd && source.charCodeAt(cursor) === CHAR_CODE_ASTERISK,
-      (cursor): number => cursor + 1,
-    ),
-    Match.orElse((cursor): number => cursor),
-  );
+  let afterAsterisk = contentStart;
+  if (contentStart < lineEnd && source.charCodeAt(contentStart) === CHAR_CODE_ASTERISK) {
+    afterAsterisk += 1;
+  }
   return firstIndexNotMatching(source, afterAsterisk, lineEnd, isWhitespace);
 };
 
-const isJSDocTagLine = (source: string, pos: number, lineEnd: number): boolean =>
-  pos < lineEnd && source.charCodeAt(pos) === CHAR_CODE_AT_SIGN;
-
-const lineEndFor = (source: string, lineStart: number): number =>
-  Match.value(source.indexOf('\n', lineStart)).pipe(
-    Match.when(
-      (index): boolean => index === -1,
-      (): number => source.length,
-    ),
-    Match.orElse((index): number => index),
-  );
-
 const lineHasDescriptionContent = (source: string, lineStart: number, lineEnd: number): boolean => {
   const pos = skipLinePrefix(source, lineStart, lineEnd);
-  if (isJSDocTagLine(source, pos, lineEnd)) {
+  if (pos < lineEnd && source.charCodeAt(pos) === CHAR_CODE_AT_SIGN) {
     return false;
   }
-  return pipe(
-    indexesBetween(pos, lineEnd),
-    Array.some((index): boolean => !isWhitespace(source.charCodeAt(index))),
-  );
+  let cursor = pos;
+  while (cursor < lineEnd) {
+    if (!isWhitespace(source.charCodeAt(cursor))) {
+      return true;
+    }
+    cursor += 1;
+  }
+  return false;
 };
 
-const descriptionLineStarts = (jsdocBody: string): readonly number[] =>
-  pipe(
-    matchesIn(jsdocBody, /\n/g),
-    Array.map((match): number => match.index + 1),
-    Array.prepend(0),
-  );
+const lineEndFor = (source: string, lineStart: number): number => {
+  const newline = source.indexOf('\n', lineStart);
+  if (newline === -1) {
+    return source.length;
+  }
+  return newline;
+};
 
-const hasDescriptionContent = (jsdocBody: string): boolean =>
-  pipe(
-    descriptionLineStarts(jsdocBody),
-    Array.some((lineStart): boolean =>
-      lineHasDescriptionContent(jsdocBody, lineStart, lineEndFor(jsdocBody, lineStart)),
-    ),
-  );
+const hasDescriptionContent = (jsdocBody: string): boolean => {
+  let lineStart = 0;
+  while (true) {
+    const lineEnd = lineEndFor(jsdocBody, lineStart);
+    if (lineHasDescriptionContent(jsdocBody, lineStart, lineEnd)) {
+      return true;
+    }
+    if (lineEnd === jsdocBody.length) {
+      return false;
+    }
+    lineStart = lineEnd + 1;
+  }
+};
 
-const skipWhitespaceBack = (source: string, pos: number): number =>
-  pipe(
-    indexesBetween(0, pos),
-    Array.reverse,
-    Array.findFirst((index): boolean => !isWhitespace(source.charCodeAt(index))),
-    Option.match({
-      onNone: (): number => 0,
-      onSome: (index): number => index + 1,
-    }),
-  );
+const skipWhitespaceBack = (source: string, pos: number): number => {
+  let cursor = pos;
+  while (cursor > 0 && isWhitespace(source.charCodeAt(cursor - 1))) {
+    cursor -= 1;
+  }
+  return cursor;
+};
 
 const hasBlockCommentCloseAt = (source: string, pos: number): boolean =>
   pos >= '*/'.length &&
   source.charCodeAt(pos - '*/'.length) === CHAR_CODE_ASTERISK &&
   source.charCodeAt(pos - 1) === CHAR_CODE_SLASH;
 
-const jsdocContentBeforeClose = (
-  source: string,
-  open: number,
+const previousJSDocStart = (
+  jsdocStarts: readonly number[],
   closeStar: number,
-): string | undefined => {
-  if (open + 1 < closeStar && source.charCodeAt(open + 1) === CHAR_CODE_ASTERISK) {
-    return source.slice(open + '/**'.length, closeStar).trim();
+): number | undefined => {
+  let lower = 0;
+  let upper = jsdocStarts.length;
+  while (lower < upper) {
+    const middle = lower + Math.floor((upper - lower) / 2);
+    if ((jsdocStarts[middle] ?? 0) + 2 < closeStar) {
+      lower = middle + 1;
+    } else {
+      upper = middle;
+    }
   }
-  return undefined;
+  if (lower === 0) {
+    return undefined;
+  }
+  return jsdocStarts[lower - 1];
 };
 
-const previousJSDocContent = (source: string, closeStar: number): string | undefined =>
-  pipe(
-    indexesBetween(1, closeStar),
-    Array.reverse,
-    Array.filterMap((open): Option.Option<string> => {
-      if (
-        source.charCodeAt(open) === CHAR_CODE_ASTERISK &&
-        source.charCodeAt(open - 1) === CHAR_CODE_SLASH
-      ) {
-        return Option.fromNullable(jsdocContentBeforeClose(source, open, closeStar));
-      }
-      return Option.none();
-    }),
-    Array.head,
-    Option.getOrUndefined,
-  );
-
-const hasJSDocBefore = (source: string, exportPOS: number): boolean => {
+const hasJSDocBefore = (
+  source: string,
+  exportPOS: number,
+  jsdocStarts: readonly number[],
+): boolean => {
   const pos = skipWhitespaceBack(source, exportPOS);
 
   if (!hasBlockCommentCloseAt(source, pos)) {
@@ -177,8 +152,11 @@ const hasJSDocBefore = (source: string, exportPOS: number): boolean => {
   }
 
   const closeStar = pos - '*/'.length;
-  const content = previousJSDocContent(source, closeStar);
-  return content !== undefined && hasDescriptionContent(content);
+  const start = previousJSDocStart(jsdocStarts, closeStar);
+  if (start === undefined) {
+    return false;
+  }
+  return hasDescriptionContent(source.slice(start + '/**'.length + 1, closeStar).trim());
 };
 
 const endsWithWord = (source: string, pos: number, word: string): boolean => {
@@ -202,7 +180,7 @@ const endsWithWord = (source: string, pos: number, word: string): boolean => {
   );
 };
 
-const isDefaultDeclaration = (source: string, pos: number, _len: number): boolean => {
+const isDefaultDeclaration = (source: string, pos: number): boolean => {
   const ch = source.charCodeAt(pos);
 
   if (ch === CHAR_CODE_LOWER_F) {
@@ -221,24 +199,15 @@ const isDefaultDeclaration = (source: string, pos: number, _len: number): boolea
 const AMBIENT_DECLARE_PREFIXES = ['declare module', 'declare namespace', 'declare global'];
 
 const skipShebangComments = (source: string, idx: number): number | undefined => {
-  const scan = (cursor: number): number | undefined =>
-    Match.value(cursor).pipe(
-      Match.when(
-        (position): boolean =>
-          position < source.length && source.charCodeAt(position) === CHAR_CODE_HASH,
-        (position): number | undefined =>
-          pipe(
-            Option.some(source.indexOf('\n', position)),
-            Option.filter((newlineIndex): boolean => newlineIndex !== -1),
-            Option.flatMap(
-              (newlineIndex): Option.Option<number> => Option.fromNullable(scan(newlineIndex + 1)),
-            ),
-            Option.getOrUndefined,
-          ),
-      ),
-      Match.orElse((position): number => position),
-    );
-  return scan(idx);
+  let cursor = idx;
+  while (cursor < source.length && source.charCodeAt(cursor) === CHAR_CODE_HASH) {
+    const newlineIndex = source.indexOf('\n', cursor);
+    if (newlineIndex === -1) {
+      return undefined;
+    }
+    cursor = newlineIndex + 1;
+  }
+  return cursor;
 };
 
 const skipBlockComment = (source: string, idx: number): number | undefined => {
@@ -280,10 +249,8 @@ const skipTriviaToken = (source: string, idx: number): number | undefined => {
 };
 
 const skipLeadingTrivia = (source: string, idx: number): number | undefined => {
-  const scan = (cursor: number): number | undefined => {
-    if (cursor >= source.length) {
-      return cursor;
-    }
+  let cursor = idx;
+  while (cursor < source.length) {
     const next = skipTriviaToken(source, cursor);
     if (next === undefined) {
       return undefined;
@@ -291,19 +258,19 @@ const skipLeadingTrivia = (source: string, idx: number): number | undefined => {
     if (next === cursor) {
       return cursor;
     }
-    return scan(next);
-  };
-  return scan(idx);
+    cursor = next;
+  }
+  return cursor;
 };
 
-const hasAmbientPrefixAt = (source: string, idx: number): boolean =>
-  pipe(
-    AMBIENT_DECLARE_PREFIXES,
-    Array.some(
-      (prefix): boolean =>
-        idx + prefix.length <= source.length && source.slice(idx, idx + prefix.length) === prefix,
-    ),
-  );
+const hasAmbientPrefixAt = (source: string, idx: number): boolean => {
+  for (const prefix of AMBIENT_DECLARE_PREFIXES) {
+    if (idx + prefix.length <= source.length && source.slice(idx, idx + prefix.length) === prefix) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const isAmbientDeclarationFile = (source: string): boolean => {
   const shebangEnd = skipShebangComments(source, 0);
@@ -316,16 +283,6 @@ const isAmbientDeclarationFile = (source: string): boolean => {
   }
   return hasAmbientPrefixAt(source, idx);
 };
-
-const isStandaloneExportKeyword = (source: string, exp: number): boolean => {
-  if (exp === 0) {
-    return true;
-  }
-  return isWhitespace(source.charCodeAt(exp - 1));
-};
-
-const isDeclareExport = (source: string, exp: number): boolean =>
-  exp >= DECLARE_KEYWORD_LENGTH && source.slice(exp - DECLARE_KEYWORD_LENGTH, exp) === 'declare ';
 
 const skipWhitespace = (source: string, pos: number): number => {
   let cursor = pos;
@@ -370,7 +327,7 @@ interface ModifierSpec {
   text: string;
 }
 
-const modifierSpecs: readonly ModifierSpec[] = Array.make(
+const modifierSpecs: readonly ModifierSpec[] = [
   {
     charCode: CHAR_CODE_LOWER_D,
     isDefault: true,
@@ -406,45 +363,36 @@ const modifierSpecs: readonly ModifierSpec[] = Array.make(
     shouldStop: true,
     text: 'namespace ',
   },
-);
+];
 
 const modifierSpecMatches = (source: string, pos: number, spec: ModifierSpec): boolean =>
   source.charCodeAt(pos) === spec.charCode &&
   pos + spec.text.length <= source.length &&
   source.slice(pos, pos + spec.text.length) === spec.text;
 
-const modifierLengthAt = (
-  source: string,
-  pos: number,
-): { length: number; isDefault: boolean; shouldStop: boolean } | undefined =>
-  pipe(
-    modifierSpecs,
-    Array.findFirst((spec): boolean => modifierSpecMatches(source, pos, spec)),
-    Option.getOrUndefined,
-  );
-
-const scanExportModifiers = (source: string, start: number): ModifierScanResult => {
-  const scan = (state: ModifierScanResult): ModifierScanResult =>
-    pipe(
-      Option.fromNullable(modifierLengthAt(source, state.pos)),
-      Option.match({
-        onNone: (): ModifierScanResult => state,
-        onSome: (modifier): ModifierScanResult => {
-          if (modifier.shouldStop) {
-            return state;
-          }
-          return scan({
-            hasSawDefault: state.hasSawDefault || modifier.isDefault,
-            pos: skipWhitespace(source, state.pos + modifier.length),
-          });
-        },
-      }),
-    );
-
-  return scan({ hasSawDefault: false, pos: start });
+const modifierLengthAt = (source: string, pos: number): ModifierSpec | undefined => {
+  for (const spec of modifierSpecs) {
+    if (modifierSpecMatches(source, pos, spec)) {
+      return spec;
+    }
+  }
+  return undefined;
 };
 
-const declarationStartCodes = HashSet.make(
+const scanExportModifiers = (source: string, start: number): ModifierScanResult => {
+  let hasSawDefault = false;
+  let pos = start;
+  while (true) {
+    const modifier = modifierLengthAt(source, pos);
+    if (modifier === undefined || modifier.shouldStop) {
+      return { hasSawDefault, pos };
+    }
+    hasSawDefault ||= modifier.isDefault;
+    pos = skipWhitespace(source, pos + modifier.length);
+  }
+};
+
+const declarationStartCodes = new Set([
   CHAR_CODE_LOWER_F,
   CHAR_CODE_UPPER_F,
   CHAR_CODE_LOWER_C,
@@ -459,9 +407,9 @@ const declarationStartCodes = HashSet.make(
   CHAR_CODE_UPPER_V,
   CHAR_CODE_LOWER_N,
   CHAR_CODE_UPPER_N,
-);
+]);
 
-const isDeclarationStartCode = (code: number): boolean => HashSet.has(declarationStartCodes, code);
+const isDeclarationStartCode = (code: number): boolean => declarationStartCodes.has(code);
 
 const canSkipDocumentedExport = (source: string, modifiers: ModifierScanResult): boolean => {
   if (modifiers.pos >= source.length) {
@@ -471,29 +419,30 @@ const canSkipDocumentedExport = (source: string, modifiers: ModifierScanResult):
   if (!isDeclarationStartCode(next)) {
     return true;
   }
-  return modifiers.hasSawDefault && !isDefaultDeclaration(source, modifiers.pos, source.length);
+  return modifiers.hasSawDefault && !isDefaultDeclaration(source, modifiers.pos);
 };
 
 const documentedLocalExportListResult = (
   source: string,
   after: number,
   exp: number,
-): boolean | undefined => isDocumentedLocalExportList(source, after, exp, hasJSDocBefore);
+  sourceIndex: IgnoredTextIndex,
+): boolean | undefined =>
+  isDocumentedLocalExportList(source, after, exp, (candidateSource, declarationPOS): boolean =>
+    hasJSDocBefore(candidateSource, declarationPOS, sourceIndex.jsdocStarts),
+  );
 
-const exhaustedExportDocResult = (source: string, after: number): boolean | undefined => {
+const earlyExportDocResult = (
+  source: string,
+  after: number,
+  exp: number,
+  sourceIndex: IgnoredTextIndex,
+): boolean | undefined => {
   if (after >= source.length) {
     return true;
   }
-  return undefined;
-};
 
-const earlyExportDocResult = (source: string, after: number, exp: number): boolean | undefined => {
-  const exhaustedExport = exhaustedExportDocResult(source, after);
-  if (exhaustedExport !== undefined) {
-    return exhaustedExport;
-  }
-
-  const localExportList = documentedLocalExportListResult(source, after, exp);
+  const localExportList = documentedLocalExportListResult(source, after, exp, sourceIndex);
   if (localExportList !== undefined) {
     return localExportList;
   }
@@ -504,9 +453,13 @@ const earlyExportDocResult = (source: string, after: number, exp: number): boole
   return undefined;
 };
 
-const isDocumentedExportDeclaration = (source: string, exp: number): boolean | undefined => {
+const isDocumentedExportDeclaration = (
+  source: string,
+  exp: number,
+  sourceIndex: IgnoredTextIndex,
+): boolean | undefined => {
   const after = skipWhitespace(source, exp + EXPORT_KEYWORD_LENGTH);
-  const earlyResult = earlyExportDocResult(source, after, exp);
+  const earlyResult = earlyExportDocResult(source, after, exp, sourceIndex);
   if (earlyResult !== undefined) {
     return earlyResult;
   }
@@ -515,18 +468,23 @@ const isDocumentedExportDeclaration = (source: string, exp: number): boolean | u
   if (canSkipDocumentedExport(source, modifiers)) {
     return true;
   }
-  return hasJSDocBefore(source, exp);
+  return hasJSDocBefore(source, exp, sourceIndex.jsdocStarts);
 };
 
-const isUndocumentedExportAt = (source: string, exp: number): boolean => {
+const isUndocumentedExportAt = (
+  source: string,
+  exp: number,
+  sourceIndex: IgnoredTextIndex,
+): boolean => {
   if (
-    isInsideIgnoredText(source, exp) ||
-    !isStandaloneExportKeyword(source, exp) ||
-    isDeclareExport(source, exp)
+    sourceIndex.isInside(exp) ||
+    (exp !== 0 && !isWhitespace(source.charCodeAt(exp - 1))) ||
+    (exp >= DECLARE_KEYWORD_LENGTH &&
+      source.slice(exp - DECLARE_KEYWORD_LENGTH, exp) === 'declare ')
   ) {
     return false;
   }
-  return isDocumentedExportDeclaration(source, exp) === false;
+  return isDocumentedExportDeclaration(source, exp, sourceIndex) === false;
 };
 
 /**
@@ -537,12 +495,43 @@ export interface RequiredFunctionDocFailure {
   snippet: string;
 }
 
-const failureAt = (source: string, pos: number): RequiredFunctionDocFailure => {
-  const snippetEnd = (source.indexOf('\n', pos) + 1 || source.length + 1) - 1;
-  return {
-    line: matchesIn(source.slice(0, pos), /\n/g).length + 1,
-    snippet: source.slice(source.lastIndexOf('\n', pos - 1) + 1, snippetEnd).trim(),
-  };
+const lineNumberAt = (source: string, pos: number): number => {
+  let line = 1;
+  let newline = source.indexOf('\n');
+  while (newline !== -1 && newline < pos) {
+    line += 1;
+    newline = source.indexOf('\n', newline + 1);
+  }
+  return line;
+};
+
+const snippetEndAt = (source: string, pos: number): number =>
+  (source.indexOf('\n', pos) + 1 || source.length + 1) - 1;
+
+const failureAt = (source: string, pos: number): RequiredFunctionDocFailure => ({
+  line: lineNumberAt(source, pos),
+  snippet: source.slice(source.lastIndexOf('\n', pos - 1) + 1, snippetEndAt(source, pos)).trim(),
+});
+
+const firstUndocumentedExport = (
+  source: string,
+  sourceIndex: IgnoredTextIndex,
+): number | undefined => {
+  let searchFrom = 0;
+  while (true) {
+    const exportPOS = source.indexOf('export', searchFrom);
+    if (exportPOS === -1) {
+      return undefined;
+    }
+    const afterExport = exportPOS + EXPORT_KEYWORD_LENGTH - 1;
+    if (
+      isWhitespace(source.charCodeAt(afterExport)) &&
+      isUndocumentedExportAt(source, exportPOS, sourceIndex)
+    ) {
+      return exportPOS;
+    }
+    searchFrom = afterExport;
+  }
 };
 
 /**
@@ -551,7 +540,7 @@ const failureAt = (source: string, pos: number): RequiredFunctionDocFailure => {
 export const findRequiredFunctionDocFailure = (
   source: string,
 ): RequiredFunctionDocFailure | undefined => {
-  if (!sourceIncludes('export ')(source)) {
+  if (!source.includes('export')) {
     return undefined;
   }
 
@@ -559,12 +548,12 @@ export const findRequiredFunctionDocFailure = (
     return undefined;
   }
 
-  return pipe(
-    matchesIn(source, /\bexport\s/g),
-    Array.findFirst((match): boolean => isUndocumentedExportAt(source, match.index)),
-    Option.map((match): RequiredFunctionDocFailure => failureAt(source, match.index)),
-    Option.getOrUndefined,
-  );
+  const sourceIndex = createIgnoredTextIndex(source);
+  const exportPOS = firstUndocumentedExport(source, sourceIndex);
+  if (exportPOS === undefined) {
+    return undefined;
+  }
+  return failureAt(source, exportPOS);
 };
 
 /**

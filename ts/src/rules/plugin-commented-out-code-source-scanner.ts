@@ -48,6 +48,21 @@ interface JavaScriptStep {
   isControlPending: boolean;
 }
 
+interface JavaScriptFrame {
+  kind: 'javascript';
+  isStopAtClosingBrace: boolean;
+  nestedBraceDepth: number;
+  stacks: DelimiterStacks;
+  step: JavaScriptStep;
+}
+
+interface TemplateFrame {
+  index: number;
+  kind: 'template';
+}
+
+type ScanFrame = JavaScriptFrame | TemplateFrame;
+
 interface DelimiterStacks {
   braceBlocks: boolean[];
   controlParentheses: boolean[];
@@ -57,24 +72,6 @@ const REGEX_PREFIX_KEYWORDS =
   'do in of new case else void await throw yield delete return typeof instanceof'.split(' ');
 const CONTROL_PAREN_KEYWORDS = ['catch', 'for', 'if', 'switch', 'while', 'with'];
 const BLOCK_PREFIX_KEYWORDS = ['do', 'else', 'finally', 'try'];
-
-const indexAfterTemplate = (source: string, start: number, context: SourceScanContext): number => {
-  let index = start + 1;
-  const sourceLength = source.length;
-  while (index < sourceLength) {
-    const code = source.charCodeAt(index);
-    if (code === BACKSLASH) {
-      index += 2;
-    } else if (code === BACKTICK) {
-      return index + 1;
-    } else if (code === DOLLAR && source.charCodeAt(index + 1) === OPEN_BRACE) {
-      index = scanJavaScript(context, index + 2, true);
-    } else {
-      index += 1;
-    }
-  }
-  return sourceLength;
-};
 
 const scanEmbeddedJavaScript = (
   context: SourceScanContext,
@@ -92,14 +89,6 @@ const expressionStep = (
   if (code === SINGLE_QUOTE || code === DOUBLE_QUOTE) {
     return {
       index: indexAfterQuotedString(source, index, code),
-      isBlockAllowed: false,
-      isControlPending: false,
-      isREGEXAllowed: false,
-    };
-  }
-  if (code === BACKTICK) {
-    return {
-      index: indexAfterTemplate(source, index, context),
       isBlockAllowed: false,
       isControlPending: false,
       isREGEXAllowed: false,
@@ -296,26 +285,153 @@ const nextJavaScriptStep = (
   return punctuationStep(source, step, code, stacks);
 };
 
+const initialJavaScriptFrame = (start: number, isStopAtClosingBrace: boolean): JavaScriptFrame => ({
+  isStopAtClosingBrace,
+  kind: 'javascript',
+  nestedBraceDepth: 0,
+  stacks: { braceBlocks: [], controlParentheses: [] },
+  step: {
+    index: start,
+    isBlockAllowed: true,
+    isControlPending: false,
+    isREGEXAllowed: true,
+  },
+});
+
+const afterTemplateStep = (index: number): JavaScriptStep => ({
+  index,
+  isBlockAllowed: false,
+  isControlPending: false,
+  isREGEXAllowed: false,
+});
+
+const finishNestedFrame = (frames: ScanFrame[], end: number): number | undefined => {
+  frames.pop();
+  const parent = frames.at(-1);
+  if (parent?.kind === 'template') {
+    parent.index = end;
+    return undefined;
+  }
+  return end;
+};
+
+const finishTemplateFrame = (frames: ScanFrame[], end: number): void => {
+  frames.pop();
+  const parent = frames.at(-1);
+  if (parent?.kind === 'javascript') {
+    parent.step = afterTemplateStep(end);
+  }
+};
+
+const setTemplateFrameIndex = (frames: ScanFrame[], index: number): void => {
+  const frame = frames.at(-1);
+  if (frame?.kind === 'template') {
+    frame.index = index;
+  }
+};
+
+const startTemplateInterpolation = (frame: TemplateFrame, frames: ScanFrame[]): void => {
+  const start = frame.index + 2;
+  setTemplateFrameIndex(frames, start);
+  frames.push(initialJavaScriptFrame(start, true));
+};
+
+const isTemplateInterpolation = (source: string, index: number, code: number): boolean =>
+  code === DOLLAR && source.charCodeAt(index + 1) === OPEN_BRACE;
+
+const advanceTemplateCharacter = (
+  source: string,
+  frame: TemplateFrame,
+  frames: ScanFrame[],
+): void => {
+  const code = source.charCodeAt(frame.index);
+  if (code === BACKSLASH) {
+    setTemplateFrameIndex(frames, frame.index + 2);
+  } else if (code === BACKTICK) {
+    finishTemplateFrame(frames, frame.index + 1);
+  } else if (isTemplateInterpolation(source, frame.index, code)) {
+    startTemplateInterpolation(frame, frames);
+  } else {
+    setTemplateFrameIndex(frames, frame.index + 1);
+  }
+};
+
+const advanceTemplateFrame = (
+  context: SourceScanContext,
+  frame: TemplateFrame,
+  frames: ScanFrame[],
+): void => {
+  if (frame.index >= context.source.length) {
+    finishTemplateFrame(frames, context.source.length);
+  } else {
+    advanceTemplateCharacter(context.source, frame, frames);
+  }
+};
+
+const isClosingInterpolation = (frame: JavaScriptFrame, code: number): boolean =>
+  frame.isStopAtClosingBrace && code === CLOSE_BRACE && frame.nestedBraceDepth === 0;
+
+const advanceJavaScriptSourceFrame = (
+  context: SourceScanContext,
+  frame: JavaScriptFrame,
+  frames: ScanFrame[],
+  code: number,
+): void => {
+  const { source } = context;
+  const nestedBraceDepth = nextBraceDepth(code, frame.nestedBraceDepth);
+  if (code === BACKTICK) {
+    frames.push({ index: frame.step.index + 1, kind: 'template' });
+    return;
+  }
+  const step = nextJavaScriptStep(source, frame.step, code, frame.stacks, context);
+  const currentFrame = frames.at(-1);
+  if (currentFrame?.kind === 'javascript') {
+    currentFrame.nestedBraceDepth = nestedBraceDepth;
+    currentFrame.step = step;
+  }
+};
+
+const advanceJavaScriptFrame = (
+  context: SourceScanContext,
+  frame: JavaScriptFrame,
+  frames: ScanFrame[],
+): number | undefined => {
+  const { source } = context;
+  const { step } = frame;
+  if (step.index >= source.length) {
+    return finishNestedFrame(frames, source.length);
+  }
+  const code = source.charCodeAt(step.index);
+  if (isClosingInterpolation(frame, code)) {
+    return finishNestedFrame(frames, step.index + 1);
+  }
+  advanceJavaScriptSourceFrame(context, frame, frames, code);
+  return undefined;
+};
+
+const advanceScanFrame = (context: SourceScanContext, frames: ScanFrame[]): number | undefined => {
+  const frame = frames.at(-1);
+  if (frame === undefined) {
+    return context.source.length;
+  }
+  if (frame.kind === 'template') {
+    advanceTemplateFrame(context, frame, frames);
+    return undefined;
+  }
+  return advanceJavaScriptFrame(context, frame, frames);
+};
+
 const scanJavaScript = (
   context: SourceScanContext,
   start: number,
   stopAtClosingBrace: boolean,
 ): number => {
-  let step: JavaScriptStep = {
-    index: start,
-    isBlockAllowed: true,
-    isControlPending: false,
-    isREGEXAllowed: true,
-  };
-  let nestedBraceDepth = 0;
-  const stacks: DelimiterStacks = { braceBlocks: [], controlParentheses: [] };
-  while (step.index < context.source.length) {
-    const code = context.source.charCodeAt(step.index);
-    if (stopAtClosingBrace && code === CLOSE_BRACE && nestedBraceDepth === 0) {
-      return step.index + 1;
+  const frames: ScanFrame[] = [initialJavaScriptFrame(start, stopAtClosingBrace)];
+  while (frames.length > 0) {
+    const end = advanceScanFrame(context, frames);
+    if (end !== undefined) {
+      return end;
     }
-    nestedBraceDepth = nextBraceDepth(code, nestedBraceDepth);
-    step = nextJavaScriptStep(context.source, step, code, stacks, context);
   }
   return context.source.length;
 };

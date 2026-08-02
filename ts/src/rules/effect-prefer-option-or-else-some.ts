@@ -94,11 +94,21 @@ const rootPackageNamespaces = (program: ASTNode): ReadonlySet<string> => {
 const hasTypeArguments = (node: ASTNode): boolean =>
   Boolean(childNode(node, 'typeArguments') || childNode(node, 'typeParameters'));
 
-const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean =>
-  node?.type === 'MemberExpression' &&
-  (Reflect.get(node, 'computed') === true ||
-    Reflect.get(node, 'optional') === true ||
-    hasUnsupportedMemberAccess(childNode(node, 'object')));
+const hasUnsupportedMemberAccess = (node: ASTNode | undefined): boolean => {
+  const seen = new WeakSet();
+  let current = node;
+  while (current?.type === 'MemberExpression') {
+    if (Reflect.get(current, 'computed') === true || Reflect.get(current, 'optional') === true) {
+      return true;
+    }
+    if (seen.has(current)) {
+      return false;
+    }
+    seen.add(current);
+    current = childNode(current, 'object');
+  }
+  return false;
+};
 
 const isPlainCall = (call: ASTNode): boolean =>
   Reflect.get(call, 'optional') !== true &&
