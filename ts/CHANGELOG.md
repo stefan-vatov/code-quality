@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2 - 2026-08-03
+
+### Changes
+
+- perf: make oxlint analysis stack-safe (63753f8)
+
 ## 0.5.1 - 2026-08-02
 
 ### Fixes
