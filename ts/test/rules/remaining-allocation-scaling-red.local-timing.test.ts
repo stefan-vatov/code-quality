@@ -19,7 +19,7 @@ const measure = (depth: number): number => {
   return performance.now() - startedAt;
 };
 
-describe('remaining custom-rule allocation scaling', (): void => {
+describe('remaining custom-rule allocation local timing', (): void => {
   it('keeps nested source fallback scans near-linear as function depth grows', (): void => {
     const smallDuration = measure(96);
     const largeDuration = measure(768);

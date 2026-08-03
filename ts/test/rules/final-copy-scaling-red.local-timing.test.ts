@@ -280,7 +280,7 @@ const runtimeLarge = runtimeMeasurement(768);
 const recursionSmall = recursionMeasurement(256);
 const recursionLarge = recursionMeasurement(1280);
 
-describe('final immutable-copy scaling RED audit', (): void => {
+describe('final immutable-copy local timing audit', (): void => {
   it('keeps AST scope extension near-linear while preserving shadowing', (): void => {
     expect(scopeReports(scopeSource(4))).toBe(1);
     expect(scopeReports(scopeShadowSource())).toBe(0);

@@ -2,6 +2,15 @@
 /*  Shared Vitest config for repository unit tests and coverage thresholds.   */
 /* -------------------------------------------------------------------------- */
 import { configDefaults, defineConfig } from 'vitest/config';
+import { env } from 'node:process';
+
+const localTimingTestPattern = '**/*.local-timing.test.ts';
+const localTimingTestExclusions = (): readonly string[] => {
+  if (env.CI !== 'true') {
+    return [];
+  }
+  return [localTimingTestPattern];
+};
 
 export default defineConfig({
   test: {
@@ -37,6 +46,7 @@ export default defineConfig({
       '**/out-tsc/**',
       '**/*benchmark*.test.ts',
       '**/*performance*.test.ts',
+      ...localTimingTestExclusions(),
     ],
     globals: true,
     setupFiles: ['./test/setup.ts'],

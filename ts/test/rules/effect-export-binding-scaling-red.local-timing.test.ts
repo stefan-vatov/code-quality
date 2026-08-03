@@ -27,7 +27,7 @@ const measureNestedArrayPattern = (source: string): number => {
   return median(samples);
 };
 
-describe('Effect export binding-pattern traversal scaling', (): void => {
+describe('Effect export binding-pattern traversal local timing', (): void => {
   it(
     'keeps deeply nested arrays near-linear while preserving binding order',
     { timeout: 4_500 },

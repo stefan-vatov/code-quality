@@ -34,7 +34,7 @@ const probeSource = `
   process.stdout.write(JSON.stringify([measure(${SMALL_DEPTH}), measure(${LARGE_DEPTH})]));
 `;
 
-describe('Effect return-in-gen differential scaling', (): void => {
+describe('Effect return-in-gen differential local timing', (): void => {
   it(
     'keeps late matches bounded across practical nested sources',
     (): void => {

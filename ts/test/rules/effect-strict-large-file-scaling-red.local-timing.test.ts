@@ -99,7 +99,7 @@ const measurementSummary = (measurements: readonly Measurement[]): string =>
     )
     .join('; ');
 
-describe('strict Effect large-file scaling RED', (): void => {
+describe('strict Effect large-file local timing RED', (): void => {
   it('keeps retry-policy diagnostics bounded on sparse TSX files', (): void => {
     const measurements = SOURCE_SIZES.map(measureSize);
     const small = measurements[0];

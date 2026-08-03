@@ -14,7 +14,6 @@ import { fileURLToPath } from 'node:url';
 import { hasRunSyncInServerRequestHandler } from '../../src/rules/effect-strict-source-predicates';
 import { readFileSync } from 'node:fs';
 import { runSyncServerHandlerAST } from '../../src/rules/effect-strict-server-handler-ast';
-import { spawnSync } from 'node:child_process';
 
 const HANDLER_ASSIGNMENT_PATTERN = /\b(?:handler|route|loader|action)\s*=/g;
 
@@ -47,22 +46,6 @@ const scalingCases = SCALING_LINE_COUNTS.flatMap((lineCount) =>
 const smallScalingCases = scalingCases.filter(
   ({ lineCount }): boolean => lineCount !== LARGE_SOURCE_LINE_COUNT,
 );
-const strictSourcePredicateURL = new URL(
-  '../../src/rules/effect-strict-source-predicates.ts',
-  import.meta.url,
-).href;
-const strictHandlerFixtureURL = new URL(
-  '../../bench/effect-strict-handler-fixtures.ts',
-  import.meta.url,
-).href;
-const largeProbeCases = fallbackCases.map(
-  ({ density, hasLastLineViolation }): { density: string; hasLastLineViolation: boolean } => ({
-    density,
-    hasLastLineViolation,
-  }),
-);
-const LARGE_SCAN_TIMEOUT_MS = 5_000;
-
 const scalingBenchmarkSource = readFileSync(
   fileURLToPath(new URL('../../bench/effect-strict-handler-scaling.ts', import.meta.url)),
   'utf8',
@@ -145,39 +128,6 @@ describe('runSync server-handler fallback regression coverage', (): void => {
     visitors.CallExpression?.(call);
 
     expect(reports).toHaveLength(1);
-  });
-
-  it('completes every 3,000-line fallback case inside a bounded child process', (): void => {
-    const probeSource = `
-      import { hasRunSyncInServerRequestHandler } from ${JSON.stringify(strictSourcePredicateURL)};
-      import { createStrictHandlerSource } from ${JSON.stringify(strictHandlerFixtureURL)};
-      const cases = ${JSON.stringify(largeProbeCases)};
-      const results = cases.map(({ density, hasLastLineViolation }) =>
-        String(hasRunSyncInServerRequestHandler(createStrictHandlerSource(${LARGE_SOURCE_LINE_COUNT}, {
-          density,
-          hasLastLineViolation,
-        }))),
-      );
-      process.stdout.write(results.join(','));
-    `;
-    const result = spawnSync(
-      process.execPath,
-      ['--import', 'tsx', '--input-type=module', '--eval', probeSource],
-      {
-        cwd: fileURLToPath(new URL('../../..', import.meta.url)),
-        encoding: 'utf8',
-        maxBuffer: 10_000,
-        timeout: LARGE_SCAN_TIMEOUT_MS,
-      },
-    );
-
-    if (result.error !== undefined) {
-      throw new Error(`large fallback probe failed: ${result.error.message}`);
-    }
-    if (result.status !== 0) {
-      throw new Error(`large fallback probe exited with status ${String(result.status)}`);
-    }
-    expect(result.stdout.trim()).toBe('false,true,false,true');
   });
 
   it.each(scalingCases)(

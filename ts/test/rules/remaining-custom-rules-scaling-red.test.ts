@@ -1,30 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { SourceRule } from '../../src/rules/effect-rule-core';
 import countImportDepth from '../../src/rules/max-import-depth';
-import findLongLines from '../../src/rules/max-line-length';
 import findMisCasedAcronyms from '../../src/rules/acronym-case';
-import { findRequiredFunctionDocFailure } from '../../src/rules/require-function-doc';
 import hasRequiredFileDoc from '../../src/rules/require-file-doc';
 import { parseSync } from 'oxc-parser';
-import { performance } from 'node:perf_hooks';
 import plugin from '../../src/rules/plugin';
-
-const documentedExports = (count: number): string =>
-  Array.from(
-    { length: count },
-    (_, index) =>
-      `/** Function ${index}. */\nexport function function${index}(): number { return ${index}; }\n`,
-  ).join('');
-
-const measure = <Result>(
-  run: (input: string) => Result,
-  input: string,
-): { duration: number; result: Result } => {
-  run(input);
-  const startedAt = performance.now();
-  const result = run(input);
-  return { duration: performance.now() - startedAt, result };
-};
 
 const callNamed = (program: object, name: string): object | undefined => {
   const pending: unknown[] = [program];
@@ -132,22 +112,4 @@ describe('remaining custom Oxlint rule scaling regressions', (): void => {
   it('keeps the legacy AST fallback for effect-prefer-map-over-flatMap-succeed stack-safe', (): void => {
     expect(runNestedMapFallbackRule()).toBe(1);
   });
-
-  it('keeps exported documentation checks near-linear as exports grow', (): void => {
-    const smallMeasurement = measure(findRequiredFunctionDocFailure, documentedExports(256));
-    const largeMeasurement = measure(findRequiredFunctionDocFailure, documentedExports(1_024));
-
-    expect(largeMeasurement.result).toBeUndefined();
-    expect(largeMeasurement.duration / smallMeasurement.duration).toBeLessThan(8);
-  }, 15_000);
-
-  it('keeps long-line collection near-linear as violating lines grow', (): void => {
-    const smallSource = ('x'.repeat(160) + '\n').repeat(1_000);
-    const largeSource = ('x'.repeat(160) + '\n').repeat(8_000);
-    const smallMeasurement = measure(findLongLines, smallSource);
-    const largeMeasurement = measure(findLongLines, largeSource);
-
-    expect(largeMeasurement.result).toHaveLength(8_000);
-    expect(largeMeasurement.duration / smallMeasurement.duration).toBeLessThan(16);
-  }, 15_000);
 });

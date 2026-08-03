@@ -24,7 +24,7 @@ const measure = (source: string): number => {
   );
 };
 
-describe('final performance audit regressions', (): void => {
+describe('final local timing audit regressions', (): void => {
   it('keeps repeated same-statement pipe scans near-linear', (): void => {
     const small = measure(pipeSource(SMALL_PIPE_COUNT));
     const large = measure(pipeSource(LARGE_PIPE_COUNT));
