@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
+import { runConfiguredRules, runRule, sorted, withAllEffectRules } from './effect-rule-test-utils';
 import type { RuleCase } from './effect-rule-test-utils';
 import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
 import { readFileSync } from 'node:fs';
@@ -22,38 +22,6 @@ const defaultCases: RuleCase[] = [
     valid: 'const p = Effect.gen(function* () { return yield* Effect.succeed(1); });',
   },
   {
-    name: 'effect-prefer-gen-for-nested-flatmap',
-    invalid: 'Effect.flatMap(a, () => Effect.flatMap(b, () => c));',
-    valid: 'a.pipe(Effect.flatMap((value) => b(value)));',
-  },
-  {
-    name: 'effect-prefer-all-discard',
-    invalid:
-      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.all([first, second]); });',
-    valid:
-      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.all([first, second], { discard: true }); });',
-  },
-  {
-    name: 'effect-prefer-map-over-flatMap-succeed',
-    invalid:
-      'import { Effect } from "effect"; Effect.flatMap(program, (value) => Effect.succeed(value));',
-    valid: 'import { Effect } from "effect"; Effect.map(program, (value) => value);',
-  },
-  {
-    name: 'effect-prefer-ref-getAndUpdate',
-    invalid:
-      'import { Ref } from "effect"; const previous = Ref.modify(ref, (current) => [current, current + 1]);',
-    valid:
-      'import { Ref } from "effect"; const previous = Ref.getAndUpdate(ref, (current) => current + 1);',
-  },
-  {
-    name: 'effect-prefer-yieldable-error-over-fail',
-    invalid:
-      'import { Data, Effect } from "effect"; class NotFound extends Data.TaggedError("NotFound")<{}> {} const program = Effect.gen(function* () { return yield* Effect.fail(new NotFound()); });',
-    valid:
-      'import { Data, Effect } from "effect"; class NotFound extends Data.TaggedError("NotFound")<{}> {} const program = Effect.gen(function* () { return yield* new NotFound(); });',
-  },
-  {
     name: 'effect-schema-no-redundant-tag-identifier',
     invalid:
       'import { Schema } from "effect"; ' +
@@ -61,129 +29,6 @@ const defaultCases: RuleCase[] = [
     valid:
       'import { Schema } from "effect"; ' +
       'class NotFound extends Schema.TaggedClass<NotFound>()("NotFound", { id: Schema.String }) {}',
-  },
-  {
-    name: 'effect-prefer-succeed-for-stable-values',
-    invalid: 'import { Effect } from "effect"; Effect.sync(() => 1);',
-    valid: 'import { Effect } from "effect"; Effect.sync(() => Date.now());',
-  },
-  {
-    name: 'effect-prefer-succeedNone',
-    invalid: 'import { Effect, Option } from "effect"; Effect.succeed(Option.none());',
-    valid: 'import { Effect } from "effect"; Effect.succeedNone;',
-  },
-  {
-    name: 'effect-prefer-succeedSome',
-    invalid: 'import { Effect, Option } from "effect"; Effect.succeed(Option.some(1));',
-    valid: 'import { Effect } from "effect"; Effect.succeedSome(1);',
-  },
-  {
-    name: 'effect-prefer-asSome',
-    invalid: 'import { Effect, Option } from "effect"; Effect.map(program, Option.some);',
-    valid: 'import { Effect } from "effect"; Effect.asSome(program);',
-  },
-  {
-    name: 'effect-prefer-as-over-map-constant',
-    invalid: 'import { Effect } from "effect"; Effect.map(program, () => "done");',
-    valid: 'import { Effect } from "effect"; Effect.as(program, "done");',
-  },
-  {
-    name: 'effect-prefer-mapBoth',
-    invalid:
-      'import { Effect } from "effect"; program.pipe(Effect.map(onSuccess), Effect.mapError(onFailure));',
-    valid:
-      'import { Effect } from "effect"; program.pipe(Effect.mapBoth({ onFailure, onSuccess }));',
-  },
-  {
-    name: 'effect-prefer-option-nullish-getters',
-    invalid:
-      'import { Option } from "effect"; const decoded = decode(); const value = Option.isSome(decoded) ? decoded.value : undefined;',
-    valid:
-      'import { Option } from "effect"; const decoded = decode(); const value = Option.getOrUndefined(decoded);',
-  },
-  {
-    name: 'effect-prefer-option-getOrElse',
-    invalid:
-      'import { Option } from "effect"; const value = Option.match(decoded, { onNone: () => fallback, onSome: (item) => item });',
-    valid:
-      'import { Option } from "effect"; const value = Option.getOrElse(decoded, () => fallback);',
-  },
-  {
-    name: 'effect-prefer-option-orElseSome',
-    invalid:
-      'import { Option } from "effect"; const value = Option.orElse(decoded, () => Option.some(fallback));',
-    valid:
-      'import { Option } from "effect"; const value = Option.orElseSome(decoded, () => fallback);',
-  },
-  {
-    name: 'effect-prefer-tap-over-flatMap-as',
-    invalid:
-      'import { flatMap, as as preserve } from "effect/Effect"; flatMap(program, (value) => preserve(audit(value), value));',
-    valid: 'import { Effect } from "effect"; program.pipe(Effect.tap((value) => audit(value)));',
-  },
-  {
-    name: 'effect-prefer-andThen-over-flatMap-discarded-value',
-    invalid: 'import { Effect } from "effect"; Effect.flatMap(first, () => second);',
-    valid: 'import { Effect } from "effect"; Effect.andThen(first, () => second);',
-  },
-  {
-    name: 'effect-prefer-catchIf-over-conditional-catch',
-    invalid:
-      'import { Effect } from "effect"; Effect.catchAll(program, error => isRecoverable(error) ? recover(error) : Effect.fail(error));',
-    valid:
-      'import { Effect } from "effect"; program.pipe(Effect.catchIf(isRecoverable, error => recover(error)));',
-  },
-  {
-    name: 'effect-prefer-collection-discard-over-asVoid',
-    invalid:
-      'import { Effect } from "effect"; const done = Effect.all([first, second]).pipe(Effect.asVoid);',
-    valid:
-      'import { Effect } from "effect"; const done = Effect.all([first, second], { discard: true });',
-  },
-  {
-    name: 'effect-prefer-filterOrFail-over-flatMap-guard',
-    invalid:
-      'import { Effect } from "effect"; Effect.flatMap(program, value => value.ready === true ? Effect.succeed(value) : Effect.fail(new Rejected()));',
-    valid:
-      'import { Effect } from "effect"; Effect.filterOrFail(program, (value) => value.ready === true, () => new Rejected());',
-  },
-  {
-    name: 'effect-prefer-forEach-discard',
-    invalid:
-      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4 }); });',
-    valid:
-      'import { Effect } from "effect"; const program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4, discard: true }); });',
-  },
-  {
-    name: 'effect-prefer-layer-sync',
-    invalid:
-      'import { Effect, Layer } from "effect"; const live = Layer.effect(Service, Effect.sync(() => makeService()));',
-    valid: 'import { Layer } from "effect"; const live = Layer.sync(Service, () => makeService());',
-  },
-  {
-    name: 'effect-no-function-returning-gen',
-    invalid: 'export function load() { return Effect.gen(function* () { return 1; }); }',
-    valid: 'export const load = Effect.fn("load")(function* () { return 1; });',
-  },
-  {
-    name: 'effect-prefer-effect-fn-for-exported-effects',
-    invalid: 'export const load = () => Effect.succeed(1);',
-    valid: 'export const load = Effect.fn("load")(function* () { return 1; });',
-  },
-  {
-    name: 'effect-no-unnecessary-gen',
-    invalid: 'const p = Effect.gen(function* () { return yield* Effect.succeed(1); });',
-    valid: 'const p = Effect.succeed(1);',
-  },
-  {
-    name: 'effect-no-effect-in-array-foreach',
-    invalid: 'items.forEach((item) => Effect.succeed(item));',
-    valid: 'Effect.forEach(items, (item) => Effect.succeed(item));',
-  },
-  {
-    name: 'effect-no-effect-in-promise-callback',
-    invalid: 'promise.then((value) => Effect.succeed(value));',
-    valid: 'Effect.tryPromise(() => promise);',
   },
   {
     name: 'effect-no-floating-fiber',
@@ -194,36 +39,6 @@ const defaultCases: RuleCase[] = [
     name: 'effect-require-suspend-for-recursion',
     invalid: 'function loop() { return Effect.succeed(loop()); }',
     valid: 'function loop() { return Effect.flatMap(step, () => loop()); }',
-  },
-  {
-    name: 'effect-require-suspend-for-lazy-evaluation',
-    invalid: 'Effect.succeed(Date.now());',
-    valid: 'Effect.suspend(() => Effect.succeed(Date.now()));',
-  },
-  {
-    name: 'effect-no-async-await-in-effect',
-    invalid: 'Effect.gen(async () => { await fetch("/"); });',
-    valid: 'Effect.tryPromise(() => fetch("/"));',
-  },
-  {
-    name: 'effect-no-promise-then-in-effect',
-    invalid: 'import { Effect } from "effect"; fetch("/").then((r) => r.text());',
-    valid: 'import { Effect } from "effect"; Effect.tryPromise(() => fetch("/"));',
-  },
-  {
-    name: 'effect-no-throw',
-    invalid: 'Effect.gen(function* () { throw new Error("x"); });',
-    valid: 'Effect.gen(function* () { return yield* Effect.fail(new TaggedError()); });',
-  },
-  {
-    name: 'effect-no-string-errors',
-    invalid: 'Effect.fail("x");',
-    valid: 'Effect.fail(new TaggedError());',
-  },
-  {
-    name: 'effect-no-untagged-errors',
-    invalid: 'Effect.fail(new Error("x"));',
-    valid: 'Effect.fail(new TaggedError());',
   },
   {
     name: 'effect-no-silent-error-swallowing',
@@ -238,18 +53,8 @@ const defaultCases: RuleCase[] = [
       'Effect.tryPromise({ try: () => fetch("/"), catch: (error) => new FetchError({ error }) });',
   },
   {
-    name: 'effect-prefer-catchTag-over-catchAll',
-    invalid: 'program.pipe(Effect.catchAll(() => Effect.succeed(1)));',
-    valid: 'program.pipe(Effect.catchTag("NotFound", () => Effect.succeed(1)));',
-  },
-  {
     name: 'effect-no-catchAll-with-mapError',
     invalid: 'program.pipe(Effect.catchAll((error) => Effect.fail(new Wrapped({ error }))));',
-    valid: 'program.pipe(Effect.mapError((error) => new Wrapped({ error })));',
-  },
-  {
-    name: 'effect-prefer-mapError-over-catchAll-rethrow',
-    invalid: 'program.pipe(catchAll((error) => Effect.fail(new Wrapped({ error }))));',
     valid: 'program.pipe(Effect.mapError((error) => new Wrapped({ error })));',
   },
   {
@@ -258,75 +63,14 @@ const defaultCases: RuleCase[] = [
     valid: 'program.pipe(Effect.mapError((cause) => new WrappedError("x", { cause })));',
   },
   {
-    name: 'effect-prefer-ignore-logged',
-    invalid: 'Effect.ignore(program);',
-    valid: 'program.pipe(Effect.catchAll((error) => Effect.logError(error)));',
-  },
-  {
-    name: 'effect-prefer-catchTags-for-multiple-tags',
-    invalid: 'program.pipe(Effect.catchTag("A", a), Effect.catchTag("B", b));',
-    valid: 'program.pipe(Effect.catchTags({ A: a, B: b }));',
-  },
-  {
     name: 'effect-no-error-channel-widening-to-unknown',
     invalid: 'const p: Effect<string, unknown> = value;',
     valid: 'const p: Effect<string, DomainError> = value;',
   },
   {
-    name: 'effect-no-run-inside-effect',
-    invalid:
-      'Effect.gen(function* () { return yield* Effect.promise(() => Effect.runPromise(load)); });',
-    valid: 'Effect.gen(function* () { return yield* load; });',
-  },
-  {
-    name: 'effect-no-runpromise-in-exported-api',
-    invalid: 'export const load = () => Effect.runPromise(program);',
-    valid: 'export const load = () => program;',
-  },
-  {
     name: 'effect-no-runfork-without-observer',
     invalid: 'Effect.runFork(program);',
     valid: 'const fiber = Effect.runFork(program); fiber.addObserver(() => undefined);',
-  },
-  {
-    name: 'effect-no-sync-for-promise',
-    invalid: 'Effect.sync(() => fetch("/"));',
-    valid: 'Effect.tryPromise(() => fetch("/"));',
-  },
-  {
-    name: 'effect-no-sync-for-throwing-ops',
-    invalid: 'Effect.sync(() => JSON.parse(body));',
-    valid: 'Effect.try(() => JSON.parse(body));',
-  },
-  {
-    name: 'effect-no-console-log-in-effect-code',
-    invalid: 'import { Effect } from "effect"; console.log("x");',
-    valid: 'import { Effect } from "effect"; Effect.logInfo("x");',
-  },
-  {
-    name: 'effect-no-process-env-in-effect-code',
-    invalid: 'import { Effect } from "effect"; process.env.API_TOKEN;',
-    valid: 'import { Config } from "effect"; Config.string("API_TOKEN");',
-  },
-  {
-    name: 'effect-no-date-now-in-effect-code',
-    invalid: 'import { Effect } from "effect"; Date.now();',
-    valid: 'import { Clock } from "effect"; Clock.currentTimeMillis;',
-  },
-  {
-    name: 'effect-no-math-random-in-effect-code',
-    invalid: 'import { Effect } from "effect"; Math.random();',
-    valid: 'import { Random } from "effect"; Random.next;',
-  },
-  {
-    name: 'effect-no-json-parse-cast',
-    invalid: 'const user = JSON.parse(body) as User;',
-    valid: 'const user = Schema.decodeUnknown(User)(JSON.parse(body));',
-  },
-  {
-    name: 'effect-schema-prefer-decodeUnknown-effect',
-    invalid: 'Schema.decodeUnknownPromise(User)(payload);',
-    valid: 'Schema.decodeUnknown(User)(payload);',
   },
   {
     name: 'effect-schema-require-parse-error-handling',
@@ -339,12 +83,6 @@ const defaultCases: RuleCase[] = [
     valid: 'Schema.decodeUnknown(User)(yield* response.json);',
   },
   {
-    name: 'effect-schema-no-unsafe-sync-decode-in-effect-code',
-    invalid:
-      'import { Effect, Schema } from "effect"; Effect.gen(function* () { return Schema.decodeSync(User)(payload); });',
-    valid: 'import { Effect, Schema } from "effect"; Schema.decodeUnknown(User)(payload);',
-  },
-  {
     name: 'effect-schema-require-parseJson-for-json-strings',
     invalid: 'Schema.decodeUnknown(User)(JSON.parse(body));',
     valid: 'Schema.decodeUnknown(Schema.parseJson(User))(body);',
@@ -353,12 +91,6 @@ const defaultCases: RuleCase[] = [
     name: 'effect-schema-correct-number-type-for-parsed-json',
     invalid: 'const parsed = Schema.decodeUnknownSync(Schema.NumberFromString)(JSON.parse(body));',
     valid: 'const parsed = JSON.parse(body); const S = Schema.Number;',
-  },
-  {
-    name: 'effect-schema-prefer-taggedClass-over-manual-tag',
-    invalid: 'Schema.Struct({ _tag: Schema.Literal("UserError"), message: Schema.String });',
-    valid:
-      'class UserError extends Schema.TaggedClass<UserError>("UserError")("UserError", { message: Schema.String }) {}',
   },
   {
     name: 'effect-schema-avoid-old-type-names',
@@ -391,11 +123,6 @@ const defaultCases: RuleCase[] = [
     valid: 'Effect.scoped(Effect.forkScoped(worker));',
   },
   {
-    name: 'effect-prefer-fork-scoped-for-listeners',
-    invalid: 'Effect.fork(listenForEvents);',
-    valid: 'Effect.forkScoped(listenForEvents);',
-  },
-  {
     name: 'effect-require-restore-for-fork-in-uninterruptible',
     invalid: 'Effect.uninterruptible(Effect.fork(worker));',
     valid: 'Effect.uninterruptibleMask(({ restore }) => restore(Effect.fork(worker)));',
@@ -421,18 +148,6 @@ const defaultCases: RuleCase[] = [
     valid: 'Stream.buffer(source, 128);',
   },
   {
-    name: 'effect-test-no-runpromise',
-    filename: 'src/user.test.ts',
-    invalid: 'Effect.runPromise(program);',
-    valid: 'it.effect("works", () => program);',
-  },
-  {
-    name: 'effect-prefer-it-effect-for-unit-tests',
-    filename: 'src/user.test.ts',
-    invalid: 'it("works", () => Effect.succeed(1));',
-    valid: 'it.effect("works", () => Effect.succeed(1));',
-  },
-  {
     name: 'effect-testClock-requires-fork',
     filename: 'src/user.test.ts',
     invalid: 'TestClock.adjust("1 second");',
@@ -449,12 +164,6 @@ const defaultCases: RuleCase[] = [
     filename: 'src/user.test.ts',
     invalid: 'Effect.sleep("1 second");',
     valid: 'TestClock.adjust("1 second");',
-  },
-  {
-    name: 'effect-use-exit-for-failure-tests',
-    filename: 'src/user.test.ts',
-    invalid: 'await expect(Effect.fail(new TaggedError())).rejects.toThrow();',
-    valid: 'const exit = yield* Effect.exit(program);',
   },
   {
     name: 'effect-no-focused-effect-tests',
@@ -479,21 +188,6 @@ const defaultCases: RuleCase[] = [
     valid: 'Effect.fromNullable(value);',
   },
   {
-    name: 'effect-prefer-gen-over-do',
-    invalid: 'Effect.Do;',
-    valid: 'Effect.gen(function* () { return 1; });',
-  },
-  {
-    name: 'effect-prefer-direct-yield-star',
-    invalid: 'Effect.gen(function* ($) { return yield* $(program); });',
-    valid: 'Effect.gen(function* () { return yield* program; });',
-  },
-  {
-    name: 'effect-prefer-config-redacted',
-    invalid: 'Config.secret("API_TOKEN");',
-    valid: 'Config.redacted("API_TOKEN");',
-  },
-  {
     name: 'effect-no-deprecated-schema-package',
     invalid: 'import { Schema } from "@effect/schema";',
     valid: 'import { Schema } from "effect";',
@@ -504,81 +198,28 @@ const defaultCases: RuleCase[] = [
     valid: 'class UserRepo extends Context.Tag("UserRepo")<UserRepo, Service>() {}',
   },
   {
-    name: 'effect-no-global-error-channel',
-    invalid: 'const value: Effect.Effect<User, Error, Env> = program;',
-    valid: 'const value: Effect.Effect<User, UserError, Env> = program;',
-  },
-  {
-    name: 'effect-use-duration-constructors',
-    invalid: 'Effect.sleep(1000);',
-    valid: 'Effect.sleep("1 second");',
-  },
-  {
-    name: 'effect-no-mixed-effect-import-styles',
-    invalid: 'import * as Effect from "effect"; import { Effect as EffectType } from "effect";',
-    valid: 'import { Effect } from "effect";',
-  },
-  {
-    name: 'effect-prefer-effect-is',
-    invalid: 'value._op === "Effect";',
-    valid: 'Effect.isEffect(value);',
-  },
-  {
-    name: 'effect-no-try-catch-in-effect-gen',
-    invalid:
-      'const program = Effect.gen(function* () { try { yield* load; } catch (error) { return yield* Effect.fail(error); } });',
-    valid:
-      'const program = Effect.gen(function* () { return yield* load.pipe(Effect.catchTag("Missing", recover)); });',
-  },
-  {
-    name: 'effect-no-new-promise',
-    invalid: 'import { Effect } from "effect"; const task = new Promise((resolve) => resolve(1));',
-    valid: 'const task = Effect.promise(() => load());',
-  },
-  {
-    name: 'effect-no-global-timers',
-    invalid: 'import { Effect } from "effect"; setTimeout(() => Effect.runFork(task), 1000);',
-    valid: 'const task = Effect.sleep(Duration.seconds(1));',
-  },
-  {
-    name: 'effect-no-native-error-classes',
-    invalid: 'import { Effect } from "effect"; class UserError extends Error {}',
-    valid:
-      'class UserError extends Schema.TaggedErrorClass<UserError>("UserError")("UserError", {}) {}',
-  },
-  {
-    name: 'effect-no-unsafe-effect-type-assertion',
-    invalid: 'const narrowed = program as Effect.Effect<User, never, never>;',
-    valid: 'const program: Effect.Effect<User, UserError, UserRepo> = loadUser;',
-  },
-  {
     name: 'effect-require-service-self-match',
     invalid: 'class UserRepo extends Context.Tag("UserRepo")<OrderRepo, Service>() {}',
     valid: 'class UserRepo extends Context.Tag("UserRepo")<UserRepo, Service>() {}',
   },
-  {
-    name: 'effect-no-effect-fn-iife',
-    invalid: 'const program = Effect.fn("load")(function* () { return yield* load; })();',
-    valid: 'export const load = Effect.fn("load")(function* () { return yield* repo.load; });',
-  },
 ];
 
-describe('Effect always-on rule behavior', (): void => {
-  it('has one behavior case for every always-on rule', (): void => {
+describe('retained non-strict Effect rule behavior', (): void => {
+  it('has one behavior case for every retained non-strict rule', (): void => {
     expect(sorted(defaultCases.map((testCase) => testCase.name))).toStrictEqual(
       sorted(effectDefaultRuleNames),
     );
   });
 
-  it.each(defaultCases)('detects and accepts always-on rule $name', (testCase): void => {
+  it.each(defaultCases)('detects and accepts retained non-strict rule $name', (testCase): void => {
     expect(runRule(testCase.name, testCase.invalid, testCase.filename)).toHaveLength(1);
     expect(runRule(testCase.name, testCase.valid, testCase.filename)).toHaveLength(0);
   });
 
   it.each(defaultCases)(
-    'keeps exported config behavior for always-on rule $name',
+    'keeps explicitly selected config behavior for Effect rule $name',
     (testCase): void => {
-      const config = theThracianOxlint();
+      const config = withAllEffectRules(theThracianOxlint({ effect: true }));
       const invalidRuleNames = runConfiguredRules(config, testCase.invalid, testCase.filename).map(
         (report) => report.ruleName,
       );
@@ -591,48 +232,13 @@ describe('Effect always-on rule behavior', (): void => {
     },
   );
 
-  it.each([
-    [
-      'effect-no-console-log-in-effect-code',
-      'import { Effect } from "effect"; console\n.log("x");',
-    ],
-    [
-      'effect-no-process-env-in-effect-code',
-      'import { Effect } from "effect"; process\n.env.API_TOKEN;',
-    ],
-    ['effect-no-date-now-in-effect-code', 'import { Effect } from "effect"; Date\n.now();'],
-    ['effect-no-math-random-in-effect-code', 'import { Effect } from "effect"; Math\n.random();'],
-    [
-      'effect-no-new-promise',
-      'import { Effect } from "effect"; const task = new\nPromise((resolve) => resolve(1));',
-    ],
-    [
-      'effect-no-native-error-classes',
-      'import { Effect } from "effect"; class UserError extends\nError {}',
-    ],
-  ])(
-    'keeps token gates broad enough for valid multiline syntax in %s',
-    (ruleName, source): void => {
-      expect(runRule(ruleName, source)).toHaveLength(1);
-    },
-  );
-
-  it('keeps effect signal token groups broad enough for namespace imports', (): void => {
-    expect(
-      runRule(
-        'effect-no-new-promise',
-        'import * as E from "effect"; E.succeed(1); const task = new Promise((resolve) => resolve(1));',
-      ),
-    ).toHaveLength(1);
-  });
-
   it('keeps floating Effect alias detection broad enough for multiline imports', (): void => {
     expect(
       runRule('effect-no-floating-effect', 'import { Effect as E } from\n"effect";\nE.succeed(1);'),
     ).toHaveLength(1);
   });
 
-  it('uses precise token gates for common source-scan Effect rules', (): void => {
+  it('uses precise token gates for retained source-scan Effect rules', (): void => {
     const source = [
       '../../src/rules/effect-default.ts',
       '../../src/rules/effect-default-compat-rules.ts',
@@ -641,15 +247,11 @@ describe('Effect always-on rule behavior', (): void => {
       .map((path): string => readFileSync(new URL(path, import.meta.url), 'utf-8'))
       .join('\n');
 
-    expect(source).toContain("name: 'effect-no-effect-in-promise-callback'");
-    expect(source).toContain("tokens: ['.then', '.catch']");
     expect(source).toContain("name: 'effect-require-typed-error-in-trypromise'");
     expect(source).toContain("tokens: ['tryPromise']");
     expect(source).toContain("name: 'effect-require-scoped-for-acquireRelease'");
     expect(source).toContain("tokens: ['acquireRelease']");
     expect(source).toContain("name: 'effect-no-known-fake-api'");
     expect(source).toContain("tokens: ['fromPromise', 'tryCatch', 'bracket', 'fromEither']");
-    expect(source).toContain("name: 'effect-no-try-catch-in-effect-gen'");
-    expect(source).toContain("tokenGroups: [['gen'], ['try']]");
   });
 });

@@ -10,10 +10,9 @@ const configPath = join(fixtureDirectory, 'oxlint.config.mjs');
 const invalidPath = join(fixtureDirectory, 'invalid.ts');
 const safePath = join(fixtureDirectory, 'safe.ts');
 const expectedRuleIDs = [
+  'thethracian/effect-no-floating-effect',
+  'thethracian/effect-require-yield-star',
   'thethracian/effect-no-global-fetch',
-  'thethracian/effect-no-sync-for-promise',
-  'thethracian/effect-prefer-map-over-flatMap-succeed',
-  'thethracian/no-commented-out-code',
 ];
 
 const runOxlint = (fixturePath, extraArguments = []) =>

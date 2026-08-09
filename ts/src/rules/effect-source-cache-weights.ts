@@ -20,18 +20,10 @@ const REGEX_INDEX_OBJECT_BYTES = 256;
 const REGEX_MAP_ENTRY_BYTES = 128;
 const REGEX_SET_BASE_BYTES = 256;
 const REGEX_SET_ENTRY_BYTES = 96;
-const SCOPE_VALUE_BYTES = 128;
-const PARAMETER_SCOPE_VALUE_BYTES = 112;
-const PARAMETER_RANGE_VALUE_BYTES = 128;
-const PARAMETER_RANGE_MAP_ENTRY_BYTES = 128;
-const PARAMETER_RANGE_CACHE_ENTRY_BYTES = 128;
-const PARAMETER_RANGE_GROUP_COUNT = 3;
-
 const CACHE_MEBIBYTE_BYTES = 1_048_576;
 const LINE_START_CACHE_MAX_MEBIBYTES = 7;
 const NAVIGATION_CACHE_MAX_MEBIBYTES = 9;
 const REGEX_INDEX_CACHE_MAX_MEBIBYTES = 5;
-const SOURCE_SCOPE_CACHE_MAX_MEBIBYTES = 7;
 const SOURCE_TOKEN_PRESENCE_CACHE_MAX_MEBIBYTES = 4;
 
 /**
@@ -52,13 +44,6 @@ export const NAVIGATION_CACHE_MAX_WEIGHT = NAVIGATION_CACHE_MAX_MEBIBYTES * CACH
  * @internal
  */
 export const REGEX_INDEX_CACHE_MAX_WEIGHT = REGEX_INDEX_CACHE_MAX_MEBIBYTES * CACHE_MEBIBYTE_BYTES;
-/**
- * Maximum retained weight for Promise scope indexes in bytes.
- *
- * @internal
- */
-export const SOURCE_SCOPE_CACHE_MAX_WEIGHT =
-  SOURCE_SCOPE_CACHE_MAX_MEBIBYTES * CACHE_MEBIBYTE_BYTES;
 /**
  * Maximum retained weight for token-presence facts in bytes.
  *
@@ -88,16 +73,6 @@ export interface NavigationIndexWeightInput {
 export interface RegexIndexWeightInput {
   endCount: number;
   startCount: number;
-}
-
-/**
- * Counts retained scope index structures for weight estimation.
- *
- * @internal
- */
-export interface ScopeIndexWeightInput {
-  parameterScopeCount: number;
-  scopeCount: number;
 }
 
 /**
@@ -173,25 +148,3 @@ export const regexIndexCacheWeight = (sourceLength: number, input: RegexIndexWei
   input.endCount * REGEX_MAP_ENTRY_BYTES +
   REGEX_SET_BASE_BYTES +
   input.startCount * REGEX_SET_ENTRY_BYTES;
-
-/**
- * Estimate scope cache bytes from the source key and retained scope structures.
- *
- * @internal
- */
-export const sourceScopeIndexCacheWeight = (
-  sourceLength: number,
-  input: ScopeIndexWeightInput,
-): number =>
-  sourceTextBytes(sourceLength) +
-  CACHE_ENTRY_BYTES +
-  ARRAY_BASE_BYTES +
-  input.scopeCount * SCOPE_VALUE_BYTES +
-  ARRAY_BASE_BYTES +
-  input.parameterScopeCount * PARAMETER_SCOPE_VALUE_BYTES +
-  PARAMETER_RANGE_CACHE_ENTRY_BYTES +
-  MAP_BASE_BYTES +
-  PARAMETER_RANGE_GROUP_COUNT *
-    (ARRAY_BASE_BYTES +
-      PARAMETER_RANGE_MAP_ENTRY_BYTES +
-      input.parameterScopeCount * PARAMETER_RANGE_VALUE_BYTES);

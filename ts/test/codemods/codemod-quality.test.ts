@@ -12,6 +12,7 @@ import { preferFunctionExpressions } from '../../src/codemods/function-declarati
 import { renameMisCasedAcronyms } from '../../src/codemods/rename-acronyms';
 import { sortImportDeclarations } from '../../src/codemods/sort-imports';
 import { spawnSync } from 'node:child_process';
+import theThracianOxlint from '../../src/index';
 
 type CodemodQualityCase = {
   readonly name: string;
@@ -25,6 +26,7 @@ type CodemodQualitySubject = {
 };
 
 const outputRoot = 'ts/codemod-quality-output';
+const outputOxlintConfig = join(outputRoot, 'oxlint.config.json');
 const minimumCasesPerCodemod = 40;
 
 const moduleHeader = `/* -------------------------------------------------------------------------- */
@@ -3706,6 +3708,22 @@ const recreateOutputRoot = (): void => {
     )}\n`,
     'utf8',
   );
+
+  const nativeConfig = theThracianOxlint({ typeAware: true });
+  writeFileSync(
+    outputOxlintConfig,
+    `${JSON.stringify(
+      {
+        categories: nativeConfig.categories,
+        options: nativeConfig.options,
+        plugins: nativeConfig.plugins,
+        rules: nativeConfig.rules,
+      },
+      null,
+      2,
+    )}\n`,
+    'utf8',
+  );
 };
 
 const writeTransformedOutputs = (): void => {
@@ -3739,7 +3757,7 @@ describe('codemod quality gate', (): void => {
         'exec',
         'oxlint',
         '-c',
-        'oxlint.workspace.config.mjs',
+        outputOxlintConfig,
         outputRoot,
         '--tsconfig',
         join(outputRoot, 'tsconfig.json'),

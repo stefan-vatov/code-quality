@@ -1,9 +1,12 @@
 import { Effect } from 'effect';
 
-// const discarded = Effect.succeed(0);
-const promised = Effect.sync(() => Promise.resolve(1));
+void Effect.succeed(0);
+const program = Effect.gen(function* () {
+  yield Effect.succeed(1);
+  return 1;
+});
 export const requested = Effect.tryPromise({
   catch: (error) => error,
   try: () => fetch('/users'),
 });
-export const mapped = Effect.flatMap(promised, (value) => Effect.succeed(value + 1));
+export { program };

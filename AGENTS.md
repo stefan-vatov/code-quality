@@ -22,47 +22,61 @@ This is a pnpm + Nx workspace. Each package lives at the repository root in a si
   - Consumers add it to `mix.exs`, run `mix thx_lint.install --yes`, and then run `mix credo --strict`.
   - Custom checks are shipped as dependency modules, not copied into consumer repos.
 
-The root workspace owns tooling only: Nx project orchestration, Oxlint/Oxfmt for this repo, Vitest/Stryker test wiring, Knip, and hooks.
+The root workspace owns tooling only: Nx project orchestration, Oxlint/Oxfmt for this repo, Vitest,
+Knip, and hooks.
 
 ## Quality Gates
 
-Exported configs should be strict by default. Current cross-language policy:
+Exported configs should be strict by default. The shared policy is binary: every active rule is an
+error/deny/forbid. There is no warning tier. For TypeScript, the base preset is an explicit
+allowlist of reviewed upstream Oxlint rules; unapproved rules are omitted rather than represented
+by rule-level `off` entries.
 
-- Maximum cyclomatic complexity: 10 where the language tool supports a reliable metric.
-- No debug artifacts in production code: ban console.log, dbg!, print!, println!, todo!, IO.inspect, IEx.pry, etc.
-- No commented-out code or inline explanatory text: prevent dead code in comments and inline explanations that waste context tokens.
-  - TypeScript uses our custom `thethracian/no-commented-out-code` Oxlint rule (shipped with the config).
+Cross-language correctness invariants:
+
+- No accidental debug-only artifacts in production code: ban `debugger`, `dbg!`, `todo!`,
+  `IO.inspect`, `IEx.pry`, and equivalent language-specific traps. Console and print policies remain
+  language-specific because they can be legitimate application output.
 - No silent catch: empty catch/rescue blocks are forbidden; all exceptions must be routed to a logger, error reporter, or re-raised.
 - No stale suppressions: every suppression must name the exact rule and include a reason; unused disables fail.
 - No unhandled async work: promises/futures/results must be awaited, returned, or explicitly handled.
 - Exhaustiveness required: unions/enums must be exhaustively handled in switch/match statements.
 - No unchecked dynamic escape hatches: ban constructs that bypass the type system (unsafe any operations, wildcard enum matches, underspecified function specs).
-- No unchecked mutation: enforce immutability by default — prefer-const and no-param-reassign in TypeScript, unused_mut + pedantic Clippy in Rust, VariableRebinding in Elixir.
-- Prefer value transformations over unnecessary Effect sequencing: a `flatMap` callback whose entire body is one `Effect.succeed(value)` must be expressed with `Effect.map`.
-- Maximum file length: 500 lines where the language tool supports file line counts.
-- Maximum line width: 150 characters where the language tool supports line width.
-- Maximum nesting depth: 3 levels.
-- Maximum function length: 75 lines.
-- All rules use the strictest severity available (error/deny/forbid). No warnings allowed — the config is super-strict by design.
-- Naming conventions are enforced via custom Oxlint rules (Oxlint does not have built-in naming-convention support): PascalCase for types, camelCase for identifiers, is*/has*/should\_ prefix for booleans, leading underscore for private members, consistent uppercase for known acronyms.
+- No unchecked mutation: enforce immutability where the language has a reliable signal — prefer-const in TypeScript, unused_mut + pedantic Clippy in Rust, VariableRebinding in Elixir.
+
+TypeScript/Oxlint high-signal policy:
+
+- The base preset is an explicit allowlist of approved upstream Oxlint rules, all as `error`.
+  Oxlint's implicit correctness warnings are neutralized once with a category-level
+  `correctness: 'allow'` reset before the allowlist is applied. There are no rule-level `off`
+  entries and no warning severity.
+- Size limits are complexity 20, nesting depth 5, function length 150 lines, nested callbacks 6, and parameters 7. Line width is formatter-owned and has no lint cap.
+- There is no maximum file-length or import-count rule. Those caps encouraged shim modules and mechanical decomposition without improving behavior.
+- Naming preferences, null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
+- The audit-flagged generic homegrown rules, flagged Effect preference rules, and semantically
+  unsound module-scope rules are physically removed. The retained Effect plugin is disabled by
+  default; `effect: true` enables exactly 18 safety rules, 19 specialized analyzers remain registered
+  for explicit rule configuration, and 60 strict architecture rules require explicit
+  `effect.strict.rules` selections and path groups.
+- Semantic `thx-codemod-fix` rewrites remain available as an explicit migration command, but are not part of lint fixes or staged-file hooks.
 
 Current implementation:
 
-- TypeScript/Effect: `thethracian/effect-prefer-map-over-flatMap-succeed` is always on. Its import-aware AST matcher recognizes root `Effect` imports, `effect/Effect` namespace imports, and aliased named `flatMap`/`succeed` imports while respecting lexical shadowing. It reports only non-async, non-generator arrow or function callbacks whose complete body directly returns one single-argument `Effect.succeed` call.
-- TypeScript/Effect execution analysis: recursive construction is rejected only on provably eager paths. Ordinary `flatMap`, `map`, `gen`, and `Effect.fn` continuations stay deferred; Effect v4 `flatMapEager`, `mapEager`, `catchEager`, `matchCauseEffectEager`, and `fnUntracedEager` continuations are treated as immediate. Promise-boundary analysis follows provably invoked helpers, executed defaults, and known eager collection callbacks while preserving lazy and unknown-cardinality controls.
-- TypeScript/Oxlint: `max-depth` (3 levels), `max-len` (150 chars), `max-nested-callbacks` (4 levels), `max-params` (5 params), `max-lines`, `max-lines-per-function`, `complexity/complexity` with `cyclomatic: 10` (via `oxlint-plugin-complexity`), `thethracian/no-commented-out-code` (custom rule, shipped with config), `thethracian/pascal-case-types` (enforces PascalCase for class/interface/type/enum names), `thethracian/camel-case-identifiers` (enforces camelCase for variables/functions/params/methods/properties, allows UPPER*CASE for const), `thethracian/boolean-prefix` (requires is*/has*/should* prefix for boolean-typed variables), `thethracian/private-underscore` (requires \_ prefix on private class members), `thethracian/acronym-case` (enforces consistent uppercase for known programming acronyms in identifiers), `no-console`, `no-debugger`, `no-eval`, `no-empty` (with `allowEmptyCatch: false`), `no-inline-comments`, `no-warning-comments`, `prefer-const`, `no-param-reassign` (with `props: true`), `no-unsafe-call`, and `no-unsafe-member-access` are `error`; `no-unsafe-assignment`, `no-unsafe-return`, `no-unsafe-argument`, `no-floating-promises`, `no-implied-eval`, `no-misused-promises`, and `switch-exhaustiveness-check` are `error` when type-aware.
+- TypeScript/Effect: the 18 exported safety rules are exact, import-aware checks for floating Effects/fibers, missing generator delegation, eager recursion, silent error swallowing, error-cause preservation, resource scoping, and unbounded concurrency. Nineteen specialized analyzers remain registered for explicit rule configuration, and 60 project-boundary rules remain available only through explicit rule and path selection. The retained plugin surface is 97 rules.
+- TypeScript/Oxlint: `max-depth` (5 levels), `max-nested-callbacks` (6 levels), `max-params` (7 params), `max-lines-per-function` (150 lines), and `complexity` (20) are errors. Safety rules include `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-eval`, `no-new-func`, `no-script-url`, `prefer-const`, `preserve-caught-error`, strict equality, and type-aware unsafe/async operations. Line width is formatter-owned; global `console`, noisy naming, null, ternary, magic-number, file-size, import-count, documentation, and absolute `any`/assertion bans are intentionally absent.
 - Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, `unwrap_used = "deny"`, `expect_used = "deny"`, `unused_result_ok = "deny"` (calling .ok() discards errors), `as_conversions = "deny"` (no implicit type coercion via `as`), and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_docs`, `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `unused_crate_dependencies` are all `deny`; silent error swallowing is handled by `unused_must_use` (ignored Results), `unused_result_ok` (discarded errors via .ok()), and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints; tests are granted unwrap/expect/panic exceptions via clippy.toml.
 - Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, `VariableRebinding`, `Specs` (every public function requires @spec), and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents; immutability is enforced by Elixir's immutable data structures plus `VariableRebinding` to forbid variable rebinding within a scope.
 
 ## Ways Of Working
 
-### Writing custom Oxlint rules
+### Working on retained Effect rules
 
-See `SKILL.md` for the complete workflow for writing custom Oxlint JS plugin rules in this repository.
-
-### Optimizing custom Oxlint rules
-
-See `.pi/skills/optimize-oxlint-rule/SKILL.md` for the 100-pass optimization framework: character class tables, LRU caching, algorithmic rewrites, micro-optimizations, and benchmarking.
+Effect checks are package behavior, not a replacement for the upstream Oxlint allowlist. Keep the
+18 safety rules, 19 specialized analyzers, and 60 strict architecture rules explicit, import-aware,
+and error-only. Add a
+new Effect rule only when it has a reproducible correctness, resource-safety, or project-boundary
+signal, and keep preference-only or migration behavior out of the default bucket. Update
+`ts/README.md`, tests, and the strict-rule/path validation together.
 
 Use the existing package boundaries. Do not split a language across multiple top-level folders unless there is a concrete package boundary that needs independent publishing.
 
@@ -171,4 +185,4 @@ Before declaring complete, paste:
 
 - Test count: X tests, Y failures, Z skipped
 - Coverage: %
-- Linter: clean / N warnings
+- Linter: clean / zero warnings

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runRule } from './effect-rule-test-utils';
 
-type RuleName = 'effect-no-sync-for-promise' | 'effect-require-suspend-for-recursion';
+type RuleName = 'effect-require-suspend-for-recursion';
 
 interface DiagnosticCase {
   expected: number;
@@ -14,15 +14,6 @@ const diagnosticCount = (ruleName: RuleName, source: string): number =>
   runRule(ruleName, source).length;
 
 const rootNamespaceCases: readonly DiagnosticCase[] = [
-  {
-    expected: 1,
-    name: 'recognizes Root.Effect.sync as the Promise boundary',
-    ruleName: 'effect-no-sync-for-promise',
-    source: `
-      import * as Root from "effect";
-      export const task = Root.Effect.sync(() => Promise.resolve(1));
-    `,
-  },
   {
     expected: 1,
     name: 'recognizes recursive Root.Effect.succeed construction',
@@ -110,17 +101,6 @@ const rootNamespaceCases: readonly DiagnosticCase[] = [
 ];
 
 const rootNamespaceControls: readonly DiagnosticCase[] = [
-  {
-    expected: 0,
-    name: 'does not treat a Root parameter as the official Promise boundary',
-    ruleName: 'effect-no-sync-for-promise',
-    source: `
-      import * as EffectRoot from "effect";
-      export const makeTask = (Root: LocalRoot) =>
-        Root.Effect.sync(() => Promise.resolve(1));
-      void EffectRoot;
-    `,
-  },
   {
     expected: 0,
     name: 'does not treat a Root parameter as recursive Effect construction',

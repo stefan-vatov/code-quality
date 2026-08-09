@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 import { Array, HashSet, Option, Order, Predicate, pipe } from 'effect';
 import type { Identifier, ObjectProperty, Statement } from 'jscodeshift';
-import findMisCasedAcronyms, { fixAcronymCase } from '../rules/acronym-case';
+import findMisCasedAcronyms, { fixAcronymCase } from './acronym-case';
 import jscodeshift from 'jscodeshift';
 
 interface Replacement {

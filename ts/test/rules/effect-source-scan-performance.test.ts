@@ -8,9 +8,6 @@ const sourceScanPath = fileURLToPath(
 const defaultFloatingHelpersPath = fileURLToPath(
   new URL('../../src/rules/effect-default-floating-helpers.ts', import.meta.url),
 );
-const defaultScanHelpersPath = fileURLToPath(
-  new URL('../../src/rules/effect-default-scan-helpers.ts', import.meta.url),
-);
 const exportedDeclarationsPath = fileURLToPath(
   new URL('../../src/rules/effect-exported-declarations.ts', import.meta.url),
 );
@@ -54,27 +51,11 @@ describe('Effect source scanner performance invariants', () => {
     expect(source).toContain('const patterns = floatingEffectPatterns(aliases);');
   });
 
-  it('short-circuits Effect workflow body scans without allocating body arrays', () => {
-    const source = readFileSync(defaultScanHelpersPath, 'utf-8');
-
-    expect(source).toContain('const someEffectWorkflowBody');
-    expect(source).not.toContain('return effectWorkflowBodies(source).some');
-  });
-
   it('does not mutate or copy exported-declaration cache hits', () => {
     const source = readFileSync(exportedDeclarationsPath, 'utf-8');
 
     expect(source).not.toContain('exportedDeclarationCache.delete(source)');
     expect(source).not.toContain('return [...cachedValue]');
     expect(source).not.toContain('return [...declarations]');
-  });
-
-  it('caches exported declaration segment projections separately from raw declarations', () => {
-    const source = readFileSync(exportedDeclarationsPath, 'utf-8');
-
-    expect(source).toContain('exportedDeclarationSegmentCache');
-    expect(source).toContain('exportedCallableDeclarationSegmentCache');
-    expect(source).toContain('cacheExportedDeclarationSegments');
-    expect(source).toContain('cacheExportedCallableDeclarationSegments');
   });
 });

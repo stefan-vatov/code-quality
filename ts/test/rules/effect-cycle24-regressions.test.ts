@@ -1,29 +1,40 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import {
+  runConfiguredRules,
+  runRule,
+  strictEffectTestPaths,
+  withAllEffectRules,
+} from './effect-rule-test-utils';
 
 function configuredEffectRuleNames(
   source: string,
   filename = 'src/domain/user.ts',
-  strict: Parameters<typeof theThracianOxlint>[0]['effect'] = { strict: true },
+  strict: Parameters<typeof theThracianOxlint>[0]['effect'] = {
+    strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames },
+  },
 ): string[] {
-  return runConfiguredRules(theThracianOxlint({ effect: strict }), source, filename)
+  return runConfiguredRules(
+    withAllEffectRules(theThracianOxlint({ effect: strict })),
+    source,
+    filename,
+  )
     .map((report) => report.ruleName)
     .filter((ruleName): ruleName is string => Boolean(ruleName))
     .sort();
 }
 
 describe('Effect cycle 24 regression coverage', () => {
-  it('applies configured strict test globs to always-on test rules', () => {
-    const effect = { strict: { unitTests: ['tests/unit/**'] } };
+  it('applies configured strict test globs to explicitly selected test analyzers', () => {
+    const effect = {
+      strict: {
+        ...strictEffectTestPaths,
+        unitTests: ['tests/unit/**'],
+        rules: effectStrictRuleNames,
+      },
+    };
 
-    expect(
-      configuredEffectRuleNames(
-        'it("x", () => Effect.runPromise(program));',
-        'tests/unit/user.ts',
-        effect,
-      ),
-    ).toStrictEqual(['effect-test-no-runpromise']);
     expect(
       configuredEffectRuleNames(
         'it.effect.only("x", () => program);',
@@ -40,30 +51,12 @@ describe('Effect cycle 24 regression coverage', () => {
     ).toStrictEqual(['effect-no-skipped-effect-tests']);
   });
 
-  it('keeps default test runner and failure assertions under one canonical diagnostic', () => {
-    const source = `
-      it("fails", async () => {
-        await expect(Effect.runPromise(program)).rejects.toThrow();
-      });
-    `;
-
-    expect(configuredEffectRuleNames(source, 'src/user.test.ts', true)).toStrictEqual([
-      'effect-test-no-runpromise',
-    ]);
-  });
-
-  it('keeps strict test time diagnostics canonical when the default real-sleep rule owns the issue', () => {
+  it('keeps strict test time diagnostics canonical when the real-sleep analyzer owns the issue', () => {
     const source = 'it.effect("waits", () => Effect.sleep(Duration.seconds(1)));';
 
     expect(configuredEffectRuleNames(source, 'src/foo.test.ts')).toStrictEqual([
       'effect-no-real-sleep-in-tests',
     ]);
-  });
-
-  it('keeps exported runtime APIs under exported API ownership in strict mode', () => {
-    expect(
-      configuredEffectRuleNames('export const load = () => Effect.runPromise(program);'),
-    ).toStrictEqual(['effect-no-runpromise-in-exported-api']);
   });
 
   it('keeps unobserved runFork under fiber-observation ownership before entrypoint ownership', () => {
@@ -78,12 +71,6 @@ describe('Effect cycle 24 regression coverage', () => {
     ).toHaveLength(0);
     expect(
       runRule('effect-no-floating-fiber', 'const docs = "yield* Effect.fork(program)";'),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-prefer-catchTag-over-catchAll',
-        'const docs = "Effect.catchAll(() => Effect.succeed(1))";',
-      ),
     ).toHaveLength(0);
     expect(
       runRule('effect-no-fork-daemon-without-cleanup', 'const docs = "Effect.forkDaemon(worker)";'),

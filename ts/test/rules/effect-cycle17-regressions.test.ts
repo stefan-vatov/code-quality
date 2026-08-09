@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import { runConfiguredRules, runRule, strictEffectTestPaths } from './effect-rule-test-utils';
 
 function configuredEffectRuleNames(
   source: string,
@@ -34,27 +35,19 @@ describe('Effect cycle 17 regression coverage', () => {
         return yield* Effect.succeed(new User({ id: "user-1" }));
       });
     `;
-    const strictConfig = theThracianOxlint({ effect: { strict: true } });
+    const strictConfig = theThracianOxlint({
+      effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+    });
 
     expect(configuredEffectRuleNames(cleanModule)).toStrictEqual([]);
     expect(configuredEffectRuleNames(cleanModule, strictConfig)).toStrictEqual([]);
-    expect(configuredEffectRuleNames('const failure = Effect.fail("bad");')).toStrictEqual([
-      'effect-no-string-errors',
-    ]);
+    expect(configuredEffectRuleNames('const failure = Effect.fail("bad");')).toStrictEqual([]);
     expect(
       configuredEffectRuleNames('process.env.API_TOKEN;', strictConfig, 'src/domain/user.ts'),
     ).toStrictEqual(['effect-no-direct-process-env-outside-config-layer']);
   });
 
   it('ignores strings and comments in check-based source rules', () => {
-    const effectModuleWithStringOnlyPromise = `
-      import { Effect } from "effect";
-      const docs = "promise.then(() => value)";
-    `;
-
-    expect(
-      runRule('effect-no-promise-then-in-effect', effectModuleWithStringOnlyPromise),
-    ).toHaveLength(0);
     expect(
       runRule('effect-no-run-outside-entrypoints', '// Effect.runPromise(program)'),
     ).toHaveLength(0);
@@ -69,18 +62,9 @@ describe('Effect cycle 17 regression coverage', () => {
     `;
 
     expect(runRule('effect-require-yield-star', hiddenYield)).toHaveLength(1);
-    expect(
-      runRule('effect-prefer-gen-over-do', 'const effectDoPattern = /Effect.Do/;'),
-    ).toHaveLength(0);
   });
 
   it('detects re-exported values and exported type-only public boundaries', () => {
-    const reexportedRunner = `
-      const load = () => Effect.runPromise(program);
-      export { load };
-    `;
-
-    expect(runRule('effect-no-runpromise-in-exported-api', reexportedRunner)).toHaveLength(1);
     expect(
       runRule(
         'effect-no-promise-returning-public-api',

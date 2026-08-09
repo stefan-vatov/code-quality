@@ -4,13 +4,7 @@
 import theThracian from '@thethracian/oxlint-config';
 
 const config = theThracian({
-  effect: {
-    strict: {
-      adapterLayers: ['ts/src/codemod-fix/**', 'ts/src/index.ts', 'ts/src/rules/source-cache.ts'],
-      configLayers: ['ts/src/index.ts'],
-      entrypoints: ['ts/src/codemods/run.ts'],
-    },
-  },
+  effect: true,
   typeAware: true,
 });
 
@@ -36,10 +30,6 @@ const repositoryConfig = {
   options: {
     ...config.options,
     denyWarnings: true,
-  },
-  rules: {
-    ...config.rules,
-    'unicorn/no-array-sort': 'off',
   },
 };
 

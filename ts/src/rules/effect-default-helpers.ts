@@ -5,9 +5,7 @@ export {
   effectAliasesPattern,
   effectCallBodies,
   effectCallPattern,
-  enclosingPipeBody,
   localCallSegment,
-  someEffectWorkflowBody,
   strippedCallSegment,
 } from './effect-default-scan-helpers';
 export { hasFloatingEffect } from './effect-default-floating-helpers';
@@ -18,20 +16,14 @@ export {
   hasUnscopedResourceWorkflow,
 } from './effect-default-resource-helpers';
 export {
-  hasBroadCatchAllWithoutRethrow,
   hasErrorMappingWithoutCause,
   hasForkDaemonWithoutCleanup,
   hasForkInUninterruptibleWithoutRestore,
-  hasMultipleCatchTagsInOnePipe,
-  hasUnloggedIgnore,
-  hasUnsafeLazyEvaluation,
 } from './effect-default-safety-helpers';
 export {
   hasCastAfterSchemaDecode,
   hasExternalJSONWithoutDecodeUnknown,
   hasJSONParsedBeforeSchemaStringDecode,
-  hasSchemaPromiseDecode,
-  hasSchemaSyncDecodeInEffectWorkflow,
   hasUnhandledSchemaEffectDecode,
 } from './effect-default-schema-helpers';
 export {
@@ -40,17 +32,9 @@ export {
   hasTestClockWithoutEffectContext,
 } from './effect-default-test-helpers';
 export {
-  hasAsyncAwaitInEffect,
-  hasEffectInArrayForEach,
-  hasEffectInPromiseCallback,
-  hasNestedFlatMap,
   hasParsedJSONNumberFromString,
   hasRecursiveEffectWithoutSuspend,
   hasReturnEffectInGen,
-  hasRuntimeInEffect,
-  hasSyncForPromise,
-  hasSyncForThrowingOPS,
-  hasThrowInEffect,
   hasTryPromiseWithoutTypedCatch,
   hasUnboundedEffectConcurrency,
   hasUnboundedFlatMapConcurrency,

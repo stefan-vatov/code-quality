@@ -20,16 +20,9 @@ describe('Effect cycle 23 regression coverage', () => {
   it('ignores Effect workflow trigger text inside strings', () => {
     const returnDocs =
       'Effect.gen(function* () { const docs = "return Effect.succeed(1)"; return 1; });';
-    const decodeDocs =
-      'Effect.gen(function* () { const docs = "Schema.decodeSync(User)(payload)"; return 1; });';
-    const promiseDocs = 'const docs = "Schema.decodeUnknownPromise(User)(payload)";';
     const tryPromiseDocs = 'const docs = "Effect.tryPromise(async () => fetch(url))";';
 
     expect(runRule('effect-require-return-yield-star', returnDocs)).toHaveLength(0);
-    expect(runRule('effect-schema-no-unsafe-sync-decode-in-effect-code', decodeDocs)).toHaveLength(
-      0,
-    );
-    expect(runRule('effect-schema-prefer-decodeUnknown-effect', promiseDocs)).toHaveLength(0);
     expect(runRule('effect-require-typed-error-in-trypromise', tryPromiseDocs)).toHaveLength(0);
   });
 
@@ -107,21 +100,6 @@ describe('Effect cycle 23 regression coverage', () => {
     const source = 'import { Effect as E } from "effect"; E.runPromise(program);';
 
     expect(runRule('effect-no-run-outside-entrypoints', source)).toHaveLength(1);
-  });
-
-  it('does not treat export prose strings as re-exports', () => {
-    const source = 'const load = () => Effect.runPromise(program); const docs = "export { load }";';
-
-    expect(runRule('effect-no-runpromise-in-exported-api', source)).toHaveLength(0);
-  });
-
-  it('detects default exported runtime execution functions', () => {
-    expect(
-      runRule(
-        'effect-no-runpromise-in-exported-api',
-        'export default () => Effect.runPromise(program);',
-      ),
-    ).toHaveLength(1);
   });
 
   it('detects floating Effects in or and ternary expression statements', () => {

@@ -1,124 +1,87 @@
 /* -------------------------------------------------------------------------- */
 /*    Canonical lists of custom Effect rule names exported by the config.     */
 /* -------------------------------------------------------------------------- */
-import { Array } from 'effect';
+/**
+ * High-confidence Effect correctness rules used by the shared safety preset.
+ *
+ * Specialized migration, version, error-model, schema, and test analyzers,
+ * plus strict architecture rules, remain registered for explicit selection;
+ * they are not part of the preset.
+ *
+ * @internal
+ */
+export const effectSafetyRuleNames = [
+  'effect-no-floating-effect',
+  'effect-require-yield-star',
+  'effect-require-return-yield-star',
+  'effect-no-floating-fiber',
+  'effect-require-suspend-for-recursion',
+  'effect-no-silent-error-swallowing',
+  'effect-require-typed-error-in-trypromise',
+  'effect-require-error-cause-preserved',
+  'effect-no-runfork-without-observer',
+  'effect-require-acquire-release',
+  'effect-require-scoped-for-acquireRelease',
+  'effect-require-scoped-for-resources',
+  'effect-no-fork-daemon-without-cleanup',
+  'effect-require-restore-for-fork-in-uninterruptible',
+  'effect-require-bounded-concurrency',
+  'effect-require-bounded-flatMap-concurrency',
+  'effect-no-unbounded-queue',
+  'effect-no-unbounded-stream-buffer',
+] as const;
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const effectDefaultRuleNames = Array.make(
+export const effectDefaultRuleNames = [
   'effect-no-floating-effect',
   'effect-require-yield-star',
   'effect-require-return-yield-star',
-  'effect-prefer-gen-for-nested-flatmap',
-  'effect-prefer-all-discard',
-  'effect-prefer-andThen-over-flatMap-discarded-value',
-  'effect-prefer-as-over-map-constant',
-  'effect-prefer-asSome',
-  'effect-prefer-catchIf-over-conditional-catch',
-  'effect-prefer-collection-discard-over-asVoid',
-  'effect-prefer-filterOrFail-over-flatMap-guard',
-  'effect-prefer-forEach-discard',
-  'effect-prefer-layer-sync',
-  'effect-prefer-mapBoth',
-  'effect-prefer-map-over-flatMap-succeed',
-  'effect-prefer-option-getOrElse',
-  'effect-prefer-option-nullish-getters',
-  'effect-prefer-option-orElseSome',
-  'effect-prefer-ref-getAndUpdate',
-  'effect-prefer-succeedNone',
-  'effect-prefer-succeedSome',
-  'effect-prefer-succeed-for-stable-values',
-  'effect-prefer-tap-over-flatMap-as',
-  'effect-prefer-yieldable-error-over-fail',
-  'effect-no-function-returning-gen',
-  'effect-prefer-effect-fn-for-exported-effects',
-  'effect-no-unnecessary-gen',
-  'effect-no-effect-in-array-foreach',
-  'effect-no-effect-in-promise-callback',
   'effect-no-floating-fiber',
   'effect-require-suspend-for-recursion',
-  'effect-require-suspend-for-lazy-evaluation',
-  'effect-no-async-await-in-effect',
-  'effect-no-promise-then-in-effect',
-  'effect-no-throw',
-  'effect-no-string-errors',
-  'effect-no-untagged-errors',
   'effect-no-silent-error-swallowing',
   'effect-require-typed-error-in-trypromise',
-  'effect-prefer-catchTag-over-catchAll',
   'effect-no-catchAll-with-mapError',
-  'effect-prefer-mapError-over-catchAll-rethrow',
   'effect-require-error-cause-preserved',
-  'effect-prefer-ignore-logged',
-  'effect-prefer-catchTags-for-multiple-tags',
   'effect-no-error-channel-widening-to-unknown',
-  'effect-no-run-inside-effect',
-  'effect-no-runpromise-in-exported-api',
   'effect-no-runfork-without-observer',
-  'effect-no-sync-for-promise',
-  'effect-no-sync-for-throwing-ops',
-  'effect-no-console-log-in-effect-code',
-  'effect-no-process-env-in-effect-code',
-  'effect-no-date-now-in-effect-code',
-  'effect-no-math-random-in-effect-code',
-  'effect-no-json-parse-cast',
-  'effect-schema-prefer-decodeUnknown-effect',
   'effect-schema-require-parse-error-handling',
   'effect-schema-use-decodeUnknown-for-external-data',
-  'effect-schema-no-unsafe-sync-decode-in-effect-code',
   'effect-schema-require-parseJson-for-json-strings',
   'effect-schema-correct-number-type-for-parsed-json',
   'effect-schema-no-redundant-tag-identifier',
-  'effect-schema-prefer-taggedClass-over-manual-tag',
   'effect-schema-avoid-old-type-names',
   'effect-schema-no-cast-after-decode',
   'effect-require-acquire-release',
   'effect-require-scoped-for-acquireRelease',
   'effect-require-scoped-for-resources',
   'effect-no-fork-daemon-without-cleanup',
-  'effect-prefer-fork-scoped-for-listeners',
   'effect-require-restore-for-fork-in-uninterruptible',
   'effect-require-bounded-concurrency',
   'effect-require-bounded-flatMap-concurrency',
   'effect-no-unbounded-queue',
   'effect-no-unbounded-stream-buffer',
-  'effect-test-no-runpromise',
-  'effect-prefer-it-effect-for-unit-tests',
   'effect-testClock-requires-fork',
   'effect-testClock-requires-testContext',
   'effect-no-real-sleep-in-tests',
-  'effect-use-exit-for-failure-tests',
   'effect-no-focused-effect-tests',
   'effect-no-skipped-effect-tests',
   'effect-no-obsolete-imports',
   'effect-no-known-fake-api',
-  'effect-prefer-gen-over-do',
-  'effect-prefer-direct-yield-star',
-  'effect-prefer-config-redacted',
   'effect-no-deprecated-schema-package',
   'effect-no-deprecated-context-tag-function',
-  'effect-no-global-error-channel',
-  'effect-use-duration-constructors',
-  'effect-no-mixed-effect-import-styles',
-  'effect-prefer-effect-is',
-  'effect-no-try-catch-in-effect-gen',
-  'effect-no-new-promise',
-  'effect-no-global-timers',
-  'effect-no-native-error-classes',
-  'effect-no-unsafe-effect-type-assertion',
   'effect-require-service-self-match',
-  'effect-no-effect-fn-iife',
-);
+] as const;
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const effectStrictRuleNames = Array.make(
+export const effectStrictRuleNames = [
   'effect-no-run-outside-entrypoints',
   'effect-require-platform-runmain-at-entrypoints',
   'effect-no-runSync-in-server-request-handlers',
@@ -179,4 +142,7 @@ export const effectStrictRuleNames = Array.make(
   'effect-prefer-effect-void',
   'effect-prefer-asVoid',
   'effect-prefer-flatMap-over-map-flatten',
-);
+] as const;
+
+/** Strict Effect rule names available for explicit project selection. @public */
+export type EffectStrictRuleName = (typeof effectStrictRuleNames)[number];

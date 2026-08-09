@@ -19,7 +19,6 @@ describe('Effect cycle 18 regression coverage', () => {
     expect(runRule('effect-no-direct-clock-random-outside-adapters', source)).toHaveLength(0);
     expect(runRule('effect-no-direct-http-fs-outside-platform-services', source)).toHaveLength(0);
     expect(runRule('effect-no-run-outside-entrypoints', source)).toHaveLength(0);
-    expect(runRule('effect-prefer-gen-over-do', source)).toHaveLength(0);
   });
 
   it('does not treat non-Effect helper calls as idempotent external Effect work', () => {
@@ -47,14 +46,9 @@ describe('Effect cycle 18 regression coverage', () => {
   });
 
   it('detects exported Promise and unknown boundaries through re-exports and type surfaces', () => {
-    const reExport = `
-      const load = () => Effect.runPromise(program);
-      export { load };
-    `;
     const promiseType = 'export type Loader = () => Promise<User>;';
     const unknownInterface = 'export interface Input { readonly value: unknown }';
 
-    expect(runRule('effect-no-runpromise-in-exported-api', reExport)).toHaveLength(1);
     expect(runRule('effect-no-promise-returning-public-api', promiseType)).toHaveLength(1);
     expect(runRule('effect-schema-no-unknown-crossing-boundary', unknownInterface)).toHaveLength(1);
   });

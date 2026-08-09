@@ -1,9 +1,7 @@
 import { parseSync, visitorKeys } from 'oxc-parser';
 
 export interface BenchmarkHits {
-  nativeCommentHits: number;
   nativeReferenceHits: number;
-  onNativeComment?: () => void;
   onReferenceEntry?: () => void;
 }
 
@@ -84,12 +82,7 @@ const walk = (node: unknown, visit: (node: ASTNode) => void): void => {
   }
 };
 
-const nativeSourceCode = (
-  program: ASTNode,
-  source: string,
-  comments: readonly object[],
-  hits: BenchmarkHits,
-) => {
+const nativeSourceCode = (program: ASTNode, source: string, hits: BenchmarkHits) => {
   const imports = new Set<string>();
   const shadows: Shadow[] = [];
   const references: object[] = [];
@@ -138,11 +131,6 @@ const nativeSourceCode = (
     },
   };
   return {
-    getAllComments: (): readonly object[] => {
-      hits.nativeCommentHits += 1;
-      hits.onNativeComment?.();
-      return comments;
-    },
     getText: (): string => source,
     isGlobalReference: (node: object): boolean => globals.has(node),
     scopeManager,
@@ -162,7 +150,7 @@ export const parseFixture = (fixture: Fixture, hits: BenchmarkHits): Fixture => 
     ...fixture,
     ast,
     dispatchCache: new Map(),
-    sourceCode: nativeSourceCode(ast, fixture.source, parsed.comments, hits),
+    sourceCode: nativeSourceCode(ast, fixture.source, hits),
     visitorNodes,
   };
 };

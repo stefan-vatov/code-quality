@@ -10,10 +10,9 @@ const rootText = (path) => readFileSync(rootPath(path), 'utf8');
 const rootTextOrEmpty = (path) => (existsSync(rootPath(path)) ? rootText(path) : '');
 
 const minimumPeerRuleIDs = [
+  'thethracian/effect-no-floating-effect',
+  'thethracian/effect-require-yield-star',
   'thethracian/effect-no-global-fetch',
-  'thethracian/effect-no-sync-for-promise',
-  'thethracian/effect-prefer-map-over-flatMap-succeed',
-  'thethracian/no-commented-out-code',
 ];
 
 describe('Effect slice quality gate portability', () => {
@@ -53,36 +52,39 @@ describe('Effect slice quality gate portability', () => {
     }
   });
 
-  it('defines one aggregate full quality gate', () => {
+  it('defines every repository quality gate used by CI', () => {
     const packageJSON = rootJSON('package.json');
-    const qualityGate = packageJSON.scripts['quality:gate'] ?? '';
 
-    expect(packageJSON.scripts['test:ci']).toBe(
-      'vitest run --coverage --config vitest.config.mts --passWithNoTests',
-    );
-    for (const command of [
-      'pnpm run lint:ci',
-      'pnpm run lint:projects',
-      'pnpm run knip:ci',
-      'pnpm run check',
-      'pnpm run test:projects',
-      'pnpm run test:ci',
-      'pnpm run build',
-      'pnpm run performance:gate',
-      'pnpm run test:oxlint-min-peer',
-      'pnpm run test:mutation',
-      'pnpm nx run-many -t pack',
-    ]) {
-      expect(qualityGate).toContain(command);
-    }
+    expect(packageJSON.scripts).toMatchObject({
+      build: 'nx run-many -t build',
+      check: 'nx run-many -t check',
+      'knip:ci': 'knip --cache --strict',
+      'lint:ci': 'pnpm run lint:local:type-aware && pnpm run format:check',
+      'lint:policy': 'pnpm --dir ts build && node scripts/check-effective-oxlint-policy.mjs',
+      'test:oxlint-min-peer': 'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs',
+      'test:projects': 'nx run-many -t test',
+    });
   });
 
-  it('keeps the aggregate quality gate running in persistent CI', () => {
+  it('runs every repository quality gate in persistent CI', () => {
     const workflow = rootText('.github/workflows/ci.yml');
 
-    expect(workflow).toContain('quality-gate:');
-    expect(workflow).toMatch(/name: ['"]?full quality gate['"]?/iu);
-    expect(workflow).toContain('run: pnpm run quality:gate');
+    for (const job of ['lint', 'oxlint-min-peer', 'knip', 'check', 'test', 'build', 'pack']) {
+      expect(workflow).toMatch(new RegExp(`^  ${job}:$`, 'mu'));
+    }
+
+    for (const command of [
+      'run: pnpm run lint:policy',
+      'run: pnpm run lint:ci',
+      'run: pnpm run test:oxlint-min-peer',
+      'run: pnpm run knip:ci',
+      'run: pnpm run check',
+      'run: pnpm run test:projects',
+      'run: pnpm run build',
+      'run: pnpm nx run-many -t pack',
+    ]) {
+      expect(workflow).toContain(command);
+    }
   });
 
   it('provides separate safe and invalid minimum-peer fixtures', () => {

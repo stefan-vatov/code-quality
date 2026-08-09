@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 import { Array, pipe } from 'effect';
 import { isInsideCall, stripCommentsAndStrings } from './effect-source-helpers';
-import { localCallSegment, someEffectWorkflowBody } from './effect-default-scan-helpers';
+import { localCallSegment } from './effect-default-scan-helpers';
 
 const SCHEMA_ASSERTION_SCAN_WINDOW = 240;
 const SCHEMA_DECODE_PATTERN = /Schema\.decode[A-Za-z]*\s*\(/g;
@@ -33,24 +33,6 @@ const firstIndexAtOrAfter = (indexes: readonly number[], targetIndex: number): n
   }
   return low;
 };
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasSchemaSyncDecodeInEffectWorkflow = (source: string): boolean =>
-  someEffectWorkflowBody(source, (body): boolean =>
-    /Schema\.decode(?:Unknown)?Sync\s*\(/.test(stripCommentsAndStrings(body)),
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasSchemaPromiseDecode = (source: string): boolean =>
-  /Schema\.decode[A-Za-z]*Promise\s*\(/.test(stripCommentsAndStrings(source));
 
 /**
  * Internal helper exported for package-local composition.

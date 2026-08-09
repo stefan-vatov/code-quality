@@ -215,18 +215,6 @@ describe('Effect cycle 3 regression coverage', () => {
     expect(runRule('effect-no-duplicate-layer-instances', duplicate)).toHaveLength(1);
   });
 
-  it('uses typed Effect error channels instead of the global Error type', () => {
-    const validSuccessNames = `
-      const value: Effect.Effect<UserEnv, UserError, RuntimeContext> = program;
-    `;
-    const invalidGlobalError = `
-      const value: Effect.Effect<User, Error, Env> = program;
-    `;
-
-    expect(runRule('effect-no-global-error-channel', validSuccessNames)).toHaveLength(0);
-    expect(runRule('effect-no-global-error-channel', invalidGlobalError)).toHaveLength(1);
-  });
-
   it('passes strict path options through all-rule diagnostics', () => {
     const options = { configLayers: ['settings/**'] };
     const rules = reportedEffectRules('process.env.API_TOKEN;', 'settings/config.ts', options);

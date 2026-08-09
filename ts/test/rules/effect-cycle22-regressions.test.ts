@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import {
+  runConfiguredRules,
+  runRule,
+  strictEffectTestPaths,
+  withAllEffectRules,
+} from './effect-rule-test-utils';
 
 function configuredEffectRuleNames(source: string, filename = 'src/domain/user.ts'): string[] {
-  return runConfiguredRules(theThracianOxlint({ effect: { strict: true } }), source, filename)
+  return runConfiguredRules(
+    withAllEffectRules(
+      theThracianOxlint({
+        effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+      }),
+    ),
+    source,
+    filename,
+  )
     .map((report) => report.ruleName)
     .filter((ruleName): ruleName is string => Boolean(ruleName))
     .sort();
@@ -19,12 +33,6 @@ describe('Effect cycle 22 regression coverage', () => {
     ).toHaveLength(0);
     expect(
       runRule(
-        'effect-no-process-env-in-effect-code',
-        'import { Effect } from "effect"; const rendered = `${"process.env.API_TOKEN"}`;',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
         'effect-no-run-outside-entrypoints',
         'const rendered = `${`Effect.runPromise(program)`}`;',
       ),
@@ -36,18 +44,6 @@ describe('Effect cycle 22 regression coverage', () => {
       runRule(
         'effect-require-return-yield-star',
         'Effect.gen(function* () { const docs = "return Effect.succeed(1)"; return 1; });',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-schema-no-unsafe-sync-decode-in-effect-code',
-        'Effect.gen(function* () { const docs = "Schema.decodeSync(User)(payload)"; return 1; });',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-schema-prefer-decodeUnknown-effect',
-        'const docs = "Schema.decodeUnknownPromise(User)(payload)";',
       ),
     ).toHaveLength(0);
     expect(
@@ -74,24 +70,11 @@ describe('Effect cycle 22 regression coverage', () => {
   });
 
   it('ignores test-rule trigger text inside documentation strings', () => {
-    const source = `
-      it("docs", () => {
-        const docs = "Effect.runPromise(program) rejects toThrow";
-      });
-    `;
-
     const focused = 'const docs = "it.effect.only(name, fn)";';
     const skipped = 'const docs = "describe.effect.skip(name, fn)";';
     const sleep = 'const docs = "Effect.sleep(1000)";';
     const clock = 'const docs = "TestClock.adjust(1000)";';
 
-    expect(runRule('effect-test-no-runpromise', source, 'src/user.test.ts')).toHaveLength(0);
-    expect(
-      runRule('effect-prefer-it-effect-for-unit-tests', source, 'src/user.test.ts'),
-    ).toHaveLength(0);
-    expect(runRule('effect-use-exit-for-failure-tests', source, 'src/user.test.ts')).toHaveLength(
-      0,
-    );
     expect(runRule('effect-no-focused-effect-tests', focused, 'src/user.test.ts')).toHaveLength(0);
     expect(runRule('effect-no-skipped-effect-tests', skipped, 'src/user.test.ts')).toHaveLength(0);
     expect(runRule('effect-no-real-sleep-in-tests', sleep, 'src/user.test.ts')).toHaveLength(0);

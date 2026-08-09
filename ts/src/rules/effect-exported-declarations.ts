@@ -13,10 +13,6 @@ import {
   privateEffectsByStatement,
   privateSiblingHasEffect,
 } from './effect-exported-declaration-projection';
-import {
-  exportedCallableDeclarationSegment,
-  exportedDeclarationSegment,
-} from './effect-export-segments';
 import type { ModuleBindingDeclaration } from './effect-module-source-index';
 import { createWeightedCache } from './source-cache';
 import { declarationWithBraceBody } from './effect-export-declaration-boundaries';
@@ -41,14 +37,6 @@ const OBJECT_CONTAINER_BYTES = 256;
 const REFERENCE_BYTES = 8;
 
 const exportedDeclarationCache: WeightedSourceCache<string[]> = createWeightedCache({
-  maxEntries: 256,
-  maxWeight: 5_767_168,
-});
-const exportedDeclarationSegmentCache: WeightedSourceCache<string[]> = createWeightedCache({
-  maxEntries: 256,
-  maxWeight: 5_767_168,
-});
-const exportedCallableDeclarationSegmentCache: WeightedSourceCache<string[]> = createWeightedCache({
   maxEntries: 256,
   maxWeight: 5_767_168,
 });
@@ -88,16 +76,6 @@ const cachedExportedDeclarations = (source: string): string[] | undefined =>
 
 const cacheExportedDeclarations = (source: string, declarations: string[]): string[] =>
   exportedDeclarationCache.set(source, declarations, stringArrayWeight(source, declarations));
-
-const cacheExportedDeclarationSegments = (source: string, segments: string[]): string[] =>
-  exportedDeclarationSegmentCache.set(source, segments, stringArrayWeight(source, segments));
-
-const cacheExportedCallableDeclarationSegments = (source: string, segments: string[]): string[] =>
-  exportedCallableDeclarationSegmentCache.set(
-    source,
-    segments,
-    stringArrayWeight(source, segments),
-  );
 
 const cacheExportedDeclarationProjections = (
   source: string,
@@ -457,46 +435,6 @@ export const exportedDeclarationTexts = (source: string): string[] => {
                 exportedDeclarationProjections(source),
                 Array.map((projection): string => projection.declarationText),
               ),
-            ),
-          ),
-        ),
-      onSome: (value): string[] => value,
-    }),
-  );
-};
-
-/** @internal */
-export const exportedDeclarationSegments = (source: string): string[] => {
-  const cachedValue = exportedDeclarationSegmentCache.get(source);
-  return pipe(
-    Option.fromNullable(cachedValue),
-    Option.match({
-      onNone: (): string[] =>
-        cacheExportedDeclarationSegments(
-          source,
-          pipe(
-            exportedDeclarationProjections(source),
-            Array.map((projection): string => exportedDeclarationSegment(projection.analysisText)),
-          ),
-        ),
-      onSome: (value): string[] => value,
-    }),
-  );
-};
-
-/** @internal */
-export const exportedCallableDeclarationSegments = (source: string): string[] => {
-  const cachedValue = exportedCallableDeclarationSegmentCache.get(source);
-  return pipe(
-    Option.fromNullable(cachedValue),
-    Option.match({
-      onNone: (): string[] =>
-        cacheExportedCallableDeclarationSegments(
-          source,
-          pipe(
-            exportedDeclarationProjections(source),
-            Array.flatMap((projection): string[] =>
-              exportedCallableDeclarationSegment(projection.analysisText),
             ),
           ),
         ),

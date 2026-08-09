@@ -3,8 +3,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { parseSync } from 'oxc-parser';
 import { expect } from 'vitest';
+import theThracianOxlint from '../../src/index';
+import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
 import plugin from '../../src/rules/plugin';
-import type theThracianOxlint from '../../src/index';
 
 type Report = {
   loc?: { column: number; line: number };
@@ -21,6 +22,16 @@ type RuleCase = {
 };
 
 const programNode = { type: 'Program', range: [0, 0] };
+
+const strictEffectTestPaths = {
+  adapterLayers: ['src/adapters/**', 'src/platform/**', 'src/infrastructure/**'],
+  compositionRoots: ['src/main.ts', 'src/server.ts', 'src/cli.ts', '**/*.entry.ts'],
+  configLayers: ['src/config/**', 'src/layers/**', 'src/infrastructure/**'],
+  domain: ['src/domain/**', 'src/core/**', 'src/features/**'],
+  entrypoints: ['src/main.ts', 'src/server.ts', 'src/cli.ts', '**/*.entry.ts'],
+  integrationTests: ['**/*.integration.test.ts', '**/*.integration.spec.ts'],
+  unitTests: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx'],
+} as const;
 
 type VisitorMap = Record<string, ((node: object) => void) | undefined>;
 
@@ -181,5 +192,37 @@ function runConfiguredRules(
   return reports;
 }
 
-export { runAllRules, runConfiguredRules, runRule, runRuleAtPath, sorted };
+/**
+ * Builds a test-only profile that explicitly selects every registered Effect rule.
+ * The published config intentionally enables only the safety bucket by default;
+ * implementation coverage must opt into the remaining rules rather than silently
+ * treating them as part of the consumer preset.
+ */
+function withAllEffectRules(
+  config: ReturnType<typeof theThracianOxlint>,
+): ReturnType<typeof theThracianOxlint> {
+  const strictSetting = config.rules?.['thethracian/effect-no-run-outside-entrypoints'];
+  const strictOptions = Array.isArray(strictSetting) ? strictSetting[1] : undefined;
+  const defaultRuleSetting = strictOptions ? ['error', strictOptions] : 'error';
+
+  return {
+    ...config,
+    rules: {
+      ...config.rules,
+      ...Object.fromEntries(
+        effectDefaultRuleNames.map((ruleName) => [`thethracian/${ruleName}`, defaultRuleSetting]),
+      ),
+    },
+  };
+}
+
+export {
+  runAllRules,
+  runConfiguredRules,
+  runRule,
+  runRuleAtPath,
+  sorted,
+  strictEffectTestPaths,
+  withAllEffectRules,
+};
 export type { Report, RuleCase };

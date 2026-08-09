@@ -2,46 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 5 regression coverage', () => {
-  it('keeps async/await checks scoped to the Effect factory body', () => {
-    const valid = `
-      const program = Effect.gen(function* () {
-        return yield* loadUser;
-      });
-
-      async function loadOutsideEffect() {
-        await fetch("/users");
-      }
-    `;
-    const invalid = `
-      const program = Effect.gen(async () => {
-        await fetch("/users");
-      });
-    `;
-
-    expect(runRule('effect-no-async-await-in-effect', valid)).toHaveLength(0);
-    expect(runRule('effect-no-async-await-in-effect', invalid)).toHaveLength(1);
-  });
-
-  it('keeps throw checks scoped to the Effect factory body', () => {
-    const valid = `
-      const program = Effect.gen(function* () {
-        return yield* loadUser;
-      });
-
-      function throwOutsideEffect() {
-        throw new Error("outside");
-      }
-    `;
-    const invalid = `
-      const program = Effect.gen(function* () {
-        throw new Error("inside");
-      });
-    `;
-
-    expect(runRule('effect-no-throw', valid)).toHaveLength(0);
-    expect(runRule('effect-no-throw', invalid)).toHaveLength(1);
-  });
-
   it('keeps return-yield-star checks scoped to the current Effect.gen call', () => {
     const valid = `
       const program = Effect.gen(function* () {

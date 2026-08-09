@@ -8,11 +8,7 @@ export {
   stripCommentsAndStrings,
 } from './effect-source-scan';
 
-export {
-  exportedCallableDeclarationSegments,
-  exportedDeclarationSegments,
-  exportedDeclarationTexts,
-} from './effect-exported-declarations';
+export { exportedDeclarationTexts } from './effect-exported-declarations';
 
 export {
   findStatementEnd,

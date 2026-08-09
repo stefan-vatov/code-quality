@@ -42,19 +42,14 @@ describe('Effect benchmark validity contracts', (): void => {
     expect(gateSource).toMatch(/\breplaceTextRange\s*\(/);
   });
 
-  it('asserts that native comments, references, candidates, and fixes are exercised', (): void => {
-    const requiredCounters = [
-      'nativeCommentHits',
-      'nativeReferenceHits',
-      'candidateHits',
-      'fixHits',
-    ] as const;
+  it('asserts that native references, candidates, and fixes are exercised', (): void => {
+    const requiredCounters = ['nativeReferenceHits', 'candidateHits', 'fixHits'] as const;
 
     for (const counter of requiredCounters) {
       expect(gateSource).toContain(counter);
     }
     expect(gateSource).toMatch(
-      /requiredBenchmarkHits[\s\S]{0,500}nativeCommentHits[\s\S]{0,500}nativeReferenceHits[\s\S]{0,500}candidateHits[\s\S]{0,500}fixHits/,
+      /requiredBenchmarkHits[\s\S]{0,500}nativeReferenceHits[\s\S]{0,500}candidateHits[\s\S]{0,500}fixHits/,
     );
     expect(gateSource).toMatch(
       /requiredBenchmarkHits[\s\S]{0,1000}(?:throw new Error|assertBenchmarkHits)/,

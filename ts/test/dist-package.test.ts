@@ -12,11 +12,19 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
+import { strictEffectTestPaths } from './rules/effect-rule-test-utils';
 
 const repoRoot = join(import.meta.dirname, '..', '..');
 const distPackageTestTimeoutMs = 30_000;
 
-type BuiltConfigFactory = (options?: { effect?: { strict?: boolean } }) => {
+type BuiltConfigFactory = (options?: {
+  effect?:
+    | boolean
+    | {
+        enabled?: boolean;
+        strict?: { rules: readonly string[]; [key: string]: unknown };
+      };
+}) => {
   jsPlugins?: string[];
   rules?: Record<string, unknown>;
 };
@@ -40,149 +48,10 @@ type CliAstCase = {
 
 const astBackedCLICases = [
   {
-    ruleName: 'effect-no-promise-then-in-effect',
-    filename: 'src/domain/promise-then.ts',
-    source: 'import { Effect } from "effect";\nfetch("/").then((response) => response.text());',
-  },
-  {
-    ruleName: 'effect-no-string-errors',
-    filename: 'src/domain/string-error.ts',
-    source: 'import { Effect } from "effect";\nconst failure = Effect.fail(`bad`);',
-  },
-  {
-    ruleName: 'effect-no-untagged-errors',
-    filename: 'src/domain/untagged-error.ts',
-    source: 'import { Effect } from "effect";\nconst failure = Effect.fail(new Error("bad"));',
-  },
-  {
-    ruleName: 'effect-prefer-map-over-flatMap-succeed',
-    filename: 'src/domain/flatmap-succeed.ts',
-    source:
-      'import { Effect } from "effect";\ndeclare const program: Effect.Effect<number>;\nconst result = program.pipe(Effect.flatMap((value) => Effect.succeed(value + 1)));',
-  },
-  {
-    ruleName: 'effect-prefer-ref-getAndUpdate',
-    filename: 'src/domain/ref-get-and-update.ts',
-    source:
-      'import { Ref } from "effect";\nconst previous = Ref.modify(ref, (current) => [current, current + 1]);',
-  },
-  {
-    ruleName: 'effect-prefer-yieldable-error-over-fail',
-    filename: 'src/domain/yieldable-error-over-fail.ts',
-    source:
-      'import { Data, Effect } from "effect";\nclass NotFound extends Data.TaggedError("NotFound")<{}> {}\nconst program = Effect.gen(function* () { return yield* Effect.fail(new NotFound()); });',
-  },
-  {
     ruleName: 'effect-schema-no-redundant-tag-identifier',
     filename: 'src/domain/redundant-schema-tag-identifier.ts',
     source:
       'import { Schema } from "effect";\nclass NotFound extends Schema.TaggedClass<NotFound>("NotFound")("NotFound", { id: Schema.String }) {}',
-  },
-  {
-    ruleName: 'effect-prefer-all-discard',
-    filename: 'src/domain/all-discard.ts',
-    source:
-      'import { Effect } from "effect";\nconst program = Effect.gen(function* () { yield* Effect.all([first, second]); });',
-  },
-  {
-    ruleName: 'effect-prefer-collection-discard-over-asVoid',
-    filename: 'src/domain/collection-asvoid.ts',
-    source:
-      'import { Effect } from "effect";\nconst done = Effect.all([first, second]).pipe(Effect.asVoid);',
-  },
-  {
-    ruleName: 'effect-prefer-option-nullish-getters',
-    filename: 'src/domain/option-nullish-getter.ts',
-    source:
-      'import { Option } from "effect";\nconst decoded = decode();\nconst value = Option.isSome(decoded) ? decoded.value : undefined;',
-  },
-  {
-    ruleName: 'effect-prefer-option-getOrElse',
-    filename: 'src/domain/option-get-or-else.ts',
-    source:
-      'import { Option } from "effect";\nconst value = Option.match(decoded, { onNone: () => fallback, onSome: (item) => item });',
-  },
-  {
-    ruleName: 'effect-prefer-option-orElseSome',
-    filename: 'src/domain/option-or-else-some.ts',
-    source:
-      'import { Option } from "effect";\nconst value = Option.orElse(decoded, () => Option.some(fallback));',
-  },
-  {
-    ruleName: 'effect-prefer-forEach-discard',
-    filename: 'src/domain/foreach-discard.ts',
-    source:
-      'import { Effect } from "effect";\nconst program = Effect.gen(function* () { yield* Effect.forEach(items, work, { concurrency: 4 }); });',
-  },
-  {
-    ruleName: 'effect-prefer-layer-sync',
-    filename: 'src/domain/layer-sync.ts',
-    source:
-      'import { Effect, Layer } from "effect";\nconst live = Layer.effect(Service, Effect.sync(() => makeService()));',
-  },
-  {
-    ruleName: 'effect-prefer-catchIf-over-conditional-catch',
-    filename: 'src/domain/conditional-catch.ts',
-    source:
-      'import { Effect } from "effect";\nconst program = Effect.catchAll(task, error => isRecoverable(error) ? recover(error) : Effect.fail(error));',
-  },
-  {
-    ruleName: 'effect-no-console-log-in-effect-code',
-    filename: 'src/domain/console.ts',
-    source: 'import { Effect } from "effect";\nconsole.log(Effect.succeed(1));',
-  },
-  {
-    ruleName: 'effect-no-process-env-in-effect-code',
-    filename: 'src/domain/env.ts',
-    source: 'import { Effect } from "effect";\nconst token = process.env.API_TOKEN;',
-  },
-  {
-    ruleName: 'effect-no-date-now-in-effect-code',
-    filename: 'src/domain/date.ts',
-    source: 'import { Effect } from "effect";\nconst now = Date.now();',
-  },
-  {
-    ruleName: 'effect-no-math-random-in-effect-code',
-    filename: 'src/domain/random.ts',
-    source: 'import { Effect } from "effect";\nconst value = Math.random();',
-  },
-  {
-    ruleName: 'effect-no-try-catch-in-effect-gen',
-    filename: 'src/domain/try-catch.ts',
-    source:
-      'import { Effect as E } from "effect";\nconst program = E.gen(function* () { try { return yield* load; } catch (error) { return yield* E.fail(error); } });',
-  },
-  {
-    ruleName: 'effect-no-new-promise',
-    filename: 'src/domain/new-promise.ts',
-    source: 'import { Effect } from "effect";\nconst task = new Promise((resolve) => resolve(1));',
-  },
-  {
-    ruleName: 'effect-no-global-timers',
-    filename: 'src/domain/timer.ts',
-    source: 'import { Effect } from "effect";\nsetTimeout(() => Effect.runFork(task), 10);',
-  },
-  {
-    ruleName: 'effect-no-native-error-classes',
-    filename: 'src/domain/native-error.ts',
-    source: 'import { Effect } from "effect";\nclass NotFound extends Error {}',
-  },
-  {
-    ruleName: 'effect-no-unsafe-effect-type-assertion',
-    filename: 'src/domain/assertion.ts',
-    source: 'const program = value as Effect.Effect<string, never, never>;',
-  },
-  {
-    ruleName: 'effect-require-service-self-match',
-    filename: 'src/domain/service-self.ts',
-    source:
-      'import { Effect } from "effect";\nclass UserRepo extends Effect.Service<OrderRepo>()("UserRepo", {}) {}',
-  },
-  {
-    ruleName: 'effect-no-effect-fn-iife',
-    filename: 'src/domain/fn-iife.ts',
-    source:
-      'import { Effect } from "effect";\nconst value = Effect.fn("load")(function* () { return yield* task; })();',
   },
   {
     ruleName: 'effect-no-crypto-randomUUID',
@@ -220,12 +89,6 @@ const astBackedCLICases = [
     filename: 'src/domain/global-fetch.ts',
     source:
       'import { Effect } from "effect";\nconst response = Effect.tryPromise({ try: () => fetch("/users"), catch: (error) => error });',
-  },
-  {
-    ruleName: 'effect-no-sync-for-promise',
-    filename: 'src/domain/sync-global-promise.ts',
-    source:
-      'import { sync as effectSync } from "effect/Effect";\nconst task = effectSync(() => Promise.resolve(fetch("/users")));',
   },
   {
     ruleName: 'effect-require-suspend-for-recursion',
@@ -275,6 +138,29 @@ describe('published TypeScript package shape', (): void => {
   );
 
   it(
+    'publishes strict Effect rule names as a literal union',
+    (): void => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
+
+      const declarations = readFileSync(
+        join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.d.ts'),
+        'utf8',
+      );
+      const publicDeclarations = readFileSync(join(repoRoot, 'ts', 'dist', 'index.d.ts'), 'utf8');
+
+      expect(declarations).toContain(
+        'effectStrictRuleNames: readonly ["effect-no-run-outside-entrypoints"',
+      );
+      expect(declarations).not.toContain('effectStrictRuleNames: [string, ...string[]]');
+      expect(publicDeclarations).toContain('export type { EffectStrictRuleName }');
+    },
+    distPackageTestTimeoutMs,
+  );
+
+  it(
     'builds an importable dist config with the package-local plugin and all Effect rules',
     async (): Promise<void> => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
@@ -288,7 +174,9 @@ describe('published TypeScript package shape', (): void => {
       const { effectDefaultRuleNames, effectStrictRuleNames } = await importFresh<BuiltRuleNames>(
         join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
       );
-      const config = theThracianOxlint({ effect: { strict: true } });
+      const config = theThracianOxlint({
+        effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+      });
       const pluginPath = config.jsPlugins?.find((path) => path.endsWith('/dist/rules/plugin.js'));
 
       expect(pluginPath).toBeDefined();
@@ -318,34 +206,29 @@ describe('published TypeScript package shape', (): void => {
         const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
           join(repoRoot, 'ts', 'dist', 'index.js'),
         );
-        const config = theThracianOxlint({ effect: { strict: true } });
+        const config = theThracianOxlint({
+          effect: { strict: { rules: ['effect-require-span-external'] } },
+        });
         const rules = {
-          'thethracian/effect-no-string-errors':
-            config.rules?.['thethracian/effect-no-string-errors'],
           'thethracian/effect-require-span-external':
             config.rules?.['thethracian/effect-require-span-external'],
         };
         const configPath = join(root, '.oxlintrc.json');
         const sourcePath = join(root, 'invalid.ts');
 
-        expect(rules['thethracian/effect-no-string-errors']).toBe('error');
         expect(rules['thethracian/effect-require-span-external']).toBe('error');
 
         writeFileSync(
           configPath,
           JSON.stringify({ jsPlugins: config.jsPlugins, rules }, undefined, 2),
         );
-        writeFileSync(
-          sourcePath,
-          'const failure = Effect.fail("bad");\nHttpClient.get(url).pipe(Effect.timeout("1 second"));\n',
-        );
+        writeFileSync(sourcePath, 'HttpClient.get(url).pipe(Effect.timeout("1 second"));\n');
 
         const output = runOxlintJSON(
           [sourcePath, '--config', configPath, '--disable-nested-config', '--format', 'json'],
           repoRoot,
         );
 
-        expect(output).toContain('effect-no-string-errors');
         expect(output).toContain('effect-require-span-external');
       } finally {
         rmSync(root, { force: true, recursive: true });
@@ -368,7 +251,24 @@ describe('published TypeScript package shape', (): void => {
         const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
           join(repoRoot, 'ts', 'dist', 'index.js'),
         );
-        const config = theThracianOxlint({ effect: { strict: true } });
+        const { effectDefaultRuleNames, effectStrictRuleNames } = await importFresh<BuiltRuleNames>(
+          join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
+        );
+        const selectedConfig = theThracianOxlint({
+          effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+        });
+        // This CLI fixture intentionally exercises every registered rule. The
+        // published preset only enables the safety bucket; the rest are added
+        // here explicitly so coverage does not imply a noisy default policy.
+        const config = {
+          ...selectedConfig,
+          rules: {
+            ...selectedConfig.rules,
+            ...Object.fromEntries(
+              effectDefaultRuleNames.map((ruleName) => [`thethracian/${ruleName}`, 'error']),
+            ),
+          },
+        };
         const rules = Object.fromEntries(
           astBackedCLICases.map(({ ruleName }) => [
             `thethracian/${ruleName}`,
@@ -399,72 +299,16 @@ describe('published TypeScript package shape', (): void => {
           expect(output, `${ruleName} should report through real Oxlint`).toContain(ruleName);
         }
 
-        const nonReportSources = [
-          {
-            filename: 'src/domain/shadowed-flatmap-succeed.ts',
-            source:
-              'import { Effect } from "effect";\nconst result = (Effect) => Effect.flatMap(1, (value) => Effect.succeed(value + 1));',
-          },
-          {
-            filename: 'src/domain/unrelated-import-flatmap-succeed.ts',
-            source:
-              'import { Effect } from "local-effect";\nconst result = Effect.flatMap(1, (value) => Effect.succeed(value + 1));',
-          },
-          {
-            filename: 'src/domain/loop-shadowed-flatmap-succeed.ts',
-            source:
-              'import { Effect } from "effect";\nfor (const Effect of localEffects) { Effect.flatMap(1, (value) => Effect.succeed(value + 1)); }',
-          },
-          {
-            filename: 'src/domain/switch-shadowed-flatmap-succeed.ts',
-            source:
-              'import { Effect } from "effect";\nswitch (kind) { case "local": const Effect = LocalEffect; Effect.flatMap(1, (value) => Effect.succeed(value + 1)); }',
-          },
-          {
-            filename: 'src/domain/tdz-shadowed-promise.ts',
-            source:
-              'import { Effect as Fx } from "effect";\nconst task = Fx.sync(() => Promise.resolve(1));\nconst Promise = LocalPromise;',
-          },
-          {
-            filename: 'src/domain/tdz-shadowed-fetch.ts',
-            source:
-              'import { Effect as Fx } from "effect";\nconst task = Fx.sync(() => fetch("/users"));\nconst fetch = localFetch;',
-          },
-          {
-            filename: 'src/domain/nested-shadowed-promise.ts',
-            source:
-              'import { Effect as Fx } from "effect";\nfunction make(Promise: LocalPromise) { return Fx.sync(() => Promise.resolve(1)); }',
-          },
-          {
-            filename: 'src/domain/nested-shadowed-recursion.ts',
-            source:
-              'import { Effect as Fx } from "effect";\nfunction loop() { return Fx.flatMap(step, (loop) => loop()); }',
-          },
-          {
-            filename: 'src/domain/suspended-aliased-recursion.ts',
-            source:
-              'import * as Fx from "effect/Effect";\nfunction loop() { return Fx.flatMap(step, () => Fx.suspend(() => loop())); }',
-          },
-        ];
-        const nonReportPaths = nonReportSources.map(({ filename, source }) => {
-          const sourcePath = join(root, filename);
-          writeFileSync(sourcePath, source);
-          return sourcePath;
-        });
+        const nonReportPath = join(root, 'src/domain/suspended-aliased-recursion.ts');
+        writeFileSync(
+          nonReportPath,
+          'import * as Fx from "effect/Effect";\nfunction loop() { return Fx.flatMap(step, () => Fx.suspend(() => loop())); }',
+        );
         const nonReportOutput = runOxlintJSON(
-          [
-            ...nonReportPaths,
-            '--config',
-            configPath,
-            '--disable-nested-config',
-            '--format',
-            'json',
-          ],
+          [nonReportPath, '--config', configPath, '--disable-nested-config', '--format', 'json'],
           repoRoot,
         );
 
-        expect(nonReportOutput).not.toContain('effect-prefer-map-over-flatMap-succeed');
-        expect(nonReportOutput).not.toContain('effect-no-sync-for-promise');
         expect(nonReportOutput).not.toContain('effect-require-suspend-for-recursion');
       } finally {
         rmSync(root, { force: true, recursive: true });
@@ -495,7 +339,14 @@ describe('published TypeScript package shape', (): void => {
           import theThracianOxlint from '@thethracian/oxlint-config';
           import { codemodFix } from '@thethracian/oxlint-config/codemod-fix';
 
-          const config = theThracianOxlint({ effect: { strict: true } });
+          const config = theThracianOxlint({
+            effect: {
+              strict: {
+                adapterLayers: ['platform/**'],
+                rules: ['effect-no-global-fetch'],
+              },
+            },
+          });
           const effectRules = Object.keys(config.rules ?? {}).filter((ruleName) =>
             ruleName.startsWith('thethracian/effect-')
           );
@@ -504,7 +355,11 @@ describe('published TypeScript package shape', (): void => {
           if (!pluginPath) {
             throw new Error('missing package-local plugin path');
           }
-          if (config.rules?.['thethracian/effect-no-global-fetch'] !== 'error') {
+          const globalFetchSetting = config.rules?.['thethracian/effect-no-global-fetch'];
+          const globalFetchSeverity = Array.isArray(globalFetchSetting)
+            ? globalFetchSetting[0]
+            : globalFetchSetting;
+          if (globalFetchSeverity !== 'error') {
             throw new Error('missing strict Effect rule through package export');
           }
           if (typeof codemodFix !== 'function') {
@@ -522,7 +377,7 @@ describe('published TypeScript package shape', (): void => {
         });
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(162);
+        expect(parsed.effectRuleCount).toBe(19);
         expect(existsSync(parsed.pluginPath)).toBe(true);
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: Record<string, string>;

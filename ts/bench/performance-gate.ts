@@ -60,7 +60,6 @@ const benchmarkHitsFor = (name: string): RuleBenchmarkHits => {
 };
 
 const requiredBenchmarkHits = {
-  nativeCommentHits: 0,
   nativeReferenceHits: 0,
   candidateHits: 0,
   fixHits: 0,
@@ -172,7 +171,6 @@ const budgetPath = stringArg(
 );
 
 const nativeServices = [
-  'getAllComments',
   'getText',
   'isGlobalReference',
   'scopeManager',
@@ -275,36 +273,15 @@ interface CandidateFixture extends Fixture {
 
 const candidateSubsystems = [
   {
-    candidate: '// const abandoned = Effect.succeed(0);\n',
-    name: 'comment',
-    ruleName: 'no-commented-out-code',
-  },
-  {
-    candidate: 'const promised = Effect.sync(() => Promise.resolve(1));',
-    name: 'promise',
-    ruleName: 'effect-no-sync-for-promise',
-  },
-  {
     candidate:
       'function loop(): Effect.Effect<number> { Effect.succeed(undefined); return loop(); }',
     name: 'recursion',
     ruleName: 'effect-require-suspend-for-recursion',
   },
   {
-    candidate: 'export const load = () => Effect.succeed(1);',
-    name: 'export',
-    ruleName: 'effect-prefer-effect-fn-for-exported-effects',
-  },
-  {
     candidate: 'const request = Effect.tryPromise(() => fetch("/users"));',
     name: 'native',
     ruleName: 'effect-no-global-fetch',
-  },
-  {
-    candidate:
-      'const mapped = Effect.flatMap(Effect.succeed(1), (value) => Effect.succeed(value));',
-    name: 'map',
-    ruleName: 'effect-prefer-map-over-flatMap-succeed',
   },
 ].map((subsystem): CandidateSubsystem => subsystem);
 const candidateShapes = ['candidate-free', 'early-candidate', 'late-candidate'] as const;
@@ -330,18 +307,11 @@ const assertRuleBenchmarkHits = (): void => {
     const hits = benchmarkHitsFor(ruleName);
     const failures =
       hits.candidateHits > 0 ? [] : [`${name}/${ruleName} did not exercise a candidate`];
-    if (
-      (name === 'promise' || name === 'native' || name === 'map') &&
-      hits.referenceEntryHits === 0
-    ) {
+    if (name === 'native' && hits.referenceEntryHits === 0) {
       failures.push(`${name}/${ruleName} did not enter native references`);
     }
     return failures;
   });
-  const commentHits = benchmarkHitsFor('no-commented-out-code');
-  if (commentHits.fixReadHits === 0) {
-    missing.push('comment fixer was not read');
-  }
   if (missing.length > 0) {
     throw new Error(`Per-rule benchmark work was incomplete: ${missing.join(', ')}`);
   }

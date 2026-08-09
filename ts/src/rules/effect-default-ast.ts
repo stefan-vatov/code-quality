@@ -2,7 +2,7 @@
 /*             Shared AST helpers for custom Effect rule modules.             */
 /* -------------------------------------------------------------------------- */
 import { Array as EffectArray, HashSet, Option, Predicate, pipe } from 'effect';
-import { effectFunctionAliases, effectImportAliases } from './effect-rule-core';
+import { effectImportAliases } from './effect-rule-core';
 
 interface RuleContext {
   report: (descriptor: { message: string; node: object }) => void;
@@ -99,34 +99,6 @@ export const identifierName = (node: ASTValue): string | undefined =>
  *
  * @internal
  */
-export const literalValue = (node: ASTValue): ASTValue =>
-  pipe(
-    Option.some(node),
-    Option.filter((value): boolean => nodeType(value) === 'Literal'),
-    Option.map((value): ASTValue => objectValue(value, 'value')),
-    Option.getOrUndefined,
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const isStringLikeLiteral = (node: ASTValue): boolean =>
-  pipe(Option.fromNullable(literalValue(node)), Option.exists(Predicate.isString)) ||
-  pipe(
-    Option.some(node),
-    Option.filter((value): boolean => nodeType(value) === 'TemplateLiteral'),
-    Option.map((value): ASTValue => objectValue(value, 'expressions')),
-    Option.filter(Array.isArray),
-    Option.exists((expressions): boolean => expressions.length === 0),
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const memberParts = (node: ASTValue): { objectName?: string; propertyName?: string } =>
   pipe(
     Option.some(node),
@@ -137,38 +109,6 @@ export const memberParts = (node: ASTValue): { objectName?: string; propertyName
     })),
     Option.getOrElse((): { objectName?: string; propertyName?: string } => ({})),
   );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const effectCallPredicate = (
-  source: string,
-  names: readonly string[],
-): ((callee: ASTValue) => boolean) => {
-  const memberNames = HashSet.fromIterable(names);
-  const importAliases = HashSet.fromIterable(effectImportAliases(source));
-  const functionAliases = HashSet.fromIterable(
-    pipe(
-      names,
-      EffectArray.flatMap((name) => effectFunctionAliases(source, 'Effect', name)),
-    ),
-  );
-
-  return (callee: ASTValue): boolean => {
-    const { objectName, propertyName } = memberParts(callee);
-    if (objectName && propertyName) {
-      return HashSet.has(importAliases, objectName) && HashSet.has(memberNames, propertyName);
-    }
-
-    const calleeName = identifierName(callee);
-    return pipe(
-      Option.fromNullable(calleeName),
-      Option.exists((value): boolean => HashSet.has(functionAliases, value)),
-    );
-  };
-};
 
 const typeReferenceQualifiedName = (typeName: ASTValue): string | undefined =>
   pipe(
@@ -184,20 +124,6 @@ const typeReferenceQualifiedName = (typeName: ASTValue): string | undefined =>
           ),
         ),
       ),
-    ),
-    Option.getOrUndefined,
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const propertyKeyName = (node: ASTValue): string | undefined =>
-  pipe(
-    Option.fromNullable(identifierName(node)),
-    Option.orElse(() =>
-      pipe(Option.fromNullable(literalValue(node)), Option.filter(Predicate.isString)),
     ),
     Option.getOrUndefined,
   );
