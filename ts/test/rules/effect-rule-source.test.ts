@@ -25,10 +25,10 @@ function runRuleWithContext(ruleName: string, context: object): Report[] {
 
 describe('Effect rule source reading', () => {
   it('uses sourceCode.text before falling back to filesystem reads', () => {
-    const reports = runRuleWithContext('effect-no-string-errors', {
+    const reports = runRuleWithContext('effect-no-catchAll-with-mapError', {
       filename: '/does/not/exist.ts',
       sourceCode: {
-        text: 'const failure = Effect.fail("bad");',
+        text: 'const recovered = program.pipe(Effect.catchAll(() => Effect.fail(error)));',
       },
     });
 
@@ -38,13 +38,16 @@ describe('Effect rule source reading', () => {
   it('prefers sourceCode.text over a readable but stale filename', () => {
     const root = mkdtempSync(join(tmpdir(), 'thx-effect-source-'));
     const filePath = join(root, 'stale.ts');
-    writeFileSync(filePath, 'const failure = Effect.fail("bad");');
+    writeFileSync(
+      filePath,
+      'const recovered = program.pipe(Effect.catchAll(() => Effect.fail(error)));',
+    );
 
     try {
-      const reports = runRuleWithContext('effect-no-string-errors', {
+      const reports = runRuleWithContext('effect-no-catchAll-with-mapError', {
         filename: filePath,
         sourceCode: {
-          text: 'const failure = Effect.fail(new TaggedError());',
+          text: 'const recovered = program.pipe(Effect.mapError(toError));',
         },
       });
 
@@ -55,9 +58,9 @@ describe('Effect rule source reading', () => {
   });
 
   it('uses sourceCode.getText when text is unavailable', () => {
-    const reports = runRuleWithContext('effect-no-string-errors', {
+    const reports = runRuleWithContext('effect-no-catchAll-with-mapError', {
       sourceCode: {
-        getText: () => 'const failure = Effect.fail("bad");',
+        getText: () => 'const recovered = program.pipe(Effect.catchAll(() => Effect.fail(error)));',
       },
     });
 
@@ -65,9 +68,9 @@ describe('Effect rule source reading', () => {
   });
 
   it('uses sourceCode for helper-backed Effect rules', () => {
-    const reports = runRuleWithContext('effect-no-sync-for-promise', {
+    const reports = runRuleWithContext('effect-no-runfork-without-observer', {
       sourceCode: {
-        text: 'const program = Effect.sync(() => fetch("/users"));',
+        text: 'Effect.runFork(program);',
       },
     });
 
@@ -113,7 +116,7 @@ describe('Effect rule source reading', () => {
   });
 
   it('does not report when no source is available', () => {
-    const reports = runRuleWithContext('effect-no-string-errors', {});
+    const reports = runRuleWithContext('effect-no-catchAll-with-mapError', {});
 
     expect(reports).toHaveLength(0);
   });

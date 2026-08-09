@@ -386,7 +386,7 @@ describe('effect-schema-no-redundant-tag-identifier', (): void => {
     const rule = registeredRule();
 
     expect(rule.meta?.type).toBe('problem');
-    expect(theThracianOxlint().rules).toHaveProperty(`thethracian/${RULE_NAME}`, 'error');
+    expect(theThracianOxlint().rules).not.toHaveProperty(`thethracian/${RULE_NAME}`);
   });
 
   it.each([

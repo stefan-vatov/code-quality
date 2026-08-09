@@ -11,7 +11,6 @@ const codemodFiles = [
   'ts/src/codemods/no-ternary-branch-initializers.ts',
   'ts/src/codemods/no-ternary.ts',
   'ts/src/codemods/no-ternary-variable-initializers.ts',
-  'ts/src/codemods/rename-acronyms.ts',
   'ts/src/codemods/sort-imports.ts',
 ] as const;
 

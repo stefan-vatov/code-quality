@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import {
+  runConfiguredRules,
+  runRule,
+  strictEffectTestPaths,
+  withAllEffectRules,
+} from './effect-rule-test-utils';
 
 function configuredEffectRuleNames(source: string, filename = 'src/domain/user.ts'): string[] {
-  return runConfiguredRules(theThracianOxlint({ effect: { strict: true } }), source, filename)
+  return runConfiguredRules(
+    withAllEffectRules(
+      theThracianOxlint({
+        effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+      }),
+    ),
+    source,
+    filename,
+  )
     .map((report) => report.ruleName)
     .filter((ruleName): ruleName is string => Boolean(ruleName))
     .sort();
@@ -35,8 +49,5 @@ describe('Effect cycle 21 regression coverage', () => {
       'effect-require-span-external',
       'effect-require-timeout-on-external-effects',
     ]);
-    expect(
-      configuredEffectRuleNames('Effect.runPromise(program);', 'src/user.test.ts'),
-    ).toStrictEqual(['effect-test-no-runpromise']);
   });
 });

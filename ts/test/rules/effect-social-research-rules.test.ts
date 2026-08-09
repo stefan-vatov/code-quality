@@ -1,28 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import { runConfiguredRules, runRule, strictEffectTestPaths } from './effect-rule-test-utils';
 
-describe('Effect social research rule coverage', () => {
-  it('enables new source-detectable default rules by default', () => {
+describe('Effect safety and strict rule coverage', () => {
+  it('keeps strict architecture and style rules out of the default safety preset', () => {
     const config = theThracianOxlint();
-    const ruleNames = [
-      'effect-no-try-catch-in-effect-gen',
-      'effect-no-new-promise',
-      'effect-no-global-timers',
-      'effect-no-native-error-classes',
-      'effect-no-unsafe-effect-type-assertion',
-      'effect-require-service-self-match',
-      'effect-no-effect-fn-iife',
-    ];
-
-    for (const ruleName of ruleNames) {
-      expect(config.rules).toHaveProperty(`thethracian/${ruleName}`, 'error');
-    }
-  });
-
-  it('keeps new source-detectable strict rules opt-in', () => {
-    const defaultConfig = theThracianOxlint();
-    const strictConfig = theThracianOxlint({ effect: { strict: true } });
     const ruleNames = [
       'effect-no-crypto-randomUUID',
       'effect-require-schema-is-over-instanceof',
@@ -39,100 +22,81 @@ describe('Effect social research rule coverage', () => {
     ];
 
     for (const ruleName of ruleNames) {
-      expect(defaultConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
-      expect(strictConfig.rules).toHaveProperty(`thethracian/${ruleName}`, 'error');
+      expect(config.rules).not.toHaveProperty(`thethracian/${ruleName}`);
     }
   });
 
-  it('reports imperative and platform escape hatches in Effect modules', () => {
-    expect(
-      runRule(
-        'effect-no-try-catch-in-effect-gen',
-        'const program = Effect.gen(function* () { try { yield* load; } catch (error) { return yield* Effect.fail(error); } });',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-try-catch-in-effect-gen',
-        'const program = Effect.gen(function* () { return yield* load.pipe(Effect.catchTag("Missing", recover)); });',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-new-promise',
-        'import { Effect } from "effect"; const task = new Promise((resolve) => resolve(1));',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule('effect-no-new-promise', 'const task = Effect.promise(() => load());'),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-global-timers',
-        'import { Effect } from "effect"; setTimeout(() => Effect.runFork(task), 1000);',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule('effect-no-global-timers', 'const task = Effect.sleep(Duration.seconds(1));'),
-    ).toHaveLength(0);
+  it('keeps selected strict rules error-only when explicitly enabled', () => {
+    const defaultConfig = theThracianOxlint();
+    const strictConfig = theThracianOxlint({
+      effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+    });
+
+    for (const ruleName of effectStrictRuleNames) {
+      expect(defaultConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
+      const setting = strictConfig.rules?.[`thethracian/${ruleName}`];
+      expect(Array.isArray(setting) ? setting[0] : setting).toBe('error');
+    }
   });
 
-  it('reports unsafe Effect error and assertion patterns', () => {
+  it('reports retained Effect safety hazards without broad JavaScript bans', () => {
     expect(
       runRule(
-        'effect-no-native-error-classes',
-        'import { Effect } from "effect"; class UserError extends Error {}',
+        'effect-require-typed-error-in-trypromise',
+        'const task = Effect.tryPromise({ try: () => fetch("/users") });',
+      ),
+    ).toHaveLength(1);
+    expect(runRule('effect-no-unbounded-queue', 'const queue = Queue.unbounded();')).toHaveLength(
+      1,
+    );
+    expect(
+      runRule(
+        'effect-no-silent-error-swallowing',
+        'const ignored = Effect.ignore(Effect.succeed(undefined));',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('reports schema boundary hazards through retained specialized analyzers', () => {
+    expect(
+      runRule(
+        'effect-schema-require-parse-error-handling',
+        'const user = Schema.decodeUnknown(User)(payload).pipe(Effect.orDie);',
       ),
     ).toHaveLength(1);
     expect(
       runRule(
-        'effect-no-native-error-classes',
-        'class UserError extends Schema.TaggedErrorClass<UserError>("UserError")("UserError", {}) {}',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-unsafe-effect-type-assertion',
-        'const narrowed = program as Effect.Effect<User, never, never>;',
+        'effect-schema-use-decodeUnknown-for-external-data',
+        'const user = Schema.decode(User)(response.json());',
       ),
     ).toHaveLength(1);
     expect(
       runRule(
-        'effect-no-unsafe-effect-type-assertion',
-        'const program: Effect.Effect<User, UserError, UserRepo> = loadUser;',
+        'effect-schema-use-decodeUnknown-for-external-data',
+        'const user = Schema.decodeUnknown(User)(payload);',
       ),
     ).toHaveLength(0);
   });
 
-  it('reports service self mismatch and Effect.fn IIFEs', () => {
+  it('recognizes service self matching in the default compatibility rules', () => {
     expect(
       runRule(
         'effect-require-service-self-match',
-        'class UserRepo extends Context.Tag("UserRepo")<OrderRepo, Service>() {}',
+        'class UserRepo extends Effect.Service<OrderRepo>()("UserRepo", {}) {}',
       ),
     ).toHaveLength(1);
     expect(
       runRule(
         'effect-require-service-self-match',
-        'class UserRepo extends Context.Tag("UserRepo")<UserRepo, Service>() {}',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-effect-fn-iife',
-        'const program = Effect.fn("load")(function* () { return yield* load; })();',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-effect-fn-iife',
-        'export const load = Effect.fn("load")(function* () { return yield* repo.load; });',
+        'class UserRepo extends Effect.Service<UserRepo>()("UserRepo", {}) {}',
       ),
     ).toHaveLength(0);
   });
 
   it('reports strict Effect-native platform and Schema style rules only in strict config', () => {
-    const strictConfig = theThracianOxlint({ effect: { strict: true } });
+    const strictConfig = theThracianOxlint({
+      effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+    });
 
     expect(
       runConfiguredRules(strictConfig, 'const id = crypto.randomUUID();').map(

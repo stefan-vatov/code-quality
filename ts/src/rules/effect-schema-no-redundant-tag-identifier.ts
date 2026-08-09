@@ -11,18 +11,6 @@ import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 import { readCachedSource } from './source-cache';
 import { strictPathOptionsSchema } from './effect-path-options';
 
-export {
-  default as preferYieldableErrorOverFailRule,
-  preferAllDiscardRule,
-  preferCollectionDiscardOverAsVoidRule,
-  preferForEachDiscardRule,
-  preferLayerSyncRule,
-  preferOptionGetOrElseRule,
-  preferOptionNullishGettersRule,
-  preferOptionOrElseSomeRule,
-  preferRefGetAndUpdateRule,
-} from './effect-prefer-yieldable-error-over-fail';
-
 const FACTORY_NAMES = ['TaggedClass', 'TaggedError', 'TaggedRequest', 'TaggedErrorClass'] as const;
 const TOKENS = ['effect', 'Schema', 'Tagged', 'class'] as const;
 const MAXIMUM_OUTER_ARGUMENTS = 3;

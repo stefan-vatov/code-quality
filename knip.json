@@ -27,14 +27,7 @@
         "oxlint-tsgolint"
       ],
       "ignore": ["test/rules/fixtures/**/*.ts"],
-      "entry": [
-        "src/index.ts",
-        "src/rules/plugin.ts",
-        "bench/run-all.ts",
-        "bench/rfd-compare.ts",
-        "bench/rfd-perf.ts",
-        "test/**/*.test.ts"
-      ],
+      "entry": ["src/index.ts", "src/rules/plugin.ts", "test/**/*.test.ts"],
       "project": ["src/**/*.ts", "bench/**/*.ts", "test/**/*.ts"]
     }
   }

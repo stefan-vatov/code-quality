@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/rules/effect-rule-core';
 import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
 import { parseSync } from 'oxc-parser';
-import preferMapOverFlatMapSucceedRule from '../../src/rules/effect-prefer-map-over-flatmap-succeed';
 import { runRule } from './effect-rule-test-utils';
 
 const domainFile = 'src/domain/native-provenance.ts';
@@ -118,59 +117,9 @@ describe('native SourceCode capability boundaries', (): void => {
 
     expect(nativeSourceCodeFor(collectingContext(sourceCode, []))).toBeUndefined();
   });
-
-  it('falls back to lexical AST analysis when native scopes are unavailable', (): void => {
-    const source = `
-      import { Effect } from "effect";
-      const invalid = Effect.flatMap(task, (value) => Effect.succeed(value));
-    `;
-    const reports: object[] = [];
-    const context = collectingContext(
-      {
-        isGlobalReference: (): boolean => false,
-        scopeManager: {},
-        text: source,
-      },
-      reports,
-    );
-    const visitors = preferMapOverFlatMapSucceedRule.create(context);
-
-    visitors.Program(parseProgram(source));
-
-    expect(reports).toHaveLength(1);
-  });
 });
 
 describe('native reference-index demand and sharing', (): void => {
-  it('does not read scope references for callback-free map files', (): void => {
-    const source = `
-      import { Effect } from "effect";
-      const task = Effect.succeed(1);
-    `;
-    let referenceReads = 0;
-    const scope = Object.defineProperty({}, 'references', {
-      get(): readonly NativeReference[] {
-        referenceReads += 1;
-        return [];
-      },
-    });
-    const visitors = preferMapOverFlatMapSucceedRule.create(
-      collectingContext(
-        {
-          isGlobalReference: (): boolean => false,
-          scopeManager: { scopes: [scope] },
-          text: source,
-        },
-        [],
-      ),
-    );
-
-    expect(visitors.CallExpression).toBeUndefined();
-    visitors.Program(parseProgram(source));
-
-    expect(referenceReads).toBe(0);
-  });
-
   it('indexes one SourceCode reference collection once across native matchers', (): void => {
     const importLocal = { name: 'ok', type: 'Identifier' };
     const importedName = { name: 'succeed', type: 'Identifier' };

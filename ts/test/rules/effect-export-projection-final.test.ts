@@ -1,34 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import {
-  exportedCallableDeclarationSegments,
-  exportedDeclarationTexts,
-} from '../../src/rules/effect-exported-declarations';
-import {
-  hasExportedRunPromiseAPI,
-  hasPromiseReturningPublicAPI,
-} from '../../src/rules/effect-strict-internals';
+import { exportedDeclarationTexts } from '../../src/rules/effect-exported-declarations';
+import { hasPromiseReturningPublicAPI } from '../../src/rules/effect-strict-internals';
 import { runRule } from './effect-rule-test-utils';
 
 const sourceLines = (...lines: string[]): string => lines.join('\n');
 
-const expectPublicPromiseDiagnostics = (
-  source: string,
-  expectedRunPromiseDiagnostics: number,
-): void => {
+const expectPublicPromiseDiagnostics = (source: string): void => {
   expect(hasPromiseReturningPublicAPI(source)).toBe(true);
-  expect(hasExportedRunPromiseAPI(source)).toBe(expectedRunPromiseDiagnostics > 0);
   expect(runRule('effect-no-promise-returning-public-api', source)).toHaveLength(1);
-  expect(runRule('effect-no-runpromise-in-exported-api', source)).toHaveLength(
-    expectedRunPromiseDiagnostics,
-  );
 };
 
 const expectNoPublicEffectDiagnostics = (source: string): void => {
   expect(hasPromiseReturningPublicAPI(source)).toBe(false);
-  expect(hasExportedRunPromiseAPI(source)).toBe(false);
   expect(runRule('effect-no-promise-returning-public-api', source)).toHaveLength(0);
-  expect(runRule('effect-no-runpromise-in-exported-api', source)).toHaveLength(0);
-  expect(runRule('effect-prefer-effect-fn-for-exported-effects', source)).toHaveLength(0);
 };
 
 describe('Effect default-export binding projection', (): void => {
@@ -37,8 +21,7 @@ describe('Effect default-export binding projection', (): void => {
     const source = sourceLines(declaration, 'export default load;');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([' Effect.runPromise(program);']);
-    expectPublicPromiseDiagnostics(source, 1);
+    expectPublicPromiseDiagnostics(source);
   });
 
   it('keeps a harmless default-exported identifier non-callable', (): void => {
@@ -50,17 +33,14 @@ describe('Effect default-export binding projection', (): void => {
     );
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
     expectNoPublicEffectDiagnostics(source);
   });
 
-  it('preserves the Effect.fn diagnostic for a default-exported Effect function', (): void => {
+  it('projects a default-exported Effect function body', (): void => {
     const declaration = 'const load = () => Effect.succeed(program);';
     const source = sourceLines(declaration, 'export default load;');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([' Effect.succeed(program);']);
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', source)).toHaveLength(1);
   });
 });
 
@@ -70,8 +50,7 @@ describe('Effect export-list variable binding projection', (): void => {
     const source = sourceLines(declaration, 'export { load };');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([' Effect.runPromise(program);']);
-    expectPublicPromiseDiagnostics(source, 1);
+    expectPublicPromiseDiagnostics(source);
   });
 
   it('discovers every requested later declarator without duplicating its statement', (): void => {
@@ -80,7 +59,7 @@ describe('Effect export-list variable binding projection', (): void => {
     const source = sourceLines(declaration, 'export { load, save };');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expectPublicPromiseDiagnostics(source, 1);
+    expectPublicPromiseDiagnostics(source);
   });
 
   it('resolves an object-destructured export binding', (): void => {
@@ -88,7 +67,6 @@ describe('Effect export-list variable binding projection', (): void => {
     const source = sourceLines(declaration, 'export { load };');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
     expectNoPublicEffectDiagnostics(source);
   });
 
@@ -97,7 +75,6 @@ describe('Effect export-list variable binding projection', (): void => {
     const source = sourceLines(declaration, 'export { execute as load };');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
   });
 
   it('resolves an array-destructured export binding', (): void => {
@@ -105,7 +82,6 @@ describe('Effect export-list variable binding projection', (): void => {
     const source = sourceLines(declaration, 'export { load };');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
     expectNoPublicEffectDiagnostics(source);
   });
 });
@@ -119,7 +95,6 @@ describe('Effect semicolonless export projection', (): void => {
     const source = sourceLines(declaration, followingStatement);
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
     expectNoPublicEffectDiagnostics(source);
   });
 
@@ -128,7 +103,6 @@ describe('Effect semicolonless export projection', (): void => {
     const source = sourceLines(declaration, '@Effect.runPromise(program)', 'class Internal {}');
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
     expectNoPublicEffectDiagnostics(source);
   });
 });
@@ -138,24 +112,20 @@ describe('Effect ambient and overload projection', (): void => {
     const declaration = 'export declare function load(): Promise<void>;';
 
     expect(exportedDeclarationTexts(declaration)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(declaration)).toEqual([]);
-    expectPublicPromiseDiagnostics(declaration, 0);
+    expectPublicPromiseDiagnostics(declaration);
   });
 
   it('discovers a direct exported ambient const signature', (): void => {
     const declaration = 'export declare const load: () => Promise<void>;';
 
     expect(exportedDeclarationTexts(declaration)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(declaration)).toEqual([]);
-    expectPublicPromiseDiagnostics(declaration, 0);
+    expectPublicPromiseDiagnostics(declaration);
   });
 
-  it('keeps an ambient Effect declaration out of the Effect.fn implementation rule', (): void => {
+  it('keeps an ambient Effect declaration out of callable projection', (): void => {
     const declaration = 'export declare const load: () => Effect.Effect<void>;';
 
     expect(exportedDeclarationTexts(declaration)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(declaration)).toEqual([]);
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', declaration)).toHaveLength(0);
   });
 
   it('projects overload signatures and their implementation without following internals', (): void => {
@@ -180,10 +150,7 @@ describe('Effect ambient and overload projection', (): void => {
       secondSignature,
       implementation,
     ]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([
-      sourceLines('{', '  return Effect.runPromise(program);', '}'),
-    ]);
-    expectPublicPromiseDiagnostics(source, 1);
+    expectPublicPromiseDiagnostics(source);
   });
 
   it('does not absorb a live internal body after an ambient signature', (): void => {
@@ -196,7 +163,6 @@ describe('Effect ambient and overload projection', (): void => {
     );
 
     expect(exportedDeclarationTexts(source)).toEqual([declaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
-    expectPublicPromiseDiagnostics(source, 0);
+    expectPublicPromiseDiagnostics(source);
   });
 });

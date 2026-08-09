@@ -61,11 +61,6 @@ const cacheIntegrations: readonly CacheIntegration[] = [
     path: sourcePath('effect-source-scan.ts'),
   },
   {
-    cacheName: 'sourceScopeCache',
-    label: 'promise-scope',
-    path: sourcePath('effect-sync-promise-scope-index.ts'),
-  },
-  {
     cacheName: 'effectAliasCache',
     label: 'Effect alias',
     path: sourcePath('effect-rule-aliases.ts'),
@@ -106,16 +101,6 @@ const cacheIntegrations: readonly CacheIntegration[] = [
     path: sourcePath('effect-exported-declarations.ts'),
   },
   {
-    cacheName: 'exportedDeclarationSegmentCache',
-    label: 'exported declaration segment',
-    path: sourcePath('effect-exported-declarations.ts'),
-  },
-  {
-    cacheName: 'exportedCallableDeclarationSegmentCache',
-    label: 'exported callable declaration segment',
-    path: sourcePath('effect-exported-declarations.ts'),
-  },
-  {
     cacheName: 'exportedDeclarationProjectionCache',
     label: 'exported declaration projection',
     path: sourcePath('effect-exported-declarations.ts'),
@@ -139,11 +124,6 @@ const cacheIntegrations: readonly CacheIntegration[] = [
     cacheName: 'globCache',
     label: 'glob',
     path: sourcePath('effect-path-options.ts'),
-  },
-  {
-    cacheName: 'violationCache',
-    label: 'acronym violation',
-    path: sourcePath('acronym-case.ts'),
   },
 ];
 

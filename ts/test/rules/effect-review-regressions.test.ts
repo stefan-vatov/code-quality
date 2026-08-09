@@ -2,7 +2,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import plugin from '../../src/rules/plugin';
 import { runAllRules, runRule, runRuleAtPath } from './effect-rule-test-utils';
 import type { Report } from './effect-rule-test-utils';
 
@@ -15,14 +14,11 @@ describe('Effect review regression coverage', () => {
     mkdirSync(dirname(filePath), { recursive: true });
 
     try {
-      writeFileSync(filePath, 'import { Effect } from "effect";\nEffect.fail(new Error("bad"));\n');
-      runRuleAtPath('effect-no-untagged-errors', filePath, reports);
+      writeFileSync(filePath, 'import { Effect } from "@effect/io";\n');
+      runRuleAtPath('effect-no-obsolete-imports', filePath, reports);
 
-      writeFileSync(
-        filePath,
-        'import { Effect } from "effect";\nEffect.fail(new TaggedError());\n',
-      );
-      runRuleAtPath('effect-no-untagged-errors', filePath, reports);
+      writeFileSync(filePath, 'import { Effect } from "effect";\n');
+      runRuleAtPath('effect-no-obsolete-imports', filePath, reports);
     } finally {
       rmSync(root, { force: true, recursive: true });
     }
@@ -64,49 +60,19 @@ describe('Effect review regression coverage', () => {
     ).toHaveLength(1);
   });
 
-  it('does not make catchTag both required and forbidden', () => {
-    const singleSpecificRecovery = `
-      import { Effect } from "effect";
-
-      const program = loadUser.pipe(
-        Effect.catchTag("NotFound", () => Effect.succeed(null))
-      );
-    `;
-
-    const repeatedSpecificRecovery = `
-      import { Effect } from "effect";
-
-      const program = loadUser.pipe(
-        Effect.catchTag("NotFound", () => Effect.succeed(null)),
-        Effect.catchTag("PermissionDenied", () => Effect.succeed(null))
-      );
-    `;
-
-    expect(runRule('effect-prefer-catchTag-over-catchAll', singleSpecificRecovery)).toHaveLength(0);
-    expect(plugin.rules).not.toHaveProperty('effect-require-exhaustive-catchTags');
-    expect(
-      runRule('effect-prefer-catchTags-for-multiple-tags', singleSpecificRecovery),
-    ).toHaveLength(0);
-    expect(
-      runRule('effect-prefer-catchTags-for-multiple-tags', repeatedSpecificRecovery)[0]?.message,
-    ).toContain('Effect.catchTags');
-  });
-
   it('does not label current Effect APIs as fake or deprecated', () => {
     const valid = `
-      import { Config, Context, Effect } from "effect";
+      import { Context, Effect } from "effect";
 
       const fromMaybe = Effect.fromNullable("value");
-      const apiKey = Config.redacted("API_TOKEN");
       class UserRepo extends Context.Tag("UserRepo")<UserRepo, {
         readonly load: (id: string) => Effect.Effect<User>
       }>() {}
     `;
 
     const invalid = `
-      import { Config, Effect } from "effect";
+      import { Effect } from "effect";
 
-      const legacySecret = Config.secret("API_TOKEN");
       const fromPromise = Effect.fromPromise(() => fetch("/users"));
       const fromEither = Effect.fromEither(eitherValue);
       const LegacyRepo = Context.Tag<UserRepo>("UserRepo");
@@ -115,67 +81,7 @@ describe('Effect review regression coverage', () => {
     expect(runRule('effect-no-known-fake-api', valid)).toHaveLength(0);
     expect(runRule('effect-no-deprecated-context-tag-function', valid)).toHaveLength(0);
     expect(runRule('effect-no-known-fake-api', invalid)).toHaveLength(1);
-    expect(plugin.rules).not.toHaveProperty('effect-no-deprecated-config-secret');
-    expect(runRule('effect-prefer-config-redacted', invalid)[0]?.message).toContain(
-      'Config.redacted',
-    );
-    expect(runRule('effect-prefer-config-redacted', invalid)[0]?.message).not.toContain(
-      'deprecated',
-    );
     expect(runRule('effect-no-deprecated-context-tag-function', invalid)).toHaveLength(1);
-  });
-
-  it('only reports runtime execution when it is actually inside Effect composition', () => {
-    const boundaryRunInSameFile = `
-      import { Effect } from "effect";
-
-      const program = Effect.gen(function* () {
-        return yield* loadUser;
-      });
-
-      export const main = () => Effect.runPromise(program);
-    `;
-
-    const nestedRun = `
-      import { Effect } from "effect";
-
-      const program = Effect.gen(function* () {
-        return yield* Effect.promise(() => Effect.runPromise(loadUser));
-      });
-    `;
-
-    const nestedFnRun = `
-      import { Effect } from "effect";
-
-      export const load = Effect.fn("load")(function* () {
-        return yield* Effect.promise(() => Effect.runPromise(loadUser));
-      });
-    `;
-
-    expect(runRule('effect-no-run-inside-effect', boundaryRunInSameFile)).toHaveLength(0);
-    expect(runRule('effect-no-run-inside-effect', nestedRun)).toHaveLength(1);
-    expect(runRule('effect-no-run-inside-effect', nestedFnRun)).toHaveLength(1);
-  });
-
-  it('does not require Effect.fn for exported helpers that call non-effect Effect APIs', () => {
-    const predicateHelper = `
-      import { Effect } from "effect";
-
-      export const isEffectValue = (value: unknown) => Effect.isEffect(value);
-    `;
-
-    const serviceAccessor = `
-      import { Effect } from "effect";
-
-      export const loadUser = Effect.serviceFunction(UserRepo, (_) => _.load);
-    `;
-
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', predicateHelper)).toHaveLength(
-      0,
-    );
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', serviceAccessor)).toHaveLength(
-      0,
-    );
   });
 
   it('does not flag the valid service and scoped-resource patterns strict rules require', () => {
@@ -230,68 +136,16 @@ describe('Effect review regression coverage', () => {
     expect(runRule('effect-testClock-requires-fork', invalid, 'src/user.test.ts')).toHaveLength(1);
   });
 
-  it('treats Effect.Do as a generator-style preference, not a deprecated API', () => {
-    const doNotation = `
-      import { Effect } from "effect";
-
-      const program = Effect.Do.pipe(
-        Effect.bind("user", () => loadUser)
-      );
-    `;
-
-    expect(plugin.rules).not.toHaveProperty('effect-no-deprecated-do-notation');
-    expect(runRule('effect-prefer-gen-over-do', doNotation)[0]?.message).toContain(
-      'Prefer Effect.gen over Effect.Do',
-    );
-  });
-
-  it('allows documented synchronous Schema decoding outside Effect workflows', () => {
-    const pureSchemaUtility = `
-      import * as Schema from "effect/Schema";
-
-      export const parseUser = Schema.decodeUnknownSync(User);
-    `;
-
-    const effectWorkflow = `
-      import { Effect, Schema } from "effect";
-
-      const program = Effect.gen(function* () {
-        return Schema.decodeUnknownSync(User)(payload);
-      });
-    `;
-
-    const mixedModule = `
-      import { Effect, Schema } from "effect";
-
-      export const parseUser = Schema.decodeUnknownSync(User);
-      export const program = Effect.gen(function* () {
-        return yield* loadUser;
-      });
-    `;
-
-    expect(runRule('effect-schema-prefer-decodeUnknown-effect', pureSchemaUtility)).toHaveLength(0);
-    expect(runRule('effect-schema-prefer-decodeUnknown-effect', effectWorkflow)).toHaveLength(0);
-    expect(
-      runRule('effect-schema-no-unsafe-sync-decode-in-effect-code', pureSchemaUtility),
-    ).toHaveLength(0);
-    expect(
-      runRule('effect-schema-no-unsafe-sync-decode-in-effect-code', effectWorkflow),
-    ).toHaveLength(1);
-    expect(runRule('effect-schema-no-unsafe-sync-decode-in-effect-code', mixedModule)).toHaveLength(
-      0,
-    );
-  });
-
   it('accepts precise Effect rule suppressions with a reason and tracking ticket', () => {
     const valid = `
-      // oxlint-disable-next-line thethracian/effect-no-throw -- reason: generated compatibility shim ABC-123
+      // oxlint-disable-next-line thethracian/effect-no-floating-effect -- reason: generated compatibility shim ABC-123
       risky();
-      // eslint-disable-next-line thethracian/effect-no-throw -- because legacy interop #456
+      // eslint-disable-next-line thethracian/effect-no-floating-effect -- because legacy interop #456
       riskyAgain();
     `;
 
     const invalid = `
-      // oxlint-disable-next-line thethracian/effect-no-throw
+      // oxlint-disable-next-line thethracian/effect-no-floating-effect
       risky();
     `;
 
@@ -382,17 +236,6 @@ describe('Effect review regression coverage', () => {
     `;
 
     expect(runRule('effect-no-floating-effect', boundaryCalls, 'src/main.ts')).toHaveLength(0);
-  });
-
-  it('reports each string failure occurrence instead of collapsing the file to one diagnostic', () => {
-    const invalid = `
-      import { Effect } from "effect";
-
-      Effect.fail("first");
-      Effect.fail("second");
-    `;
-
-    expect(runRule('effect-no-string-errors', invalid)).toHaveLength(2);
   });
 
   it('emits one canonical diagnostic for deprecated schema package imports', () => {

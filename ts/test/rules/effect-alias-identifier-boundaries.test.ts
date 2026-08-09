@@ -7,7 +7,6 @@ import {
   hasRuntimeCall,
 } from '../../src/rules/effect-rule-aliases';
 import { describe, expect, it } from 'vitest';
-import { hasRuntimeInEffect } from '../../src/rules/effect-default-workflow-helpers';
 
 const sorted = (values: readonly string[]): string[] => [...values].sort();
 
@@ -188,50 +187,5 @@ describe('Effect runtime aliases', (): void => {
     expect(hasRuntimeCall('const Effect = LocalEffect; Effect.runPromise(task);')).toBe(false);
     expect(hasRuntimeCall('const $Fx = LocalEffect; $Fx.runPromise(task);')).toBe(false);
     expect(hasRuntimeCall('const $run = localRun; $run(task);')).toBe(false);
-  });
-});
-
-describe('runtime aliases inside Effect workflows', (): void => {
-  it.each([
-    [
-      'prefix-dollar root alias',
-      'import { Effect as $Fx } from "effect";\n$Fx.gen(function* () { return yield* $Fx.runPromise(task); });',
-    ],
-    [
-      'suffix-dollar root alias',
-      'import { Effect as Fx$ } from "effect";\nFx$.gen(function* () { return yield* Fx$.runSync(task); });',
-    ],
-    [
-      'prefix-dollar namespace alias',
-      'import * as $Fx from "effect/Effect";\n$Fx.gen(function* () { return yield* $Fx.runFork(task); });',
-    ],
-    [
-      'prefix-dollar named runtime alias',
-      'import { Effect } from "effect";\nimport { runPromise as $run } from "effect/Effect";\nEffect.gen(function* () { return yield* $run(task); });',
-    ],
-    [
-      'suffix-dollar named runtime alias',
-      'import { Effect } from "effect";\nimport { runSync as run$ } from "effect/Effect";\nEffect.gen(function* () { return yield* run$(task); });',
-    ],
-  ] as const)('detects a %s', (_caseName, source): void => {
-    expect(hasRuntimeInEffect(source)).toBe(true);
-  });
-
-  it('rejects shadowed and near-match workflows', (): void => {
-    expect(
-      hasRuntimeInEffect(
-        'const Effect = LocalEffect; Effect.gen(function* () { return yield* Effect.runPromise(task); });',
-      ),
-    ).toBe(false);
-    expect(
-      hasRuntimeInEffect(
-        'import { Effect as $Fx } from "effect";\n$Fx.gen(function* () { return yield* prefix$Fx.runPromise(task); });',
-      ),
-    ).toBe(false);
-    expect(
-      hasRuntimeInEffect(
-        'import { Effect as Fx$ } from "effect";\nFx$.gen(function* () { return yield* prefixFx$.runPromise(task); });',
-      ),
-    ).toBe(false);
   });
 });

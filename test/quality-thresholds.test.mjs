@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
@@ -14,7 +14,7 @@ const sourceFiles = (directory) =>
     .map((entry) => `${entry.parentPath}/${entry.name}`);
 
 describe('quality threshold configuration', () => {
-  it('keeps TypeScript source imports free of emitted JavaScript extensions', () => {
+  it('keeps source imports extensionless for this package build pipeline', () => {
     const offenders = [...sourceFiles('ts/src'), ...sourceFiles('ts/test')].flatMap((path) => {
       const source = ts.createSourceFile(path, readFileSync(path, 'utf-8'), ts.ScriptTarget.Latest);
       const badSpecifiers = [];
@@ -69,7 +69,7 @@ describe('quality threshold configuration', () => {
     expect(oxlintConfig).not.toContain('./ts/dist');
   });
 
-  it('uses the published package CLI and Oxlint directly for staged TypeScript fixes', () => {
+  it('keeps semantic codemods explicit and staged TypeScript fixes local', () => {
     const packageJSON = rootJSON('package.json');
     const typeScriptCommands = packageJSON['lint-staged']['*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'];
 
@@ -78,15 +78,30 @@ describe('quality threshold configuration', () => {
     expect(packageJSON.scripts['lint:type-aware']).toBe(
       'oxlint -c oxlint.config.mjs ts --type-aware --type-check',
     );
-    expect(typeScriptCommands).toStrictEqual([
-      'thx-codemod-fix',
-      'oxlint -c oxlint.config.mjs --type-aware --type-check --fix --no-error-on-unmatched-pattern',
-      'thx-codemod-fix',
-      'oxfmt',
-    ]);
+    expect(packageJSON.scripts['lint:staged:typescript']).toBe(
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs --type-aware --type-check --fix --no-error-on-unmatched-pattern',
+    );
+    expect(typeScriptCommands).toStrictEqual(['pnpm run lint:staged:typescript --', 'oxfmt']);
   });
 
-  it('keeps workspace TypeScript config checks behind explicit local development scripts', () => {
+  it('locks the effective native Oxlint error set against category drift', () => {
+    const packageJSON = rootJSON('package.json');
+    const ciWorkflow = rootText('.github/workflows/ci.yml');
+    const policyGate = rootText('scripts/check-effective-oxlint-policy.mjs');
+
+    expect(packageJSON.scripts['lint:policy']).toBe(
+      'pnpm --dir ts build && node scripts/check-effective-oxlint-policy.mjs',
+    );
+    expect(ciWorkflow).toContain('run: pnpm run lint:policy');
+    expect(policyGate).toContain("'--print-config'");
+    expect(policyGate).toContain('sourceNativeEntries');
+    expect(policyGate).toContain('printedNativeEntries');
+    expect(policyGate).toContain('The resolved native rule set changed');
+    expect(policyGate).toContain('no warnings or off/allow rules');
+    expect(existsSync(new URL('../scripts/oxlint-active-rules.json', import.meta.url))).toBe(false);
+  });
+
+  it('self-hosts source-development and CI checks while retaining a published consumer config', () => {
     const packageJSON = rootJSON('package.json');
     const knipConfig = rootJSON('knip.json');
     const publishedConfig = rootText('oxlint.config.mjs');
@@ -100,35 +115,32 @@ describe('quality threshold configuration', () => {
       'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check',
     );
     expect(packageJSON.scripts['lint:local:fix']).toBe(
-      'pnpm run codemod:ts:local && pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --fix && pnpm run codemod:ts:local',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --fix',
     );
     expect(packageJSON.scripts['lint:local:type-aware:fix']).toBe(
-      'pnpm run codemod:ts:local && pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check --fix && pnpm run codemod:ts:local',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check --fix',
     );
     expect(localConfig).toContain("existsSync(new URL('./ts/dist/index.js', import.meta.url))");
     expect(localConfig).toContain("await import('./ts/dist/index.js')");
     expect(localConfig).toContain("await import('@thethracian/oxlint-config')");
+    expect(localConfig).toContain("'oxlint.workspace.config.mjs'");
     expect(publishedConfig).toContain("'oxlint.workspace.config.mjs'");
     expect(knipConfig.ignore).toContain('oxlint.workspace.config.mjs');
     expect(packageJSON.scripts.lint).toBe('oxlint -c oxlint.config.mjs ts');
-    expect(packageJSON.scripts['lint:ci']).not.toContain('local');
+    expect(packageJSON.scripts['lint:ci']).toBe(
+      'pnpm run lint:local:type-aware && pnpm run format:check',
+    );
   });
 
-  it('documents a clean consumer lint-staged setup for packaged TypeScript fixes', () => {
+  it('documents native lint fixes and an explicit semantic codemod workflow', () => {
     const readme = rootText('ts/README.md');
 
-    expect(readme).toContain(
-      '"lint:fix": "thx-codemod-fix src && oxlint src --fix && thx-codemod-fix src"',
-    );
-    expect(readme).toContain(
-      '"lint:fix:type-aware": "thx-codemod-fix src && oxlint src --type-aware --type-check --fix && thx-codemod-fix src"',
-    );
-    expect(readme).toContain('"lint-staged": {');
-    expect(readme).toContain('"*.{ts,tsx,mts,cts}": [');
-    expect(readme).toContain('"thx-codemod-fix"');
-    expect(readme).toContain(
-      '"oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern"',
-    );
+    expect(readme).toContain('"lint:fix": "oxlint src --fix"');
+    expect(readme).toContain('"lint:fix:type-aware": "oxlint src --type-aware --type-check --fix"');
+    expect(readme).toContain("The package's semantic codemod command is a");
+    expect(readme).toContain('different tool and is never part of `oxlint --fix`');
+    expect(readme).toContain('## Semantic codemods (explicit only)');
+    expect(readme).toContain('Do not add this call to `lint`, `lint:fix`, `lint-staged`');
   });
 
   it('keeps published TypeScript README focused on consumers, not repository internals', () => {
@@ -138,6 +150,7 @@ describe('quality threshold configuration', () => {
   });
 
   it('opens a CI-running PR after publishing the TypeScript package', () => {
+    const ciWorkflow = rootText('.github/workflows/ci.yml');
     const releaseWorkflow = rootText('.github/workflows/release.yml');
 
     expect(releaseWorkflow).toContain('verify-published-npm-consumption:');
@@ -152,6 +165,11 @@ describe('quality threshold configuration', () => {
     expect(releaseWorkflow).toContain('https://x-access-token:$GH_TOKEN@github.com');
     expect(releaseWorkflow).toContain('gh pr create');
     expect(releaseWorkflow).not.toContain('ci(ts): verify published oxlint config [skip ci]');
+    expect(ciWorkflow).toContain('Verify a newly published TypeScript config as a consumer');
+    expect(ciWorkflow).toContain(
+      "if: startsWith(github.head_ref, 'codex/verify-published-oxlint-config-')",
+    );
+    expect(ciWorkflow).toContain('run: pnpm run lint:type-aware');
   });
 
   it('runs native plugin compatibility against the exact minimum Oxlint peer', () => {
@@ -162,12 +180,14 @@ describe('quality threshold configuration', () => {
     expect(packageJSON.scripts['test:oxlint-min-peer']).toBe(
       'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs',
     );
-    expect(packageJSON.scripts['test:oxlint-min-peer']).not.toContain('oxlint@^1.63');
+    expect(packageJSON.devDependencies.oxlint).toBe('^1.66.0');
     expect(ciWorkflow).toContain('oxlint-min-peer:');
-    expect(ciWorkflow).toContain('name: Oxlint 1.63.0 minimum peer compatibility');
+    expect(ciWorkflow).toContain('name: Oxlint 1.66.0 minimum peer compatibility');
     expect(ciWorkflow).toContain('run: pnpm run test:oxlint-min-peer');
-    expect(verifier).toContain("'oxlint@1.63.0'");
-    expect(verifier).not.toContain("'oxlint@^1.63'");
+    expect(verifier).toContain('minimumPeerVersion');
+    expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
+    expect(verifier).toContain("await import('./full.config.mjs')");
+    expect(verifier).toContain('full minimum-peer config must expose 178 rules');
     expect(verifier).toContain("'--format'");
     expect(verifier).toContain("'json'");
     expect(verifier).toMatch(
@@ -184,24 +204,24 @@ describe('quality threshold configuration', () => {
     expect(verifier).toMatch(/assert\.equal\(\s*afterFix\s*,\s*beforeFix\s*\)/u);
 
     const compatibilityConfig = rootText('ts/test/oxlint-min-peer/oxlint.config.mjs');
+    const fullCompatibilityConfig = rootText('ts/test/oxlint-min-peer/full.config.mjs');
     const invalidFixture = rootText('ts/test/oxlint-min-peer/invalid.ts');
     const safeFixture = rootText('ts/test/oxlint-min-peer/safe.ts');
 
     for (const ruleName of [
-      'thethracian/no-commented-out-code',
-      'thethracian/effect-no-sync-for-promise',
+      'thethracian/effect-no-floating-effect',
+      'thethracian/effect-require-yield-star',
       'thethracian/effect-no-global-fetch',
-      'thethracian/effect-prefer-map-over-flatMap-succeed',
     ]) {
       expect(compatibilityConfig).toContain(`'${ruleName}': 'error'`);
     }
 
-    expect(invalidFixture).toContain('// const discarded = Effect.succeed(0);');
-    expect(invalidFixture).toContain('Effect.sync(() => Promise.resolve(1))');
+    expect(fullCompatibilityConfig).toContain('effect: true');
+    expect(fullCompatibilityConfig).toContain('typeAware: true');
+
+    expect(invalidFixture).toContain('void Effect.succeed(0);');
+    expect(invalidFixture).toContain('yield Effect.succeed(1);');
     expect(invalidFixture).toContain("try: () => fetch('/users')");
-    expect(invalidFixture).toContain(
-      'Effect.flatMap(promised, (value) => Effect.succeed(value + 1))',
-    );
     expect(safeFixture).toContain('Effect.succeed(1).pipe(Effect.map((value) => value + 1))');
   });
 
@@ -260,7 +280,7 @@ describe('quality threshold configuration', () => {
     expect(config.vitest.configFile).toBe('vitest.stryker.config.mts');
     expect(vitestConfig).toContain("'ts/test/rules/*performance.test.ts'");
     expect(vitestConfig).toContain("'ts/test/rules/effect-default-bucket-cases.test.ts'");
-    expect(vitestConfig).toContain("'ts/test/rules/require-function-doc.test.ts'");
-    expect(vitestConfig).toContain("'ts/test/rules/max-line-length.test.ts'");
+    expect(vitestConfig).not.toContain('require-function-doc');
+    expect(vitestConfig).not.toContain('max-line-length');
   });
 });

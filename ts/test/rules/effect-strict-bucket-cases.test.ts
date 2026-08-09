@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
 import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
-import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
+import {
+  runConfiguredRules,
+  runRule,
+  sorted,
+  strictEffectTestPaths,
+} from './effect-rule-test-utils';
 import type { RuleCase } from './effect-rule-test-utils';
 
 const strictCases: RuleCase[] = [
@@ -250,9 +255,9 @@ const strictCases: RuleCase[] = [
   },
   {
     name: 'effect-require-effect-suppression-reason-and-ticket',
-    invalid: '// oxlint-disable-next-line thethracian/effect-no-throw',
+    invalid: '// oxlint-disable-next-line thethracian/effect-no-floating-effect',
     valid:
-      '// oxlint-disable-next-line thethracian/effect-no-throw -- reason: generated shim ABC-123',
+      '// oxlint-disable-next-line thethracian/effect-no-floating-effect -- reason: generated shim ABC-123',
   },
   {
     name: 'effect-no-crypto-randomUUID',
@@ -333,7 +338,9 @@ describe('Effect strict rule behavior', () => {
   });
 
   it.each(strictCases)('keeps exported config behavior for strict rule $name', (testCase) => {
-    const config = theThracianOxlint({ effect: { strict: true } });
+    const config = theThracianOxlint({
+      effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+    });
     const invalidRuleNames = runConfiguredRules(config, testCase.invalid, testCase.filename).map(
       (report) => report.ruleName,
     );

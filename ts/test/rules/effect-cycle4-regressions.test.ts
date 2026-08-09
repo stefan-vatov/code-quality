@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { runAllRules, runConfiguredRules, runRule } from './effect-rule-test-utils';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import {
+  runAllRules,
+  runConfiguredRules,
+  runRule,
+  strictEffectTestPaths,
+} from './effect-rule-test-utils';
 
 function reportedEffectRules(source: string): string[] {
   return runAllRules(source)
@@ -25,14 +31,6 @@ describe('Effect cycle 4 regression coverage', () => {
 
     expect(runRule('effect-no-floating-effect', valid)).toHaveLength(0);
     expect(runRule('effect-no-floating-effect', invalid)).toHaveLength(1);
-  });
-
-  it('rejects untagged object literal failures while allowing tagged object errors', () => {
-    const invalid = 'Effect.fail({ message: "bad" });';
-    const valid = 'Effect.fail({ _tag: "UserNotFound", message: "bad" });';
-
-    expect(runRule('effect-no-untagged-errors', invalid)).toHaveLength(1);
-    expect(runRule('effect-no-untagged-errors', valid)).toHaveLength(0);
   });
 
   it('requires preserved causes per error mapping instead of per file', () => {
@@ -67,7 +65,9 @@ describe('Effect cycle 4 regression coverage', () => {
     const source = 'Effect.runPromise(program);';
     const defaultRules = runConfiguredRules(theThracianOxlint(), source, 'src/domain/user.ts');
     const strictRules = runConfiguredRules(
-      theThracianOxlint({ effect: { strict: true } }),
+      theThracianOxlint({
+        effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+      }),
       source,
       'src/domain/user.ts',
     );

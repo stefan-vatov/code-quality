@@ -2,26 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 11 regression coverage', () => {
-  it('keeps exported API rules bound to the exported declaration body', () => {
-    const nestedBlockReturn = `
-      export function load(flag: boolean) {
-        if (flag) {
-          void flag;
-        }
-        return Effect.gen(function* () {
-          return 1;
-        });
-      }
-    `;
-    const localRunPromise = `
-      export const healthCheck = () => "ok";
-      const runLocal = () => Effect.runPromise(program);
-    `;
-
-    expect(runRule('effect-no-function-returning-gen', nestedBlockReturn)).toHaveLength(1);
-    expect(runRule('effect-no-runpromise-in-exported-api', localRunPromise)).toHaveLength(0);
-  });
-
   it('balances Effect call bodies across parentheses inside strings', () => {
     const source = `
       const program = Effect.gen(function* () {

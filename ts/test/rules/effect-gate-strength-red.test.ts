@@ -109,7 +109,7 @@ describe('Effect gate strength RED contracts', (): void => {
 
   it('crosses every changed subsystem with all candidate positions and scales', (): void => {
     const matrix = declarationBody('candidateSubsystems');
-    const subsystems = ['comment', 'promise', 'recursion', 'export', 'native', 'map'] as const;
+    const subsystems = ['recursion', 'native'] as const;
 
     for (const subsystem of subsystems) {
       expect(matrix, `missing ${subsystem} candidate subsystem`).toMatch(
@@ -127,12 +127,11 @@ describe('Effect gate strength RED contracts', (): void => {
     );
   });
 
-  it('records real work-path hits separately for every benchmarked rule', (): void => {
+  it('records real work-path hits for each candidate-scaled subsystem', (): void => {
     for (const identifier of [
       'ruleBenchmarkHits',
       'referenceEntryHits',
       'candidateHits',
-      'fixReadHits',
       'assertRuleBenchmarkHits',
     ]) {
       expectIdentifier(identifier);
@@ -142,7 +141,6 @@ describe('Effect gate strength RED contracts', (): void => {
     );
     expect(codeOnly).toMatch(/referenceEntryHits\s*\+=\s*1/);
     expect(codeOnly).toMatch(/candidateHits\s*\+=\s*1/);
-    expect(codeOnly).toMatch(/fixReadHits\s*\+=\s*1/);
   });
 
   it('normalizes subsystem timing and enforces tight linear scaling', (): void => {

@@ -2,7 +2,8 @@
 
 <div align="center">
 
-An experimental, painfully strict, very opinionated, versioned lint packages for TypeScript, Rust, and Elixir and agentic coding.
+An experimental, painfully strict, versioned set of lint packages for TypeScript, Rust, and
+Elixir.
 
 [![MIT license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![TypeScript Oxlint](https://img.shields.io/badge/TypeScript-Oxlint-3178c6?logo=typescript&logoColor=white)
@@ -13,40 +14,28 @@ An experimental, painfully strict, very opinionated, versioned lint packages for
 
 </div>
 
-```console
-$ cargo thx-lint init --write
-Applied 5 operation(s):
-- manage rustfmt.toml
-- manage clippy.toml
-- patch Cargo.toml
-
-$ mix thx_lint.install --yes
-Installed The Thracian Elixir lint setup
-
-$ pnpm exec oxlint . --type-aware --type-check
-Found 0 warnings and 0 errors.
-```
-
-This repository is the source of truth for The Thracian code-quality policy. It packages the
-same strict linting stance for each ecosystem in the way that ecosystem expects to consume it:
-an importable Oxlint config for TypeScript, a Cargo subcommand for Rust, and a Credo plugin with
-a Mix installer for Elixir.
+This repository is the source of truth for The Thracian code-quality policy. It packages the same
+strict stance for each ecosystem in the way that ecosystem expects to consume it: an importable
+Oxlint config for TypeScript, a Cargo subcommand for Rust, and a Credo plugin with a Mix installer
+for Elixir.
 
 ## Why Use It
 
-- Native package delivery - npm for TypeScript, crates.io for Rust, and Hex for Elixir.
-- Strict defaults - violations fail instead of drifting into warning-only cleanup work.
-- Versioned installs - downstream projects can update deliberately and rerun installers safely.
-- Real tool integration - Oxlint, rustfmt, Clippy, Cargo lints, Credo, and Dialyxir-compatible config.
-- Monorepo maintenance - one policy repository with separate package READMEs and native pack targets.
+- Native package delivery: npm for TypeScript, crates.io for Rust, and Hex for Elixir.
+- Strict defaults: an active violation fails the lint run; there is no warning tier.
+- High signal: the TypeScript base preset is an explicit allowlist of approved upstream Oxlint
+  rules. Rules that the audit found noisy or behavior-changing are not selected.
+- Versioned installs: downstream projects can update deliberately and rerun installers safely.
+- Real tool integration: Oxlint, rustfmt, Clippy, Cargo lints, Credo, and Dialyzer-compatible
+  configuration.
 
 ## Packages
 
 | Package                                      | Registry                                                        | Consumer entrypoint                                    | Purpose                                                                                  |
 | -------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | TypeScript/Oxlint config with custom JS plugin rules.                                    |
+| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | Upstream Oxlint allowlist plus opt-in Effect safety and architecture checks.             |
 | [`cargo-thx-lint`](rust/README.md)           | [crates.io](https://crates.io/crates/cargo-thx-lint)            | `cargo thx-lint init --write`                          | Rust installer for `rustfmt.toml`, `clippy.toml`, Cargo lint tables, and a Dylint check. |
-| [`the_thracian_credo`](elixir/README.md)     | [Hex](https://hex.pm/packages/the_thracian_credo)               | `mix thx_lint.install --yes`                           | Credo plugin, custom checks, formatter setup, and Dialyxir helper config.                |
+| [`the_thracian_credo`](elixir/README.md)     | [Hex](https://hex.pm/packages/the_thracian_credo)               | `mix thx_lint.install --yes`                           | Credo plugin, custom checks, formatter setup, and Dialyzer helper configuration.         |
 
 ## Quick Start
 
@@ -55,24 +44,44 @@ Use the package for your ecosystem.
 ### TypeScript
 
 ```sh
-pnpm add -D @thethracian/oxlint-config oxlint@^1.63.0
+pnpm add -D @thethracian/oxlint-config oxlint@^1.66.0
 ```
 
-```ts
+```js
+// oxlint.config.mjs
 import theThracian from '@thethracian/oxlint-config';
 
 export default theThracian();
 ```
 
-For fix scripts, combine the package codemod CLI with native Oxlint fixes:
+For normal fixes, use Oxlint's own safe fixes:
 
 ```json
 {
   "scripts": {
-    "lint:fix": "thx-codemod-fix src && oxlint . --fix && thx-codemod-fix src"
+    "lint": "oxlint src",
+    "lint:fix": "oxlint src --fix",
+    "lint:type-aware": "oxlint src --type-aware --type-check"
   }
 }
 ```
+
+The base TypeScript preset has one severity: every selected rule is an `error`. It is built from an
+explicit approved upstream allowlist; unapproved upstream rules are absent rather than disabled by
+individual `off` entries. Oxlint's implicit `correctness` warnings are cleared once, at category
+level, before the allowlist is applied. That reset prevents hidden defaults from leaking noise into
+the result; it does not add warnings or weaken any selected rule.
+
+The package also ships The Thracian's Effect-specific checks. The audit-listed Effect preference
+rules and semantically unsound module-scope rules were removed from the package; they are not merely
+hidden by configuration. The retained Effect policy is separate from the upstream base: `effect: true`
+enables the 18 safety rules, 19 specialized migration/version/error-model/schema/test analyzers remain
+registered for explicit rule configuration, and the 60 strict architecture rules are selected by
+name and supplied with the path groups they inspect. See the [TypeScript package README](ts/README.md)
+for the complete API and rule behavior.
+
+Semantic `thx-codemod-fix` rewrites remain available as explicit, reviewed migration commands. They
+are never invoked by Oxlint, `lint:fix`, `lint-staged`, or other automatic lint hooks.
 
 ### Rust
 
@@ -108,24 +117,34 @@ managed blocks for owned config, and can be rerun after package upgrades.
 
 ## Rules At A Glance
 
-| Policy                | TypeScript                          | Rust                                    | Elixir                                               |
-| --------------------- | ----------------------------------- | --------------------------------------- | ---------------------------------------------------- |
-| Line width            | 150                                 | 150                                     | 150                                                  |
-| Function length       | 75 lines                            | 75 lines                                | 75 lines                                             |
-| Nesting depth         | 3                                   | 3                                       | 3                                                    |
-| Parameter count       | 5                                   | 5                                       | 5                                                    |
-| Complexity            | 10                                  | Clippy-supported limits                 | 10                                                   |
-| Debug artifacts       | `console`, `debugger`               | `dbg!`, `print!`, `println!`            | `IO.inspect`, `IEx.pry`                              |
-| Unsafe escape hatches | unsafe `any` operations             | `unsafe_code`, lossy `as` casts         | underspecified public APIs via Credo/Dialyzer config |
-| Immutability pressure | `prefer-const`, `no-param-reassign` | `unused_mut`, pedantic mutability lints | `VariableRebinding`                                  |
+| Policy                | TypeScript                                 | Rust                                    | Elixir                                               |
+| --------------------- | ------------------------------------------ | --------------------------------------- | ---------------------------------------------------- |
+| Line width            | Formatter-owned (no lint cap)              | 150                                     | 150                                                  |
+| Function length       | 150 lines                                  | 75 lines                                | 75 lines                                             |
+| Nesting depth         | 5                                          | 3                                       | 3                                                    |
+| Parameter count       | 7                                          | 5                                       | 5                                                    |
+| Complexity            | 20                                         | Clippy-supported limits                 | 10                                                   |
+| File/import caps      | None                                       | Package-specific                        | Package-specific                                     |
+| Debug artifacts       | `debugger`; `console` remains contextual   | `dbg!`, `print!`, `println!`            | `IO.inspect`, `IEx.pry`                              |
+| Unsafe escape hatches | Upstream type-aware unsafe-operation rules | `unsafe_code`, lossy `as` casts         | Underspecified public APIs via Credo/Dialyzer config |
+| Immutability pressure | `prefer-const`                             | `unused_mut`, pedantic mutability lints | `VariableRebinding`                                  |
 
-The full rule lists live in the package READMEs because each ecosystem has different tool
-names, limits, and unavoidable tradeoffs.
+The TypeScript profile intentionally has no maximum file-length or import-count rule. Those caps
+encourage shim modules and mechanical decomposition without improving behavior. Naming preferences,
+null bans, ternary bans, magic-number bans, global line-length and `console` bans, and documentation
+requirements are likewise absent from the base allowlist because they generated noise or changed
+valid code without a dependable correctness signal.
+
+Explicit `any` annotations, non-null assertions, and boundary type assertions remain available for
+framework, generated-code, validated-brand, and interop boundaries. Type-aware upstream rules still
+reject unsafe calls, member access, assignments, arguments, returns, floating promises, and
+misused promises when those checks are requested.
 
 ## Working On This Repo
 
 ```sh
 pnpm install
+pnpm run lint:policy
 pnpm run lint:ci
 pnpm run check
 pnpm run test:projects
@@ -133,8 +152,8 @@ pnpm run build
 pnpm nx run-many -t pack
 ```
 
-This is a pnpm and Nx workspace. TypeScript is packed through npm tooling, Rust through Cargo,
-and Elixir through Mix/Hex. The root package is private and only owns workspace orchestration.
+This is a pnpm and Nx workspace. TypeScript is packed through npm tooling, Rust through Cargo, and
+Elixir through Mix/Hex. The root package is private and owns workspace orchestration only.
 
 ## Release Shape
 
@@ -146,14 +165,7 @@ Each package is published independently:
 
 Releases are CI-owned. After a Conventional Commit lands on `main`, GitHub Actions validates the
 repo, updates package versions and changelogs, commits that release metadata back to `main`,
-publishes changed packages from the release commit, and then tags the published package versions.
-
-The release workflow expects a GitHub environment named `release`. npm publishes through trusted
-publishing from `.github/workflows/release.yml` with the same `release` environment, so no npm token
-is required. For first Rust publishes, configure `CARGO_REGISTRY_TOKEN` as an environment secret
-unless crates.io trusted publishing is already configured. Hex publishing uses a scoped `HEX_API_KEY`
-environment secret. Branch protection must also allow this workflow to push release metadata commits
-and package tags, either through `GITHUB_TOKEN` permissions or an approved bot token.
+publishes changed packages from the release commit, and tags the published package versions.
 
 ## Documentation
 

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const testRoot = join(repositoryRoot, 'ts', 'test');
 const policyTestPath = fileURLToPath(import.meta.url);
+const prePushHookPath = join(repositoryRoot, '.husky', 'pre-push');
 const localOnlyTimingSuffix = '.local-timing.test.ts';
 const localOnlyTimingGlob = `**/*${localOnlyTimingSuffix}`;
 const wallClockPattern =
@@ -105,5 +106,11 @@ describe('Vitest local-only timing boundary', (): void => {
 
     expect(ciExclusions).toContain(localOnlyTimingGlob);
     expect(localExclusions).not.toContain(localOnlyTimingGlob);
+  });
+
+  it('uses deterministic CI test selection in the pre-push hook', (): void => {
+    const prePushHook = readFileSync(prePushHookPath, 'utf8');
+
+    expect(prePushHook).toMatch(/^CI=true pnpm run test:projects$/mu);
   });
 });

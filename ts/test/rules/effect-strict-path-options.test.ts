@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
 import { runConfiguredRules, runRule } from './effect-rule-test-utils';
 
 describe('Effect strict path options', () => {
-  it('does not expose a strict console rule because direct console is globally banned', () => {
-    const strictOptions = { entrypoints: ['observability/main.ts'] };
+  it('does not expose a strict console rule or globally ban contextual console use', () => {
+    const strictOptions = {
+      rules: ['effect-no-crypto-randomUUID'],
+    };
     const config = theThracianOxlint({ effect: { strict: strictOptions } });
 
-    expect(config.rules).toHaveProperty('no-console', 'error');
+    expect(config.rules).not.toHaveProperty('no-console');
     expect(config.rules).not.toHaveProperty(
       'thethracian/effect-no-direct-console-outside-logger-layer',
     );
@@ -17,6 +20,7 @@ describe('Effect strict path options', () => {
     const options = {
       integrationTests: ['tests/integration/**/*.ts'],
       unitTests: ['tests/unit/**/*.ts'],
+      rules: effectStrictRuleNames,
     };
 
     expect(
@@ -45,6 +49,32 @@ describe('Effect strict path options', () => {
     ).toHaveLength(0);
   });
 
+  it('does not guess test paths outside explicit project path groups', () => {
+    const options = {
+      entrypoints: ['apps/api/main.ts'],
+      integrationTests: ['tests/integration/**'],
+      unitTests: ['tests/unit/**'],
+    };
+    const unconfiguredTestFile = 'src/domain/user.test.ts';
+
+    expect(
+      runRule(
+        'effect-no-live-services-in-unit-tests',
+        'const layer = UserRepoLive;',
+        unconfiguredTestFile,
+        options,
+      ),
+    ).toHaveLength(0);
+    expect(
+      runRule(
+        'effect-no-run-outside-entrypoints',
+        'Effect.runPromise(program);',
+        unconfiguredTestFile,
+        options,
+      ),
+    ).toHaveLength(1);
+  });
+
   it('passes strict path options through the exported config execution path', () => {
     const strictOptions = {
       adapterLayers: ['platform/adapters/**'],
@@ -54,6 +84,7 @@ describe('Effect strict path options', () => {
       entrypoints: ['workers/main.ts'],
       integrationTests: ['tests/integration/**/*.ts'],
       unitTests: ['tests/unit/**/*.ts'],
+      rules: effectStrictRuleNames,
     };
     const config = theThracianOxlint({ effect: { strict: strictOptions } });
     const cases = [

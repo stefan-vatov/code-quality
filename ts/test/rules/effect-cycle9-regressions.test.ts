@@ -24,27 +24,4 @@ describe('Effect cycle 9 regression coverage', () => {
     expect(runRule('effect-no-floating-fiber', floatingFork)).toHaveLength(1);
     expect(runRule('effect-no-runfork-without-observer', floatingRunFork)).toHaveLength(1);
   });
-
-  it('keeps exported API checks inside exported function bodies', () => {
-    const functionSource = `
-      export function healthCheck() {
-        return "ok";
-      }
-
-      function localProgram() {
-        return Effect.succeed(1);
-      }
-    `;
-
-    const arrowSource = `
-      export const healthCheck = () => "ok";
-
-      const localProgram = () => Effect.gen(function* () {
-        return yield* Effect.succeed(1);
-      });
-    `;
-
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', functionSource)).toHaveLength(0);
-    expect(runRule('effect-no-function-returning-gen', arrowSource)).toHaveLength(0);
-  });
 });

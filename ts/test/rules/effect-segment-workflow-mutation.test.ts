@@ -15,17 +15,9 @@ import {
   testSegments,
 } from '../../src/rules/effect-strict-segment-helpers';
 import {
-  hasAsyncAwaitInEffect,
-  hasEffectInArrayForEach,
-  hasEffectInPromiseCallback,
-  hasNestedFlatMap,
   hasParsedJSONNumberFromString,
   hasRecursiveEffectWithoutSuspend,
   hasReturnEffectInGen,
-  hasRuntimeInEffect,
-  hasSyncForPromise,
-  hasSyncForThrowingOPS,
-  hasThrowInEffect,
   hasTryPromiseWithoutTypedCatch,
   hasUnboundedEffectConcurrency,
   hasUnboundedFlatMapConcurrency,
@@ -233,48 +225,6 @@ describe('local and enclosing segments', (): void => {
   });
 });
 
-booleanContracts('runtime inside Effect workflows', hasRuntimeInEffect, [
-  ['runtime in gen', 'Effect.gen(function* () { return yield* Effect.runPromise(task); });', true],
-  [
-    'aliased runtime in fn',
-    'import { Effect as Fx } from "effect";\nconst run = Fx.fn("run")(() => Fx.runSync(task));',
-    true,
-  ],
-  [
-    'runtime outside workflow',
-    'Effect.runPromise(task); Effect.gen(function* () { yield* task; });',
-    false,
-  ],
-  [
-    'non-code runtime',
-    'Effect.gen(function* () { /* Effect.runSync(task) */ const text = "Effect.runPromise(task)"; yield* task; });',
-    false,
-  ],
-]);
-
-booleanContracts('nested flatMaps', hasNestedFlatMap, [
-  [
-    'direct nesting',
-    'Effect.flatMap(first, value => Effect.flatMap(second, next => combine(value, next)))',
-    true,
-  ],
-  [
-    'pipe nesting',
-    'Effect.flatMap(first, value => second.pipe(Effect.flatMap(next => combine(value, next))))',
-    true,
-  ],
-  [
-    'nested map',
-    'Effect.flatMap(first, value => Effect.map(second, next => combine(value, next)))',
-    false,
-  ],
-  [
-    'non-code nesting',
-    '// Effect.flatMap(first, x => Effect.flatMap(second, use))\nconst text = "Effect.flatMap(first, x => Effect.flatMap(second, use))";',
-    false,
-  ],
-]);
-
 booleanContracts('unbounded Effect concurrency', hasUnboundedEffectConcurrency, [
   ['forEach unbounded', 'Effect.forEach(items, work, { concurrency: "unbounded" });', true],
   ['all unbounded', "Effect.all(tasks, { concurrency: 'unbounded' });", true],
@@ -312,32 +262,6 @@ booleanContracts('JSON NumberFromString', hasParsedJSONNumberFromString, [
   ['schema suffix', 'const age = JSON.parse(input) as Schema.NumberFromStringValue;', false],
 ]);
 
-booleanContracts('Effect inside Array.forEach', hasEffectInArrayForEach, [
-  ['Effect callback', 'items.forEach(item => Effect.runPromise(work(item)));', true],
-  ['Effect.forEach', 'Effect.forEach(items, item => work(item));', false],
-  ['pure callback', 'items.forEach(item => collect(item));', false],
-  [
-    'non-code callback',
-    '// items.forEach(x => Effect.succeed(x));\nconst text = "items.forEach(x => Effect.fail(x))";',
-    false,
-  ],
-]);
-
-booleanContracts('Effect inside Promise callbacks', hasEffectInPromiseCallback, [
-  ['then callback', 'promise.then(value => Effect.succeed(value));', true],
-  [
-    'function catch callback',
-    'promise.catch(function (error) { return Effect.fail(error); });',
-    true,
-  ],
-  ['pure callback', 'promise.then(value => transform(value));', false],
-  [
-    'finally and non-code callbacks',
-    'promise.finally(() => Effect.succeed(undefined)); // promise.then(x => Effect.succeed(x))',
-    false,
-  ],
-]);
-
 booleanContracts('return Effect inside gen', hasReturnEffectInGen, [
   ['direct return', 'Effect.gen(function* () { return Effect.succeed(1); });', true],
   ['yielded return', 'Effect.gen(function* () { return yield* Effect.succeed(1); });', false],
@@ -364,50 +288,6 @@ describe('yield without star', (): void => {
     expect(hasYieldWithoutStarInGen(source)).toBe(false);
   });
 });
-
-booleanContracts('async-await workflows', hasAsyncAwaitInEffect, [
-  ['await in gen', 'Effect.gen(function* () { const value = await load(); return value; });', true],
-  ['async fn', 'const load = Effect.fn("load")(async () => fetch("/"));', true],
-  [
-    'async outside workflow',
-    'const load = async () => fetch("/"); Effect.gen(function* () { yield* task; });',
-    false,
-  ],
-  [
-    'non-code async-await',
-    'Effect.gen(function* () { /* await load() */ const text = "async () => await load()"; yield* task; });',
-    false,
-  ],
-]);
-
-booleanContracts('Effect.sync promises', hasSyncForPromise, [
-  ['async callback', 'Effect.sync(async () => fetch("/"));', true],
-  ['Promise call', 'Effect.sync(() => Promise.resolve(1));', true],
-  ['Effect.promise', 'Effect.promise(() => fetch("/"));', false],
-  [
-    'near-match and non-code promise',
-    'Effect.sync(() => fetchValue()); const text = "Promise.resolve(1)";',
-    false,
-  ],
-]);
-
-booleanContracts('throwing Effect.sync operations', hasSyncForThrowingOPS, [
-  ['throw', 'Effect.sync(() => { throw new Error("boom"); });', true],
-  ['JSON.parse', 'Effect.sync(() => JSON.parse(input));', true],
-  ['Effect.try', 'Effect.try(() => JSON.parse(input));', false],
-  ['near-match and non-code throw', 'Effect.sync(() => throwable()); const text = "throw";', false],
-]);
-
-booleanContracts('throw inside Effect workflows', hasThrowInEffect, [
-  ['throw in gen', 'Effect.gen(function* () { throw new Error("boom"); });', true],
-  ['throw in fn', 'const run = Effect.fn("run")(() => { throw new Error("boom"); });', true],
-  ['Effect.fail', 'Effect.gen(function* () { return yield* Effect.fail(error); });', false],
-  [
-    'outside and non-code throw',
-    'throw new Error("outside"); Effect.gen(function* () { const text = "throw"; /* throw error */ yield* task; });',
-    false,
-  ],
-]);
 
 booleanContracts('Effect.tryPromise typed catches', hasTryPromiseWithoutTypedCatch, [
   ['callback-only', 'Effect.tryPromise(async () => fetch("/"));', true],

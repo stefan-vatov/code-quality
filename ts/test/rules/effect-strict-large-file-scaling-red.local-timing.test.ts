@@ -7,6 +7,7 @@ import plugin from '../../src/rules/plugin';
 const RETRY_RULE = 'effect-require-retry-policy-for-idempotent-external-effects';
 const SOURCE_SIZES = [2_500, 5_000, 10_000] as const;
 const CANDIDATE_INTERVAL = 600;
+const HOT_SAMPLE_COUNT = 7;
 const MAX_RULE_TIME_MS = 1_000;
 const MAX_NORMALIZED_GROWTH = 4;
 
@@ -78,16 +79,25 @@ const runOneShot = (fixture: SparseFixture): TimedRun => {
   };
 };
 
+const median = (samples: readonly number[]): number => {
+  const orderedSamples = [...samples].sort((left, right) => left - right);
+  return orderedSamples[Math.floor(orderedSamples.length / 2)] ?? Number.POSITIVE_INFINITY;
+};
+
 const measureSize = (lineCount: number): Measurement => {
   const fixture = makeFixture(lineCount, lineCount);
   const cold = runOneShot(fixture);
   runOneShot(fixture);
-  const hot = runOneShot(fixture);
+  const hotSamples = Array.from({ length: HOT_SAMPLE_COUNT }, (): TimedRun => runOneShot(fixture));
+  const invalidHotReportCount = hotSamples.find(({ reportCount }): boolean => reportCount !== 1);
+  if (invalidHotReportCount !== undefined) {
+    throw new Error(`Expected one hot diagnostic, received ${invalidHotReportCount.reportCount}`);
+  }
   return {
     coldMs: cold.durationMs,
     coldReportCount: cold.reportCount,
-    hotMs: hot.durationMs,
-    hotReportCount: hot.reportCount,
+    hotMs: median(hotSamples.map(({ durationMs }): number => durationMs)),
+    hotReportCount: hotSamples[0]?.reportCount ?? 0,
   };
 };
 

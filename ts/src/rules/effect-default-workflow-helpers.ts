@@ -4,10 +4,8 @@
 import { Array, Match, Option, pipe } from 'effect';
 import {
   effectAliasesPattern,
-  effectCallBodies,
   effectCallPattern,
   someEffectGenBodyMatch,
-  someEffectWorkflowBody,
   strippedCallSegment,
 } from './effect-default-scan-helpers';
 import {
@@ -18,8 +16,6 @@ import {
   stripCommentsAndStrings,
 } from './effect-source-helpers';
 import { hasRecursiveEffectSource } from './effect-recursion-source';
-import { hasRuntimeCall } from './effect-rule-aliases';
-import { hasSyncForPromiseSource } from './effect-sync-promise-source';
 
 const JSON_PARSE_PATTERN = /\bJSON\.parse\s*\(/g;
 const JSON_NUMBER_FROM_STRING_PATTERN =
@@ -76,30 +72,6 @@ const hasIndexAtOrBefore = (
  *
  * @internal
  */
-export const hasRuntimeInEffect = (source: string): boolean =>
-  someEffectWorkflowBody(source, (body): boolean => hasRuntimeCall(body, source));
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasNestedFlatMap = (source: string): boolean => {
-  const code = stripCommentsAndStrings(source);
-  return pipe(
-    [
-      /Effect\.flatMap\s*\([\s\S]*?=>[\s\S]*?\.pipe\s*\(\s*Effect\.flatMap/s,
-      /Effect\.flatMap\s*\([^,]+,\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>[\s\S]*?Effect\.flatMap\s*\(/s,
-    ],
-    Array.some((pattern): boolean => pattern.test(code)),
-  );
-};
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnboundedEffectConcurrency = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -147,37 +119,6 @@ export const hasParsedJSONNumberFromString = (source: string): boolean => {
   }
   return false;
 };
-
-const hasEffectInCallbackCall = (source: string, callPattern: RegExp): boolean => {
-  const code = stripCommentsAndStrings(source);
-  return pipe(
-    Array.fromIterable(code.matchAll(callPattern)),
-    Array.some((match): boolean => {
-      const openParenIndex = source.indexOf('(', match.index);
-      const callBody = source.slice(
-        openParenIndex + 1,
-        findBalancedCallEnd(source, openParenIndex),
-      );
-      return /(?:=>|function\b)[\s\S]*?\bEffect\./.test(stripCommentsAndStrings(callBody));
-    }),
-  );
-};
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasEffectInArrayForEach = (source: string): boolean =>
-  hasEffectInCallbackCall(source, /\b(?!Effect\b)[A-Za-z_$][\w$]*\.forEach\s*\(/g);
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasEffectInPromiseCallback = (source: string): boolean =>
-  hasEffectInCallbackCall(source, /\.(?:then|catch)\s*\(/g);
 
 /**
  * Internal helper exported for package-local composition.
@@ -231,46 +172,6 @@ export const hasYieldWithoutStarInGen = (source: string): boolean | number => {
     Option.getOrElse((): false => false),
   );
 };
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasAsyncAwaitInEffect = (source: string): boolean =>
-  someEffectWorkflowBody(source, (body): boolean =>
-    /(?:^|[({,]\s*)async\b|\bawait\b/.test(stripCommentsAndStrings(body)),
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasSyncForPromise = hasSyncForPromiseSource;
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasSyncForThrowingOPS = (source: string): boolean =>
-  pipe(
-    effectCallBodies(source, effectCallPattern(source, 'sync')),
-    Array.some((body): boolean =>
-      /\b(?:throw\b|JSON\.parse\s*\()/.test(stripCommentsAndStrings(body)),
-    ),
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const hasThrowInEffect = (source: string): boolean =>
-  someEffectWorkflowBody(source, (body): boolean =>
-    /\bthrow\b/.test(stripCommentsAndStrings(body)),
-  );
 
 const tryPromiseObjectBody = (
   code: string,

@@ -2,7 +2,6 @@ import type { NativeReference, NativeSourceCode } from '../../src/rules/effect-n
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/rules/effect-rule-core';
 import { effectGlobalFetchAST } from '../../src/rules/effect-global-fetch-ast';
-import { effectSyncForPromiseAST } from '../../src/rules/effect-default-boundary-ast';
 import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
 import { parseSync } from 'oxc-parser';
 
@@ -114,94 +113,6 @@ const runHostVisitors = (program: ASTNode, visitors: VisitorMap): void => {
     }
   });
 };
-
-const importedEffectProgram = (): ASTNode => ({
-  body: [
-    {
-      importKind: 'value',
-      source: { type: 'Literal', value: 'effect' },
-      specifiers: [
-        {
-          importKind: 'value',
-          imported: { name: 'Effect', type: 'Identifier' },
-          local: { name: 'Effect', type: 'Identifier' },
-          type: 'ImportSpecifier',
-        },
-      ],
-      type: 'ImportDeclaration',
-    },
-  ],
-  type: 'Program',
-});
-
-const effectMember = (effectReference: ASTNode, propertyName: string): ASTNode => ({
-  computed: false,
-  object: effectReference,
-  property: { name: propertyName, type: 'Identifier' },
-  type: 'MemberExpression',
-});
-
-describe('shared native reference demand', (): void => {
-  it('reuses a matcher-owned SourceCode index for an Effect.sync Promise candidate', (): void => {
-    const matcherEffect = { name: 'Effect', type: 'Identifier' };
-    const syncEffect = { name: 'Effect', type: 'Identifier' };
-    const promise = { name: 'Promise', type: 'Identifier' };
-    const references = [importReference(matcherEffect), importReference(syncEffect)];
-    const reports: object[] = [];
-    const source =
-      'import { Effect } from "effect"; Effect.succeed(1); Effect.sync(() => Promise.resolve(1));';
-    const harness = nativeHarness(source, references, new Set([promise]), reports);
-    const matcher = importedEffectCallMatcher(harness.context, 'Effect', ['succeed']);
-    const syncCall: ASTNode = {
-      arguments: [
-        {
-          async: false,
-          body: {
-            arguments: [{ type: 'Literal', value: 1 }],
-            callee: {
-              computed: false,
-              object: promise,
-              property: { name: 'resolve', type: 'Identifier' },
-              type: 'MemberExpression',
-            },
-            type: 'CallExpression',
-          },
-          generator: false,
-          params: [],
-          type: 'ArrowFunctionExpression',
-        },
-      ],
-      callee: effectMember(syncEffect, 'sync'),
-      type: 'CallExpression',
-    };
-
-    matcher.initialize(importedEffectProgram());
-    expect(matcher.matches(effectMember(matcherEffect, 'succeed'))).toBe(true);
-    const visitors = effectSyncForPromiseAST(harness.context, source);
-    visitors.Program?.(importedEffectProgram());
-    visitors.CallExpression?.(syncCall);
-
-    expect(reports).toHaveLength(1);
-    expect(harness.referenceReads()).toBe(1);
-  });
-
-  it('does not reread references when Effect.sync has no Promise candidate', (): void => {
-    const matcherEffect = { name: 'Effect', type: 'Identifier' };
-    const references = [importReference(matcherEffect)];
-    const reports: object[] = [];
-    const source = 'import { Effect } from "effect"; Effect.succeed(1);';
-    const harness = nativeHarness(source, references, new Set(), reports);
-    const matcher = importedEffectCallMatcher(harness.context, 'Effect', ['succeed']);
-
-    matcher.initialize(importedEffectProgram());
-    expect(matcher.matches(effectMember(matcherEffect, 'succeed'))).toBe(true);
-    const visitors = effectSyncForPromiseAST(harness.context, source);
-    visitors.Program?.(importedEffectProgram());
-
-    expect(reports).toHaveLength(0);
-    expect(harness.referenceReads()).toBe(1);
-  });
-});
 
 describe('candidate-gated native reference demand', (): void => {
   it('does not index global-fetch references for fetch outside an Effect wrapper', (): void => {

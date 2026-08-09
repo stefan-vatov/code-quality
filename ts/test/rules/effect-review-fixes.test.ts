@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { runConfiguredRules, runRule } from './effect-rule-test-utils';
+import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import { runConfiguredRules, runRule, strictEffectTestPaths } from './effect-rule-test-utils';
 
 describe('Effect review fix regressions', () => {
   it('recognizes aliased Effect imports for default and strict rules', () => {
@@ -9,44 +10,11 @@ describe('Effect review fix regressions', () => {
     ).toHaveLength(1);
     expect(
       runRule(
-        'effect-no-runpromise-in-exported-api',
-        'import { Effect as E } from "effect";\nexport const load = () => E.runPromise(program);',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
         'effect-require-platform-runmain-at-entrypoints',
         'import * as E from "effect/Effect";\nE.runPromise(program);',
         'src/main.ts',
       ),
     ).toHaveLength(1);
-  });
-
-  it('does not treat type-only imports or local Effect values as Effect modules', () => {
-    expect(
-      runRule(
-        'effect-no-process-env-in-effect-code',
-        'import type { Effect } from "effect";\nconst token = process.env.API_TOKEN;',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-console-log-in-effect-code',
-        'import { Option } from "effect";\nconsole.log(Option.some(1));',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-console-log-in-effect-code',
-        'import { type Effect } from "effect";\nconsole.log(1);',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-console-log-in-effect-code',
-        'const Effect = { x: 1 };\nconsole.log(Effect.x);',
-      ),
-    ).toHaveLength(0);
   });
 
   it('recognizes current Effect.Service self and key declarations', () => {
@@ -76,34 +44,7 @@ describe('Effect review fix regressions', () => {
     ).toHaveLength(0);
   });
 
-  it('only reports try catch that is actually inside an Effect.gen body', () => {
-    expect(
-      runRule(
-        'effect-no-try-catch-in-effect-gen',
-        'const program = Effect.gen(function* () { return yield* load; });\ntry { recover(); } catch (error) { report(error); }',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-try-catch-in-effect-gen',
-        'const program = Effect.gen(function* () { try { return yield* load; } catch (error) { return yield* Effect.fail(error); } });',
-      ),
-    ).toHaveLength(1);
-  });
-
   it('keeps AST-converted rules as broad as their source-backed contracts', () => {
-    expect(
-      runRule(
-        'effect-no-string-errors',
-        'import { Effect } from "effect";\nconst failed = Effect.fail(`not found`);',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-try-catch-in-effect-gen',
-        'import { Effect as E } from "effect";\nconst program = E.gen(function* () { try { return yield* load; } catch (error) { return yield* E.fail(error); } });',
-      ),
-    ).toHaveLength(1);
     expect(
       runRule(
         'effect-prefer-effect-void',
@@ -113,7 +54,9 @@ describe('Effect review fix regressions', () => {
   });
 
   it('assigns fetch ownership to one strict rule without adapter inversion', () => {
-    const strictConfig = theThracianOxlint({ effect: { strict: true } });
+    const strictConfig = theThracianOxlint({
+      effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+    });
     expect(
       runConfiguredRules(
         strictConfig,
@@ -155,27 +98,14 @@ describe('Effect review fix regressions', () => {
     ).toHaveLength(1);
     expect(
       runRule(
-        'effect-no-process-env-in-effect-code',
-        'import { Effect } from "effect";\nconst config = Effect.sync(() => process.env.API_TOKEN);',
+        'effect-no-direct-process-env-outside-config-layer',
+        'process.env.API_TOKEN;',
         'src/config/env.ts',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-date-now-in-effect-code',
-        'import { Effect } from "effect";\nconst now = Effect.sync(() => Date.now());',
-        'src/adapters/clock.ts',
       ),
     ).toHaveLength(0);
   });
 
   it('handles aliases and tagged object keys without losing Effect coverage', () => {
-    expect(
-      runRule(
-        'effect-no-string-errors',
-        'import { fail as failEffect } from "effect/Effect";\nconst failed = failEffect("bad");',
-      ),
-    ).toHaveLength(1);
     expect(
       runRule(
         'effect-prefer-effect-void',
@@ -194,18 +124,9 @@ describe('Effect review fix regressions', () => {
         'import { Schema as S } from "effect";\nconst Status = S.Union(S.Literal("A"), S.Literal("B"));',
       ),
     ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-untagged-errors',
-        'import { Effect } from "effect";\nconst failure = Effect.fail({ "_tag": "Oops" });',
-      ),
-    ).toHaveLength(0);
   });
 
   it('does not apply Effect policies as broad JavaScript bans', () => {
-    expect(
-      runRule('effect-no-new-promise', 'const task = new Promise(resolve => resolve(1));'),
-    ).toHaveLength(0);
     expect(
       runRule(
         'effect-require-schema-is-over-instanceof',

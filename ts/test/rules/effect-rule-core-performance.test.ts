@@ -88,32 +88,6 @@ describe('Effect rule core performance invariants', (): void => {
     expect(source).not.toContain('return [...cachedValue]');
   });
 
-  it('does not repeat file-level Effect signal checks inside AST visitor hot paths', (): void => {
-    const defaultRulesSource = joinedSourceText(
-      '../../src/rules/effect-default.ts',
-      '../../src/rules/effect-default-env-rules.ts',
-      '../../src/rules/effect-default-compat-rules.ts',
-    );
-
-    expect(
-      defaultRulesSource.match(/const isEffectModule = hasEffectSignal\(source\);/g),
-    ).toHaveLength(8);
-    expect(defaultRulesSource).not.toContain('hasEffectSignal(source) &&');
-    expect(
-      (defaultRulesSource.match(/if \(!hasEffectSignal\(source\)\)/g) ?? []).length,
-    ).toBeLessThanOrEqual(1);
-  });
-
-  it('does not use a bare lowercase effect token that matches React useEffect files', (): void => {
-    const defaultRulesSource = joinedSourceText(
-      '../../src/rules/effect-default.ts',
-      '../../src/rules/effect-default-env-rules.ts',
-      '../../src/rules/effect-default-compat-rules.ts',
-    );
-
-    expect(defaultRulesSource).not.toContain("'effect',");
-  });
-
   it('caches token gate decisions by shared token array and source', (): void => {
     const source = sourceText('../../src/rules/effect-rule-core.ts');
 
@@ -127,18 +101,6 @@ describe('Effect rule core performance invariants', (): void => {
     expect(source).toContain('sourceTokenPresenceCache');
     expect(source).toContain('const hasTokenInSourceCached');
     expect(source).toContain('hasTokenInSourceCached(source, token)');
-  });
-
-  it('hoists Effect call predicates out of hot CallExpression visitors', (): void => {
-    const defaultRulesSource = joinedSourceText(
-      '../../src/rules/effect-default-ast.ts',
-      '../../src/rules/effect-default.ts',
-      '../../src/rules/effect-default-compat-rules.ts',
-    );
-
-    expect(defaultRulesSource).toContain('const effectCallPredicate');
-    expect(defaultRulesSource).not.toContain("new Set(['fail'])");
-    expect(defaultRulesSource).not.toContain("new Set(['fn', 'fnUntraced', 'fnUntracedEager'])");
   });
 
   it('caches default helper Effect alias patterns and call regexes by source', (): void => {
@@ -158,27 +120,6 @@ describe('Effect rule core performance invariants', (): void => {
     expect(defaultHelpersSource).not.toContain('floatingEffectPatternCache.delete(aliasPattern)');
   });
 
-  it('uses per-rule tokens for default AST rules with necessary call syntax', (): void => {
-    const defaultRulesSource = joinedSourceText(
-      '../../src/rules/effect-default.ts',
-      '../../src/rules/effect-default-env-rules.ts',
-      '../../src/rules/effect-default-compat-rules.ts',
-    );
-
-    expect(defaultRulesSource).toContain("name: 'effect-no-promise-then-in-effect',");
-    expect(defaultRulesSource).toContain("tokens: ['.then', '.catch'],");
-    expect(defaultRulesSource).toContain("name: 'effect-no-string-errors',");
-    expect(defaultRulesSource).toContain("tokens: ['fail'],");
-    expect(defaultRulesSource).toContain("name: 'effect-no-untagged-errors',");
-  });
-
-  it('uses token groups for Effect.fn IIFE visitor startup', (): void => {
-    const defaultRulesSource = sourceText('../../src/rules/effect-default-compat-rules.ts');
-
-    expect(defaultRulesSource).toContain("name: 'effect-no-effect-fn-iife',");
-    expect(defaultRulesSource).toContain("tokenGroups: [['fn'], ['Effect', 'effect']],");
-  });
-
   it('uses per-rule tokens for expensive Program-only Effect checks', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default.ts',
@@ -189,23 +130,11 @@ describe('Effect rule core performance invariants', (): void => {
     for (const [ruleName, tokenLine] of [
       ['effect-require-yield-star', "tokenGroups: [['gen'], ['yield']],"],
       ['effect-require-return-yield-star', "tokenGroups: [['gen'], ['return']],"],
-      ['effect-prefer-gen-for-nested-flatmap', "tokens: ['flatMap'],"],
-      ['effect-no-function-returning-gen', "tokens: ['gen'],"],
       ['effect-no-floating-fiber', "tokens: ['fork'],"],
-      ['effect-no-run-inside-effect', "tokens: ['run'],"],
-      ['effect-no-runpromise-in-exported-api', "tokens: ['runPromise'],"],
       ['effect-no-runfork-without-observer', "tokens: ['runFork'],"],
       ['effect-require-suspend-for-recursion', "tokens: ['function', '=>'],"],
-      ['effect-no-effect-in-array-foreach', "tokens: ['forEach'],"],
-      ['effect-no-async-await-in-effect', "tokens: ['async', 'await'],"],
-      ['effect-no-throw', "tokens: ['throw'],"],
-      [
-        'effect-schema-no-unsafe-sync-decode-in-effect-code',
-        "tokens: ['decodeSync', 'decodeUnknownSync'],",
-      ],
       ['effect-schema-no-cast-after-decode', "tokenGroups: [['Schema.decode'], [' as ']],"],
       ['effect-no-deprecated-context-tag-function', "tokens: ['Context.Tag'],"],
-      ['effect-prefer-effect-is', "tokens: ['instanceof', '_op'],"],
     ] as const) {
       expect(defaultRulesSource).toContain(`name: '${ruleName}',`);
       expect(defaultRulesSource).toContain(tokenLine);
@@ -278,24 +207,6 @@ describe('Effect rule core performance invariants', (): void => {
       expect(strictRulesSource).toContain(`name: '${ruleName}',`);
       expect(strictRulesSource).toContain(tokenLine);
     }
-  });
-
-  it('uses identifier tokens for default environment escape-hatch AST rules', (): void => {
-    const defaultRulesSource = joinedSourceText(
-      '../../src/rules/effect-default.ts',
-      '../../src/rules/effect-default-env-rules.ts',
-      '../../src/rules/effect-default-compat-rules.ts',
-    );
-
-    expect(defaultRulesSource).toContain("tokens: ['console'],");
-    expect(defaultRulesSource).toContain("tokens: ['process'],");
-    expect(defaultRulesSource).toContain("tokens: ['Date'],");
-    expect(defaultRulesSource).toContain("tokens: ['Math'],");
-    expect(defaultRulesSource).toContain("tokenGroups: [['Promise'], ['Effect', 'effect']],");
-    expect(defaultRulesSource).toContain(
-      "tokens: ['setTimeout', 'setInterval', 'clearTimeout', 'clearInterval'],",
-    );
-    expect(defaultRulesSource).toContain("tokens: ['Error'],");
   });
 
   it('lets individual rules skip canonicalization when required tokens are absent', (): void => {

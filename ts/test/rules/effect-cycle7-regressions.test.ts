@@ -14,27 +14,6 @@ describe('Effect cycle 7 regression coverage', () => {
     expect(runRule('effect-require-scoped-for-acquireRelease', source)).toHaveLength(0);
   });
 
-  it('keeps exported API checks inside the exported declaration body', () => {
-    const source = `
-      export function healthCheck() {
-        return "ok";
-      }
-
-      function localProgram() {
-        return Effect.gen(function* () {
-          return yield* loadUser;
-        });
-      }
-
-      function runLocal() {
-        return Effect.runPromise(localProgram());
-      }
-    `;
-
-    expect(runRule('effect-no-function-returning-gen', source)).toHaveLength(0);
-    expect(runRule('effect-no-runpromise-in-exported-api', source)).toHaveLength(0);
-  });
-
   it('accepts data-first timeout and retry wrappers around external calls', () => {
     expect(
       runRule(

@@ -1,28 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import {
-  exportedCallableDeclarationSegments,
-  exportedDeclarationTexts,
-} from '../../src/rules/effect-exported-declarations';
-import {
-  hasExportedRunPromiseAPI,
-  hasPromiseReturningPublicAPI,
-} from '../../src/rules/effect-strict-internals';
+import { exportedDeclarationTexts } from '../../src/rules/effect-exported-declarations';
+import { hasPromiseReturningPublicAPI } from '../../src/rules/effect-strict-internals';
 import { runRule } from './effect-rule-test-utils';
 
 const sourceLines = (...lines: string[]): string => lines.join('\n');
 
 const expectNoPublicPromiseDiagnostics = (source: string): void => {
   expect(hasPromiseReturningPublicAPI(source)).toBe(false);
-  expect(hasExportedRunPromiseAPI(source)).toBe(false);
   expect(runRule('effect-no-promise-returning-public-api', source)).toHaveLength(0);
-  expect(runRule('effect-no-runpromise-in-exported-api', source)).toHaveLength(0);
 };
 
 const expectPublicPromiseDiagnostics = (source: string): void => {
   expect(hasPromiseReturningPublicAPI(source)).toBe(true);
-  expect(hasExportedRunPromiseAPI(source)).toBe(true);
   expect(runRule('effect-no-promise-returning-public-api', source)).toHaveLength(1);
-  expect(runRule('effect-no-runpromise-in-exported-api', source)).toHaveLength(1);
 };
 
 describe('Effect module export-list binding resolution', (): void => {
@@ -38,9 +28,6 @@ describe('Effect module export-list binding resolution', (): void => {
     );
 
     expect(exportedDeclarationTexts(source)).toEqual([expectedDeclaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([
-      ' Effect.succeed(publicProgram);',
-    ]);
     expectNoPublicPromiseDiagnostics(source);
   });
 
@@ -88,9 +75,7 @@ describe('Effect namespace export boundaries', (): void => {
       );
 
       expect(exportedDeclarationTexts(source)).toEqual([]);
-      expect(exportedCallableDeclarationSegments(source)).toEqual([]);
       expectNoPublicPromiseDiagnostics(source);
-      expect(runRule('effect-prefer-effect-fn-for-exported-effects', source)).toHaveLength(0);
     },
   );
 
@@ -121,9 +106,7 @@ describe('Effect semicolonless exported declaration boundaries', (): void => {
     );
 
     expect(exportedDeclarationTexts(source)).toEqual([expectedDeclaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
     expectNoPublicPromiseDiagnostics(source);
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', source)).toHaveLength(0);
   });
 
   it('stops an exported function at its closing brace before internal work', (): void => {
@@ -136,9 +119,7 @@ describe('Effect semicolonless exported declaration boundaries', (): void => {
     );
 
     expect(exportedDeclarationTexts(source)).toEqual([expectedDeclaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual(['{\n  return 1\n}']);
     expectNoPublicPromiseDiagnostics(source);
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', source)).toHaveLength(0);
   });
 
   it('stops a semicolonless local binding selected by an export list', (): void => {
@@ -153,21 +134,7 @@ describe('Effect semicolonless exported declaration boundaries', (): void => {
     );
 
     expect(exportedDeclarationTexts(source)).toEqual([expectedDeclaration]);
-    expect(exportedCallableDeclarationSegments(source)).toEqual([]);
     expectNoPublicPromiseDiagnostics(source);
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', source)).toHaveLength(0);
-  });
-
-  it('keeps true-positive diagnostics on a semicolonless exported effect function', (): void => {
-    const source = sourceLines(
-      'export const load = () => Effect.succeed(program)',
-      'const internal = 1',
-    );
-
-    expect(exportedDeclarationTexts(source)).toEqual([
-      'export const load = () => Effect.succeed(program)',
-    ]);
-    expect(runRule('effect-prefer-effect-fn-for-exported-effects', source)).toHaveLength(1);
   });
 
   it('keeps true-positive Promise diagnostics on a direct exported function', (): void => {

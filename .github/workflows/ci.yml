@@ -36,8 +36,40 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lock effective Oxlint policy
+        run: pnpm run lint:policy
+
       - name: Lint and format check
         run: pnpm run lint:ci
+
+      - name: Verify a newly published TypeScript config as a consumer
+        if: startsWith(github.head_ref, 'codex/verify-published-oxlint-config-')
+        run: pnpm run lint:type-aware
+
+  oxlint-min-peer:
+    name: Oxlint 1.66.0 minimum peer compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24.14.0'
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify the exact minimum Oxlint peer
+        run: pnpm run test:oxlint-min-peer
 
   knip:
     name: knip

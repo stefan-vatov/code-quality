@@ -8,19 +8,6 @@ function reportedEffectRules(source: string, filename = 'src/domain/user.ts'): s
 }
 
 describe('Effect cycle 16 regression coverage', () => {
-  it('ignores string, comment, and regex-literal text in regex-style checks', () => {
-    const effectModuleWithString = `
-      import { Effect } from "effect";
-      const docs = "promise.then(() => value)";
-    `;
-    const strictComment = '// Effect.runPromise(program);';
-    const regexLiteral = 'const pattern = /Effect.Do/;';
-
-    expect(runRule('effect-no-promise-then-in-effect', effectModuleWithString)).toHaveLength(0);
-    expect(runRule('effect-no-run-outside-entrypoints', strictComment)).toHaveLength(0);
-    expect(runRule('effect-prefer-gen-over-do', regexLiteral)).toHaveLength(0);
-  });
-
   it('balances Effect call bodies across regex literals', () => {
     const source = `
       const program = Effect.gen(function* () {
@@ -33,14 +20,9 @@ describe('Effect cycle 16 regression coverage', () => {
   });
 
   it('detects exported local bindings and public type surfaces', () => {
-    const reexportedRun = `
-      const load = () => Effect.runPromise(program);
-      export { load };
-    `;
     const exportedPromiseType = 'export type Loader = () => Promise<User>;';
     const exportedUnknownInterface = 'export interface Input { value: unknown }';
 
-    expect(runRule('effect-no-runpromise-in-exported-api', reexportedRun)).toHaveLength(1);
     expect(runRule('effect-no-promise-returning-public-api', exportedPromiseType)).toHaveLength(1);
     expect(
       runRule('effect-schema-no-unknown-crossing-boundary', exportedUnknownInterface),
@@ -61,17 +43,6 @@ describe('Effect cycle 16 regression coverage', () => {
     expect(
       runRule('effect-require-retry-policy-for-idempotent-external-effects', retried),
     ).toHaveLength(0);
-  });
-
-  it('does not duplicate direct platform diagnostics between default and strict rules', () => {
-    const envSource = 'import { Effect } from "effect"; process.env.API_TOKEN;';
-    const timeSource = 'import { Effect } from "effect"; Date.now(); Math.random();';
-
-    expect(reportedEffectRules(envSource)).toStrictEqual(['effect-no-process-env-in-effect-code']);
-    expect(reportedEffectRules(timeSource)).toStrictEqual([
-      'effect-no-date-now-in-effect-code',
-      'effect-no-math-random-in-effect-code',
-    ]);
   });
 
   it('keeps GenericTag diagnostics owned by one strict rule', () => {

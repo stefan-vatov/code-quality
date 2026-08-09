@@ -17,8 +17,6 @@ export default mergeConfig(
         '**/out-tsc/**',
         'ts/test/rules/*performance.test.ts',
         'ts/test/rules/effect-default-bucket-cases.test.ts',
-        'ts/test/rules/max-line-length.test.ts',
-        'ts/test/rules/require-function-doc.test.ts',
       ],
     },
   }),

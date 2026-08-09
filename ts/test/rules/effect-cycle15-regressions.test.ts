@@ -2,17 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 15 regression coverage', () => {
-  it('ignores Effect imports that appear only in comments when detecting Effect modules', () => {
-    const source = `
-      // import { Effect } from "effect";
-      console.log("debug");
-      promise.then((value) => value);
-    `;
-
-    expect(runRule('effect-no-console-log-in-effect-code', source)).toHaveLength(0);
-    expect(runRule('effect-no-promise-then-in-effect', source)).toHaveLength(0);
-  });
-
   it('reports voided Effect values as floating effects', () => {
     expect(runRule('effect-no-floating-effect', 'void Effect.succeed(1);')).toHaveLength(1);
   });
@@ -55,14 +44,5 @@ describe('Effect cycle 15 regression coverage', () => {
     `;
 
     expect(runRule('effect-no-runfork-without-observer', source)).toHaveLength(1);
-  });
-
-  it('ignores string-error patterns that appear only inside comments or strings', () => {
-    const source = `
-      const docs = "Effect.fail('bad')";
-      // Effect.fail("bad")
-    `;
-
-    expect(runRule('effect-no-string-errors', source)).toHaveLength(0);
   });
 });
