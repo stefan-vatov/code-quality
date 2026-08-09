@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 - 2026-08-09
+
+### Breaking Changes
+
+- fix(ts)!: replace noisy lint rules with strict signal (#29) (c4d143c)
+
 ## Unreleased (next breaking release)
 
 ### Breaking Changes
