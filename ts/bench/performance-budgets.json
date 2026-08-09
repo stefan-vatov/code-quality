@@ -90,16 +90,6 @@
       "p95LimitNs": 5762418,
       "runs": 20
     },
-    "renameMisCasedAcronyms": {
-      "inputSamples": 4,
-      "iterations": 20,
-      "medianLimitNs": 5388342,
-      "observedMedianNs": 898057,
-      "observedP95Ns": 1202212,
-      "operationsPerSample": 1,
-      "p95LimitNs": 7213272,
-      "runs": 20
-    },
     "sortImportDeclarations": {
       "inputSamples": 4,
       "iterations": 20,

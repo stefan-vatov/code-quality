@@ -7,7 +7,6 @@ import { inlineLocalExportLists } from '../src/codemods/inline-export-lists';
 import { preferConciseArrowBodies } from '../src/codemods/arrow-body-style';
 import { preferExplicitBranches } from '../src/codemods/no-ternary';
 import { preferFunctionExpressions } from '../src/codemods/function-declarations';
-import { renameMisCasedAcronyms } from '../src/codemods/rename-acronyms';
 import { sortImportDeclarations } from '../src/codemods/sort-imports';
 
 export const benchmarkCodemodFixtures = [
@@ -34,6 +33,5 @@ export const benchmarkCodemods = {
   preferConciseArrowBodies,
   preferExplicitBranches,
   preferFunctionExpressions,
-  renameMisCasedAcronyms,
   sortImportDeclarations,
 } satisfies Record<string, (source: string) => string>;

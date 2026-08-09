@@ -11,7 +11,6 @@ import { inlineLocalExportLists } from '../codemods/inline-export-lists';
 import { preferConciseArrowBodies } from '../codemods/arrow-body-style';
 import { preferExplicitBranches } from '../codemods/no-ternary';
 import { preferFunctionExpressions } from '../codemods/function-declarations';
-import { renameMisCasedAcronyms } from '../codemods/rename-acronyms';
 import { resolve } from 'node:path';
 import { sortImportDeclarations } from '../codemods/sort-imports';
 
@@ -81,9 +80,7 @@ export const applyCodemodFixToSource = (source: string): string =>
       inlineLocalExportLists(
         addVoidReturnTypes(
           preferConciseArrowBodies(
-            preferExplicitBranches(
-              preferFunctionExpressions(sortImportDeclarations(renameMisCasedAcronyms(source))),
-            ),
+            preferExplicitBranches(preferFunctionExpressions(sortImportDeclarations(source))),
           ),
         ),
       ),

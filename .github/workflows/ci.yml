@@ -47,7 +47,7 @@ jobs:
         run: pnpm run lint:type-aware
 
   oxlint-min-peer:
-    name: Oxlint 1.63.0 minimum peer compatibility
+    name: Oxlint 1.66.0 minimum peer compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

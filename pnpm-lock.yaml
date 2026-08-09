@@ -51,7 +51,7 @@ importers:
         specifier: ^0.43.0
         version: 0.43.0
       oxlint:
-        specifier: ^1.63.0
+        specifier: ^1.66.0
         version: 1.66.0(oxlint-tsgolint@0.22.1)
       oxlint-tsgolint:
         specifier: ^0.22.1
@@ -85,7 +85,7 @@ importers:
         version: 0.22.1
     devDependencies:
       oxlint:
-        specifier: ^1.63.0
+        specifier: ^1.66.0
         version: 1.66.0(oxlint-tsgolint@0.22.1)
 
 packages:

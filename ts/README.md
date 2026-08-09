@@ -21,11 +21,11 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The base config selects only reviewed upstream Oxlint rules. Oxlint normally supplies implicit
-`correctness` warnings; the config performs one category-level reset with `correctness: 'allow'`
-and then assigns `error` to the approved rules explicitly. This is not a warning downgrade and is
-not a collection of rule-level disables: unapproved rules simply do not enter the effective
-allowlist.
+The base config selects 128 reviewed, syntax-only upstream Oxlint rules. Oxlint normally supplies
+implicit `correctness` warnings; the config performs one category-level reset with
+`correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
+warning downgrade and is not a collection of rule-level disables: unapproved rules simply do not
+enter the effective allowlist.
 
 The audit physically removed generic homegrown rules whose style or naming opinions did not provide a
 dependable correctness signal. It also removed the flagged Effect preference rules and semantically
@@ -52,7 +52,7 @@ reliable defect signal.
 ## Install
 
 ```sh
-pnpm add -D @thethracian/oxlint-config oxlint@^1.63.0
+pnpm add -D @thethracian/oxlint-config oxlint@^1.66.0
 ```
 
 Run Oxlint directly or add scripts to the consumer project:
@@ -82,9 +82,11 @@ export default theThracian({
 });
 ```
 
-Type-aware mode enables upstream checks for floating and misused promises, unsafe calls, member
-access, assignments, arguments, and returns, plus promise rejection and switch-exhaustiveness
-checks. It is slower than syntax-only linting because Oxlint loads project type information.
+Type-aware mode adds all 32 approved semantic rules for 160 upstream errors in total. They include
+checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
+assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
+those 32 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
+it. Type-aware linting is slower because Oxlint loads project type information.
 
 Explicit `any` annotations, non-null assertions, and boundary type assertions remain available at
 validated, generated, framework, and interop boundaries. The type-aware unsafe-operation rules
@@ -174,13 +176,13 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 
 ## What it enforces
 
-| Area                 | Policy                                                                                                                                   |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Shape                | 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 20                                                       |
-| Upstream safety      | `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `prefer-const`, caught-error preservation |
-| Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                              |
-| Effect               | 18 safety errors with `effect: true`; 60 architecture errors only when explicitly selected with paths                                    |
-| Deliberate omissions | No global `console`, null, ternary, magic-number, naming, file-size, import-count, documentation, or absolute assertion/`any` bans       |
+| Area                 | Policy                                                                                                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shape                | 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 20                                                                                                             |
+| Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
+| Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
+| Effect               | 18 safety errors with `effect: true`; 60 architecture errors only when explicitly selected with paths                                                                                          |
+| Deliberate omissions | No global `console`, null, ternary, magic-number, naming, file-size, import-count, documentation, or absolute assertion/`any` bans                                                             |
 
 ## Registry links
 

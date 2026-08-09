@@ -44,9 +44,9 @@
     "oxlint-tsgolint": "^0.22.1"
   },
   "devDependencies": {
-    "oxlint": "^1.63.0"
+    "oxlint": "^1.66.0"
   },
   "peerDependencies": {
-    "oxlint": ">=1.63.0"
+    "oxlint": ">=1.66.0"
   }
 }

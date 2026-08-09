@@ -105,10 +105,13 @@ describe('Effect slice quality gate portability', () => {
     );
   });
 
-  it('asserts exact JSON diagnostic rule IDs and counts at Oxlint 1.63.0', () => {
+  it('asserts exact diagnostics and the complete preset at the declared minimum peer', () => {
     const verifier = rootTextOrEmpty('ts/test/oxlint-min-peer/verify.mjs');
 
-    expect(verifier).toContain('oxlint@1.63.0');
+    expect(verifier).toContain('minimumPeerVersion');
+    expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
+    expect(verifier).toContain("await import('./full.config.mjs')");
+    expect(verifier).toContain('full minimum-peer config must expose 178 rules');
     expect(verifier).toMatch(/--format(?:=|['",\s]+)json/u);
     expect(verifier).toContain('JSON.parse');
     expect(verifier).toContain('diagnostics');

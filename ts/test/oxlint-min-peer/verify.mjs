@@ -7,8 +7,17 @@ import { fileURLToPath } from 'node:url';
 
 const fixtureDirectory = dirname(fileURLToPath(import.meta.url));
 const configPath = join(fixtureDirectory, 'oxlint.config.mjs');
+const fullConfigPath = join(fixtureDirectory, 'full.config.mjs');
 const invalidPath = join(fixtureDirectory, 'invalid.ts');
 const safePath = join(fixtureDirectory, 'safe.ts');
+const packagePath = join(fixtureDirectory, '..', '..', 'package.json');
+const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8'));
+const minimumPeerRange = packageJSON.peerDependencies.oxlint;
+const minimumPeerVersion = /\d+\.\d+\.\d+/u.exec(minimumPeerRange)?.[0];
+
+assert.ok(minimumPeerVersion, `Unable to parse the minimum Oxlint peer from ${minimumPeerRange}`);
+
+const oxlintSpecifier = `oxlint@${minimumPeerVersion}`;
 const expectedRuleIDs = [
   'thethracian/effect-no-floating-effect',
   'thethracian/effect-require-yield-star',
@@ -20,7 +29,7 @@ const runOxlint = (fixturePath, extraArguments = []) =>
     'pnpm',
     [
       'dlx',
-      'oxlint@1.63.0',
+      oxlintSpecifier,
       '-c',
       configPath,
       '--disable-nested-config',
@@ -37,6 +46,13 @@ const runOxlint = (fixturePath, extraArguments = []) =>
     },
   );
 
+const runPrintConfig = () =>
+  spawnSync('pnpm', ['dlx', oxlintSpecifier, '--print-config', '-c', fullConfigPath, safePath], {
+    cwd: fixtureDirectory,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+
 const invalidResult = runOxlint(invalidPath);
 assert.equal(invalidResult.status, 1, invalidResult.stderr);
 const { diagnostics } = JSON.parse(invalidResult.stdout);
@@ -46,6 +62,42 @@ const ruleIDs = diagnostics.map(({ code }) => {
   return ruleId;
 });
 assert.deepStrictEqual(ruleIDs.toSorted(), expectedRuleIDs.toSorted());
+
+const { default: fullConfig } = await import('./full.config.mjs');
+const sourceRuleNames = Object.keys(fullConfig.rules ?? {}).toSorted();
+assert.equal(sourceRuleNames.length, 178, 'full minimum-peer config must expose 178 rules');
+const sourceNativeRuleNames = sourceRuleNames.filter(
+  (ruleName) => !ruleName.startsWith('thethracian/'),
+);
+const sourceEffectRuleNames = sourceRuleNames.filter((ruleName) =>
+  ruleName.startsWith('thethracian/'),
+);
+assert.equal(sourceNativeRuleNames.length, 160, 'full config must expose 160 native rules');
+assert.equal(
+  sourceEffectRuleNames.length,
+  18,
+  'full config must expose all 18 Effect safety rules',
+);
+for (const ruleName of [
+  'import/no-duplicates',
+  'no-implied-eval',
+  'oxc/only-used-in-recursion',
+  'thethracian/effect-no-floating-effect',
+  'typescript/no-floating-promises',
+]) {
+  assert.ok(sourceRuleNames.includes(ruleName), `full config is missing ${ruleName}`);
+}
+
+const printResult = runPrintConfig();
+assert.equal(printResult.status, 0, printResult.stderr);
+const printedNativeRuleNames = Object.keys(JSON.parse(printResult.stdout).rules ?? {})
+  .filter((ruleName) => !ruleName.startsWith('thethracian/'))
+  .toSorted();
+assert.deepStrictEqual(
+  printedNativeRuleNames,
+  sourceNativeRuleNames,
+  `Oxlint ${minimumPeerVersion} did not register the complete native preset`,
+);
 
 const temporaryDirectory = mkdtempSync(join(tmpdir(), 'oxlint-min-peer-'));
 const temporarySafePath = join(temporaryDirectory, basename(safePath));

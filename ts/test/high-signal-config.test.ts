@@ -62,7 +62,6 @@ const removedInheritedRules = [
   'no-underscore-dangle',
   'oxc/no-async-endpoint-handlers',
   'oxc/no-this-in-exported-function',
-  'oxc/only-used-in-recursion',
   'promise/always-return',
   'promise/no-callback-in-promise',
   'promise/no-promise-in-callback',
@@ -139,10 +138,15 @@ describe('high-signal strict config', (): void => {
     const config = theThracianOxlint();
 
     expect(config.categories).toStrictEqual({ correctness: 'allow' });
-    expect(Object.keys(config.rules ?? {})).toHaveLength(150);
+    expect(config.rules).toHaveProperty('import/no-duplicates', [
+      'error',
+      { considerQueryString: true, preferInline: false },
+    ]);
+    expect(config.rules).toHaveProperty('oxc/only-used-in-recursion', 'error');
+    expect(Object.keys(config.rules ?? {})).toHaveLength(128);
   });
 
-  it('adds only the eight type-aware native rules when requested', (): void => {
+  it('adds every semantic native rule only when type-aware linting is requested', (): void => {
     const defaultRules = theThracianOxlint().rules ?? {};
     const typeAwareRules = theThracianOxlint({ typeAware: true }).rules ?? {};
     const addedRules = Object.keys(typeAwareRules).filter(
@@ -150,16 +154,40 @@ describe('high-signal strict config', (): void => {
     );
 
     expect(addedRules.sort()).toStrictEqual([
+      'typescript/await-thenable',
+      'typescript/consistent-return',
+      'typescript/no-array-delete',
+      'typescript/no-base-to-string',
+      'typescript/no-duplicate-type-constituents',
       'typescript/no-floating-promises',
+      'typescript/no-for-in-array',
       'typescript/no-implied-eval',
+      'typescript/no-meaningless-void-operator',
       'typescript/no-misused-promises',
+      'typescript/no-misused-spread',
+      'typescript/no-redundant-type-constituents',
+      'typescript/no-unnecessary-boolean-literal-compare',
+      'typescript/no-unnecessary-template-expression',
+      'typescript/no-unnecessary-type-arguments',
+      'typescript/no-unnecessary-type-assertion',
+      'typescript/no-unnecessary-type-conversion',
+      'typescript/no-unnecessary-type-parameters',
       'typescript/no-unsafe-argument',
       'typescript/no-unsafe-assignment',
+      'typescript/no-unsafe-call',
+      'typescript/no-unsafe-enum-comparison',
+      'typescript/no-unsafe-member-access',
       'typescript/no-unsafe-return',
+      'typescript/no-unsafe-unary-minus',
+      'typescript/no-useless-default-assignment',
+      'typescript/only-throw-error',
       'typescript/prefer-promise-reject-errors',
+      'typescript/require-array-sort-compare',
+      'typescript/restrict-template-expressions',
       'typescript/switch-exhaustiveness-check',
+      'typescript/unbound-method',
     ]);
-    expect(Object.keys(typeAwareRules)).toHaveLength(158);
+    expect(Object.keys(typeAwareRules)).toHaveLength(160);
   });
 
   it('uses strict but non-fragmenting numeric limits', (): void => {

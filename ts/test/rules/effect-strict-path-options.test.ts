@@ -49,6 +49,32 @@ describe('Effect strict path options', () => {
     ).toHaveLength(0);
   });
 
+  it('does not guess test paths outside explicit project path groups', () => {
+    const options = {
+      entrypoints: ['apps/api/main.ts'],
+      integrationTests: ['tests/integration/**'],
+      unitTests: ['tests/unit/**'],
+    };
+    const unconfiguredTestFile = 'src/domain/user.test.ts';
+
+    expect(
+      runRule(
+        'effect-no-live-services-in-unit-tests',
+        'const layer = UserRepoLive;',
+        unconfiguredTestFile,
+        options,
+      ),
+    ).toHaveLength(0);
+    expect(
+      runRule(
+        'effect-no-run-outside-entrypoints',
+        'Effect.runPromise(program);',
+        unconfiguredTestFile,
+        options,
+      ),
+    ).toHaveLength(1);
+  });
+
   it('passes strict path options through the exported config execution path', () => {
     const strictOptions = {
       adapterLayers: ['platform/adapters/**'],

@@ -44,7 +44,7 @@ Use the package for your ecosystem.
 ### TypeScript
 
 ```sh
-pnpm add -D @thethracian/oxlint-config oxlint@^1.63.0
+pnpm add -D @thethracian/oxlint-config oxlint@^1.66.0
 ```
 
 ```js

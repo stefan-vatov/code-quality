@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { medianBenchmarkRows } from '../../bench/performance-gate-measurement';
+import plugin from '../../src/rules/plugin';
+import type { BenchRow } from '../../bench/performance-gate-support';
 
 interface BudgetEntry {
   inputSamples: number;
@@ -33,24 +36,61 @@ const numericConstant = (name: string): number => {
 };
 
 describe('Effect benchmark validity contracts', (): void => {
-  it('executes reported fixes through a no-op fixer in fix mode', (): void => {
-    const reportPath = sourceBetween('const runRule =', 'const benchmark =');
+  it('uses the median of repeated measurements to reject transient tail jitter', (): void => {
+    const row = (medianNs: number, p95Ns: number): BenchRow => ({
+      inputSamples: 7,
+      iterations: 20,
+      medianNs,
+      name: 'effect-example',
+      operationsPerSample: 1,
+      p95Ns,
+    });
 
-    expect(reportPath).toMatch(/\bfixMode\b/);
-    expect(reportPath).toMatch(/descriptor\.fix(?:\?\.)?\(\s*(?:benchmarkFixer|noOpFixer)\s*\)/);
-    expect(gateSource).toMatch(/\bremoveRange\s*\(/);
-    expect(gateSource).toMatch(/\breplaceTextRange\s*\(/);
+    const oneOutlier = medianBenchmarkRows([
+      [row(10_000, 20_000)],
+      [row(10_500, 2_000_000)],
+      [row(11_000, 22_000)],
+    ]);
+    const repeatedRegression = medianBenchmarkRows([
+      [row(10_000, 20_000)],
+      [row(80_000, 2_000_000)],
+      [row(90_000, 2_100_000)],
+    ]);
+
+    expect(oneOutlier[0]).toMatchObject({ medianNs: 10_500, p95Ns: 22_000 });
+    expect(repeatedRegression[0]).toMatchObject({ medianNs: 80_000, p95Ns: 2_000_000 });
   });
 
-  it('asserts that native references, candidates, and fixes are exercised', (): void => {
-    const requiredCounters = ['nativeReferenceHits', 'candidateHits', 'fixHits'] as const;
+  it('does not fabricate fixer work for a plugin with no fixable rules', (): void => {
+    expect(gateSource).not.toContain('fixMode');
+    expect(gateSource).not.toContain('benchmarkFixer');
+    expect(gateSource).not.toContain('descriptor.fix');
+  });
+
+  it('requires only work paths exposed by the retained plugin', (): void => {
+    const fixableRuleNames = Object.entries(plugin.rules)
+      .filter(([, rule]): boolean => {
+        const meta: unknown = Reflect.get(rule, 'meta');
+        return (
+          typeof meta === 'object' &&
+          meta !== null &&
+          (Reflect.has(meta, 'fixable') || Reflect.get(meta, 'hasSuggestions') === true)
+        );
+      })
+      .map(([ruleName]) => ruleName);
+
+    expect(fixableRuleNames).toStrictEqual([]);
+
+    const requiredCounters = ['nativeReferenceHits', 'candidateHits'] as const;
 
     for (const counter of requiredCounters) {
       expect(gateSource).toContain(counter);
     }
     expect(gateSource).toMatch(
-      /requiredBenchmarkHits[\s\S]{0,500}nativeReferenceHits[\s\S]{0,500}candidateHits[\s\S]{0,500}fixHits/,
+      /requiredBenchmarkHits[\s\S]{0,500}nativeReferenceHits[\s\S]{0,500}candidateHits/,
     );
+    expect(gateSource).not.toMatch(/requiredBenchmarkHits[\s\S]{0,500}\bfixHits\b/);
+    expect(gateSource).not.toContain('fixReadHits');
     expect(gateSource).toMatch(
       /requiredBenchmarkHits[\s\S]{0,1000}(?:throw new Error|assertBenchmarkHits)/,
     );
@@ -96,5 +136,21 @@ describe('Effect benchmark validity contracts', (): void => {
 
     expect(fixtureCount).toBe(7);
     expect(staleEntries).toEqual([]);
+  });
+
+  it('confirms apparent budget breaches across independent measurements', (): void => {
+    const checkBudgets = sourceBetween('const checkBudgets =', "if (args.has('--update'))");
+
+    expect(numericConstant('budgetConfirmationMeasurements')).toBeGreaterThanOrEqual(3);
+    expect(checkBudgets).toMatch(
+      /failures\.length[\s\S]{0,1500}measureAll[\s\S]{0,1500}medianBenchmarkRows/,
+    );
+  });
+
+  it('propagates calibration runs to rule and codemod measurements', (): void => {
+    const measureAll = sourceBetween('const measureAll =', 'const readBudgets =');
+
+    expect(measureAll).toContain('Math.max(defaultRuleIterations, runs)');
+    expect(measureAll).toContain('Math.max(defaultCodemodIterations, runs)');
   });
 });

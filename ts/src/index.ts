@@ -84,6 +84,7 @@ const nativeRuleAllowlist = [
   'import/no-empty-named-blocks',
   'import/no-named-as-default',
   'import/no-named-as-default-member',
+  'import/no-duplicates',
   'import/no-self-import',
   'max-depth',
   'max-lines-per-function',
@@ -166,6 +167,7 @@ const nativeRuleAllowlist = [
   'oxc/misrefactored-assign-op',
   'oxc/missing-throw',
   'oxc/number-arg-out-of-range',
+  'oxc/only-used-in-recursion',
   'oxc/uninvoked-array-callback',
   'prefer-const',
   'preserve-caught-error',
@@ -232,15 +234,44 @@ const nativeRuleAllowlist = [
   'valid-typeof',
 ] as const;
 
-const conditionalNativeRuleNames = [
+/**
+ * Semantic rules implemented by Oxlint's tsgolint backend. Keep this list in
+ * sync with the supported `oxlint-tsgolint` rule inventory: configuring one of
+ * these rules without type-aware execution makes it silently ineffective.
+ */
+const typeAwareNativeRuleNames = [
+  'typescript/await-thenable',
+  'typescript/consistent-return',
+  'typescript/no-array-delete',
+  'typescript/no-base-to-string',
+  'typescript/no-duplicate-type-constituents',
   'typescript/no-floating-promises',
+  'typescript/no-for-in-array',
   'typescript/no-implied-eval',
+  'typescript/no-meaningless-void-operator',
   'typescript/no-misused-promises',
+  'typescript/no-misused-spread',
+  'typescript/no-redundant-type-constituents',
+  'typescript/no-unnecessary-boolean-literal-compare',
+  'typescript/no-unnecessary-template-expression',
+  'typescript/no-unnecessary-type-arguments',
+  'typescript/no-unnecessary-type-assertion',
+  'typescript/no-unnecessary-type-conversion',
+  'typescript/no-unnecessary-type-parameters',
   'typescript/no-unsafe-argument',
   'typescript/no-unsafe-assignment',
+  'typescript/no-unsafe-call',
+  'typescript/no-unsafe-enum-comparison',
+  'typescript/no-unsafe-member-access',
   'typescript/no-unsafe-return',
+  'typescript/no-unsafe-unary-minus',
+  'typescript/no-useless-default-assignment',
+  'typescript/only-throw-error',
   'typescript/prefer-promise-reject-errors',
+  'typescript/require-array-sort-compare',
+  'typescript/restrict-template-expressions',
   'typescript/switch-exhaustiveness-check',
+  'typescript/unbound-method',
 ] as const;
 
 const isEffectEnabled = (effect: TheThracianOxlintOptions['effect']): boolean => {
@@ -426,6 +457,13 @@ const configOptions = (
 const configuredNativeRules = {
   complexity: ['error', { max: 20 }],
   eqeqeq: 'error',
+  'import/no-duplicates': [
+    'error',
+    {
+      considerQueryString: true,
+      preferInline: false,
+    },
+  ],
   'max-depth': ['error', { max: 5 }],
   'max-lines-per-function': [
     'error',
@@ -452,8 +490,8 @@ const baseRules = (typeAwareRule: ToggleRuleSetting | undefined): RuleMap =>
     nativeRuleAllowlist
       .filter(
         (ruleName) =>
-          !conditionalNativeRuleNames.includes(
-            ruleName as (typeof conditionalNativeRuleNames)[number],
+          !typeAwareNativeRuleNames.includes(
+            ruleName as (typeof typeAwareNativeRuleNames)[number],
           ) || typeAwareRule,
       )
       .map((ruleName) => [ruleName, Reflect.get(configuredNativeRules, ruleName) ?? 'error']),

@@ -5,6 +5,55 @@ export const percentile = (values: readonly number[], percentileValue: number): 
     Math.max(0, Math.ceil(values.length * percentileValue) - 1)
   ] ?? 0;
 
+const hasSameBenchmarkShape = (left: BenchRow, right: BenchRow): boolean =>
+  left.inputSamples === right.inputSamples &&
+  left.iterations === right.iterations &&
+  left.name === right.name &&
+  left.operationsPerSample === right.operationsPerSample;
+
+/**
+ * Combines independent benchmark measurements without letting one scheduler,
+ * JIT, or garbage-collection spike decide the gate. Each row keeps its normal
+ * median and p95 thresholds; only a result repeated in at least two of three
+ * measurements survives the outer median.
+ */
+export const medianBenchmarkRows = (measurements: readonly (readonly BenchRow[])[]): BenchRow[] => {
+  const referenceRows = measurements[0];
+  if (!referenceRows) {
+    return [];
+  }
+  if (
+    measurements.some(
+      (rows): boolean =>
+        rows.length !== referenceRows.length ||
+        rows.some((row, index): boolean => {
+          const reference = referenceRows[index];
+          return !reference || !hasSameBenchmarkShape(row, reference);
+        }),
+    )
+  ) {
+    throw new Error('Benchmark measurements must contain the same rows in the same order');
+  }
+
+  return referenceRows.map((row, index): BenchRow => {
+    const repeatedRows = measurements.flatMap((rows) => {
+      const repeatedRow = rows[index];
+      return repeatedRow ? [repeatedRow] : [];
+    });
+    return {
+      ...row,
+      medianNs: percentile(
+        repeatedRows.map((repeatedRow) => repeatedRow.medianNs),
+        0.5,
+      ),
+      p95Ns: percentile(
+        repeatedRows.map((repeatedRow) => repeatedRow.p95Ns),
+        0.5,
+      ),
+    };
+  });
+};
+
 export const measureBenchmark = <Input>(
   name: string,
   inputs: readonly Input[],

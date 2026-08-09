@@ -39,7 +39,9 @@ const nativeEntries = (rules) =>
   Object.entries(rules ?? {}).filter(([ruleName]) => !ruleName.startsWith('thethracian/'));
 
 const sourceConfig = theThracianOxlint({ effect: false, typeAware: true });
+const baseSourceConfig = theThracianOxlint({ effect: false });
 const sourceNativeEntries = nativeEntries(sourceConfig.rules);
+const baseSourceNativeEntries = nativeEntries(baseSourceConfig.rules);
 const printedNativeEntries = nativeEntries(printedConfig.rules);
 
 assert.deepStrictEqual(
@@ -74,14 +76,19 @@ assert.deepStrictEqual(
 );
 
 assert.equal(
+  baseSourceNativeEntries.length,
+  128,
+  'base source config must expose 128 syntax-only native rules',
+);
+assert.equal(
   sourceNativeEntries.length,
-  158,
-  'type-aware source config must expose 158 native rules',
+  160,
+  'type-aware source config must expose 160 native rules',
 );
 assert.equal(
   printedNativeEntries.length,
-  158,
-  'resolved type-aware config must expose 158 native rules',
+  160,
+  'resolved type-aware config must expose 160 native rules',
 );
 
 const sourceNative = Object.fromEntries(

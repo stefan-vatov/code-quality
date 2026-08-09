@@ -72,7 +72,6 @@ const defaultPathOptions = {
   unitTests: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx'],
 } satisfies Readonly<Record<StrictPathOptionKey, readonly string[]>>;
 
-const testFilePattern = /\.(?:test|spec)\.tsx?$/;
 const GLOB_CACHE_MAX = 128;
 const BYTES_PER_MEBIBYTE = 1_048_576;
 const GLOB_CACHE_MAX_MEBIBYTES = 5;
@@ -253,20 +252,13 @@ export const isConfiguredPath = (
   );
 };
 
-const isTestFile = (filename: string | undefined): boolean =>
-  pipe(
-    Option.fromNullable(filename),
-    Option.exists((value): boolean => testFilePattern.test(value)),
-  );
-
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
 export const isUnitTestPath = (context: Pick<Context, 'filename' | 'options'>): boolean =>
-  (isTestFile(context.filename) || isConfiguredPath(context, 'unitTests')) &&
-  !isConfiguredPath(context, 'integrationTests');
+  isConfiguredPath(context, 'unitTests') && !isConfiguredPath(context, 'integrationTests');
 
 /**
  * Internal helper exported for package-local composition.
@@ -274,6 +266,4 @@ export const isUnitTestPath = (context: Pick<Context, 'filename' | 'options'>): 
  * @internal
  */
 export const isEffectTestPath = (context: Pick<Context, 'filename' | 'options'>): boolean =>
-  isTestFile(context.filename) ||
-  isConfiguredPath(context, 'unitTests') ||
-  isConfiguredPath(context, 'integrationTests');
+  isConfiguredPath(context, 'unitTests') || isConfiguredPath(context, 'integrationTests');

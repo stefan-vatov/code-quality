@@ -67,7 +67,7 @@
     "nx": "^22.7.1",
     "oxc-parser": "0.128.0",
     "oxfmt": "^0.43.0",
-    "oxlint": "^1.63.0",
+    "oxlint": "^1.66.0",
     "oxlint-tsgolint": "^0.22.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",

@@ -30,15 +30,6 @@ export interface BenchRow {
   p95Ns: number;
 }
 
-export interface BenchmarkFixer {
-  removeRange(range: readonly number[]): object;
-  replaceTextRange(range: readonly number[], text: string): object;
-}
-
-export interface ReportDescriptor {
-  fix?: (fixer: BenchmarkFixer) => unknown;
-}
-
 export interface ASTNode {
   [key: string]: unknown;
   end?: number;

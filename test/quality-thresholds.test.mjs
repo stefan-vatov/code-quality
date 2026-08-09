@@ -180,12 +180,14 @@ describe('quality threshold configuration', () => {
     expect(packageJSON.scripts['test:oxlint-min-peer']).toBe(
       'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs',
     );
-    expect(packageJSON.scripts['test:oxlint-min-peer']).not.toContain('oxlint@^1.63');
+    expect(packageJSON.devDependencies.oxlint).toBe('^1.66.0');
     expect(ciWorkflow).toContain('oxlint-min-peer:');
-    expect(ciWorkflow).toContain('name: Oxlint 1.63.0 minimum peer compatibility');
+    expect(ciWorkflow).toContain('name: Oxlint 1.66.0 minimum peer compatibility');
     expect(ciWorkflow).toContain('run: pnpm run test:oxlint-min-peer');
-    expect(verifier).toContain("'oxlint@1.63.0'");
-    expect(verifier).not.toContain("'oxlint@^1.63'");
+    expect(verifier).toContain('minimumPeerVersion');
+    expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
+    expect(verifier).toContain("await import('./full.config.mjs')");
+    expect(verifier).toContain('full minimum-peer config must expose 178 rules');
     expect(verifier).toContain("'--format'");
     expect(verifier).toContain("'json'");
     expect(verifier).toMatch(
@@ -202,6 +204,7 @@ describe('quality threshold configuration', () => {
     expect(verifier).toMatch(/assert\.equal\(\s*afterFix\s*,\s*beforeFix\s*\)/u);
 
     const compatibilityConfig = rootText('ts/test/oxlint-min-peer/oxlint.config.mjs');
+    const fullCompatibilityConfig = rootText('ts/test/oxlint-min-peer/full.config.mjs');
     const invalidFixture = rootText('ts/test/oxlint-min-peer/invalid.ts');
     const safeFixture = rootText('ts/test/oxlint-min-peer/safe.ts');
 
@@ -212,6 +215,9 @@ describe('quality threshold configuration', () => {
     ]) {
       expect(compatibilityConfig).toContain(`'${ruleName}': 'error'`);
     }
+
+    expect(fullCompatibilityConfig).toContain('effect: true');
+    expect(fullCompatibilityConfig).toContain('typeAware: true');
 
     expect(invalidFixture).toContain('void Effect.succeed(0);');
     expect(invalidFixture).toContain('yield Effect.succeed(1);');

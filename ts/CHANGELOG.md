@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (next major release)
+## Unreleased (next breaking release)
 
 ### Breaking Changes
 
@@ -10,6 +10,14 @@
 - Oxlint's implicit `correctness` warnings are neutralized once with a category-level
   `correctness: 'allow'` reset before the approved rules are assigned `error`. The reset prevents
   hidden defaults from leaking into the preset; it does not weaken an active rule.
+- Raised the minimum supported Oxlint version to `1.66.0`, the first release that provides the
+  syntax-only `no-implied-eval` rule used by the base preset. Minimum-peer CI now resolves and
+  compares the complete type-aware and Effect-enabled rule set.
+- Split the upstream allowlist into 128 syntax-only errors and 32 semantic errors. The semantic
+  rules are emitted only with `typeAware: true`, so the base preset no longer advertises checks
+  that Oxlint cannot execute without its type-aware backend.
+- Retained `import/no-duplicates` and `oxc/only-used-in-recursion` as errors because they detect
+  duplicate imports and dead recursive parameters without imposing a representation preference.
 - Changed the structural limits to complexity `20`, nesting depth `5`, function length `150`
   lines, nested callbacks `6`, and parameters `7`. Line width is delegated to the formatter.
 - Removed maximum file-length and import-count enforcement. Removed noisy naming, null, ternary,
@@ -26,7 +34,8 @@
   path groups relevant to those rules. A blanket `strict: true`, unknown rule names, missing paths,
   and malformed path options now fail fast instead of silently changing the active policy.
 - Semantic codemod implementations remain available as an explicit, reviewed migration command;
-  they are never part of lint fixes or staged-file workflows.
+  they are never part of lint fixes or staged-file workflows. The unsafe acronym renamer and its
+  1,574-entry policy dictionary were removed rather than repackaged as a migration transform.
 - Repository CI and staged-file checks now build and use the local package under development. The
   release verification PR still runs the newly published package as a downstream consumer.
 
