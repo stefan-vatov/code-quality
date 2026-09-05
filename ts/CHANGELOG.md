@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Breaking Changes
+
+- Lowered the exported cyclomatic complexity limit from 20 to 10 per function, enforced as
+  an error. Refactored rule helpers to comply without suppressions or behavioral changes.
+
 ## 0.7.1 - 2026-09-05
 
 ### Changes

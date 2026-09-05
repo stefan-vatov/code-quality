@@ -38,7 +38,7 @@ The base structural limits are deliberately configurable values with clear revie
 
 | Rule                     |                                         Limit |
 | ------------------------ | --------------------------------------------: |
-| `complexity`             |                                            20 |
+| `complexity`             |                                            10 |
 | `max-depth`              |                                      5 levels |
 | `max-lines-per-function` | 150 lines, excluding blank lines and comments |
 | `max-nested-callbacks`   |                                      6 levels |
@@ -234,7 +234,7 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 
 | Area                 | Policy                                                                                                                                                                                         |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shape                | 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 20                                                                                                             |
+| Shape                | 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 10                                                                                                             |
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
 | TypeScript safety    | 15 package-local errors for evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                                                     |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |

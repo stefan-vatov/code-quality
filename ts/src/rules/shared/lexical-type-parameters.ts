@@ -41,6 +41,13 @@ function collectInferTypeParameterNames(
   }
 }
 
+function collectDeclaredTypeParameterNames(node: ESTree.Node, names: Set<string>): void {
+  if (!('typeParameters' in node)) return;
+  for (const parameter of node.typeParameters?.params ?? []) {
+    names.add(parameter.name.name);
+  }
+}
+
 export function lexicalTypeParameterNames(
   node: ESTree.Node,
   visitorKeys: VisitorKeys,
@@ -49,11 +56,7 @@ export function lexicalTypeParameterNames(
   let descendant: ESTree.Node = node;
   let current: ESTree.Node | null = node;
   while (current !== null && current.type !== 'Program') {
-    if ('typeParameters' in current) {
-      for (const parameter of current.typeParameters?.params ?? []) {
-        names.add(parameter.name.name);
-      }
-    }
+    collectDeclaredTypeParameterNames(current, names);
     if (
       current.type === 'TSMappedType' &&
       (descendant === current.nameType || descendant === current.typeAnnotation)

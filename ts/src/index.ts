@@ -460,7 +460,7 @@ const configOptions = (typeAwareOptions: TypeAwareConfigOptions | undefined): Co
 };
 
 const configuredNativeRules: RuleMap = {
-  complexity: ['error', { max: 20 }],
+  complexity: ['error', { max: 10 }],
   eqeqeq: 'error',
   'import/no-duplicates': [
     'error',

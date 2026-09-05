@@ -196,7 +196,7 @@ describe('high-signal strict config', (): void => {
   it('uses strict but non-fragmenting numeric limits', (): void => {
     const config = theThracianOxlint();
 
-    expect(config.rules).toHaveProperty('complexity', ['error', { max: 20 }]);
+    expect(config.rules).toHaveProperty('complexity', ['error', { max: 10 }]);
     expect(config.rules).toHaveProperty('max-depth', ['error', { max: 5 }]);
     expect(config.rules).toHaveProperty('max-lines-per-function', [
       'error',

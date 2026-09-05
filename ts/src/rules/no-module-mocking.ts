@@ -24,22 +24,29 @@ function importedName(node: ESTree.Node): string | null {
   return node.imported.type === 'Identifier' ? node.imported.name : node.imported.value;
 }
 
+function isTestFrameworkNamespaceMember(
+  sourceCode: SourceCode,
+  expression: ESTree.MemberExpression,
+): boolean {
+  const member = staticMemberName(expression);
+  if (expression.object.type !== 'Identifier') return false;
+  const variable = resolveVariable(sourceCode, expression.object);
+  return (
+    variable?.defs.some(
+      (definition) =>
+        definition.type === 'ImportBinding' &&
+        definition.node.type === 'ImportNamespaceSpecifier' &&
+        definition.parent?.type === 'ImportDeclaration' &&
+        definition.parent.importKind !== 'type' &&
+        ((definition.parent.source.value === 'vitest' && member === 'vi') ||
+          (definition.parent.source.value === '@jest/globals' && member === 'jest')),
+    ) ?? false
+  );
+}
+
 function isTestFrameworkObject(sourceCode: SourceCode, expression: ESTree.Expression): boolean {
   if (expression.type === 'MemberExpression') {
-    const member = staticMemberName(expression);
-    if (expression.object.type !== 'Identifier') return false;
-    const variable = resolveVariable(sourceCode, expression.object);
-    return (
-      variable?.defs.some(
-        (definition) =>
-          definition.type === 'ImportBinding' &&
-          definition.node.type === 'ImportNamespaceSpecifier' &&
-          definition.parent?.type === 'ImportDeclaration' &&
-          definition.parent.importKind !== 'type' &&
-          ((definition.parent.source.value === 'vitest' && member === 'vi') ||
-            (definition.parent.source.value === '@jest/globals' && member === 'jest')),
-      ) ?? false
-    );
+    return isTestFrameworkNamespaceMember(sourceCode, expression);
   }
   if (expression.type !== 'Identifier') return false;
   if (
@@ -79,19 +86,9 @@ function staticMemberName(node: ESTree.MemberExpression): string | null {
 }
 
 function moduleMockCall(sourceCode: SourceCode, callee: ESTree.Expression): boolean {
-  if (!('property' in callee) || !('object' in callee) || !('computed' in callee)) return false;
+  if (callee.type !== 'MemberExpression') return false;
   if (!isTestFrameworkObject(sourceCode, callee.object)) return false;
-  const property = callee.property;
-  const method = callee.computed
-    ? property.type === 'Literal' &&
-      (property.value === 'doMock' ||
-        property.value === 'mock' ||
-        property.value === 'unstable_mockModule')
-      ? property.value
-      : null
-    : property.type === 'Identifier'
-      ? property.name
-      : null;
+  const method = staticMemberName(callee);
   return method !== null && moduleMockMethods.has(method);
 }
 

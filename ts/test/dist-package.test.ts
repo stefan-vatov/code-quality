@@ -104,6 +104,39 @@ const runOxlintJSON = (args: string[], cwd: string): string => {
 };
 
 describe('published TypeScript package shape', (): void => {
+  it.each([
+    [9, 0],
+    [10, 1],
+  ] as const)(
+    'enforces the complexity-ten boundary with %i decisions',
+    (decisions, expectedStatus) => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], { cwd: repoRoot, stdio: 'pipe' });
+      const directory = mkdtempSync(join(repoRoot, 'complexity-boundary-'));
+      try {
+        const filename = join(directory, 'classify.ts');
+        const branches = Array.from(
+          { length: decisions },
+          (_, index) => `if (value === ${index}) return ${index};`,
+        ).join('\n');
+        writeFileSync(
+          filename,
+          `export function classify(value: number): number {\n${branches}\nreturn -1;\n}`,
+        );
+        const result = spawnSync(
+          join(repoRoot, 'node_modules/.bin/oxlint'),
+          ['-c', 'oxlint.workspace.config.mjs', '--format', 'json', filename],
+          { cwd: repoRoot, encoding: 'utf8' },
+        );
+        expect(result.error).toBeUndefined();
+        expect(result.status, result.stdout + result.stderr).toBe(expectedStatus);
+        expect(result.stdout.includes('complexity'), result.stdout).toBe(expectedStatus === 1);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+    distPackageTestTimeoutMs,
+  );
+
   it.each(['oxlint.config.mjs', 'oxlint.workspace.config.mjs'])(
     'lints source and fixtures but excludes tests, scripts, and benchmarks in %s',
     (config) => {

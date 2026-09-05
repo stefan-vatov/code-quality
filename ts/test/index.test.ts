@@ -35,7 +35,7 @@ describe('theThracianOxlint', () => {
     expect(config.jsPlugins).not.toContain('oxlint-plugin-complexity');
     expect(config.rules).not.toHaveProperty('complexity/complexity');
     expect(config.rules).not.toHaveProperty('thethracian/complexity');
-    expect(config.rules).toHaveProperty('complexity', ['error', { max: 20 }]);
+    expect(config.rules).toHaveProperty('complexity', ['error', { max: 10 }]);
   });
 
   it('does not enable Effect rules unless explicitly requested', () => {
