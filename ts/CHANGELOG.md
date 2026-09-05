@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0 - 2026-09-05
+
+### Breaking Changes
+
+- feat!: ban source comments across typescript, rust, and elixir (7a8f47d)
+
+### Features
+
+- feat(ts): integrate strict safety rules and repository checks (de80b96)
+
+### Fixes
+
+- fix(ts): resolve conflicting lint rules (9895837)
+
 ## 0.6.0 - 2026-08-09
 
 ### Breaking Changes

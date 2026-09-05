@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 - 2026-09-05
+
+### Breaking Changes
+
+- feat!: ban source comments across typescript, rust, and elixir (7a8f47d)
+
+### Fixes
+
+- fix: make installer version assertions release-safe (11d9525)
+
 ## Unreleased
 
 ### Added
