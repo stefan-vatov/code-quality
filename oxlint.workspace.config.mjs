@@ -18,6 +18,7 @@ const localRepositoryConfig = {
     '**/dist/**',
     '**/build/**',
     '**/coverage/**',
+    'ts/codemod-quality-output/**',
     '**/scripts/**',
 
     'ts/test/oxlint-min-peer/{invalid,safe,native-apis}.ts',

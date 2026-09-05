@@ -32,6 +32,16 @@ const sourceFiles = (directory: string) =>
     .map((entry) => `${entry.parentPath}/${entry.name}`);
 
 describe('quality threshold configuration', () => {
+  it.each(['oxlint.workspace.config.mjs', 'oxlint.config.mjs'])(
+    'excludes generated codemod samples from %s',
+    async (path) => {
+      const { default: config } = (await import(new URL(`../${path}`, import.meta.url).href)) as {
+        default: { ignorePatterns: string[] };
+      };
+      expect(config.ignorePatterns).toContain('ts/codemod-quality-output/**');
+    },
+  );
+
   it('keeps source imports extensionless for this package build pipeline', () => {
     const offenders = [...sourceFiles('ts/src'), ...sourceFiles('ts/test')].flatMap((path) => {
       const source = ts.createSourceFile(path, readFileSync(path, 'utf-8'), ts.ScriptTarget.Latest);

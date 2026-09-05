@@ -13,6 +13,7 @@ const repositoryConfig = {
     '**/dist/**',
     '**/build/**',
     '**/coverage/**',
+    'ts/codemod-quality-output/**',
     '**/scripts/**',
     '**/test/**',
     '**/fixtures/**',
