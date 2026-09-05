@@ -1,6 +1,26 @@
 defmodule TheThracianCredo.ConsumerActivationTest do
   use ExUnit.Case, async: false
 
+  test "consumer commands inherit the selected runtime without requiring mise" do
+    original_path = System.fetch_env!("PATH")
+    on_exit(fn -> System.put_env("PATH", original_path) end)
+    utilities = temp_project("runtime-tools")
+
+    for executable <- ["dirname", "basename", "readlink", "sh"] do
+      File.ln_s!(System.find_executable(executable), Path.join(utilities, executable))
+    end
+
+    runtime_path =
+      original_path
+      |> String.split(":")
+      |> Enum.reject(&File.regular?(Path.join(&1, "mise")))
+      |> Enum.join(":")
+
+    System.put_env("PATH", utilities <> ":" <> runtime_path)
+    assert System.find_executable("mise") == nil
+    assert_success(mix(File.cwd!(), ["--version"]))
+  end
+
   @tag timeout: 120_000
   test "installed package config makes Credo enforce package checks" do
     project = temp_project("consumer")
@@ -107,7 +127,7 @@ defmodule TheThracianCredo.ConsumerActivationTest do
   end
 
   defp mix(project, args) do
-    System.cmd("mise", ["exec", "--", "mix" | args], cd: project, stderr_to_stdout: true)
+    System.cmd("mix", args, cd: project, stderr_to_stdout: true)
   end
 
   defp temp_project(name) do
