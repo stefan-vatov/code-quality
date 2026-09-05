@@ -3410,8 +3410,7 @@ const recreateOutputRoot = (): void => {
   );
 
   const config = theThracianOxlint({ typeAware: true });
-  // Codemod fixtures intentionally preserve broad contracts and explicit
-  // return shapes; the package-local rules have dedicated RuleTester suites.
+
   const nativeRules = Object.fromEntries(
     Object.entries(config.rules ?? {}).filter(([ruleName]) => !ruleName.startsWith('thethracian/')),
   );

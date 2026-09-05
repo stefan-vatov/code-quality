@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Conservative codemod for arrow-body-style concise bodies.          */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, Order, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
@@ -166,11 +163,6 @@ const replacementForArrow = (
     Option.getOrUndefined,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const preferConciseArrowBodies = (source: string): string => {
   const replacements: Replacement[] = [];
 

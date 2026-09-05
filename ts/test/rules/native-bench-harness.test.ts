@@ -10,12 +10,8 @@ describe('native benchmark host', () => {
     ['no-reflect-get', 'Reflect.get(owner, key);', 1],
     ['no-reflect-get', 'const Reflect = { get() {} }; Reflect.get();', 0],
     ['no-reflect-get', 'function read(Reflect: Reader) { Reflect.get(); }', 0],
-    ['require-safety-comment-for-type-assertion', 'const value = input as User;', 1],
-    [
-      'require-safety-comment-for-type-assertion',
-      '// SAFETY: the caller checked the user.\nexport const value = input as User;',
-      0,
-    ],
+    ['no-comments', '// comment\nconst value = input as User;', 1],
+    ['no-comments', 'export const value = input as User;', 0],
     [
       'no-widen-then-assert',
       'const source = { id: 1 }; const widened: unknown = source; const value = widened as User;',

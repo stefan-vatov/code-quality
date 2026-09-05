@@ -87,7 +87,7 @@ describe('strict AST value contracts', (): void => {
       nothing: null,
       total: 3,
     };
-    // SAFETY: Preserve the deliberately invalid function property to test its runtime rejection.
+
     const input = node as typeof node & ASTObject;
 
     expect(objectValue(input, 'enabled')).toBe(true);
@@ -100,7 +100,7 @@ describe('strict AST value contracts', (): void => {
 
   it('filters arrays and rejects non-array containers exactly', (): void => {
     const functionValue = (): void => undefined;
-    // SAFETY: The function entry deliberately exercises filtering of invalid AST array values.
+
     const values = arrayValue([0, 'value', null, undefined, {}, functionValue] as ASTValue[]);
     expect(values).toStrictEqual([0, 'value', null, undefined, {}]);
     expect(arrayValue({ 0: 'value', length: 1 })).toStrictEqual([]);

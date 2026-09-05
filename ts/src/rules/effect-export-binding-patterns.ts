@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*           TypeScript binding-pattern names for export indexing.            */
-/* -------------------------------------------------------------------------- */
 import { bindingPatternIndex } from './effect-export-binding-pattern-index';
 
 const CHAR_CODE_BRACE_OPEN = 123;
@@ -188,14 +185,8 @@ const addPatternBindings = (
   }
 };
 
-/**
- * Finds the end-exclusive range of an identifier or destructuring binding pattern.
- */
 export const bindingPatternEnd = indexedBindingPatternEnd;
 
-/**
- * Collects every local binding name owned by one binding pattern.
- */
 export const bindingPatternNames = (
   code: string,
   startIndex: number,

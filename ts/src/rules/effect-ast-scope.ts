@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Lexical binding analysis shared by AST-backed Effect lint rules.      */
-/* -------------------------------------------------------------------------- */
-
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
 import type { ASTNode, ASTValue } from './effect-ast';
 import { extendScopeStack } from './effect-ast-scope-stack';
@@ -330,15 +326,6 @@ const nodeBindings = (node: ASTNode): Set<string> => {
   return bindings;
 };
 
-/**
- * Extend an AST traversal scope stack with bindings introduced by a node.
- *
- * @param scopes - Lexical scopes inherited from the node's ancestors.
- * @param node - The node whose lexical and hoisted bindings should be collected.
- * @returns The inherited stack or a stack extended with the node's bindings.
- * @throws Does not throw.
- * @internal
- */
 export const withNodeScope = (scopes: ScopeStack, node: ASTNode): ScopeStack => {
   if (!canIntroduceBindings(node)) {
     return scopes;
@@ -346,16 +333,6 @@ export const withNodeScope = (scopes: ScopeStack, node: ASTNode): ScopeStack => 
   return extendScopeStack(scopes, nodeBindings(node));
 };
 
-/**
- * Select the lexical scopes visible while traversing one child edge.
- *
- * @param nodeScopes - Scopes visible in the parent node's ordinary children.
- * @param parent - The parent AST node.
- * @param childKey - The parent property containing the child.
- * @returns The scope stack that is semantically visible along the child edge.
- * @throws Does not throw.
- * @internal
- */
 export const scopesForChild = (
   nodeScopes: ScopeStack,
   parent: ASTNode,

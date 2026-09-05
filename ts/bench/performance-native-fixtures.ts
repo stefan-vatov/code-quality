@@ -1,6 +1,5 @@
 import type { Fixture } from './performance-gate-support';
 
-/** Native-service candidates are separate so existing Effect measurements stay comparable. */
 export const nativeRuleFixtures: readonly Fixture[] = [
   {
     filename: 'src/domain/assertions.ts',

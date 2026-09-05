@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*            Stateful source pass for incremental regex indexing.            */
-/* -------------------------------------------------------------------------- */
 import type { REGEXTokenContext } from './effect-source-regex-lexer-context';
 import { regexLexerPrimitives } from './effect-source-regex-lexer';
 import { scanREGEXLiteralEnd } from './effect-source-regex-literal';
@@ -18,11 +15,6 @@ interface TemplateFrame {
   outerContext: REGEXTokenContext;
 }
 
-/**
- * Stateful source lexer used to build the cached regex index.
- *
- * @internal
- */
 class REGEXSourceLexer {
   readonly source: string;
   context: REGEXTokenContext = lexer.newTokenContext();
@@ -34,12 +26,6 @@ class REGEXSourceLexer {
     this.source = source;
   }
 
-  /**
-   * Scans the complete source exactly once.
-   *
-   * @returns The indexed regex starts and ends.
-   * @throws Does not throw.
-   */
   scan(): REGEXIndex {
     while (this.index < this.source.length) {
       this.scanIteration();
@@ -297,12 +283,4 @@ class REGEXSourceLexer {
   }
 }
 
-/**
- * Build a regex index with one monotonic source pass.
- *
- * @param source - Complete source text.
- * @returns The indexed regex starts and ends.
- * @throws Does not throw.
- * @internal
- */
 export const buildREGEXIndex = (source: string): REGEXIndex => new REGEXSourceLexer(source).scan();

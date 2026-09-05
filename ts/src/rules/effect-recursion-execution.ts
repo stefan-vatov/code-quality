@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*    Same-phase execution analysis for eager recursive Effect functions.     */
-/* -------------------------------------------------------------------------- */
-
 import type {
   LocalBinding,
   LocalFunctionScopes,
@@ -59,7 +55,6 @@ const suppliedArgument: InvocationArguments = {
 };
 
 const parameterScopes = (scopes: ScopeStack, node: ASTNode): ScopeStack => {
-  // SAFETY: This synthetic node contains only AST children and is consumed by the local scope walker.
   const parameterScopeNode = {
     params: childNodes(node, 'params'),
     type: 'ArrowFunctionExpression',
@@ -507,11 +502,6 @@ const scanRecursiveNode = (node: ASTNode, scopes: ScopeStack, input: ScanInput):
   }
 };
 
-/**
- * Analyze a named function for Effect construction and same-phase self-invocation.
- *
- * @internal
- */
 export const recursiveEffectFacts = (
   node: ASTNode,
   functionName: string,

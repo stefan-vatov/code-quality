@@ -3,7 +3,7 @@ name = "cargo-thx-lint"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Cargo subcommand that installs The Thracian Rust lint configuration."
+description = "Cargo subcommand that installs The Thracian Rust lint configuration and checks source comments."
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/stefan-vatov/code-quality"
@@ -24,3 +24,8 @@ include = [
 [[bin]]
 name = "cargo-thx-lint"
 path = "src/main.rs"
+
+[dependencies]
+ra-ap-rustc_lexer = "=0.100.0"
+serde = { version = "=1.0.219", features = ["derive"] }
+serde_json = "=1.0.140"

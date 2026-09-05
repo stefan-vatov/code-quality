@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Contracts for composing AST Program visitors with core rules.        */
-/* -------------------------------------------------------------------------- */
 import {
   type Context,
   type RuleSpec,

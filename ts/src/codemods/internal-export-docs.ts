@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*          Codemod for internal exported declaration documentation.          */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, Order, Predicate, pipe } from 'effect';
 import type { Comment, ExportNamedDeclaration, Statement } from 'jscodeshift';
 import { formatJSDoc } from './comment-format';
@@ -108,11 +105,6 @@ const internalExportDocInsertions = (source: string): readonly Insertion[] => {
   return insertions;
 };
 
-/**
- * Adds explicit declaration-level `@internal` JSDoc to exports in internal files.
- *
- * @internal
- */
 export const addInternalExportDocs = (source: string): string =>
   pipe(
     Option.some(source),

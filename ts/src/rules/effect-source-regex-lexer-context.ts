@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Mutable JavaScript lexical context for incremental regex scans.       */
-/* -------------------------------------------------------------------------- */
-
 const CHAR_CODE_BRACKET_CLOSE = ']'.charCodeAt(0);
 const CHAR_CODE_BRACKET_OPEN = '['.charCodeAt(0);
 const CHAR_CODE_COLON = ':'.charCodeAt(0);
@@ -56,11 +52,6 @@ const isStatementBoundaryBrace = (kind: RegexBraceKind): boolean =>
   kind === 'control' ||
   kind === 'function-declaration';
 
-/**
- * Mutable lexical context used by the regex source scanner.
- *
- * @throws Does not throw.
- */
 export class REGEXTokenContext {
   angleDepth = 0;
   braceKinds: RegexBraceKind[] = [];

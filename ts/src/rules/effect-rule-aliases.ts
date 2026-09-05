@@ -1,17 +1,9 @@
-/* -------------------------------------------------------------------------- */
-/*  Effect import, alias, and runtime-call helpers for source-backed rules.   */
-/* -------------------------------------------------------------------------- */
 import { Array, HashSet, Option, pipe } from 'effect';
 import { stripComments, stripCommentsAndStrings } from './effect-source-helpers';
 import type { CanonicalizedEffectSource } from './effect-alias-canonicalization';
 import { buildCanonicalizedEffectSource } from './effect-alias-canonicalization';
 import { createWeightedCache } from './source-cache';
 
-/**
- * Matches supported Effect runtime execution calls.
- *
- * @internal
- */
 export const runtimeCallPattern =
   /\b(?:Effect\.(?:runPromise|runPromiseExit|runSync|runSyncExit|runFork)|[A-Za-z_$][\w$]*Runtime\.runMain)\s*\(/;
 const boundaryFilePattern = /(?:^|\/)src\/(?:main|server|cli)\.ts$|\.entry\.ts$/;
@@ -223,7 +215,6 @@ const hasEffectValueImport = (source: string): boolean => {
   );
 };
 
-/** Finds local identifiers bound to the Effect namespace. @internal */
 export const effectImportAliases = (source: string): string[] => {
   const cachedValue = cachedAliases(effectAliasCache, source);
   if (cachedValue) {
@@ -243,7 +234,6 @@ export const effectImportAliases = (source: string): string[] => {
   return cacheAliases(effectAliasCache, source, [...aliases]);
 };
 
-/** Finds local identifiers bound to a named Effect API module. @internal */
 export const effectAPIAliases = (source: string, APIName: string): string[] => {
   const aliases = new Set<string>();
   const commentFreeSource = stripComments(source);
@@ -271,7 +261,6 @@ export const effectAPIAliases = (source: string, APIName: string): string[] => {
   return [...aliases];
 };
 
-/** Finds local names for functions imported from an Effect API module. @internal */
 export const effectFunctionAliases = (
   source: string,
   moduleName: string,
@@ -376,11 +365,6 @@ const buildCanonicalSource = (source: string): CanonicalizedEffectSource => {
   return buildCanonicalizedEffectSource(source, aliases, pattern);
 };
 
-/**
- * Canonicalizes Effect API aliases while retaining original positions.
- *
- * @internal
- */
 export const canonicalizeEffectAPIAliasesWithMap = (source: string): CanonicalizedEffectSource => {
   const cachedSource = canonicalSourceCache.get(source);
   if (cachedSource !== undefined) {
@@ -394,11 +378,6 @@ export const canonicalizeEffectAPIAliasesWithMap = (source: string): Canonicaliz
   );
 };
 
-/**
- * Canonicalizes local Effect API aliases to their imported names.
- *
- * @internal
- */
 export const canonicalizeEffectAPIAliases = (source: string): string =>
   canonicalizeEffectAPIAliasesWithMap(source).source;
 
@@ -463,11 +442,6 @@ const cachedRuntimeResult = (source: string, aliasSource: string, hasRuntime: bo
   return cacheBoolean(runtimeCallCache, source, hasRuntime);
 };
 
-/**
- * Determines whether source contains a supported Effect runtime call.
- *
- * @internal
- */
 export const hasRuntimeCall = (source: string, aliasSource: string = source): boolean => {
   const cachedValue = cachedBoolean(runtimeCallCache, source);
   if (aliasSource === source && cachedValue !== undefined) {
@@ -484,11 +458,6 @@ export const hasRuntimeCall = (source: string, aliasSource: string = source): bo
   return cachedRuntimeResult(source, aliasSource, hasContextualRuntime);
 };
 
-/**
- * Determines whether source contains an Effect value-level signal.
- *
- * @internal
- */
 export const hasEffectSignal = (source: string): boolean => {
   const cachedValue = cachedBoolean(effectSignalCache, source);
   if (cachedValue !== undefined) {
@@ -510,18 +479,8 @@ export const hasEffectSignal = (source: string): boolean => {
   );
 };
 
-/**
- * Determines whether a file is an Effect execution boundary.
- *
- * @internal
- */
 export const isBoundaryFile = (filename: string | undefined): boolean =>
   Boolean(filename && boundaryFilePattern.test(filename));
 
-/**
- * Determines whether a file path names a test module.
- *
- * @internal
- */
 export const isTestFile = (filename: string | undefined): boolean =>
   Boolean(filename && testFilePattern.test(filename));

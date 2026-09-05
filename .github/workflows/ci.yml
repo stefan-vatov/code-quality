@@ -133,6 +133,9 @@ jobs:
       - name: Check packages
         run: pnpm run check
 
+      - name: Lint packages
+        run: pnpm run lint:projects
+
   test:
     name: test
     runs-on: ubuntu-latest

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Conservative codemod for return-position no-ternary fixes.         */
-/* -------------------------------------------------------------------------- */
 import { Array, HashSet, Option, Order, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
@@ -308,11 +305,6 @@ const collectStatementReplacements = (source: string, replacements: Replacement[
   });
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const preferExplicitBranches = (source: string): string => {
   const replacements: Replacement[] = [];
   const root = codemodAPI(source);

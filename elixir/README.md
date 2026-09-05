@@ -83,6 +83,34 @@ dialyzer: TheThracianCredo.dialyzer()
 | State clarity     | variable rebinding is rejected so data flow stays explicit                              |
 | Project structure | source files nested more than 4 directories under the Mix project root are rejected     |
 | Safety            | unsafe command execution and unused enum operations are flagged                         |
+| Comments          | lexical `#` comments fail; only a first-line interpreter shebang is allowed             |
+
+### No lexical comments
+
+`TheThracianCredo.Check.Readability.NoComments` is enabled by default at high priority
+with exit status 2. The installer activates it in both fresh and existing configurations
+through `TheThracianCredo.checks()`; existing consumers receive it when updating the package.
+
+The check uses Elixir's [`Code.string_to_quoted_with_comments/2`](https://hexdocs.pm/elixir/1.18.4/Code.html#string_to_quoted_with_comments/2).
+It rejects standalone, trailing, empty, and interpolation comments. Literal `#` characters
+inside strings, sigils, charlists, quoted atoms, and heredocs are allowed. `@doc` and
+`@moduledoc` attributes are code, not lexical comments, and remain allowed and required
+where the existing documentation checks apply.
+
+For parity with the TypeScript and Rust policy, an interpreter shebang such as
+`#!/usr/bin/env elixir` is allowed only at the very start of the file (line 1, column 1),
+with an absolute interpreter path after `#!` and optional spaces or tabs. Later or indented
+`#!` comments and `#!` without an interpreter path remain forbidden. Invalid syntax remains
+the responsibility of Credo's parser diagnostics.
+
+The plugin clears Credo's [inline suppression directives](https://hexdocs.pm/credo/config_comments.html)
+before analysis in the suggest, list, and diff commands. A directive cannot suppress this
+check or hide another check's findings. Configuration-file check selections still apply.
+The policy covers files selected for analysis; installer ownership markers in generated
+configuration files are not exemptions and will fail if those files are explicitly included.
+
+Credo's [official check catalog](https://hexdocs.pm/credo/api-reference.html) has no general
+all-comments prohibition, so this check ships with the package as a custom check.
 
 ## Local Development
 

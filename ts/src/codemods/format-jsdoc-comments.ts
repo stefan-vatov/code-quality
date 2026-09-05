@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Codemod for normalizing generated JSDoc comment aesthetics.         */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, pipe } from 'effect';
 import { formatJSDoc } from './comment-format';
 
@@ -165,11 +162,6 @@ const skippedEnd = (source: string, start: number): number | undefined => {
   );
 };
 
-/**
- * Normalizes generated JSDoc comments to classic multi-line formatting.
- *
- * @internal
- */
 export const formatJSDocComments = (source: string): string =>
   pipe(
     Array.range(0, source.length - 1),

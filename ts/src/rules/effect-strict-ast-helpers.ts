@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*                AST helpers for opt-in strict Effect rules.                 */
-/* -------------------------------------------------------------------------- */
 import { Array, HashSet, Option, Predicate, pipe } from 'effect';
 import { effectAPIAliases, effectFunctionAliases, effectImportAliases } from './effect-rule-core';
 import { isASTArray, isASTObject, isASTValue, type ASTNode, type ASTValue } from './effect-ast';
@@ -23,20 +20,10 @@ interface ServiceKeyParts {
   readonly key?: string;
 }
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const reportAST = (context: RuleContext, message: string, node: ASTNode): void => {
   context.report({ message, node });
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const objectValue = (node: ASTValue, key: string): ASTValue => {
   if (!isASTObject(node)) {
     return undefined;
@@ -45,11 +32,6 @@ export const objectValue = (node: ASTValue, key: string): ASTValue => {
   return isASTValue(value) ? value : undefined;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const arrayValue = (node: ASTValue): ASTValue[] => {
   if (isASTArray(node)) {
     return [...node].filter(isASTValue);
@@ -57,11 +39,6 @@ export const arrayValue = (node: ASTValue): ASTValue[] => {
   return [];
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const nodeType = (node: ASTValue): string | undefined => {
   const type = objectValue(node, 'type');
   if (Predicate.isString(type)) {
@@ -70,11 +47,6 @@ export const nodeType = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const identifierName = (node: ASTValue): string | undefined => {
   if (nodeType(node) === 'Identifier') {
     const name = objectValue(node, 'name');
@@ -86,11 +58,6 @@ export const identifierName = (node: ASTValue): string | undefined => {
   return undefined;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const literalValue = (node: ASTValue): ASTValue => {
   if (nodeType(node) === 'Literal') {
     return objectValue(node, 'value');
@@ -98,11 +65,6 @@ export const literalValue = (node: ASTValue): ASTValue => {
   return undefined;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const isVoidZero = (node: ASTValue): boolean => {
   if (nodeType(node) !== 'UnaryExpression') {
     return false;
@@ -122,21 +84,11 @@ const memberParts = (node: ASTValue): MemberParts => {
   };
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const isMember = (node: ASTValue, objectName: string, propertyName: string): boolean => {
   const parts = memberParts(node);
   return parts.objectName === objectName && parts.propertyName === propertyName;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const isSchemaMember = (node: ASTValue, source: string, propertyName: string): boolean => {
   const parts = memberParts(node);
   return Boolean(
@@ -146,11 +98,6 @@ export const isSchemaMember = (node: ASTValue, source: string, propertyName: str
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectCallPredicate = (
   source: string,
   names: readonly string[],
@@ -241,11 +188,6 @@ const serviceClassSuperCallParts = (
   return { className, inner, outerArguments: objectValue(superClass, 'arguments') };
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const serviceKeyFromClass = (node: ASTValue, source: string): ServiceKeyParts => {
   const className = identifierName(objectValue(node, 'id'));
   const parts = serviceClassSuperCallParts(node);

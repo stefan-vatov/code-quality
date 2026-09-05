@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Straight-line execution prefix for eager Effect generators.         */
-/* -------------------------------------------------------------------------- */
-
 import { asNode, childNode, childNodes } from './effect-ast';
 import { isFunctionNode, unwrappedExpression } from './effect-boundary-ast-shared';
 import type { ASTNode, ASTValue } from './effect-ast';
@@ -132,11 +128,6 @@ const scanGeneratorStatement = (statement: ASTNode, input: EagerGeneratorScan): 
   return scanOrdinaryStatement(statement, input);
 };
 
-/**
- * Scan only the synchronously reachable prefix of an eager Effect generator.
- *
- * @internal
- */
 export const scanEagerGeneratorPrefix = (body: ASTNode, input: EagerGeneratorScan): void => {
   for (const statement of childNodes(body, 'body')) {
     if (!scanGeneratorStatement(statement, input)) {

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Source segment helpers for opt-in strict Effect lint rules.         */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import {
   findBalancedCallEnd,
@@ -94,11 +91,6 @@ const cacheSourceIndex = <Value extends string | undefined>(
   return value;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const lineAround = (source: string, targetIndex: number): string => {
   const start = source.lastIndexOf('\n', targetIndex) + 1;
   const end = Match.value(source.indexOf('\n', targetIndex)).pipe(
@@ -137,11 +129,6 @@ const isIdentifierPart = (character: string | undefined): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const testSegments = (source: string): string[] =>
   Match.value(source).pipe(
     Match.when(
@@ -171,11 +158,6 @@ export const testSegments = (source: string): string[] =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasLayerFactory = (source: string): boolean =>
   Match.value(source.includes('Layer.')).pipe(
     Match.when(
@@ -193,11 +175,6 @@ export const hasLayerFactory = (source: string): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnscopedResourceLayer = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(
@@ -220,11 +197,6 @@ export const hasUnscopedResourceLayer = (source: string): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnscopedResourceLoop = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(
@@ -253,11 +225,6 @@ export const hasUnscopedResourceLoop = (source: string): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnsafeResourceStream = (source: string): boolean =>
   Match.value(source.includes('Stream.')).pipe(
     Match.when(
@@ -287,11 +254,6 @@ export const hasUnsafeResourceStream = (source: string): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasLiveTestService = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(
@@ -303,11 +265,6 @@ export const hasLiveTestService = (source: string): boolean =>
     ),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasRealTestService = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(
@@ -317,11 +274,6 @@ export const hasRealTestService = (source: string): boolean =>
     Match.orElse((value): boolean => /\breal[A-Z]/.test(stripCommentsAndStrings(value))),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasDuplicateLayerInstance = (source: string): boolean =>
   Match.value(source.includes('Layer.')).pipe(
     Match.when(
@@ -389,11 +341,6 @@ const uncachedLocalEffectCallSegment = (source: string, targetIndex: number): st
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const localEffectCallSegment = (source: string, targetIndex: number): string => {
   const indexCache = sourceIndexCache(localEffectCallSegmentCache, source);
   const cachedSegment = indexCache.get(targetIndex);
@@ -409,11 +356,6 @@ export const localEffectCallSegment = (source: string, targetIndex: number): str
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const localStatementSegment = (source: string, targetIndex: number): string =>
   source.slice(targetIndex, findStatementEnd(source, targetIndex) + 1);
 
@@ -434,11 +376,6 @@ const uncachedEnclosingEffectWrapperSegment = (
     Option.getOrUndefined,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const enclosingEffectWrapperSegment = (
   source: string,
   targetIndex: number,
@@ -502,11 +439,6 @@ const pipeBodyHasTopLevelOperator = (pipeBody: string, operatorNeedle: string): 
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasTopLevelPipeOperator = (
   segment: string,
   operatorName: 'retry' | 'timeout' | 'withSpan',

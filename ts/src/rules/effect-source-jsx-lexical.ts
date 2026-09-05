@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Character, context, and token primitives for JSX scanning.         */
-/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
 import {
   findLineTerminatorIndex,
@@ -8,131 +5,46 @@ import {
   isLineTerminatorCode,
 } from './effect-source-line-terminators';
 
-/**
- * UTF-16 code unit for a JavaScript backslash.
- *
- * @internal
- */
 export const CHAR_CODE_BACKSLASH = 92;
-/**
- * UTF-16 code unit for an asterisk.
- *
- * @internal
- */
+
 export const CHAR_CODE_BLOCK_COMMENT = 42;
-/**
- * UTF-16 code unit for a closing brace.
- *
- * @internal
- */
+
 export const CHAR_CODE_BRACE_CLOSE = 125;
-/**
- * UTF-16 code unit for an opening brace.
- *
- * @internal
- */
+
 export const CHAR_CODE_BRACE_OPEN = 123;
-/**
- * UTF-16 code unit for a comma.
- *
- * @internal
- */
+
 export const CHAR_CODE_COMMA = 44;
-/**
- * UTF-16 code unit for a dollar sign.
- *
- * @internal
- */
+
 export const CHAR_CODE_DOLLAR = 36;
-/**
- * UTF-16 code unit for a double quote.
- *
- * @internal
- */
+
 export const CHAR_CODE_DOUBLE_QUOTE = 34;
-/**
- * UTF-16 code unit for an equals sign.
- *
- * @internal
- */
+
 export const CHAR_CODE_EQUALS = 61;
-/**
- * UTF-16 code unit for a greater-than sign.
- *
- * @internal
- */
+
 export const CHAR_CODE_GREATER_THAN = 62;
-/**
- * UTF-16 code unit for a less-than sign.
- *
- * @internal
- */
+
 export const CHAR_CODE_LESS_THAN = 60;
-/**
- * UTF-16 code unit for a slash.
- *
- * @internal
- */
+
 export const CHAR_CODE_LINE_COMMENT = 47;
-/**
- * UTF-16 code unit for a single quote.
- *
- * @internal
- */
+
 export const CHAR_CODE_SINGLE_QUOTE = 39;
-/**
- * UTF-16 code unit for a slash.
- *
- * @internal
- */
+
 export const CHAR_CODE_SLASH = 47;
-/**
- * UTF-16 code unit for a template quote.
- *
- * @internal
- */
+
 export const CHAR_CODE_TEMPLATE_QUOTE = 96;
-/**
- * UTF-16 code unit for a closing bracket.
- *
- * @internal
- */
+
 export const CHAR_CODE_CLOSE_BRACKET = 93;
-/**
- * UTF-16 code unit for a closing parenthesis.
- *
- * @internal
- */
+
 export const CHAR_CODE_CLOSE_PAREN = 41;
-/**
- * UTF-16 code unit for an exclamation mark.
- *
- * @internal
- */
+
 export const CHAR_CODE_EXCLAMATION = 33;
-/**
- * UTF-16 code unit for a hash sign.
- *
- * @internal
- */
+
 export const CHAR_CODE_HASH = 35;
-/**
- * UTF-16 code unit for an opening parenthesis.
- *
- * @internal
- */
+
 export const CHAR_CODE_OPEN_PAREN = 40;
-/**
- * Closing punctuation that follows a JavaScript value.
- *
- * @internal
- */
+
 export const CLOSING_CODES = new Set([CHAR_CODE_CLOSE_BRACKET, CHAR_CODE_CLOSE_PAREN]);
-/**
- * Two-character operators recognized by the source projection.
- *
- * @internal
- */
+
 export const PAIR_OPERATORS = new Set([
   '!=',
   '&&',
@@ -298,11 +210,6 @@ const controlFlowHeader = (word: string): ControlFlowHeader | undefined => {
   }
 };
 
-/**
- * Projection callbacks emitted by the source lexer.
- *
- * @internal
- */
 export interface SourceScanHandlers {
   readonly onComment: (startIndex: number, endIndex: number) => void;
   readonly onLiteralContent: (startIndex: number, endIndex: number) => void;
@@ -311,24 +218,10 @@ export interface SourceScanHandlers {
   readonly onTemplateDelimiter: (startIndex: number, endIndex: number) => void;
 }
 
-/**
- * Active lexical mode for the iterative source lexer.
- *
- * @internal
- */
 export type ScanMode = 'js' | 'jsx-probe' | 'jsx-tag' | 'jsx-text' | 'template-raw';
-/**
- * Token category used to decide whether a less-than starts JSX.
- *
- * @internal
- */
+
 export type JSLastToken = 'keyword' | 'operator' | 'start' | 'value';
 
-/**
- * Mutable JavaScript lexical context carried across nested regions.
- *
- * @internal
- */
 export interface JavaScriptContext {
   braceDepth: number;
   controlFlowHeader: ControlFlowHeader | undefined;
@@ -341,21 +234,11 @@ export interface JavaScriptContext {
   lastWord: string;
 }
 
-/**
- * Open JSX element and the mode to restore after its close.
- *
- * @internal
- */
 export interface JSXElementFrame {
   readonly name: string;
   readonly returnMode: ScanMode;
 }
 
-/**
- * Incremental state for one JSX opening or closing tag.
- *
- * @internal
- */
 export interface JSXTagState {
   readonly isClosing: boolean;
   nameEnd: number;
@@ -366,48 +249,23 @@ export interface JSXTagState {
   sawExtends: boolean;
 }
 
-/**
- * Raw-text boundary for one open template literal.
- *
- * @internal
- */
 export interface TemplateFrame {
   rawStart: number;
 }
 
-/**
- * Return whether a UTF-16 code unit can start a JavaScript identifier.
- *
- * @internal
- */
 export const isIdentifierStart = (charCode: number): boolean =>
   charCode === CHAR_CODE_DOLLAR ||
   charCode === CHAR_CODE_UNDERSCORE ||
   (charCode < CHAR_CLASS.length && (CHAR_CLASS[charCode] & LETTER_MASK) !== 0) ||
   charCode >= CHAR_CODE_UNICODE;
 
-/**
- * Return whether a UTF-16 code unit can continue a JavaScript identifier.
- *
- * @internal
- */
 export const isIdentifierPart = (charCode: number): boolean =>
   isIdentifierStart(charCode) ||
   (charCode < CHAR_CLASS.length && (CHAR_CLASS[charCode] & DIGIT_MASK) !== 0);
 
-/**
- * Return whether a UTF-16 code unit can continue a JSX name.
- *
- * @internal
- */
 export const isJSXNamePart = (charCode: number): boolean =>
   isIdentifierPart(charCode) || JSX_NAME_START_PUNCTUATION.has(charCode);
 
-/**
- * Return whether a UTF-16 code unit is JavaScript or JSX whitespace.
- *
- * @internal
- */
 export const isWhitespace = (charCode: number): boolean =>
   charCode === CHAR_CODE_TAB ||
   charCode === CHAR_CODE_VERTICAL_TAB ||
@@ -415,11 +273,6 @@ export const isWhitespace = (charCode: number): boolean =>
   charCode === CHAR_CODE_SPACE ||
   isLineTerminatorCode(charCode);
 
-/**
- * Find the first unescaped closing quote, or the source length.
- *
- * @internal
- */
 export const quotedEnd = (source: string, startIndex: number, quoteCode: number): number => {
   let index = startIndex + 1;
   while (index < source.length) {
@@ -435,11 +288,6 @@ export const quotedEnd = (source: string, startIndex: number, quoteCode: number)
   return source.length;
 };
 
-/**
- * Return the exclusive end of quoted content for a quote scan result.
- *
- * @internal
- */
 export const quotedContentEnd = (source: string, endIndex: number): number => {
   if (endIndex < source.length) {
     return endIndex - 1;
@@ -451,21 +299,11 @@ const isJSXNameStart = (charCode: number): boolean =>
   charCode === CHAR_CODE_GREATER_THAN ||
   (isJSXNamePart(charCode) && !JSX_NAME_START_PUNCTUATION.has(charCode));
 
-/**
- * Return whether the less-than at an index begins a JSX opening tag.
- *
- * @internal
- */
 export const isJSXTagStart = (source: string, index: number): boolean => {
   const nextCode = source.charCodeAt(index + 1);
   return nextCode === CHAR_CODE_GREATER_THAN || isJSXNameStart(nextCode);
 };
 
-/**
- * Return whether the less-than at an index begins a JSX closing tag.
- *
- * @internal
- */
 export const isJSXClosingTagStart = (source: string, index: number): boolean => {
   const nextCode = source.charCodeAt(index + 1);
   const nameCode = source.charCodeAt(index + 2);
@@ -475,11 +313,6 @@ export const isJSXClosingTagStart = (source: string, index: number): boolean => 
   );
 };
 
-/**
- * Return whether a word occurs at an identifier boundary.
- *
- * @internal
- */
 export const startsWithWord = (source: string, index: number, word: string): boolean => {
   if (!source.startsWith(word, index)) {
     return false;
@@ -489,11 +322,6 @@ export const startsWithWord = (source: string, index: number, word: string): boo
   return !isIdentifierPart(beforeCode) && !isIdentifierPart(afterCode);
 };
 
-/**
- * Find the exclusive end of an identifier beginning at an index.
- *
- * @internal
- */
 export const wordEnd = (source: string, startIndex: number): number => {
   let index = startIndex + 1;
   while (index < source.length && isIdentifierPart(source.charCodeAt(index))) {
@@ -502,11 +330,6 @@ export const wordEnd = (source: string, startIndex: number): number => {
   return index;
 };
 
-/**
- * Return whether the current JavaScript token position can begin JSX.
- *
- * @internal
- */
 export const canStartJSX = (context: JavaScriptContext): boolean => {
   if (context.isControlFlowBody) {
     return true;
@@ -523,11 +346,6 @@ export const canStartJSX = (context: JavaScriptContext): boolean => {
   return JSX_PREFIX_OPERATORS.has(context.lastOperator);
 };
 
-/**
- * Return whether the current JavaScript token position can begin a regex.
- *
- * @internal
- */
 export const canStartREGEX = (context: JavaScriptContext): boolean => {
   if (context.isControlFlowBody || context.lastToken === 'start') {
     return true;
@@ -540,11 +358,6 @@ export const canStartREGEX = (context: JavaScriptContext): boolean => {
 
 const isKeyword = (word: string): boolean => KEYWORDS.has(word);
 
-/**
- * Create a fresh JavaScript context for a nested expression.
- *
- * @internal
- */
 export const createJavaScriptContext = (returnMode: ScanMode | undefined): JavaScriptContext => ({
   braceDepth: 0,
   controlFlowHeader: undefined,
@@ -578,11 +391,6 @@ const controlFlowState = (
   return { controlFlowHeader: undefined, controlFlowParenDepth: 0 };
 };
 
-/**
- * Return a context whose latest token is an operator.
- *
- * @internal
- */
 export const setOperator = (context: JavaScriptContext, operator: string): JavaScriptContext => {
   const nextControlFlowState = controlFlowState(context);
   return {
@@ -595,11 +403,6 @@ export const setOperator = (context: JavaScriptContext, operator: string): JavaS
   };
 };
 
-/**
- * Return a context whose latest token is a value.
- *
- * @internal
- */
 export const setValue = (context: JavaScriptContext): JavaScriptContext => {
   const nextControlFlowState = controlFlowState(context);
   return {
@@ -639,11 +442,6 @@ const nextControlFlowStateForWord = (
   return { controlFlowHeader: undefined, controlFlowParenDepth: 0 };
 };
 
-/**
- * Return a context whose latest token is an identifier or keyword.
- *
- * @internal
- */
 export const setWord = (context: JavaScriptContext, word: string): JavaScriptContext => {
   const nextControlFlowState = nextControlFlowStateForWord(context, word);
   return {
@@ -656,11 +454,6 @@ export const setWord = (context: JavaScriptContext, word: string): JavaScriptCon
   };
 };
 
-/**
- * Return a context after an opening JavaScript parenthesis.
- *
- * @internal
- */
 export const setOpenParenthesis = (context: JavaScriptContext): JavaScriptContext => {
   const {
     controlFlowHeader: pendingControlFlowHeader,
@@ -683,11 +476,6 @@ export const setOpenParenthesis = (context: JavaScriptContext): JavaScriptContex
   };
 };
 
-/**
- * Return a context after a closing JavaScript parenthesis.
- *
- * @internal
- */
 export const setCloseParenthesis = (context: JavaScriptContext): JavaScriptContext => {
   const {
     controlFlowHeader: currentControlFlowHeader,
@@ -718,11 +506,6 @@ export const setCloseParenthesis = (context: JavaScriptContext): JavaScriptConte
   };
 };
 
-/**
- * Skip a line comment and emit its source span.
- *
- * @internal
- */
 export const skipLineComment = (
   source: string,
   startIndex: number,
@@ -733,11 +516,6 @@ export const skipLineComment = (
   return indexAfterLineTerminator(source, lineEnd);
 };
 
-/**
- * Skip a block comment and emit its source span.
- *
- * @internal
- */
 export const skipBlockComment = (
   source: string,
   startIndex: number,

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Indexed source fallback for synchronous server-handler checks.       */
-/* -------------------------------------------------------------------------- */
 import type { RunSyncBindings, SourceRange } from './effect-strict-server-handler-types';
 import {
   buildExpressionBoundaryIndex,
@@ -282,14 +279,6 @@ const hasRunSyncBetween = (indexes: readonly number[], start: number, end: numbe
   return (indexes[index] ?? Number.POSITIVE_INFINITY) <= end;
 };
 
-/**
- * Detects synchronous Effect calls inside recognized server-handler expressions.
- *
- * @param source - Complete source text.
- * @returns Whether a recognized handler contains a recognized runSync call.
- * @throws Does not throw.
- * @internal
- */
 export const hasRunSyncInServerRequestHandlerSource = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const commentFreeSource = stripComments(source);

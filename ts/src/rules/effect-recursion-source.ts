@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Source fallback for execution-aware Effect recursion detection.       */
-/* -------------------------------------------------------------------------- */
-
 import type { DeferredCallRange, SourceRange } from './effect-recursion-source-deferred';
 import { canonicalizeEffectAPIAliases, effectImportAliases } from './effect-rule-aliases';
 import type { SourceNavigationIndex } from './effect-source-navigation-index';
@@ -547,14 +543,6 @@ const hasUnsafeRecursiveSource = (source: string): boolean => {
   return hasUnsafeRecursiveFunction(sourceIndex) || hasUnsafeRecursiveArrow(sourceIndex);
 };
 
-/**
- * Detect eager recursive Effect construction when an AST is unavailable.
- *
- * @param source - Complete TypeScript source text.
- * @returns Whether a supported function declaration or const arrow eagerly recurses.
- * @throws Does not throw.
- * @internal
- */
 export const hasRecursiveEffectSource = (source: string): boolean => {
   const canonicalSource = canonicalizeEffectAPIAliases(source);
   if (!effectImportAliases(canonicalSource).includes('Effect')) {

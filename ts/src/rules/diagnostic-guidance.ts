@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*             LLM-friendly diagnostic guidance for custom rules.             */
-/* -------------------------------------------------------------------------- */
 import { Array, pipe } from 'effect';
 
 interface DiagnosticInput {
@@ -110,11 +107,6 @@ const fallbackEffectGuidance = {
   fix: 'Rewrite the code to make the Effect boundary, error channel, resource lifetime, and execution point explicit.',
 } satisfies Pick<DiagnosticInput, 'example' | 'fix'>;
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const diagnosticMessage = (input: DiagnosticInput): string =>
   `${input.summary}\nFix: ${input.fix}\nExample:\n${markdownCode(input.example)}`;
 
@@ -147,11 +139,6 @@ const effectGuidance = (ruleName: string): Pick<DiagnosticInput, 'example' | 'fi
   return fallbackEffectGuidance;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectDiagnosticMessage = (ruleName: string, summary: string): string => {
   const guidance = effectGuidance(ruleName);
   return diagnosticMessage({ ...guidance, summary });

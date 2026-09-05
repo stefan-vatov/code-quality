@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      ASCII character classification table for hot-path lint helpers.       */
-/* -------------------------------------------------------------------------- */
 import { Array, pipe } from 'effect';
 
 const ASCII_TABLE_SIZE = 128;
@@ -44,34 +41,12 @@ const buildCharClass = (): Uint8Array => {
   return charClass;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const CHAR_CLASS = buildCharClass();
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const CLS_UPPER = CLASS_UPPER_BIT;
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+
 export const CLS_LOWER = CLASS_LOWER_BIT;
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+
 export const CLS_DIGIT = CLASS_DIGIT_BIT;
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
+
 export const CLS_UNDER = CLASS_UNDERSCORE_BIT;

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Exported declaration extraction helpers for Effect lint rules.       */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import {
   createModuleSourceIndex,
@@ -420,7 +417,6 @@ const exportedDeclarationProjections = (
   );
 };
 
-/** @internal */
 export const exportedDeclarationTexts = (source: string): string[] => {
   const cachedValue = cachedExportedDeclarations(source);
   return pipe(

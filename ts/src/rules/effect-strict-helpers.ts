@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*           Helper predicates for opt-in strict Effect lint rules.           */
-/* -------------------------------------------------------------------------- */
 import { Array, String, pipe } from 'effect';
 import { findStatementEnd, stripCommentsAndStrings } from './effect-source-helpers';
 import {
@@ -42,11 +39,6 @@ const sourceIncludes =
 const matchesIn = (source: string, pattern: RegExp): readonly RegExpExecArray[] =>
   pipe(source.matchAll(pattern), Array.fromIterable);
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasOutputBoundaryWithoutSchema = (source: string): boolean => {
   if (!sourceIncludes('Response.json')(source) && !sourceIncludes('return json')(source)) {
     return false;
@@ -63,11 +55,6 @@ export const hasOutputBoundaryWithoutSchema = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasHTTPClientResponseWithoutSchema = (source: string): boolean => {
   if (!sourceIncludes('HttpClient.')(source) || !sourceIncludes('response.json')(source)) {
     return false;
@@ -83,11 +70,6 @@ export const hasHTTPClientResponseWithoutSchema = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasSharedResourceForEachWithoutSemaphore = (source: string): boolean => {
   if (!sourceIncludes('Effect.forEach')(source)) {
     return false;
@@ -107,11 +89,6 @@ export const hasSharedResourceForEachWithoutSemaphore = (source: string): boolea
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasEnsuringCleanupWithoutOnExit = (source: string): boolean => {
   if (!sourceIncludes('Effect.ensuring')(source) || !sourceIncludes('cleanup')(source)) {
     return false;
@@ -127,11 +104,6 @@ export const hasEnsuringCleanupWithoutOnExit = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnterminatedLongRunningStream = (source: string): boolean => {
   if (!sourceIncludes('Stream.')(source)) {
     return false;
@@ -147,11 +119,6 @@ export const hasUnterminatedLongRunningStream = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasAsyncPushWithoutBuffer = (source: string): boolean => {
   if (!sourceIncludes('Stream.asyncPush')(source)) {
     return false;
@@ -167,11 +134,6 @@ export const hasAsyncPushWithoutBuffer = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnbatchedResolver = (source: string): boolean => {
   if (!sourceIncludes('RequestResolver.make')(source)) {
     return false;
@@ -187,11 +149,6 @@ export const hasUnbatchedResolver = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasNPlusOneWithoutBatchedResolver = (source: string): boolean => {
   if (!sourceIncludes('Effect.forEach')(source)) {
     return false;
@@ -209,11 +166,6 @@ export const hasNPlusOneWithoutBatchedResolver = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnprovidedServiceInEffectTest = (source: string): boolean => {
   if (
     !sourceIncludes('Service')(source) &&
@@ -233,11 +185,6 @@ export const hasUnprovidedServiceInEffectTest = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasTimeCodeWithoutTestClock = (source: string): boolean => {
   if (
     !sourceIncludes('Effect.timeout')(source) &&
@@ -256,11 +203,6 @@ export const hasTimeCodeWithoutTestClock = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasMutableStateWithoutRef = (source: string): boolean => {
   if (!sourceIncludes('let ')(source)) {
     return false;
@@ -276,9 +218,4 @@ export const hasMutableStateWithoutRef = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasSharedMutableStateWithoutRef = hasMutableStateWithoutRef;

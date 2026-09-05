@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*            Regex literal scanning primitives for source rules.             */
-/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
 
 const CHAR_CODE_BACKSLASH = 92;
@@ -101,15 +98,6 @@ const regexEndForStep = (
   return undefined;
 };
 
-/**
- * Find the closing slash and flags for a regex literal without inspecting source twice.
- *
- * @param source - Complete source text.
- * @param startIndex - Offset of the opening slash.
- * @returns The final flag offset, or `startIndex` when no literal closes on the line.
- * @throws Does not throw.
- * @internal
- */
 export const scanREGEXLiteralEnd = (source: string, startIndex: number): number => {
   let isCharacterClass = false;
   let isEscaped = false;

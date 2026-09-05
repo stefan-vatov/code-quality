@@ -11,12 +11,6 @@ const hasSameBenchmarkShape = (left: BenchRow, right: BenchRow): boolean =>
   left.name === right.name &&
   left.operationsPerSample === right.operationsPerSample;
 
-/**
- * Combines independent benchmark measurements without letting one scheduler,
- * JIT, or garbage-collection spike decide the gate. Each row keeps its normal
- * median and p95 thresholds; only a result repeated in at least two of three
- * measurements survives the outer median.
- */
 export const medianBenchmarkRows = (measurements: readonly (readonly BenchRow[])[]): BenchRow[] => {
   const referenceRows = measurements[0];
   if (!referenceRows) {

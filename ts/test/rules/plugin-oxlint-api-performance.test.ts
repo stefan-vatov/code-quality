@@ -26,8 +26,6 @@ describe('Oxlint JS plugin performance API', () => {
   });
 
   it('ships Oxlint plugin utilities as a runtime dependency', () => {
-    // SAFETY: this repository-owned package manifest uses npm's string dependency maps;
-    // optional fields preserve the missing-dependency behavior checked below.
     const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
       dependencies?: Record<string, string>;
     };
@@ -36,8 +34,6 @@ describe('Oxlint JS plugin performance API', () => {
   });
 
   it('ships the type-aware Oxlint runner as a runtime dependency', () => {
-    // SAFETY: this repository-owned npm manifest has string dependency maps and
-    // boolean optional-peer metadata; all inspected sections remain optional.
     const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
@@ -52,8 +48,6 @@ describe('Oxlint JS plugin performance API', () => {
   });
 
   it('does not ship a JavaScript complexity plugin when Oxlint has a native complexity rule', () => {
-    // SAFETY: the repository-owned npm manifest declares dependency versions as
-    // strings; optional fields preserve the absent-package checks below.
     const packageJson = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
       dependencies?: Record<string, string>;
       peerDependencies?: Record<string, string>;

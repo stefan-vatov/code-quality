@@ -1,15 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*    Canonical lists of custom Effect rule names exported by the config.     */
-/* -------------------------------------------------------------------------- */
-/**
- * High-confidence Effect correctness rules used by the shared safety preset.
- *
- * Specialized migration, version, error-model, schema, and test analyzers,
- * plus strict architecture rules, remain registered for explicit selection;
- * they are not part of the preset.
- *
- * @internal
- */
 export const effectSafetyRuleNames = [
   'effect-no-floating-effect',
   'effect-require-yield-star',
@@ -31,11 +19,6 @@ export const effectSafetyRuleNames = [
   'effect-no-unbounded-stream-buffer',
 ] as const;
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectDefaultRuleNames = [
   'effect-no-floating-effect',
   'effect-require-yield-star',
@@ -76,11 +59,6 @@ export const effectDefaultRuleNames = [
   'effect-require-service-self-match',
 ] as const;
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectStrictRuleNames = [
   'effect-no-run-outside-entrypoints',
   'effect-require-platform-runmain-at-entrypoints',
@@ -129,7 +107,6 @@ export const effectStrictRuleNames = [
   'effect-require-testclock-for-time-code',
   'effect-no-test-runtime-leakage',
   'effect-no-ad-hoc-effect-wrapper-abstractions',
-  'effect-require-effect-suppression-reason-and-ticket',
   'effect-no-crypto-randomUUID',
   'effect-require-schema-is-over-instanceof',
   'effect-prefer-schema-tagged-struct',
@@ -144,5 +121,4 @@ export const effectStrictRuleNames = [
   'effect-prefer-flatMap-over-map-flatten',
 ] as const;
 
-/** Strict Effect rule names available for explicit project selection. @public */
 export type EffectStrictRuleName = (typeof effectStrictRuleNames)[number];

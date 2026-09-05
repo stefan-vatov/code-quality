@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Scope-aware global fetch detection inside Effect async APIs.        */
-/* -------------------------------------------------------------------------- */
-
 import { Predicate } from 'effect';
 import type {
   NativeDefinition,
@@ -405,15 +401,6 @@ const initializeState = (state: FetchRuleState, program: ASTNode): void => {
   }
 };
 
-/**
- * Build native and parser-fallback visitors for global fetch inside Effect async wrappers.
- *
- * @param context - The lint rule context.
- * @param source - Complete source used only for the legacy implicit Effect namespace.
- * @returns Program and CallExpression visitors.
- * @throws Does not throw.
- * @internal
- */
 export const effectGlobalFetchAST = (context: Context, source: string): VisitorMap => {
   const state: FetchRuleState = {
     context,

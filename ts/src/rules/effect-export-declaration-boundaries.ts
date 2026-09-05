@@ -1,12 +1,6 @@
-/* -------------------------------------------------------------------------- */
-/*         Declaration body boundaries for exported Effect surfaces.          */
-/* -------------------------------------------------------------------------- */
 import { findMatchingBrace } from './effect-source-scan';
 import { findModuleStatementEnd } from './effect-module-source-index';
 
-/**
- * Supported brace-bodied declaration categories.
- */
 export type BraceDeclarationKind = 'class' | 'function' | 'interface';
 
 interface BodyCandidate {
@@ -37,9 +31,6 @@ delimiterDepthDeltas[CHAR_CODE_BRACKET_CLOSE] = -BRACKET_DEPTH_UNIT;
 delimiterDepthDeltas[CHAR_CODE_BRACE_OPEN] = BRACE_DEPTH_UNIT;
 delimiterDepthDeltas[CHAR_CODE_BRACE_CLOSE] = -BRACE_DEPTH_UNIT;
 
-/**
- * Classifies a brace-bodied declaration for boundary scanning.
- */
 export const braceDeclarationKind = (declarationText: string): BraceDeclarationKind => {
   if (/\bfunction\b/.test(declarationText)) {
     return 'function';
@@ -64,9 +55,6 @@ const isFunctionTypeContinuation = (source: string, braceEnd: number): boolean =
   return '>&|?:,[{'.includes(source[nextIndex]);
 };
 
-/**
- * Advances the packed delimiter depths used to locate an outer declaration body.
- */
 export const advanceDepths = (depths: number, charCode: number): number => {
   if (charCode === ANGLE_OPEN_CODE && (depths & NON_ANGLE_DEPTH_MASK) === 0) {
     return depths + ANGLE_DEPTH_UNIT;
@@ -106,9 +94,6 @@ const nextTopLevelBraceIndex = (code: string, startIndex: number): number => {
   return -1;
 };
 
-/**
- * Locates the body brace belonging to a function, class, or interface declaration.
- */
 export const declarationBodyStart = (
   source: string,
   code: string,
@@ -130,9 +115,6 @@ export const declarationBodyStart = (
   return -1;
 };
 
-/**
- * Extracts one complete brace-bodied declaration without following module statements.
- */
 export const declarationWithBraceBody = (
   source: string,
   code: string,

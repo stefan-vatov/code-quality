@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*           Persistent lexical scope stacks for AST-backed rules.            */
-/* -------------------------------------------------------------------------- */
-
 import type { ScopeStack } from './effect-ast-scope';
 import { Predicate } from 'effect';
 
@@ -292,19 +288,9 @@ const forEachScopeFromInner = (
   return forEachPersistentScopeFromInner(path, handler);
 };
 
-/**
- * Check whether a lexical scope stack contains a binding.
- *
- * @internal
- */
 export const scopeHasBinding = (name: string, scopes: ScopeStack): boolean =>
   forEachScopeFromInner(scopes, (scope): boolean => scope.has(name));
 
-/**
- * Find the nearest lexical scope containing a binding.
- *
- * @internal
- */
 export const scopeContainingBinding = (
   name: string,
   scopes: ScopeStack,
@@ -320,9 +306,4 @@ export const scopeContainingBinding = (
   return found;
 };
 
-/**
- * Extend a scope stack without copying its existing entries.
- *
- * @internal
- */
 export const extendScopeStack = appendScopeStack;

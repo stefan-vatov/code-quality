@@ -1,23 +1,13 @@
-/* -------------------------------------------------------------------------- */
-/*        Deferred callback ranges for source-backed Effect recursion.        */
-/* -------------------------------------------------------------------------- */
-
 import type { SourceNavigationIndex } from './effect-source-navigation-index';
 
 const DEFERRED_EFFECT_CALLBACK = /\bEffect\.(?:flatMap|gen|map|succeed|suspend)\s*\(/g;
 const FUNCTION_OR_ARROW = /=>|\bfunction\b/g;
 
-/**
- * Source offsets used by the deferred callback index.
- */
 export interface SourceRange {
   end: number;
   start: number;
 }
 
-/**
- * One Effect call and its callback argument ranges.
- */
 export interface DeferredCallRange extends SourceRange {
   callbackRanges: readonly SourceRange[];
   parent: number;
@@ -193,13 +183,6 @@ const callbackRangeFor = (
   return undefined;
 };
 
-/**
- * Index deferred Effect callback argument ranges in source text.
- *
- * @param source - Comment-free, string-free source projection.
- * @returns Deferred Effect call ranges and their callback descendants.
- * @throws Does not throw.
- */
 export const deferredCallRanges = (
   source: string,
   navigation: SourceNavigationIndex,

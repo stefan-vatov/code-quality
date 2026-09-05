@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*    Codemod for rendering module-level file comments as divider headers.    */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, pipe } from 'effect';
 import { formatMainHeader } from './comment-format';
 
@@ -234,11 +231,6 @@ const headerReplacement = (
     Option.getOrUndefined,
   );
 
-/**
- * Rewrites or inserts the file-level purpose header in the project divider style.
- *
- * @internal
- */
 export const formatFileHeaderComment = (source: string, generatedDescription?: string): string => {
   const start = leadingContentPosition(source);
   return pipe(

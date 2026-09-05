@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Variable-initializer repairs for the no-ternary codemod only.        */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
@@ -355,11 +352,6 @@ const initializerReplacement = (
 const isVariableDeclarator = (node: CodemodValue): node is VariableDeclarator =>
   isCodemodNode(node) && node.type === 'VariableDeclarator';
 
-/**
- * Internal helper exported for the no-ternary codemod composition.
- *
- * @internal
- */
 export const variableReplacement = (
   source: string,
   node: VariableDeclaration,

@@ -1,7 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createReloadSafePlugins } from './stryker-vitest-reload-safe-factory.mjs';
+import * as adapter from './stryker-vitest-reload-safe.mjs';
+import { strykerValidationSchema as officialSchema } from '@stryker-mutator/vitest-runner';
+
+interface MutationRunOptions {
+  activeMutant: { id: number };
+  hitLimit: number;
+  mutantActivation: string;
+  reloadEnvironment: boolean | undefined;
+  sandboxFileName: string;
+  testFilter: string[];
+}
 
 const activeMutantEnvironmentVariable = '__STRYKER_ACTIVE_MUTANT__';
-const adapterSpecifier = './stryker-vitest-reload-safe.mjs';
 const originalActiveMutant = process.env[activeMutantEnvironmentVariable];
 
 const restoreOriginalActiveMutant = () => {
@@ -12,47 +23,47 @@ const restoreOriginalActiveMutant = () => {
   process.env[activeMutantEnvironmentVariable] = originalActiveMutant;
 };
 
-const importAdapterWithRunner = async (mutantRun) => {
-  vi.resetModules();
+const adapterWithRunner = <Result extends object>(
+  mutantRun: (options: MutationRunOptions) => Promise<Result>,
+) => {
   const runner = {
     capabilities: vi.fn(() => ({ reloadEnvironment: true })),
     mutantRun,
   };
-  const officialFactory = vi.fn(() => runner);
-  officialFactory.inject = Object.freeze(['$injector']);
-  const officialSchema = Object.freeze({
-    properties: Object.freeze({ vitest: Object.freeze({ type: 'object' }) }),
-    type: 'object',
-  });
-  vi.doMock('@stryker-mutator/vitest-runner', () => ({
-    strykerPlugins: [
-      {
-        factory: vi.fn(),
-        kind: 'testRunner',
-        name: 'unrelated-runner',
-      },
-      {
-        factory: officialFactory,
-        kind: 'testRunner',
-        name: 'vitest',
-      },
-    ],
-    strykerValidationSchema: officialSchema,
-  }));
-
-  const adapter = await import(adapterSpecifier);
-  const plugin = adapter.strykerPlugins[0];
+  const officialFactory = Object.assign(
+    vi.fn((_injector: { token?: string }) => runner),
+    {
+      inject: Object.freeze(['$injector']),
+    },
+  );
+  const plugins = createReloadSafePlugins([
+    {
+      factory: Object.assign(
+        vi.fn(() => runner),
+        { inject: officialFactory.inject },
+      ),
+      kind: 'testRunner',
+      name: 'unrelated-runner',
+    },
+    {
+      factory: officialFactory,
+      kind: 'testRunner',
+      name: 'vitest',
+    },
+  ]);
+  const plugin = plugins[0];
 
   return {
-    adapter,
     officialFactory,
-    officialSchema,
     plugin,
     runner,
   };
 };
 
-const mutationRunOptions = (id, ...reloadEnvironmentValues) => ({
+const mutationRunOptions = (
+  id: number,
+  ...reloadEnvironmentValues: (boolean | undefined)[]
+): MutationRunOptions => ({
   activeMutant: { id },
   hitLimit: 17,
   mutantActivation: 'static',
@@ -62,18 +73,15 @@ const mutationRunOptions = (id, ...reloadEnvironmentValues) => ({
 });
 
 afterEach(() => {
-  vi.doUnmock('@stryker-mutator/vitest-runner');
   vi.restoreAllMocks();
-  vi.resetModules();
   restoreOriginalActiveMutant();
 });
 
 describe('reload-safe Stryker Vitest adapter', () => {
-  it('publishes the official schema and delegates factory construction to the official runner', async () => {
-    const officialMutantRun = vi.fn();
+  it('publishes the official schema and delegates factory construction to the official runner', () => {
+    const officialMutantRun = vi.fn(() => Promise.resolve({ status: 'survived' }));
     const injector = Object.freeze({ token: 'injector' });
-    const { adapter, officialFactory, officialSchema, plugin, runner } =
-      await importAdapterWithRunner(officialMutantRun);
+    const { officialFactory, plugin, runner } = adapterWithRunner(officialMutantRun);
 
     expect(adapter.strykerValidationSchema).toBe(officialSchema);
     expect(adapter.strykerPlugins).toHaveLength(1);
@@ -93,14 +101,15 @@ describe('reload-safe Stryker Vitest adapter', () => {
     async (reloadEnvironment) => {
       process.env[activeMutantEnvironmentVariable] = 'outer-mutant';
       const result = Object.freeze({ status: 'killed' });
-      let runner;
-      const officialMutantRun = vi.fn(function () {
-        expect(this).toBe(runner);
-        expect(process.env[activeMutantEnvironmentVariable]).toBe('outer-mutant');
-        return Promise.resolve(result);
-      });
-      const imported = await importAdapterWithRunner(officialMutantRun);
-      runner = imported.runner;
+      const officialMutantRun = vi.fn(
+        function (this: { mutantRun: (options: MutationRunOptions) => Promise<object> }) {
+          expect(this).toBe(runner);
+          expect(process.env[activeMutantEnvironmentVariable]).toBe('outer-mutant');
+          return Promise.resolve(result);
+        },
+      );
+      const imported = adapterWithRunner(officialMutantRun);
+      const runner = imported.runner;
       imported.plugin.factory(Object.freeze({}));
       const options = mutationRunOptions(23, reloadEnvironment);
 
@@ -143,7 +152,7 @@ describe('reload-safe Stryker Vitest adapter', () => {
       }
       const failure = new Error(`mutant ${mutantId} failed`);
       const result = Object.freeze({ status: 'survived' });
-      const observations = [];
+      const observations: (string | undefined)[] = [];
       const officialMutantRun = vi.fn(async () => {
         observations.push(process.env[activeMutantEnvironmentVariable]);
         await Promise.resolve();
@@ -153,7 +162,7 @@ describe('reload-safe Stryker Vitest adapter', () => {
         }
         return result;
       });
-      const { plugin, runner } = await importAdapterWithRunner(officialMutantRun);
+      const { plugin, runner } = adapterWithRunner(officialMutantRun);
       plugin.factory(Object.freeze({}));
       const run = runner.mutantRun(mutationRunOptions(mutantId));
 
@@ -173,22 +182,22 @@ describe('reload-safe Stryker Vitest adapter', () => {
 
   it('reevaluates alternating mutant IDs at module initialization without leaking state', async () => {
     process.env[activeMutantEnvironmentVariable] = 'outer-mutant';
-    const initializedMutants = [];
+    const initializedMutants: (string | undefined)[] = [];
     let moduleSequence = 0;
-    const officialMutantRun = vi.fn(async ({ activeMutant }) => {
+    const officialMutantRun = vi.fn(async ({ activeMutant }: MutationRunOptions) => {
       const moduleSource = 'export default process.env.__STRYKER_ACTIVE_MUTANT__;';
       const moduleURL =
         `data:text/javascript,${encodeURIComponent(moduleSource)}` +
         `#adapter-contract-${moduleSequence}`;
       moduleSequence += 1;
-      const initialized = await import(moduleURL);
+      const initialized = (await import(moduleURL)) as { default: string | undefined };
       initializedMutants.push(initialized.default);
       return Object.freeze({
         activeMutant: activeMutant.id,
         initializedMutant: initialized.default,
       });
     });
-    const { plugin, runner } = await importAdapterWithRunner(officialMutantRun);
+    const { plugin, runner } = adapterWithRunner(officialMutantRun);
     plugin.factory(Object.freeze({}));
 
     const results = [];
@@ -208,14 +217,8 @@ describe('reload-safe Stryker Vitest adapter', () => {
     expect(process.env[activeMutantEnvironmentVariable]).toBe('outer-mutant');
   });
 
-  it('fails fast when the official Vitest plugin cannot be resolved', async () => {
-    vi.resetModules();
-    vi.doMock('@stryker-mutator/vitest-runner', () => ({
-      strykerPlugins: [],
-      strykerValidationSchema: Object.freeze({ type: 'object' }),
-    }));
-
-    await expect(import(adapterSpecifier)).rejects.toThrow(
+  it('fails fast when the official Vitest plugin cannot be resolved', () => {
+    expect(() => createReloadSafePlugins([])).toThrow(
       'The official Stryker Vitest test-runner plugin is unavailable.',
     );
   });

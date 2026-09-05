@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Shared JavaScript lexical scanning for JSX source projections.       */
-/* -------------------------------------------------------------------------- */
 import {
   CHAR_CODE_BACKSLASH,
   CHAR_CODE_BLOCK_COMMENT,
@@ -41,11 +38,6 @@ import type {
 } from './effect-source-jsx-lexical';
 import { findREGEXLiteralEnd, isREGEXLiteralStart } from './effect-source-regex-scan';
 
-/**
- * Shared iterative JavaScript, regex, string, and template scanner.
- *
- * @internal
- */
 export abstract class SourceLexerBase {
   readonly contexts: JavaScriptContext[] = [];
   readonly handlers: SourceScanHandlers;

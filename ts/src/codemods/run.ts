@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Backward-compatible local runner for TypeScript codemod fixes.       */
-/* -------------------------------------------------------------------------- */
 import { Array, Effect, pipe } from 'effect';
 import { NodeRuntime } from '@effect/platform-node';
 import { codemodFix } from '../codemod-fix/index';

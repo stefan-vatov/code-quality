@@ -1,4 +1,3 @@
-/** @internal Vitest config trimmed for Stryker mutation dry-runs. */
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import baseConfig from './vitest.config.mts';
 

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*          Reusable comment formatting helpers for codemod output.           */
-/* -------------------------------------------------------------------------- */
 import { Array, Number, Option, pipe } from 'effect';
 
 interface JSDocInput {
@@ -97,11 +94,6 @@ const pushJSDocTextLines = (lines: string[], text: string): void => {
   );
 };
 
-/**
- * Formats a classic multi-line JSDoc block.
- *
- * @internal
- */
 export const formatJSDoc = (input: JSDocInput): string => {
   const lines = [jsdocOpen];
   pushJSDocTextLines(lines, input.summary);
@@ -120,11 +112,6 @@ export const formatJSDoc = (input: JSDocInput): string => {
   return `${lines.join('\n')}\n`;
 };
 
-/**
- * Formats a three-line fixed-width section header.
- *
- * @internal
- */
 export const formatMainHeader = (text: string): string =>
   [
     solidDividerLine(),
@@ -134,11 +121,6 @@ export const formatMainHeader = (text: string): string =>
     solidDividerLine(),
   ].join('\n');
 
-/**
- * Formats a one-line fixed-width section header.
- *
- * @internal
- */
 export const formatSubheader = (text: string): string => {
   const words = ` ${text} `;
   const remaining = Number.max(0, dividerInnerWidth() - words.length);

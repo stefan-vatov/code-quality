@@ -4,6 +4,8 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+mod comments;
+
 const PACKAGE_NAME: &str = "cargo-thx-lint";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const LEGACY_BLOCK_NAME: &str = "@thethracian/rust-lint-config";
@@ -24,6 +26,7 @@ struct CliOptions {
 #[derive(Debug)]
 enum Command {
     Help,
+    Check(CliOptions),
     Doctor(CliOptions),
     Init(CliOptions),
     Update(CliOptions),
@@ -55,6 +58,7 @@ fn run() -> Result<(), String> {
             print_help();
             Ok(())
         }
+        Command::Check(options) => comments::check(&options.cwd),
         Command::Doctor(options) => doctor(&options.cwd),
         Command::Init(options) | Command::Update(options) => {
             apply_operations(rust_operations(&options.cwd), &options)
@@ -73,6 +77,7 @@ fn parse_args(mut args: Vec<OsString>) -> Result<Command, String> {
     match command {
         "help" | "--help" | "-h" => Ok(Command::Help),
         "doctor" => Ok(Command::Doctor(options)),
+        "check" => Ok(Command::Check(options)),
         "init" => Ok(Command::Init(options)),
         "update" => Ok(Command::Update(options)),
         unknown => Err(format!("Unknown command: {unknown}")),
@@ -311,6 +316,7 @@ Usage:
   cargo thx-lint init [--write] [--force] [--cwd <path>]
   cargo thx-lint update [--write] [--force] [--cwd <path>]
   cargo thx-lint doctor [--cwd <path>]
+  cargo thx-lint check [--cwd <path>]
 "
     );
 }

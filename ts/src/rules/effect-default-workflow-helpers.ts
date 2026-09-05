@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*               Effect workflow body and recursion predicates.               */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import {
   effectAliasesPattern,
@@ -72,11 +69,6 @@ const hasIndexAtOrBefore = (
   return index !== undefined && index <= endIndex;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnboundedEffectConcurrency = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -89,11 +81,6 @@ export const hasUnboundedEffectConcurrency = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnboundedFlatMapConcurrency = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -106,11 +93,6 @@ export const hasUnboundedFlatMapConcurrency = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasParsedJSONNumberFromString = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const numberFromStringIndexes = matchIndexes(code, JSON_NUMBER_FROM_STRING_PATTERN);
@@ -125,11 +107,6 @@ export const hasParsedJSONNumberFromString = (source: string): boolean => {
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasReturnEffectInGen = (source: string): boolean => {
   const returnEffectPattern = new RegExp(
     `\\breturn\\s+(?:${effectAliasesPattern(source)})\\.(?!isEffect\\b|serviceFunction\\b)`,
@@ -163,11 +140,6 @@ const yieldWithoutStarIndex = (source: string, matchIndex: number): number | und
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasYieldWithoutStarInGen = (source: string): boolean | number => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -218,11 +190,6 @@ const hasUnsafeTryPromiseObjectBody = (body: string, rawBody: string): boolean =
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasTryPromiseWithoutTypedCatch = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return Match.value(
@@ -246,9 +213,4 @@ export const hasTryPromiseWithoutTypedCatch = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasRecursiveEffectWithoutSuspend = hasRecursiveEffectSource;

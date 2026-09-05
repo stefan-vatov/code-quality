@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*  Shared Vitest config for repository unit tests and coverage thresholds.   */
-/* -------------------------------------------------------------------------- */
 import { configDefaults, defineConfig } from 'vitest/config';
 import { env } from 'node:process';
 

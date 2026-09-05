@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Source navigation helpers for Effect lint rule implementations.       */
-/* -------------------------------------------------------------------------- */
 import { Match, Option, pipe } from 'effect';
 import { findMatchingBrace, stripCommentsAndStrings } from './effect-source-scan';
 import type { SourceNavigationIndex } from './effect-source-navigation-index';
@@ -20,11 +17,6 @@ const lazySourceNavigationIndex = (source: string): (() => SourceNavigationIndex
   };
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const isInsideCall = (source: string, targetIndex: number, callPattern: RegExp): boolean => {
   const code = stripCommentsAndStrings(source);
   const getNavigationIndex = lazySourceNavigationIndex(source);
@@ -52,19 +44,9 @@ const scanStatementEnd = (source: string, startIndex: number): StatementEnd => {
   return { endIndex, isEnd: source.charCodeAt(endIndex) === CHAR_CODE_SEMICOLON };
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const findStatementEnd = (source: string, startIndex: number): number =>
   scanStatementEnd(source, startIndex).endIndex;
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const statementAfter = (source: string, targetIndex: number, maxLength = 320): string => {
   const statementEnd = scanStatementEnd(source, targetIndex);
   return Match.value(statementEnd).pipe(
@@ -136,11 +118,6 @@ const tailUntilNextFunction = (source: string, targetIndex: number): string => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const sameFunctionTail = (source: string, targetIndex: number): string => {
   const effectTail = enclosingEffectCallTail(source, targetIndex);
   return pipe(

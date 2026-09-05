@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Branch-initializer repairs for the no-ternary codemod only.         */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, pipe } from 'effect';
 import type {
   AssignmentExpression,
@@ -373,11 +370,6 @@ const replacementFromBranches = (input: BranchReplacementInput): Replacement | u
   );
 };
 
-/**
- * Internal helper exported for the no-ternary codemod composition.
- *
- * @internal
- */
 export const collectBranchInitializerRepairs = (
   source: string,
   statements: readonly Statement[],

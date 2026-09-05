@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Stack-safe lexical fallback traversal for global-fetch checks.       */
-/* -------------------------------------------------------------------------- */
-
 import { scopesForChild, withNodeScope } from './effect-ast-scope';
 import type { ASTNode, ASTValue } from './effect-ast';
 import type { ScopeStack } from './effect-ast-scope';
@@ -124,16 +120,6 @@ const visitFallbackWorkItem = (item: FallbackWorkItem, traversal: FallbackTraver
   }
 };
 
-/**
- * Traverse a parser-fallback AST without recursion while retaining lexical scopes.
- *
- * @param node - Root AST node to traverse.
- * @param scopes - Lexical scopes inherited by the root node.
- * @param visit - Pre-order callback returning whether child traversal should continue.
- * @param visitorKeys - Optional parser visitor-key metadata.
- * @returns Does not return a value.
- * @throws Does not throw.
- */
 export const visitFallbackTree = (
   node: ASTNode,
   scopes: ScopeStack,

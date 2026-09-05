@@ -12,7 +12,7 @@
       "command": "cargo check --manifest-path rust/Cargo.toml --locked"
     },
     "lint": {
-      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check && cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings"
+      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check && cargo run --manifest-path rust/Cargo.toml --locked -- check --cwd rust && cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings"
     },
     "test": {
       "command": "cargo test --manifest-path rust/Cargo.toml --locked"

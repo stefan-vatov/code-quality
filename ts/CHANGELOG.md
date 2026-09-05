@@ -10,6 +10,9 @@
 
 ### Breaking Changes
 
+- Enabled `thethracian/no-comments` in every preset. Lexical comments, including JSDoc and
+  suppression directives, are forbidden; interpreter shebangs remain allowed. Removed the
+  contradictory assertion-safety-comment and Effect suppression-comment requirements.
 - Replaced the broad style/performance preset with an explicit allowlist of approved upstream
   Oxlint rules. Every active rule is an `error`; there is no warning tier and no rule-level `off`
   entry. Rules that the audit found noisy or behavior-changing are omitted from the allowlist.

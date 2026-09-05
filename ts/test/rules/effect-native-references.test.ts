@@ -42,21 +42,16 @@ type ReferenceFixture =
 
 const asContext = (sourceCode: SourceCodeFixture): Context => ({
   report: (): void => undefined,
-  // SAFETY: Invalid host capabilities are deliberate inputs to the runtime capability checks.
+
   sourceCode: sourceCode as NativeSourceCode,
 });
 
 const asNativeSourceCode = (value: SourceCodeFixture): NativeSourceCode =>
-  // SAFETY: Malformed scope collections intentionally exercise the native indexer's rejection paths.
   value as NativeSourceCode;
 
-const asNativeReference = (value: ReferenceFixture): NativeReference =>
-  // SAFETY: Malformed definitions intentionally exercise runtime validation without changing fixture data.
-  value as NativeReference;
+const asNativeReference = (value: ReferenceFixture): NativeReference => value as NativeReference;
 
-const identifierFixture = (value: ASTObject = {}): ASTNode =>
-  // SAFETY: These identity-only fixtures intentionally omit node metadata; reference lookup uses object identity.
-  value as ASTNode;
+const identifierFixture = (value: ASTObject = {}): ASTNode => value as ASTNode;
 
 const importReference = (identifier: ASTNode): NativeReference => ({
   identifier,

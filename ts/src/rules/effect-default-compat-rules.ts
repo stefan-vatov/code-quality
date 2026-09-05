@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*             Compatibility and runtime-tail Effect rule specs.              */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, pipe } from 'effect';
 import {
   effectServiceSelfName,
@@ -42,11 +39,6 @@ const hasServiceSelfMismatch = (source: string): number | false => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectDefaultCompatibilitySpecs = [
   {
     message:

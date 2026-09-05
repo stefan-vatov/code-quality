@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Local function and alias resolution for recursion execution.        */
-/* -------------------------------------------------------------------------- */
-
 import { childNode, childNodes, identifierName } from './effect-ast';
 import { isFunctionNode, unwrappedExpression } from './effect-boundary-ast-shared';
 import type { ASTNode } from './effect-ast';
@@ -16,25 +12,10 @@ interface FunctionBinding {
   node: ASTNode;
 }
 
-/**
- * One locally declared callable or identifier alias.
- *
- * @internal
- */
 export type LocalBinding = AliasBinding | FunctionBinding;
 
-/**
- * Nested local callable bindings visible at one execution site.
- *
- * @internal
- */
 export type LocalFunctionScopes = readonly ReadonlyMap<string, LocalBinding>[];
 
-/**
- * Statically resolved local invocation identity.
- *
- * @internal
- */
 export interface LocalInvocationTarget {
   functionNode?: ASTNode;
   isSelfCall: boolean;
@@ -89,11 +70,6 @@ const localScopeFor = (
   return bindings;
 };
 
-/**
- * Extend local callable scopes for a block or program node.
- *
- * @internal
- */
 export const localScopesForNode = (
   node: ASTNode,
   current: LocalFunctionScopes,
@@ -161,11 +137,6 @@ const resolveLocalTargetAt = (
   return undefined;
 };
 
-/**
- * Resolve a local callable, alias chain, or unshadowed self-reference.
- *
- * @internal
- */
 export const resolveLocalTarget = (
   name: string,
   functionName: string,

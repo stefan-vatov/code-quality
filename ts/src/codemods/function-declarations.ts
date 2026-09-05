@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Conservative codemod for safe func-style declaration rewrites.       */
-/* -------------------------------------------------------------------------- */
 import type {
   ASTPath,
   BlockStatement,
@@ -293,11 +290,6 @@ const replacementForDeclaration = (
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const preferFunctionExpressions = (source: string): string => {
   const replacements: Replacement[] = [];
   const exportsByFunction = collectExportInfo(source);

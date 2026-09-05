@@ -1,17 +1,9 @@
-/* -------------------------------------------------------------------------- */
-/*          Path option schema helpers for strict Effect lint rules.          */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, Predicate, pipe } from 'effect';
 import type { Context } from './effect-rule-core';
 import { isASTObject } from './effect-ast';
 import type { ASTObject } from './effect-ast';
 import { createWeightedCache } from './source-cache';
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export type StrictPathOptionKey =
   | 'adapterLayers'
   | 'compositionRoots'
@@ -21,18 +13,8 @@ export type StrictPathOptionKey =
   | 'integrationTests'
   | 'unitTests';
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export type StrictPathOptions = Partial<Record<StrictPathOptionKey, readonly string[]>>;
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const strictPathOptionKeys = [
   'adapterLayers',
   'compositionRoots',
@@ -43,11 +25,6 @@ export const strictPathOptionKeys = [
   'unitTests',
 ] as const satisfies readonly StrictPathOptionKey[];
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const strictPathOptionsSchema = [
   {
     additionalProperties: false,
@@ -199,11 +176,6 @@ const getStrictOptions = (context: Pick<Context, 'options'>): StrictPathOptions 
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const sanitizeStrictPathOptions = (
   options: StrictPathOptions | undefined,
 ): StrictPathOptions | undefined =>
@@ -239,11 +211,6 @@ export const sanitizeStrictPathOptions = (
     Option.getOrUndefined,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const isConfiguredPath = (
   context: Pick<Context, 'filename' | 'options'>,
   key: StrictPathOptionKey,
@@ -257,18 +224,8 @@ export const isConfiguredPath = (
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const isUnitTestPath = (context: Pick<Context, 'filename' | 'options'>): boolean =>
   isConfiguredPath(context, 'unitTests') && !isConfiguredPath(context, 'integrationTests');
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const isEffectTestPath = (context: Pick<Context, 'filename' | 'options'>): boolean =>
   isConfiguredPath(context, 'unitTests') || isConfiguredPath(context, 'integrationTests');

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       External-call predicates for opt-in strict Effect lint rules.        */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import {
   enclosingEffectWrapperSegment,
@@ -69,11 +66,6 @@ const hasExternalEffectMissingOperator = (
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasExternalEffectWithoutTimeout = (
   source: string,
   options: { allowFetch: boolean } = { allowFetch: true },
@@ -83,11 +75,6 @@ const shouldReportMissingSpan = (source: string, index: number, segment: string)
   !isInsideCall(source, index, /Effect\.withSpan\s*\(/g) &&
   !hasTopLevelPipeOperator(segment, 'withSpan');
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasExternalEffectWithoutSpan = (
   source: string,
   options: { allowFetch: boolean } = { allowFetch: true },
@@ -129,11 +116,6 @@ const retryScanInput = (
   };
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasIdempotentExternalEffectWithoutRetry = (
   source: string,
   options: { allowFetch: boolean } = { allowFetch: true },

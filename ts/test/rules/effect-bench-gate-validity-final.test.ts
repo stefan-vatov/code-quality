@@ -19,7 +19,7 @@ const readBenchFile = (filename: string): string =>
   readFileSync(fileURLToPath(new URL(`../../bench/${filename}`, import.meta.url)), 'utf8');
 
 const gateSource = readBenchFile('performance-gate.ts');
-// SAFETY: the repository-owned budget JSON contains rule entries with the harness metadata checked below.
+
 const budgets = JSON.parse(readBenchFile('performance-budgets.json')) as BudgetFile;
 
 const sourceBetween = (start: string, end: string): string => {

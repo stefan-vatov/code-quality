@@ -1,6 +1,5 @@
 import { Effect } from 'effect';
 
-// Native comment API compatibility prose.
 const Promise = {
   resolve: <Value>(value: Value): globalThis.Promise<Value> => globalThis.Promise.resolve(value),
 };

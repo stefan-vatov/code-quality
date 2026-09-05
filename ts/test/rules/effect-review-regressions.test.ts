@@ -138,23 +138,6 @@ const registerConfigurationAndAPITests = (): void => {
 };
 
 const registerSuppressionAndFiberTests = (): void => {
-  it('accepts precise Effect rule suppressions with a reason and tracking ticket', () => {
-    const valid = `
-      // oxlint-disable-next-line thethracian/effect-no-floating-effect -- reason: generated compatibility shim ABC-123
-      risky();
-      // eslint-disable-next-line thethracian/effect-no-floating-effect -- because legacy interop #456
-      riskyAgain();
-    `;
-
-    const invalid = `
-      // oxlint-disable-next-line thethracian/effect-no-floating-effect
-      risky();
-    `;
-
-    expect(runRule('effect-require-effect-suppression-reason-and-ticket', valid)).toHaveLength(0);
-    expect(runRule('effect-require-effect-suppression-reason-and-ticket', invalid)).toHaveLength(1);
-  });
-
   it('allows forked fibers that are explicitly joined', () => {
     const valid = `
       import { Effect, Fiber } from "effect";

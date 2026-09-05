@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*              Helpers for Effect resource-lifetime lint rules.              */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import {
   findBalancedCallEnd,
@@ -8,11 +5,6 @@ import {
   stripCommentsAndStrings,
 } from './effect-source-helpers';
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnreleasedAcquire = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -99,11 +91,6 @@ const hasUnscopedResourceWorkflowMatch = (code: string, match: RegExpExecArray):
     ),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnscopedAcquireRelease = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -112,11 +99,6 @@ export const hasUnscopedAcquireRelease = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnscopedResourceWorkflow = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(

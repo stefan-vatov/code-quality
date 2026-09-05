@@ -1,17 +1,8 @@
-/* -------------------------------------------------------------------------- */
-/*       Import classification for global fetch Effect async wrappers.        */
-/* -------------------------------------------------------------------------- */
-
 import { childNode, childNodes, identifierName } from './effect-ast';
 import { Predicate } from 'effect';
 import type { ASTNode } from './effect-ast';
 import { effectImportAliases } from './effect-rule-core';
 
-/**
- * Import bindings needed by the global-fetch AST visitor.
- *
- * @internal
- */
 export interface GlobalFetchImportIndex {
   directWrappers: Set<string>;
   fallbackImportBindings: Set<string>;
@@ -19,11 +10,6 @@ export interface GlobalFetchImportIndex {
   rootNamespaces: Set<string>;
 }
 
-/**
- * Effect APIs whose callbacks may execute global fetch.
- *
- * @internal
- */
 export const globalFetchAsyncWrapperNames: ReadonlySet<string> = new Set(['promise', 'tryPromise']);
 
 const stringValue = (node: ASTNode | undefined): string | undefined => {
@@ -122,15 +108,6 @@ const indexImportDeclaration = (index: GlobalFetchImportIndex, declaration: ASTN
   return hasOfficialBinding;
 };
 
-/**
- * Index only official Effect wrapper imports and fallback shadow bindings.
- *
- * @param index - Mutable per-rule import sets.
- * @param program - The current Program node.
- * @param source - Source used only by the legacy implicit Effect fallback.
- * @throws Does not throw.
- * @internal
- */
 export const indexGlobalFetchImports = (
   index: GlobalFetchImportIndex,
   program: ASTNode,

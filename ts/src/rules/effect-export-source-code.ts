@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       TypeScript-aware code projection for Effect export boundaries.       */
-/* -------------------------------------------------------------------------- */
 import { stripCommentsAndStrings } from './effect-source-scan';
 
 const CHAR_CODE_ANGLE_OPEN = 60;
@@ -65,9 +62,6 @@ const restoreAngleStarts = (projected: string, starts: readonly number[]): strin
   return restored.join('');
 };
 
-/**
- * Projects source for export indexing while preserving unclosed TypeScript angle syntax.
- */
 export const exportedSourceCode = (source: string): string => {
   const code = stripCommentsAndStrings(source);
   const starts = unclosedAngleStarts(source, code);

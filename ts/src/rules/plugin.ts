@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*     Oxlint JavaScript plugin entry for The Thracian TypeScript rules.      */
-/* -------------------------------------------------------------------------- */
 import { eslintCompatPlugin } from '@oxlint/plugins';
 import effectDefaultRules from './effect-default';
 import effectStrictRules from './effect-strict';
@@ -18,7 +15,7 @@ import { noUnknownReturnsRule } from './no-unknown-returns';
 import { noUnknownTypeAliasesRule } from './no-unknown-type-aliases';
 import { noUnsafeDictionaryTypeRule } from './no-unsafe-dictionary-type';
 import { noWidenThenAssertRule } from './no-widen-then-assert';
-import { requireSafetyCommentForTypeAssertionRule } from './require-safety-comment-for-type-assertion';
+import { noCommentsRule } from './no-comments';
 import { noServiceConstructorImportsRule } from './no-service-constructor-imports';
 
 type OxlintPlugin = Parameters<typeof eslintCompatPlugin>[0];
@@ -44,7 +41,7 @@ const plugin = {
     'no-unknown-type-aliases': noUnknownTypeAliasesRule,
     'no-unsafe-dictionary-type': noUnsafeDictionaryTypeRule,
     'no-widen-then-assert': noWidenThenAssertRule,
-    'require-safety-comment-for-type-assertion': requireSafetyCommentForTypeAssertionRule,
+    'no-comments': noCommentsRule,
     'no-service-constructor-imports': noServiceConstructorImportsRule,
   },
 };
@@ -52,16 +49,9 @@ const plugin = {
 type PluginBridgeInput = OxlintPlugin | typeof plugin;
 
 const toOxlintPlugin = (value: PluginBridgeInput): OxlintPlugin => {
-  // SAFETY: the compatibility adapter accepts this package's source-rule bridge; the runtime
-  // shape is the same plugin/rule contract used by the adapter's existing declaration.
   return value as OxlintPlugin;
 };
 
 const validPlugin = toOxlintPlugin(plugin);
 
-/**
- * Oxlint-compatible JavaScript plugin containing The Thracian Effect rules.
- *
- * @internal
- */
 export default eslintCompatPlugin(validPlugin);

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*     Error-handling and cleanup predicates for always-on Effect rules.      */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import { effectCallBodies } from './effect-default-scan-helpers';
 import { findBalancedCallEnd, stripCommentsAndStrings } from './effect-source-helpers';
@@ -32,11 +29,6 @@ const hasErrorWithoutCause = (callBody: string): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasErrorMappingWithoutCause = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -50,11 +42,6 @@ export const hasErrorMappingWithoutCause = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasForkDaemonWithoutCleanup = (source: string): boolean =>
   pipe(
     effectCallBodies(source, /\bEffect\.forkDaemon\s*\(/g),
@@ -64,11 +51,6 @@ export const hasForkDaemonWithoutCleanup = (source: string): boolean =>
     ),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasForkInUninterruptibleWithoutRestore = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(

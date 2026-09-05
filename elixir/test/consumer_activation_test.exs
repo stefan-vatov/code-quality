@@ -27,10 +27,10 @@ defmodule TheThracianCredo.ConsumerActivationTest do
       )
     )
 
-    assert_success(System.cmd("mix", ["deps.get"], cd: project, stderr_to_stdout: true))
-    assert_success(System.cmd("mix", ["thx_lint.install", "--yes"], cd: project, stderr_to_stdout: true))
+    assert_success(mix(project, ["deps.get"]))
+    assert_success(mix(project, ["thx_lint.install", "--yes"]))
 
-    {output, status} = System.cmd("mix", ["credo", "--strict"], cd: project, stderr_to_stdout: true)
+    {output, status} = mix(project, ["credo", "--strict"])
 
     assert status != 0
     assert output =~ "File is nested"
@@ -52,19 +52,69 @@ defmodule TheThracianCredo.ConsumerActivationTest do
       """
     )
 
-    assert_success(System.cmd("mix", ["deps.get"], cd: project, stderr_to_stdout: true))
-    assert_success(System.cmd("mix", ["thx_lint.install", "--yes"], cd: project, stderr_to_stdout: true))
+    assert_success(mix(project, ["deps.get"]))
+    assert_success(mix(project, ["thx_lint.install", "--yes"]))
 
-    {output, status} = System.cmd("mix", ["credo", "--strict"], cd: project, stderr_to_stdout: true)
+    {output, status} = mix(project, ["credo", "--strict"])
 
     assert status != 0
     assert output =~ "File is nested"
   end
 
+  for existing? <- [false, true] do
+    @tag timeout: 120_000
+    test "comment policy survives suppression in installed config, existing: #{existing?}" do
+      project = temp_project("comments")
+      File.mkdir_p!(Path.join(project, "lib"))
+      File.write!(Path.join(project, "mix.exs"), consumer_mix_project())
+
+      if unquote(existing?) do
+        File.write!(Path.join(project, ".credo.exs"), existing_credo_config())
+      end
+
+      assert_success(mix(project, ["deps.get"]))
+      assert_success(mix(project, ["thx_lint.install", "--yes"]))
+
+      source = """
+      defmodule Consumer do
+        @moduledoc "# documentation is allowed"
+        @doc "# documentation is allowed"
+        @spec value() :: String.t()
+        def value, do: "# literal"
+      end
+      """
+
+      file = Path.join(project, "lib/consumer.ex")
+      File.write!(file, source)
+      assert_success(mix(project, ["credo", "--strict"]))
+      File.write!(file, "#!/usr/bin/env elixir\n" <> source)
+      assert_success(mix(project, ["credo", "--strict"]))
+
+      for prefix <- [
+            "# ordinary\n",
+            "\n#!/usr/bin/env elixir\n",
+            "# credo:disable-for-this-file\n",
+            "# credo:disable-for-this-file TheThracianCredo.Check.Readability.NoComments\n",
+            "# credo:disable-for-lines:100\n",
+            "# credo:disable-for-next-line\n# credo:disable-for-previous-line\n"
+          ] do
+        File.write!(file, prefix <> source)
+        {output, status} = mix(project, ["credo", "--strict"])
+        assert status != 0, output
+        assert output =~ "Lexical comments are forbidden", output
+      end
+    end
+  end
+
+  defp mix(project, args) do
+    System.cmd("mise", ["exec", "--", "mix" | args], cd: project, stderr_to_stdout: true)
+  end
+
   defp temp_project(name) do
-    path = Path.join(System.tmp_dir!(), "the-thracian-credo-activation-#{name}-#{System.unique_integer([:positive])}")
+    path = Path.expand("../.consumer-tests/#{name}-#{System.unique_integer([:positive])}", __DIR__)
     File.rm_rf!(path)
     File.mkdir_p!(path)
+    on_exit(fn -> File.rm_rf!(path) end)
     path
   end
 

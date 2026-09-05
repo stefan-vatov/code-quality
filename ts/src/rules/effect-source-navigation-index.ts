@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Shared lexical boundary index for source-backed Effect rules.        */
-/* -------------------------------------------------------------------------- */
 import {
   NAVIGATION_CACHE_MAX_WEIGHT,
   navigationIndexCacheWeight,
@@ -38,11 +35,6 @@ interface ClosedDelimiter {
   eventIndex: number;
 }
 
-/**
- * Constant-time delimiter and indexed statement queries for one source string.
- *
- * @internal
- */
 export interface SourceNavigationIndex {
   enclosingBraceOpen: (targetIndex: number) => number;
   matchingBrace: (openIndex: number) => number;
@@ -382,13 +374,5 @@ const buildIndex = (source: string): BuiltNavigationIndex => {
 const cacheIndex = (source: string, built: BuiltNavigationIndex): SourceNavigationIndex =>
   cache.set(source, built.index, built.weight);
 
-/**
- * Return the bounded, reusable lexical boundary index for one source string.
- *
- * @param source - Complete source text.
- * @returns A navigation index built by one forward lexical scan.
- * @throws Does not throw.
- * @internal
- */
 export const sourceNavigationIndex = (source: string): SourceNavigationIndex =>
   cache.get(source) ?? cacheIndex(source, buildIndex(source));

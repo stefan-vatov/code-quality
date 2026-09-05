@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Iterative JSX-aware lexical scanning for source projections.        */
-/* -------------------------------------------------------------------------- */
 import {
   CHAR_CODE_BRACE_CLOSE,
   CHAR_CODE_BRACE_OPEN,
@@ -348,16 +345,6 @@ class SourceLexer extends SourceLexerBase {
   }
 }
 
-/**
- * Scan source once from left to right, recognizing JavaScript comments and literals as well as JSX
- * text, tags, attributes, and expression containers.
- *
- * @param source - Complete source text.
- * @param handlers - Projection callbacks for each opaque source region.
- * @returns Nothing.
- * @throws Does not throw.
- * @internal
- */
 export const scanSource = (source: string, handlers: SourceScanHandlers): void => {
   new SourceLexer(source, handlers).scan();
 };

@@ -1,14 +1,5 @@
-/* -------------------------------------------------------------------------- */
-/*         Ordering and private-effect checks for export projections.         */
-/* -------------------------------------------------------------------------- */
-
 import type { ModuleBindingDeclaration } from './effect-module-source-index';
 
-/**
- * Return declarations in source order while preserving already ordered input.
- *
- * @internal
- */
 export const sourceOrderedDeclarations = (
   declarations: readonly ModuleBindingDeclaration[],
 ): readonly ModuleBindingDeclaration[] => {
@@ -29,11 +20,6 @@ export const sourceOrderedDeclarations = (
   );
 };
 
-/**
- * Check whether unselected siblings in one declaration contain Effect work.
- *
- * @internal
- */
 export const privateSiblingHasEffect = (
   source: string,
   statementStart: number,
@@ -51,11 +37,6 @@ export const privateSiblingHasEffect = (
   return /\b(?:Effect|Promise)\b/.test(source.slice(sourceIndex, statementEnd + 1));
 };
 
-/**
- * Group selected declarations by their containing statement offset.
- *
- * @internal
- */
 export const declarationsGroupedByStatement = (
   declarations: readonly ModuleBindingDeclaration[],
 ): Map<number, ModuleBindingDeclaration[]> => {
@@ -71,11 +52,6 @@ export const declarationsGroupedByStatement = (
   return grouped;
 };
 
-/**
- * Calculate private-effect flags for each grouped declaration statement.
- *
- * @internal
- */
 export const privateEffectsByStatement = (
   source: string,
   declarationsByStatement: ReadonlyMap<number, readonly ModuleBindingDeclaration[]>,

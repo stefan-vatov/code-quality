@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       AST detection for synchronous Effect server-request handlers.        */
-/* -------------------------------------------------------------------------- */
 import { Predicate } from 'effect';
 import { asNode, childNode, identifierName } from './effect-ast';
 import type { ASTNode } from './effect-ast';
@@ -183,14 +180,6 @@ const isInsideHandlerRange = (node: ASTNode, index: HandlerRangeIndex): boolean 
   return range.end <= index.maxEnd;
 };
 
-/**
- * Build native AST visitors for synchronous Effect execution inside server handlers.
- *
- * @param context - Active rule context.
- * @returns AST visitors that report the first matching call.
- * @throws Does not throw.
- * @internal
- */
 export const runSyncServerHandlerAST = (context: Context): VisitorMap => {
   const runSync = importedEffectCallMatcher(context, 'Effect', ['runSync']);
   const handlerRanges: HandlerRangeIndex = {

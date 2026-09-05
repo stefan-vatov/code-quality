@@ -431,7 +431,7 @@ describe('effect-schema-no-redundant-tag-identifier', (): void => {
     ],
   ])('reports the redundant inner literal for %s', (_name, source, text): void => {
     const [report] = reportsFor(source);
-    // SAFETY: the rule reports the parser's inner tag literal, whose source offsets are verified below.
+
     const node = report?.node as { end?: number; start?: number; type?: string } | undefined;
 
     expect(node?.type).toBe('Literal');

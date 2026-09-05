@@ -10,7 +10,19 @@ defmodule TheThracianCredo do
 
   @doc false
   def init(exec) do
-    register_default_config(exec, default_config())
+    configured = register_default_config(exec, default_config())
+
+    Enum.reduce(
+      [
+        Credo.CLI.Command.Suggest.SuggestCommand,
+        Credo.CLI.Command.List.ListCommand,
+        Credo.CLI.Command.Diff.DiffCommand
+      ],
+      configured,
+      fn command, execution ->
+        append_task(execution, command, :prepare_analysis, TheThracianCredo.DisableCommentSuppressions)
+      end
+    )
   end
 
   @doc """
@@ -42,6 +54,7 @@ defmodule TheThracianCredo do
   """
   def checks do
     [
+      {TheThracianCredo.Check.Readability.NoComments, [exit_status: 2, priority: :high]},
       {Credo.Check.Readability.MaxLineLength, [max_length: 150, exit_status: 2, priority: :high]},
       {TheThracianCredo.Check.Refactor.FunctionBodyLength, [max_lines: 75, exit_status: 2, priority: :high]},
       {Credo.Check.Refactor.Nesting, [max_nesting: 3, exit_status: 2, priority: :high]},

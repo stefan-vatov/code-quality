@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*     Transparent default-export wrapper parsing for local identifiers.      */
-/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class';
 
 const ASCII_CHARACTER_COUNT = 128;
@@ -453,9 +450,6 @@ const transparentBindingRange = (parser: WrapperParser, initialRange: SourceRang
   return range;
 };
 
-/**
- * Resolves only transparent TypeScript wrappers around one local identifier.
- */
 export const defaultExportBindingName = (expression: string): string | undefined => {
   const parser: WrapperParser = {
     matchingDelimiters: matchingDelimiterIndex(expression),

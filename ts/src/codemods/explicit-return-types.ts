@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*            Conservative codemod for explicit void return types.            */
-/* -------------------------------------------------------------------------- */
 import type {
   ASTPath,
   ArrowFunctionExpression,
@@ -501,10 +498,5 @@ const collectFunctionReplacements = (source: string): Replacement[] => {
   return replacements;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const addVoidReturnTypes = (source: string): string =>
   applyReplacements(source, collectFunctionReplacements(source));

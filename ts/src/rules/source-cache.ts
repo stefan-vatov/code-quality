@@ -1,14 +1,6 @@
-/* -------------------------------------------------------------------------- */
-/*              Source text cache shared by custom Oxlint rules.              */
-/* -------------------------------------------------------------------------- */
 import { Either, Match, Option, pipe } from 'effect';
 import { readFileSync, statSync } from 'node:fs';
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export interface SourceContext {
   filename?: string;
   sourceCode?: {
@@ -46,11 +38,6 @@ interface WeightedCache<Key, Value> {
   set: (key: Key, value: Value, explicitWeight?: number) => Value;
 }
 
-/**
- * Creates a deterministic FIFO cache bounded by entry count and aggregate weight.
- *
- * @internal
- */
 export const createWeightedCache = <Key, Value>(
   config: WeightedCacheConfig,
 ): WeightedCache<Key, Value> => {
@@ -178,11 +165,6 @@ const readFileSource = (filename: string): string =>
     Either.getOrElse((): string => ''),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const readCachedSource = (context: SourceContext): string =>
   Match.value(context).pipe(
     Match.when({ sourceCode: Match.defined }, ({ sourceCode }) => readSourceCodeText(sourceCode)),

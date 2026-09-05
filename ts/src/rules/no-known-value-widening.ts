@@ -130,10 +130,6 @@ function hasParentAssertion(node: ESTree.Node): boolean {
   return node.parent?.type === 'TSAsExpression' || node.parent?.type === 'TSTypeAssertion';
 }
 
-/**
- * Detect explicit storage, return, and assertion types that discard known evidence.
- * Predicate calls are not widening: the caller retains its type and can narrow it.
- */
 export const noKnownValueWideningRule = defineRule({
   meta: {
     type: 'problem',

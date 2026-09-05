@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*          Fiber observation predicates for always-on Effect rules.          */
-/* -------------------------------------------------------------------------- */
 import type { SourceNavigationIndex } from './effect-source-navigation-index';
 import { sourceNavigationIndex } from './effect-source-navigation-index';
 import { stripCommentsAndStrings } from './effect-source-helpers';
@@ -311,11 +308,6 @@ const hasUnassignedFork = (code: string): boolean => {
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnobservedFork = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   for (const pattern of YIELDED_FORK_PATTERNS) {
@@ -412,11 +404,6 @@ const hasUnassignedRunFork = (code: string, assignedForks: readonly AssignedRunF
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasRunForkWithoutObserver = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const assignedForks = buildAssignedRunForks(code);

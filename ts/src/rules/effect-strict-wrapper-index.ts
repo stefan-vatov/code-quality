@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Indexed Effect promise-wrapper boundaries for strict rules.         */
-/* -------------------------------------------------------------------------- */
 import { createWeightedCache } from './source-cache';
 import { sourceNavigationIndex } from './effect-source-navigation-index';
 
@@ -195,11 +192,6 @@ const effectRetryIndexFor = (source: string): EffectRetryIndex => {
   );
 };
 
-/**
- * Determine whether a target is inside an Effect.retry call.
- *
- * @internal
- */
 export const isInsideEffectRetryCall = (source: string, targetIndex: number): boolean => {
   const index = effectRetryIndexFor(source);
   const eligibleRangeCount = upperBound(index.ranges, targetIndex);
@@ -207,11 +199,6 @@ export const isInsideEffectRetryCall = (source: string, targetIndex: number): bo
   return rangeIndex < eligibleRangeCount;
 };
 
-/**
- * Return the first promise-wrapper call whose balanced body contains a target.
- *
- * @internal
- */
 export const enclosingEffectWrapperBounds = (
   source: string,
   targetIndex: number,

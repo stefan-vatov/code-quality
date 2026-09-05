@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -145,7 +146,9 @@ describe('release planner', () => {
     expect(plan.nextVersion).toBe('0.2.0');
     expect(plan.changelogSections).toEqual({});
   });
+});
 
+describe('release planner version transitions', () => {
   it('plans a pending publish when the manifest version is newer than the latest tag', () => {
     const plan = planPackageRelease({
       commits: [],
@@ -186,7 +189,9 @@ describe('release planner', () => {
       }),
     ).toThrow('Manifest version 0.1.0 is older than latest tag cargo-thx-lint@0.2.0');
   });
+});
 
+describe('release planner manifest updates', () => {
   it('updates manifests and prepends package changelogs', () => {
     const files = new Map([
       [
@@ -247,7 +252,8 @@ describe('release planner', () => {
       ],
     });
 
-    expect(JSON.parse(nextFiles.get('ts/package.json')).version).toBe('0.1.1');
+    assertReleaseFiles(nextFiles);
+    expect(packageVersion(nextFiles.get('ts/package.json'))).toBe('0.1.1');
     expect(nextFiles.get('rust/Cargo.toml')).toContain('version = "0.2.0"');
     expect(nextFiles.get('rust/Cargo.lock')).toContain('version = "0.2.0"');
     expect(nextFiles.get('elixir/mix.exs')).toContain('version: "0.1.1"');
@@ -282,9 +288,12 @@ describe('release planner', () => {
       ],
     });
 
+    assertReleaseFiles(nextFiles);
     expect(nextFiles.get('rust/CHANGELOG.md')?.match(/## 0\.2\.0/g)).toHaveLength(1);
   });
+});
 
+describe('release planner initial changelogs', () => {
   it('writes initial changelogs without requiring same-version manifest rewrites', () => {
     const files = new Map([
       [
@@ -315,7 +324,8 @@ describe('release planner', () => {
       ],
     });
 
-    expect(JSON.parse(nextFiles.get('ts/package.json')).version).toBe('0.1.0');
+    assertReleaseFiles(nextFiles);
+    expect(packageVersion(nextFiles.get('ts/package.json'))).toBe('0.1.0');
     expect(nextFiles.get('rust/Cargo.toml')).toContain('version = "0.1.0"');
     expect(nextFiles.get('rust/Cargo.lock')).toContain('version = "0.1.0"');
     expect(nextFiles.get('elixir/mix.exs')).toContain('version: "0.1.0"');
@@ -339,9 +349,12 @@ describe('release planner', () => {
       plans: [initialPlan('cargo-thx-lint', 'cargo-thx-lint@0.1.0')],
     });
 
+    assertReleaseFiles(once);
     expect(once.get('rust/CHANGELOG.md')?.match(/## 0\.1\.0/g)).toHaveLength(1);
   });
+});
 
+describe('release planner publish retries', () => {
   it('outputs the original release metadata commit for pending publish retries', () => {
     const repo = createReleaseRepo();
     const releaseSha = commitRustRelease(repo);
@@ -380,7 +393,29 @@ describe('release planner', () => {
   });
 });
 
-function initialPlan(name, tag) {
+function assertReleaseFiles(files: Map<unknown, unknown>): asserts files is Map<string, string> {
+  for (const [path, content] of files) {
+    assert.ok(typeof path === 'string' && typeof content === 'string');
+  }
+}
+
+function packageVersion(content: string | undefined) {
+  assert.ok(content);
+  const manifest: unknown = JSON.parse(content);
+  assert.ok(isVersionedManifest(manifest));
+  return manifest.version;
+}
+
+function isVersionedManifest(value: unknown): value is { version: string } {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'version' in value &&
+    typeof value.version === 'string'
+  );
+}
+
+function initialPlan(name: string, tag: string) {
   return {
     bump: 'initial',
     changelogSections: {
@@ -418,7 +453,7 @@ function createReleaseRepo() {
   return repo;
 }
 
-function commitRustRelease(repo) {
+function commitRustRelease(repo: string) {
   writePackageFiles(
     repo,
     '0.2.0',
@@ -430,7 +465,7 @@ function commitRustRelease(repo) {
   return git(repo, 'rev-parse', 'HEAD').trim();
 }
 
-function writePackageFiles(repo, rustVersion, rustChangelog) {
+function writePackageFiles(repo: string, rustVersion: string, rustChangelog: string) {
   writeFileSync(
     join(repo, 'ts/package.json'),
     `${JSON.stringify({ name: '@thethracian/oxlint-config', version: '0.1.0' })}\n`,
@@ -458,11 +493,11 @@ function writePackageFiles(repo, rustVersion, rustChangelog) {
   );
 }
 
-function readFile(path) {
+function readFile(path: string) {
   return readFileSync(path, 'utf8');
 }
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]) {
   return execFileSync('git', args, {
     cwd,
     encoding: 'utf8',

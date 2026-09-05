@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Reference-identity contracts for strict AST-backed Effect rules.      */
-/* -------------------------------------------------------------------------- */
 import { describe, expect, it } from 'vitest';
 import { runRule } from './effect-rule-test-utils';
 

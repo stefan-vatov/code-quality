@@ -34,7 +34,6 @@ const dispatchesFor = (program: ESTree.Program, sourceCode: SourceCode): Dispatc
     pending.push({ node, exit: true });
     const children: ESTree.Node[] = [];
     for (const key of sourceCode.visitorKeys[node.type] ?? []) {
-      // SAFETY: Oxlint's visitorKeys enumerate only child nodes and nullable child-node arrays.
       const value = (
         node as unknown as Record<string, ESTree.Node | (ESTree.Node | null)[] | null>
       )[key];
@@ -79,14 +78,6 @@ const nativeSamples = (
   }));
 };
 
-/**
- * Run against Oxlint's real native AST, scopes, comments and parent links. The host
- * parses and prepares dispatches before timing. Each sample times a complete rule
- * traversal, including per-file create/before/after work. createOnce is host setup.
- * Reports are counted just like the existing Effect harness, without formatting diagnostics.
- * Hot samples repeat the same native file while its arena is alive; native nodes
- * must never escape a RuleTester case, because Oxlint reuses the backing arena.
- */
 export const benchmarkNativeRule = (
   name: string,
   rule: Rule,
@@ -100,8 +91,6 @@ export const benchmarkNativeRule = (
   const wrapper: Rule = {
     meta: rule.meta,
     createOnce(context) {
-      // SAFETY: inherit the native context's live per-file getters, overriding only
-      // the report sink to match the count-only sink used by the Effect benchmarks.
       const measuredContext = Object.create(context, {
         report: {
           value: (): void => {
@@ -132,8 +121,6 @@ export const benchmarkNativeRule = (
   };
   const scheduling = { describe: RuleTester.describe, it: RuleTester.it };
   try {
-    // RuleTester normally registers Vitest tests. Benchmarks execute synchronously,
-    // including when called from regression tests, and restore the original scheduler.
     RuleTester.describe = (_text, run): void => {
       run();
     };

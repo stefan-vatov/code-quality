@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*            Lexical shadowing index for handler source fallback.            */
-/* -------------------------------------------------------------------------- */
 import type { RunSyncBindings, SourceRange } from './effect-strict-server-handler-types';
 import { isIdentifierPart, isWhitespace, lowerBound } from './effect-strict-server-handler-index';
 import type { ExpressionBoundaryIndex } from './effect-strict-server-handler-index';
@@ -17,16 +14,6 @@ const FUNCTION_PATTERN = /\bfunction(?:\s*\*)?\s*([A-Za-z_$][\w$]*)?\s*\(/g;
 const ARROW_PATTERN = /=>/g;
 const DECLARATION_PATTERN = /\b(?:const|let|var|class|function)\s+([A-Za-z_$][\w$]*)\b/g;
 
-/**
- * Describes indexed lexical shadow intervals.
- *
- * @param intervals - Shadow intervals grouped by binding name.
- * @param maxEnds - Prefix maximum interval ends grouped by binding name.
- * @param starts - Sorted interval starts grouped by binding name.
- * @returns A shadow lookup index.
- * @throws Does not throw.
- * @internal
- */
 export interface ShadowIntervalIndex {
   readonly intervals: ReadonlyMap<string, readonly SourceRange[]>;
   readonly maxEnds: ReadonlyMap<string, readonly number[]>;
@@ -390,17 +377,6 @@ const summarizeIntervalValues = (values: readonly SourceRange[]): IntervalSummar
   return { maxEnds, starts };
 };
 
-/**
- * Builds lexical shadow intervals for imported runSync names.
- *
- * @param code - Comment and literal-free source projection.
- * @param boundary - Indexed delimiter boundaries.
- * @param bindings - Imported names eligible for matching.
- * @param functionBodyRange - Function-body range resolver.
- * @returns A shadow lookup index.
- * @throws Does not throw.
- * @internal
- */
 export const buildShadowIndex = (
   code: string,
   boundary: ExpressionBoundaryIndex,
@@ -417,16 +393,6 @@ export const buildShadowIndex = (
   return { intervals, ...summary };
 };
 
-/**
- * Tests whether an imported name is shadowed at a source offset.
- *
- * @param index - Lexical shadow index.
- * @param name - Imported binding name.
- * @param target - Source offset being checked.
- * @returns Whether the binding is shadowed at the target.
- * @throws Does not throw.
- * @internal
- */
 export const isShadowed = (index: ShadowIntervalIndex, name: string, target: number): boolean => {
   const maxEnds = index.maxEnds.get(name);
   const starts = index.starts.get(name);

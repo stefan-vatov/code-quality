@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*               Conservative weights for source-backed caches.               */
-/* -------------------------------------------------------------------------- */
 import type { createWeightedCache } from './source-cache';
 
 const UTF16_CODE_UNIT_BYTES = 2;
@@ -26,37 +23,15 @@ const NAVIGATION_CACHE_MAX_MEBIBYTES = 9;
 const REGEX_INDEX_CACHE_MAX_MEBIBYTES = 5;
 const SOURCE_TOKEN_PRESENCE_CACHE_MAX_MEBIBYTES = 4;
 
-/**
- * Maximum retained weight for line-start indexes in bytes.
- *
- * @internal
- */
 export const LINE_START_CACHE_MAX_WEIGHT = LINE_START_CACHE_MAX_MEBIBYTES * CACHE_MEBIBYTE_BYTES;
-/**
- * Maximum retained weight for navigation indexes in bytes.
- *
- * @internal
- */
+
 export const NAVIGATION_CACHE_MAX_WEIGHT = NAVIGATION_CACHE_MAX_MEBIBYTES * CACHE_MEBIBYTE_BYTES;
-/**
- * Maximum retained weight for regex indexes in bytes.
- *
- * @internal
- */
+
 export const REGEX_INDEX_CACHE_MAX_WEIGHT = REGEX_INDEX_CACHE_MAX_MEBIBYTES * CACHE_MEBIBYTE_BYTES;
-/**
- * Maximum retained weight for token-presence facts in bytes.
- *
- * @internal
- */
+
 export const SOURCE_TOKEN_PRESENCE_CACHE_MAX_WEIGHT =
   SOURCE_TOKEN_PRESENCE_CACHE_MAX_MEBIBYTES * CACHE_MEBIBYTE_BYTES;
 
-/**
- * Counts retained navigation index structures for weight estimation.
- *
- * @internal
- */
 export interface NavigationIndexWeightInput {
   braceScopeTransitionCount: number;
   eventAfterCloseIndexCount: number;
@@ -65,41 +40,21 @@ export interface NavigationIndexWeightInput {
   statementEndIndexCount: number;
 }
 
-/**
- * Counts retained regex index structures for weight estimation.
- *
- * @internal
- */
 export interface RegexIndexWeightInput {
   endCount: number;
   startCount: number;
 }
 
-/**
- * String-keyed weighted cache type used by source-backed indexes.
- *
- * @internal
- */
 export type SourceWeightedCache<Value> = ReturnType<typeof createWeightedCache<string, Value>>;
 
 const sourceTextBytes = (sourceLength: number): number => sourceLength * UTF16_CODE_UNIT_BYTES;
 
-/**
- * Estimate line-start cache bytes from the source key and retained offsets.
- *
- * @internal
- */
 export const lineStartCacheWeight = (sourceLength: number, lineStartCount: number): number =>
   sourceTextBytes(sourceLength) +
   CACHE_ENTRY_BYTES +
   ARRAY_BASE_BYTES +
   lineStartCount * LINE_START_VALUE_BYTES;
 
-/**
- * Estimate token-presence cache bytes from the source key and retained token keys.
- *
- * @internal
- */
 export const sourceTokenPresenceCacheWeight = (
   sourceLength: number,
   tokens: Iterable<string>,
@@ -111,11 +66,6 @@ export const sourceTokenPresenceCacheWeight = (
   return sourceTextBytes(sourceLength) + CACHE_ENTRY_BYTES + MAP_BASE_BYTES + tokenEntriesWeight;
 };
 
-/**
- * Estimate navigation cache bytes from the source key and retained index structures.
- *
- * @internal
- */
 export const navigationIndexCacheWeight = (
   sourceLength: number,
   input: NavigationIndexWeightInput,
@@ -135,11 +85,6 @@ export const navigationIndexCacheWeight = (
   ARRAY_BASE_BYTES +
   input.statementEndIndexCount * NAVIGATION_NUMBER_BYTES;
 
-/**
- * Estimate regex cache bytes from the source key and retained map/set entries.
- *
- * @internal
- */
 export const regexIndexCacheWeight = (sourceLength: number, input: RegexIndexWeightInput): number =>
   sourceTextBytes(sourceLength) +
   CACHE_ENTRY_BYTES +

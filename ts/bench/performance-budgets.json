@@ -582,16 +582,6 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
-    "effect-require-effect-suppression-reason-and-ticket": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25380,
-      "observedMedianNs": 4230,
-      "observedP95Ns": 9530,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
     "effect-require-error-cause-preserved": {
       "inputSamples": 7,
       "iterations": 20,
@@ -1222,14 +1212,14 @@
       "p95LimitNs": 1703586,
       "runs": 20
     },
-    "require-safety-comment-for-type-assertion": {
+    "no-comments": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3770,
-      "observedP95Ns": 231770,
+      "medianLimitNs": 26640,
+      "observedMedianNs": 4440,
+      "observedP95Ns": 15620,
       "operationsPerSample": 1,
-      "p95LimitNs": 1390620,
+      "p95LimitNs": 100000,
       "runs": 20
     }
   }

@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       Reject Schema tag identifiers that duplicate the declared tag.       */
-/* -------------------------------------------------------------------------- */
-
 import { Predicate } from 'effect';
 import type { Context, SourceRule } from './effect-rule-core';
 import { asNode, childNode, childNodes } from './effect-ast';

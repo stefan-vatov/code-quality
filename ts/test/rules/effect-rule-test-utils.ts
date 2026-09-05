@@ -58,8 +58,6 @@ function traverse(node: ASTValue, visitors: VisitorMap): void {
 }
 
 function effectProgram(program: ReturnType<typeof parseSync>['program'] | ASTNode): ASTNode {
-  // SAFETY: Oxc produces ESTree nodes with string type tags and enumerable child fields;
-  // the Effect AST readers use that same structural contract without native host metadata.
   return program as ASTNode;
 }
 
@@ -68,8 +66,6 @@ function parseProgram(filename: string, source: string): ASTNode {
 }
 
 function effectSourceRule(rule: (typeof plugin.rules)[string] | SourceRule): SourceRule {
-  // SAFETY: these tests select registered Effect rules, whose SourceRule create/context
-  // contract is preserved at runtime by eslintCompatPlugin's native type adapter.
   return rule as SourceRule;
 }
 
@@ -172,8 +168,7 @@ function ruleOptionsFromSetting(setting: RuleSetting | undefined): StrictPathOpt
   if (!Predicate.isRecord(options)) {
     return undefined;
   }
-  // SAFETY: the config factory emits StrictPathOptions for configured Effect rules;
-  // Oxlint's generic rule setting type erases that package-owned option contract.
+
   return options as StrictPathOptions;
 }
 
@@ -217,12 +212,6 @@ function runConfiguredRules(
   return reports;
 }
 
-/**
- * Builds a test-only profile that explicitly selects every registered Effect rule.
- * The published config intentionally enables only the safety bucket by default;
- * implementation coverage must opt into the remaining rules rather than silently
- * treating them as part of the consumer preset.
- */
 function withAllEffectRules(
   config: ReturnType<typeof theThracianOxlint>,
 ): ReturnType<typeof theThracianOxlint> {

@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*          AST-backed opt-in strict custom Effect lint rule specs.           */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, Predicate, pipe } from 'effect';
 import {
   arrayValue,
@@ -31,11 +28,6 @@ import { effectGlobalFetchAST } from './effect-global-fetch-ast';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 import { isConfiguredPath } from './effect-path-options';
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
   [
     {

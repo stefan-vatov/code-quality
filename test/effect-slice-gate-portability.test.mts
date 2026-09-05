@@ -4,14 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const rootPath = (path) => new URL(`../${path}`, import.meta.url);
-const rootJSON = (path) =>
-  // SAFETY: callers read the repository-owned package manifest and verify its scripts below.
-  /** @type {{ scripts: Record<string, string> }} */ (
-    JSON.parse(readFileSync(rootPath(path), 'utf8'))
-  );
-const rootText = (path) => readFileSync(rootPath(path), 'utf8');
-const rootTextOrEmpty = (path) => (existsSync(rootPath(path)) ? rootText(path) : '');
+const rootPath = (path: string) => new URL(`../${path}`, import.meta.url);
+const rootJSON = (path: string): { scripts: Record<string, string> } =>
+  JSON.parse(readFileSync(rootPath(path), 'utf8')) as { scripts: Record<string, string> };
+const rootText = (path: string) => readFileSync(rootPath(path), 'utf8');
+const rootTextOrEmpty = (path: string) => (existsSync(rootPath(path)) ? rootText(path) : '');
 
 const minimumPeerRuleIDs = [
   'thethracian/effect-no-floating-effect',
@@ -33,7 +30,7 @@ describe('Effect slice quality gate portability', () => {
       );
       writeFileSync(join(repository, 'tracked.txt'), 'portable test commit\n');
 
-      const git = (...arguments_) =>
+      const git = (...arguments_: string[]) =>
         execFileSync('git', arguments_, {
           cwd: repository,
           encoding: 'utf8',
@@ -65,7 +62,7 @@ describe('Effect slice quality gate portability', () => {
       'knip:ci': 'knip --cache --strict',
       'lint:ci': 'pnpm run lint:local:type-aware && pnpm run format:check',
       'lint:policy': 'pnpm --dir ts build && node scripts/check-effective-oxlint-policy.mjs',
-      'test:oxlint-min-peer': 'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs',
+      'test:oxlint-min-peer': 'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mts',
       'test:projects': 'nx run-many -t test',
     });
   });
@@ -105,12 +102,12 @@ describe('Effect slice quality gate portability', () => {
     const packageJSON = rootJSON('package.json');
 
     expect(packageJSON.scripts['test:oxlint-min-peer']).toBe(
-      'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs',
+      'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mts',
     );
   });
 
   it('asserts exact diagnostics and the complete preset at the declared minimum peer', () => {
-    const verifier = rootTextOrEmpty('ts/test/oxlint-min-peer/verify.mjs');
+    const verifier = rootTextOrEmpty('ts/test/oxlint-min-peer/verify.mts');
 
     expect(verifier).toContain('minimumPeerVersion');
     expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
@@ -131,7 +128,7 @@ describe('Effect slice quality gate portability', () => {
   });
 
   it('runs safe minimum-peer fixing and asserts that it is a no-op', () => {
-    const verifier = rootTextOrEmpty('ts/test/oxlint-min-peer/verify.mjs');
+    const verifier = rootTextOrEmpty('ts/test/oxlint-min-peer/verify.mts');
 
     expect(verifier).toContain('safe.ts');
     expect(verifier).toContain('--fix');

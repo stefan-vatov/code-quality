@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*            Effect.runSync import identity for source fallback.             */
-/* -------------------------------------------------------------------------- */
 import type { RunSyncBindings } from './effect-strict-server-handler-types';
 import { stripComments } from './effect-source-comments';
 
@@ -166,14 +163,6 @@ const collectNamedImports = (
   }
 };
 
-/**
- * Collects source-level import identities for Effect.runSync.
- *
- * @param source - Complete source text.
- * @returns Effect import bindings recognized by the native matcher.
- * @throws Does not throw.
- * @internal
- */
 export const collectRunSyncBindings = (source: string): RunSyncBindings => {
   const code = stripComments(source);
   const bindings = createBindings();

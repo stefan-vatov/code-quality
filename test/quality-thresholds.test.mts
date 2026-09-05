@@ -2,23 +2,28 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
-/**
- * @typedef {{
- *   'package.json': { scripts: Record<string, string>, devDependencies: Record<string, string>, 'lint-staged': Record<string, string[]> },
- *   'knip.json': { ignore: string[] },
- *   'ts/project.json': { targets: { lint: { command: string } } },
- *   'stryker.config.json': { thresholds: { break: number, high: number, low: number }, mutate: string[], ignorePatterns: string[], vitest: { configFile: string } }
- * }} RepositoryConfigs
- */
+interface RepositoryConfigs {
+  'package.json': {
+    scripts: Record<string, string>;
+    devDependencies: Record<string, string>;
+    'lint-staged': Record<string, string[]>;
+  };
+  'knip.json': { ignore: string[] };
+  'ts/project.json': { targets: { lint: { command: string } } };
+  'stryker.config.json': {
+    thresholds: { break: number; high: number; low: number };
+    mutate: string[];
+    ignorePatterns: string[];
+    vitest: { configFile: string };
+  };
+}
 
-/** @template {keyof RepositoryConfigs} Path @param {Path} path @returns {RepositoryConfigs[Path]} */
-const rootJSON = (path) =>
-  // SAFETY: the literal filename selects the repository-owned config contract verified by these tests.
-  /** @type {RepositoryConfigs[Path]} */ (
-    JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8'))
-  );
-const rootText = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8');
-const sourceFiles = (directory) =>
+const rootJSON = <Path extends keyof RepositoryConfigs>(path: Path): RepositoryConfigs[Path] =>
+  JSON.parse(
+    readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8'),
+  ) as RepositoryConfigs[Path];
+const rootText = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8');
+const sourceFiles = (directory: string) =>
   readdirSync(new URL(`../${directory}`, import.meta.url), {
     recursive: true,
     withFileTypes: true,
@@ -30,10 +35,9 @@ describe('quality threshold configuration', () => {
   it('keeps source imports extensionless for this package build pipeline', () => {
     const offenders = [...sourceFiles('ts/src'), ...sourceFiles('ts/test')].flatMap((path) => {
       const source = ts.createSourceFile(path, readFileSync(path, 'utf-8'), ts.ScriptTarget.Latest);
-      const badSpecifiers = [];
+      const badSpecifiers: string[] = [];
 
-      /** @param {import('typescript').Node} node */
-      const checkNode = (node) => {
+      const checkNode = (node: ts.Node) => {
         if (
           (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
           node.moduleSpecifier &&
@@ -121,16 +125,16 @@ describe('quality threshold configuration', () => {
 
     expect(packageJSON.scripts['codemod:ts:local']).toBe('tsx ts/src/codemod-fix/cli.ts ts/src');
     expect(packageJSON.scripts['lint:local']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test',
     );
     expect(packageJSON.scripts['lint:local:type-aware']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test --type-aware --type-check',
     );
     expect(packageJSON.scripts['lint:local:fix']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --fix',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test --fix',
     );
     expect(packageJSON.scripts['lint:local:type-aware:fix']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts --type-aware --type-check --fix',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test --type-aware --type-check --fix',
     );
     expect(localConfig).toContain("existsSync(new URL('./ts/dist/index.js', import.meta.url))");
     expect(localConfig).toContain("await import('./ts/dist/index.js')");
@@ -197,10 +201,10 @@ describe('quality gate documentation and release verification', () => {
   it('runs native plugin compatibility against the exact minimum Oxlint peer', () => {
     const packageJSON = rootJSON('package.json');
     const ciWorkflow = rootText('.github/workflows/ci.yml');
-    const verifier = rootText('ts/test/oxlint-min-peer/verify.mjs');
+    const verifier = rootText('ts/test/oxlint-min-peer/verify.mts');
 
     expect(packageJSON.scripts['test:oxlint-min-peer']).toBe(
-      'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mjs',
+      'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mts',
     );
     expect(packageJSON.devDependencies.oxlint).toBe('^1.66.0');
     expect(ciWorkflow).toContain('oxlint-min-peer:');

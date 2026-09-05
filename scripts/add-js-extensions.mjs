@@ -1,4 +1,3 @@
-/** @internal Adds runtime ESM extensions to emitted package files. */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join } from 'node:path';
 import ts from 'typescript';

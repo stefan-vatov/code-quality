@@ -2,6 +2,7 @@
 set -eu
 
 pnpm run lint:ci
+pnpm run lint:projects
 pnpm run knip:ci
 pnpm run check
 CI=true pnpm run test:projects

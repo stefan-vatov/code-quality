@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/* Public API for running The Thracian codemod fixes from package scripts or  */
-/*                                   Tools.                                   */
-/* -------------------------------------------------------------------------- */
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { addInternalExportDocs } from '../codemods/internal-export-docs';
 import { addVoidReturnTypes } from '../codemods/explicit-return-types';
@@ -18,22 +14,12 @@ const defaultPaths = ['src'] as const;
 const sourceExtensions = new Set(['.ts', '.tsx', '.mts', '.cts']);
 const ignoredDirectories = new Set(['bench', 'dist', 'fixtures', 'node_modules', 'test']);
 
-/**
- * Options for running The Thracian codemod fixer.
- *
- * @public
- */
 export interface CodemodFixOptions {
   cwd?: string;
   dryRun?: boolean;
   paths?: readonly string[];
 }
 
-/**
- * Summary returned after scanning and optionally rewriting source files.
- *
- * @public
- */
 export interface CodemodFixResult {
   changedFiles: string[];
   scannedFiles: number;
@@ -42,11 +28,6 @@ export interface CodemodFixResult {
 const hasSourceExtension = (path: string): boolean =>
   [...sourceExtensions].some((extension) => path.endsWith(extension));
 
-/**
- * Lists TypeScript source files under a root directory.
- *
- * @public
- */
 export const sourceFilesUnder = (root: string): string[] => {
   const files: string[] = [];
 
@@ -69,11 +50,6 @@ export const sourceFilesUnder = (root: string): string[] => {
   return files;
 };
 
-/**
- * Applies all safe codemod fixes to a single source string.
- *
- * @public
- */
 export const applyCodemodFixToSource = (source: string): string =>
   formatJSDocComments(
     addInternalExportDocs(
@@ -87,11 +63,6 @@ export const applyCodemodFixToSource = (source: string): string =>
     ),
   );
 
-/**
- * Applies all safe codemod fixes to one file.
- *
- * @public
- */
 export const applyCodemodFixToFile = (path: string, dryRun: boolean): boolean => {
   const before = readFileSync(path, 'utf8');
   const after = formatFileHeaderComment(applyCodemodFixToSource(before));
@@ -114,11 +85,6 @@ const candidateFiles = (path: string): string[] => {
   return [path];
 };
 
-/**
- * Runs The Thracian codemod fixer across configured paths.
- *
- * @public
- */
 export const codemodFix = (options: CodemodFixOptions = {}): CodemodFixResult => {
   const cwd = options.cwd ?? process.cwd();
   const paths = ((): readonly string[] => {

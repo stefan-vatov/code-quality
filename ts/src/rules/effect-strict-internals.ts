@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       AST and source predicates for opt-in strict Effect lint rules.       */
-/* -------------------------------------------------------------------------- */
 export {
   arrayValue,
   effectCallPredicate,

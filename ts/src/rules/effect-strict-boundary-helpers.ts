@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Boundary-schema predicates for opt-in strict Effect lint rules.       */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import {
   findBalancedCallEnd,
@@ -42,11 +39,6 @@ const boundaryAccessNeedsSchema = (code: string, match: RegExpMatchArray): boole
   !isInsideCall(code, match.index ?? 0, /Schema\.decode[A-Za-z]*\s*\(/g) &&
   !/Schema\.decode/.test(boundaryAccessSegment(code, match));
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasBoundaryDataWithoutSchema = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(
@@ -100,11 +92,6 @@ const requestBindingNeedsSchema = (code: string, match: RegExpMatchArray): boole
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasHTTPServerRequestWithoutSchema = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(
@@ -150,11 +137,6 @@ const persistenceReadNeedsSchema = (code: string, match: RegExpExecArray): boole
   return !/Schema\.decode/.test(localSource) && !hasNearbySchemaDecodeForBinding(tail, bindingName);
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasPersistenceReadWithoutSchema = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(
@@ -178,11 +160,6 @@ export const hasPersistenceReadWithoutSchema = (source: string): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasCommandHandlerWithoutSchema = (source: string): boolean =>
   Match.value(source).pipe(
     Match.when(

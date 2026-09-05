@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       One-pass lexical delimiter index for export binding patterns.        */
-/* -------------------------------------------------------------------------- */
-
 const CHAR_CODE_BRACE_CLOSE = 125,
   CHAR_CODE_BRACE_OPEN = 123;
 const CHAR_CODE_BRACKET_CLOSE = 93,
@@ -480,13 +476,6 @@ const patternEntryEnd = (
   return endIndex;
 };
 
-/**
- * Provides the private delimiter-index operations used by export binding traversal.
- *
- * @param operations - No arguments are accepted; operations are returned as a module-local API.
- * @returns Delimiter indexing and binding-boundary operations.
- * @throws Does not throw.
- */
 export const bindingPatternIndex = {
   bindingPatternEnd,
   createPatternDelimiterIndex,

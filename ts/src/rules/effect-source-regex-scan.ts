@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Incremental regex-literal indexing for Effect source rules.         */
-/* -------------------------------------------------------------------------- */
 import { REGEX_INDEX_CACHE_MAX_WEIGHT, regexIndexCacheWeight } from './effect-source-cache-weights';
 import type { SourceWeightedCache } from './effect-source-cache-weights';
 import { buildREGEXIndex } from './effect-source-regex-lexer-state';
@@ -38,15 +35,6 @@ const regexIndexFor = (source: string): ReturnType<typeof buildREGEXIndex> => {
   return cacheREGEXIndex(source, buildREGEXIndex(source));
 };
 
-/**
- * Find the closing slash and flags for a regex literal.
- *
- * @param source - Complete source text.
- * @param startIndex - Offset of the opening slash.
- * @returns The final flag offset, or `startIndex` when no literal closes on the line.
- * @throws Does not throw.
- * @internal
- */
 export const findREGEXLiteralEnd = (source: string, startIndex: number): number => {
   const cached = regexIndexCache.get(source);
   if (cached !== undefined) {
@@ -58,15 +46,6 @@ export const findREGEXLiteralEnd = (source: string, startIndex: number): number 
   return scanREGEXLiteralEnd(source, startIndex);
 };
 
-/**
- * Classify a slash using the cached result of one monotonic lexical pass.
- *
- * @param source - Complete source text.
- * @param index - Slash offset.
- * @returns Whether the slash opens a regex literal.
- * @throws Does not throw.
- * @internal
- */
 export const isREGEXLiteralStart = (source: string, index: number): boolean => {
   if (source.charCodeAt(index) !== CHAR_CODE_SLASH) {
     return false;

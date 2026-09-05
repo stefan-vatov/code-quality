@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Exact Program import indexing for shared Effect AST rules.         */
-/* -------------------------------------------------------------------------- */
-
 import { Predicate } from 'effect';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
 import type { ASTNode, ASTValue } from './effect-ast';
@@ -139,15 +135,6 @@ const indexProgramStatements = (bindings: EffectAPIBindings, body: ASTValue): bo
   return hasEffectImport;
 };
 
-/**
- * Replace source-fallback bindings with exact top-level Program imports.
- *
- * @param bindings - Mutable binding index owned by one rule instance.
- * @param program - Parsed Program whose direct children are module statements.
- * @returns Nothing; the supplied per-file binding index is updated in place.
- * @throws Does not throw.
- * @internal
- */
 export const indexEffectAPIBindings = (bindings: EffectAPIBindings, program: ASTNode): void => {
   resetBindings(bindings);
   const hasEffectImport = indexProgramStatements(bindings, program.body);

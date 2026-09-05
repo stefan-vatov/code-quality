@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*       One-pass lexical boundaries for server-handler source ranges.        */
-/* -------------------------------------------------------------------------- */
 import type { SourceRange } from './effect-strict-server-handler-types';
 import { findMatchingBrace } from './effect-source-helpers';
 
@@ -28,19 +25,6 @@ const CHAR_CODE_CARRIAGE_RETURN = 13;
 const CHAR_CODE_SPACE = 32;
 const CHAR_CODE_NONBREAKING_SPACE = 160;
 
-/**
- * Provides indexed delimiter and expression-boundary queries.
- *
- * @param closeByOpen - Matching delimiter offsets.
- * @param expressionEnd - Finds the inclusive end of an expression.
- * @param frameAt - Innermost delimiter frame at each source offset.
- * @param frameCloses - Closing offsets for delimiter frames.
- * @param frameOpens - Opening offsets for delimiter frames.
- * @param previousCode - Previous non-whitespace source offsets.
- * @returns An immutable lexical navigation view.
- * @throws Does not throw.
- * @internal
- */
 export interface ExpressionBoundaryIndex {
   readonly closeByOpen: ReadonlyMap<number, number>;
   readonly expressionEnd: (start: number) => number;
@@ -73,14 +57,6 @@ interface FrameBoundary {
   readonly depth: number;
 }
 
-/**
- * Tests whether a source code unit can occur inside an identifier.
- *
- * @param charCode - UTF-16 code-unit value.
- * @returns Whether the code unit is an ASCII identifier character.
- * @throws Does not throw.
- * @internal
- */
 export const isIdentifierPart = (charCode: number): boolean =>
   (charCode >= CHAR_CODE_DIGIT_START && charCode <= CHAR_CODE_DIGIT_END) ||
   (charCode >= CHAR_CODE_UPPER_START && charCode <= CHAR_CODE_UPPER_END) ||
@@ -88,14 +64,6 @@ export const isIdentifierPart = (charCode: number): boolean =>
   charCode === CHAR_CODE_DOLLAR ||
   charCode === CHAR_CODE_UNDERSCORE;
 
-/**
- * Tests whether a source code unit is whitespace for boundary scanning.
- *
- * @param charCode - UTF-16 code-unit value.
- * @returns Whether the code unit is a supported whitespace character.
- * @throws Does not throw.
- * @internal
- */
 export const isWhitespace = (charCode: number): boolean =>
   charCode === CHAR_CODE_TAB ||
   charCode === CHAR_CODE_LINE_FEED ||
@@ -120,15 +88,6 @@ const closesDelimiter = (openCode: number, closeCode: number): boolean => {
   return openCode === CHAR_CODE_BRACE_OPEN && closeCode === CHAR_CODE_BRACE_CLOSE;
 };
 
-/**
- * Finds the first sorted value at or after a target offset.
- *
- * @param values - Sorted source offsets.
- * @param target - Lower-bound target offset.
- * @returns The matching array position.
- * @throws Does not throw.
- * @internal
- */
 export const lowerBound = (values: readonly number[], target: number): number => {
   let low = 0;
   let high = values.length;
@@ -253,14 +212,6 @@ const expressionEndFor = (state: BuilderState, sourceLength: number, start: numb
   return Math.min(separatorIndex, boundary.closeIndex) - 1;
 };
 
-/**
- * Builds one-pass lexical boundaries for a source projection.
- *
- * @param source - Comment and literal-free source projection.
- * @returns Indexed delimiter and expression-boundary queries.
- * @throws Does not throw.
- * @internal
- */
 export const buildExpressionBoundaryIndex = (source: string): ExpressionBoundaryIndex => {
   const state = createBuilderState(source.length);
   scanSource(state, source);
@@ -291,16 +242,6 @@ const bodyStartAfterParameters = (source: string, parameterClose: number): numbe
 const bodyEndAt = (source: string, boundary: ExpressionBoundaryIndex, bodyStart: number): number =>
   boundary.closeByOpen.get(bodyStart) ?? findMatchingBrace(source, bodyStart);
 
-/**
- * Finds a function body after a parameter list.
- *
- * @param source - Comment and literal-free source projection.
- * @param boundary - Indexed delimiter boundaries.
- * @param parameterOpen - Opening parenthesis of the parameter list.
- * @returns The inclusive function body range, or undefined when malformed.
- * @throws Does not throw.
- * @internal
- */
 export const functionBodyRange = (
   source: string,
   boundary: ExpressionBoundaryIndex,

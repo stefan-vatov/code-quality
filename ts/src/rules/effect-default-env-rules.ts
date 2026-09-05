@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Environment, schema, resource, and test Effect rule specs.         */
-/* -------------------------------------------------------------------------- */
 import {
   hasCastAfterSchemaDecode,
   hasExternalJSONWithoutDecodeUnknown,
@@ -39,11 +36,6 @@ const hasSkippedEffectTest = (source: string, context: RuleContext): boolean =>
   isEffectTestPath(context) &&
   /\b(?:it|describe)\.effect\.skip\s*\(/.test(stripCommentsAndStrings(source));
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectDefaultEnvironmentSpecs = [
   {
     check: hasUnhandledSchemaEffectDecode,

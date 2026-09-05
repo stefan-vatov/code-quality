@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*   Public Oxlint config factory for The Thracian TypeScript lint package.   */
-/* -------------------------------------------------------------------------- */
 import { dirname, join } from 'node:path';
 import { Predicate } from 'effect';
 import { effectSafetyRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
@@ -12,31 +9,16 @@ import type { StrictPathOptionKey, StrictPathOptions } from './rules/effect-path
 
 export type { EffectStrictRuleName } from './rules/effect-rule-names';
 
-/**
- * Options for composing The Thracian Oxlint config.
- *
- * @public
- */
 export interface TheThracianOxlintOptions {
   typeAware?: boolean;
   effect?: boolean | TheThracianEffectOptions;
 }
 
-/**
- * Options for enabling and configuring Effect-specific lint rules.
- *
- * @public
- */
 export interface TheThracianEffectOptions {
   enabled?: boolean;
   strict?: false | TheThracianEffectStrictOptions;
 }
 
-/**
- * Opt-in strict Effect path groups used by project-aware rules.
- *
- * @public
- */
 export interface TheThracianEffectStrictOptions {
   adapterLayers?: readonly string[];
   compositionRoots?: readonly string[];
@@ -63,22 +45,12 @@ interface ConfigOptions {
   readonly options?: TypeAwareConfigOptions;
 }
 
-/**
- * Oxlint enables a built-in correctness set as warnings when no category is
- * configured. Reset that implicit set so the explicit native allowlist below
- * is the only source of native rules. This is a category reset, not a rule
- * level disable; all rules emitted by this package are errors.
- */
 const categories = {
   correctness: 'allow',
 } as const;
 
 const plugins = ['typescript', 'oxc', 'import', 'promise', 'unicorn'] as const;
 
-/**
- * Generic safety rules ported into the shared The Thracian plugin. Keep this
- * list explicit so every imported rule is enabled as a blocking error.
- */
 const portedRuleNames = [
   'no-chained-type-assertions',
   'no-conditional-empty-object-spread',
@@ -94,21 +66,15 @@ const portedRuleNames = [
   'no-unknown-type-aliases',
   'no-unsafe-dictionary-type',
   'no-widen-then-assert',
-  'require-safety-comment-for-type-assertion',
+  'no-comments',
 ] as const;
 
 const portedRules: RuleMap = {
   ...Object.fromEntries(portedRuleNames.map((ruleName) => [`thethracian/${ruleName}`, 'error'])),
-  // Guards establish a primitive contract without requiring boxed instanceof checks.
+
   'thethracian/no-runtime-typeof': ['error', { allowInTypeGuards: true }],
 };
 
-/**
- * Native rules are listed explicitly instead of inherited from Oxlint
- * categories. Category membership is tool-version state, so an Oxlint update
- * cannot silently add a blocking rule to this package. Keep this list limited
- * to reviewed correctness/suspicious rules; each active rule is an error.
- */
 const nativeRuleAllowlist = [
   'block-scoped-var',
   'complexity',
@@ -271,11 +237,6 @@ const nativeRuleAllowlist = [
   'valid-typeof',
 ] as const;
 
-/**
- * Semantic rules implemented by Oxlint's tsgolint backend. Keep this list in
- * sync with the supported `oxlint-tsgolint` rule inventory: configuring one of
- * these rules without type-aware execution makes it silently ineffective.
- */
 const typeAwareNativeRuleNames = [
   'typescript/await-thenable',
   'typescript/consistent-return',
@@ -536,13 +497,6 @@ const baseRules = (typeAwareRule: ToggleRuleSetting | undefined): RuleMap =>
       .map((ruleName) => [ruleName, configuredNativeRules[ruleName] ?? 'error']),
   );
 
-/**
- * Builds The Thracian Oxlint config for TypeScript consumers.
- *
- * @param options - Feature flags for type-aware checks and Effect rule buckets.
- * @returns Oxlint configuration with native rules and package-local custom rules.
- * @public
- */
 export default function theThracianOxlint(
   options: TheThracianOxlintOptions = {},
 ): ReturnType<typeof defineConfig> {

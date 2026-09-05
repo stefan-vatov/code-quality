@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Module-scope source indexing for Effect boundary scanners.         */
-/* -------------------------------------------------------------------------- */
 import { bindingPatternEnd, bindingPatternNames } from './effect-export-binding-patterns';
 
 const CHAR_CODE_BRACE_CLOSE = 125;
@@ -54,24 +51,15 @@ const NAMED_DECLARATION_START = new RegExp(
   'g',
 );
 
-/**
- * A regular-expression match whose source position is known to be present.
- */
 export interface ModuleSourceMatch extends RegExpMatchArray {
   readonly index: number;
 }
 
-/**
- * Module positions and binding projections shared by all export scans for one source.
- */
 export interface ModuleSourceIndex {
   readonly code: string;
   readonly modulePositions: Uint8Array;
 }
 
-/**
- * Exact ownership range for one module binding declaration.
- */
 export interface ModuleBindingDeclaration {
   readonly declaratorEnd: number;
   readonly declaratorStart: number;
@@ -162,9 +150,6 @@ const nextBraceDepth = (braceDepth: number, charCode: number): number => {
   return braceDepth;
 };
 
-/**
- * Builds a compact lookup for positions whose surrounding brace depth is zero.
- */
 export const createModuleSourceIndex = (code: string): ModuleSourceIndex => {
   const codeLength = code.length;
   const modulePositions = new Uint8Array(codeLength);
@@ -178,9 +163,6 @@ export const createModuleSourceIndex = (code: string): ModuleSourceIndex => {
   return { code, modulePositions };
 };
 
-/**
- * Collects only matches whose first token belongs to the source module.
- */
 export const moduleLevelMatches = (
   index: ModuleSourceIndex,
   pattern: RegExp,
@@ -188,17 +170,12 @@ export const moduleLevelMatches = (
   const matches: ModuleSourceMatch[] = [];
   for (const match of index.code.matchAll(pattern)) {
     if (index.modulePositions[match.index] === 1) {
-      // SAFETY: RegExpMatchArray.index was checked by the module-position lookup above.
       matches.push(match as ModuleSourceMatch);
     }
   }
   return matches;
 };
 
-/**
- * Finds a declaration boundary through either an explicit semicolon or an ASI line break followed by
- * another module declaration.
- */
 export const findModuleStatementEnd = (
   source: string,
   code: string,
@@ -415,9 +392,6 @@ const addNamedBinding = (
   appendBindingDeclaration(declarations, bindingName, declaration);
 };
 
-/**
- * Indexes every module binding to the declaration statement that owns it.
- */
 export const moduleBindingDeclarations = (
   moduleIndex: ModuleSourceIndex,
 ): ReadonlyMap<string, readonly ModuleBindingDeclaration[]> => {

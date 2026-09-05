@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*            Conservative codemod for local export-list rewrites.            */
-/* -------------------------------------------------------------------------- */
 import { Array, HashSet, Option, Order, pipe } from 'effect';
 import type {
   Declaration,
@@ -309,10 +306,5 @@ const collectExportListReplacements = (source: string): Replacement[] => {
   return replacements;
 };
 
-/**
- * Rewrites safe local export lists into inline exported declarations.
- *
- * @internal
- */
 export const inlineLocalExportLists = (source: string): string =>
   applyReplacements(source, collectExportListReplacements(source));

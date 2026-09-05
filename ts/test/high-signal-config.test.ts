@@ -1,11 +1,8 @@
-/* -------------------------------------------------------------------------- */
-/*        Contract tests for the strict, high-signal shared lint preset.       */
-/* -------------------------------------------------------------------------- */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import theThracianOxlint from '../src/index';
 import { effectSafetyRuleNames } from '../src/rules/effect-rule-names';
-import type { TheThracianEffectStrictOptions, TheThracianOxlintOptions } from '../src/index';
+import type { EffectStrictRuleName, TheThracianEffectStrictOptions } from '../src/index';
 
 const removedRules = [
   'arrow-body-style',
@@ -127,7 +124,6 @@ const effectRuleKeys = (config: ReturnType<typeof theThracianOxlint>): string[] 
     ruleName.startsWith('thethracian/effect-'),
   );
 
-// SAFETY: this repository's manifest defines these four scripts and arrays of staged-file commands.
 const packageJSON = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 ) as {
@@ -278,10 +274,10 @@ describe('high-signal strict config Effect selection', (): void => {
 
   it('rejects malformed strict Effect path groups before defaults can leak in', (): void => {
     const strict: TheThracianEffectStrictOptions = {
-      // @ts-expect-error - negative runtime test: adapterLayers must be a string array, not a string.
-      adapterLayers: 'platform/**',
+      adapterLayers: ['platform/**'],
       rules: ['effect-no-global-fetch'],
     };
+    Reflect.set(strict, 'adapterLayers', 'platform/**');
 
     expect(() => theThracianOxlint({ effect: { enabled: true, strict } })).toThrowError(
       'Strict Effect path option adapterLayers must be an array of strings',
@@ -289,19 +285,14 @@ describe('high-signal strict config Effect selection', (): void => {
   });
 
   it('rejects unknown strict Effect rule names at compile time', (): void => {
-    const invalidStrictOptions: TheThracianEffectStrictOptions = {
-      // @ts-expect-error - strict selection accepts only registered strict rule names.
-      rules: ['effect-not-a-real-rule'],
-    };
-
-    expect(invalidStrictOptions.rules).toStrictEqual(['effect-not-a-real-rule']);
+    expectTypeOf<'effect-not-a-real-rule'>().not.toMatchTypeOf<EffectStrictRuleName>();
   });
 
   it('rejects unknown strict Effect rule names at runtime', (): void => {
     const invalidStrictOptions: TheThracianEffectStrictOptions = {
-      // @ts-expect-error - negative runtime test: this name is outside the registered strict rule union.
-      rules: ['effect-not-a-real-rule'],
+      rules: [],
     };
+    Reflect.set(invalidStrictOptions, 'rules', ['effect-not-a-real-rule']);
 
     expect(() =>
       theThracianOxlint({ effect: { enabled: true, strict: invalidStrictOptions } }),
@@ -309,23 +300,19 @@ describe('high-signal strict config Effect selection', (): void => {
   });
 
   it('rejects the removed pathless strict boolean shortcut', (): void => {
-    const invalidEffectOptions: TheThracianOxlintOptions = {
-      // @ts-expect-error - negative runtime test: strict accepts false or options, never true.
-      effect: { strict: true },
-    };
+    const effect = { strict: false as const };
+    Reflect.set(effect, 'strict', true);
 
-    expect(() => theThracianOxlint(invalidEffectOptions)).toThrowError(
+    expect(() => theThracianOxlint({ effect })).toThrowError(
       'effect.strict: true is no longer supported; select rules and provide their explicit project paths',
     );
   });
 
   it('rejects malformed strict Effect option objects', (): void => {
-    const invalidEffectOptions: TheThracianOxlintOptions = {
-      // @ts-expect-error - negative runtime test: strict options must include a rules array.
-      effect: { strict: { enabled: true } },
-    };
+    const strict: TheThracianEffectStrictOptions = { rules: [], enabled: true };
+    Reflect.deleteProperty(strict, 'rules');
 
-    expect(() => theThracianOxlint(invalidEffectOptions)).toThrowError(
+    expect(() => theThracianOxlint({ effect: { strict } })).toThrowError(
       'effect.strict must be false or an object with a rules array',
     );
   });

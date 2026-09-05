@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*             Shared AST helpers for custom Effect rule modules.             */
-/* -------------------------------------------------------------------------- */
 import { Array as EffectArray, Option, Predicate, pipe } from 'effect';
 import { effectImportAliases } from './effect-rule-core';
 import { isASTArray, isASTObject, isASTValue, type ASTNode, type ASTValue } from './effect-ast';
@@ -16,20 +13,10 @@ interface RuleContext {
   report: (descriptor: { message: string; node: ASTNode }) => void;
 }
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const reportAST = (context: RuleContext, message: string, node: ASTNode): void => {
   context.report({ message, node });
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const objectValue = (node: ASTValue, key: string): ASTValue => {
   if (!isASTObject(node)) {
     return undefined;
@@ -38,18 +25,8 @@ export const objectValue = (node: ASTValue, key: string): ASTValue => {
   return isASTValue(value) ? value : undefined;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const arrayValue = (node: ASTValue): ASTValue[] => (isASTArray(node) ? [...node] : []);
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const nodeType = (node: ASTValue): string | undefined =>
   pipe(
     Option.fromNullable(objectValue(node, 'type')),
@@ -57,11 +34,6 @@ export const nodeType = (node: ASTValue): string | undefined =>
     Option.getOrUndefined,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const identifierName = (node: ASTValue): string | undefined =>
   pipe(
     Option.some(node),
@@ -71,11 +43,6 @@ export const identifierName = (node: ASTValue): string | undefined =>
     Option.getOrUndefined,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const memberParts = (node: ASTValue): MemberParts =>
   pipe(
     Option.some(node),
@@ -105,11 +72,6 @@ const typeReferenceQualifiedName = (typeName: ASTValue): string | undefined =>
     Option.getOrUndefined,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const typeReferenceName = (node: ASTValue): string | undefined =>
   pipe(
     Option.some(node),
@@ -155,11 +117,6 @@ const effectServiceSelfFromInnerCall = (
   return undefined;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectServiceSelfName = (superClass: ASTValue, source: string): string | undefined =>
   pipe(
     Option.some(superClass),

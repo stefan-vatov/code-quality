@@ -9,14 +9,10 @@ type RuleBridgeInput = (typeof plugin.rules)[string] | SourceRule;
 type ProgramBridgeInput = ReturnType<typeof parseSync>['program'] | ASTNode;
 
 const programNode = (program: ProgramBridgeInput): ASTNode => {
-  // SAFETY: these parser fixtures contain only ESTree nodes and primitive metadata,
-  // which satisfy the Effect AST contract without altering node identity.
   return program as ASTNode;
 };
 
 const sourceRule = (rule: RuleBridgeInput): SourceRule => {
-  // SAFETY: the selected Effect rule is built by makeRules; eslintCompatPlugin preserves
-  // its source-context create method and AST visitors while widening the public types.
   return rule as SourceRule;
 };
 
@@ -28,7 +24,6 @@ const callNamed = (program: ASTNode, name: string): ASTNode | undefined => {
       continue;
     }
     if (value.type === 'CallExpression') {
-      // SAFETY: the parsed object has the CallExpression discriminator checked above.
       const node = value as ASTNode;
       const callee = childNode(node, 'callee');
       if (callee && childNode(callee, 'property')?.name === name) {

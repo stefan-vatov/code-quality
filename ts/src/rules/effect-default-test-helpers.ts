@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*              Helpers for Effect test-determinism lint rules.               */
-/* -------------------------------------------------------------------------- */
 import { stripCommentsAndStrings } from './effect-source-helpers';
 
 const TEST_START_PATTERN = /\bit(?:\.effect)?\s*\(/g;
@@ -75,11 +72,6 @@ const someMatch = (
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasForkBeforeTestClockAdjust = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const ranges = testRangesIn(code);
@@ -92,11 +84,6 @@ export const hasForkBeforeTestClockAdjust = (source: string): boolean => {
   return hasAdjust && allAdjustmentsHaveFork;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasRealSleepWithoutTestClock = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const ranges = testRangesIn(code);
@@ -107,11 +94,6 @@ export const hasRealSleepWithoutTestClock = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasTestClockWithoutEffectContext = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const ranges = testRangesIn(code);

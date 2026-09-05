@@ -38,7 +38,10 @@ Cross-language correctness invariants:
   `IO.inspect`, `IEx.pry`, and equivalent language-specific traps. Console and print policies remain
   language-specific because they can be legitimate application output.
 - No silent catch: empty catch/rescue blocks are forbidden; all exceptions must be routed to a logger, error reporter, or re-raised.
-- No stale suppressions: every suppression must name the exact rule and include a reason; unused disables fail.
+- No source comments: TypeScript/JavaScript, Rust, and Elixir reject lexical comments, including
+  documentation comments and comment-based suppressions. Interpreter shebangs are allowed.
+  String literals and Elixir documentation attributes are not comments. Keep explanations in
+  external documentation and use native types instead of JSDoc annotations.
 - No unhandled async work: promises/futures/results must be awaited, returned, or explicitly handled.
 - Exhaustiveness required: unions/enums must be exhaustively handled in switch/match statements.
 - No unchecked dynamic escape hatches: ban constructs that bypass the type system (unsafe any operations, wildcard enum matches, underspecified function specs).
@@ -55,7 +58,7 @@ TypeScript/Oxlint high-signal policy:
 - Naming preferences, null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
 - The package-local plugin also enables 15 TypeScript safety rules by default: assertion-chain,
   conditional-spread, known-value-widening, module-mocking, object-parameter, Reflect, runtime
-  `typeof`, symbol-name, unknown-boundary, dictionary, and safety-comment checks. They remain under
+  `typeof`, symbol-name, unknown-boundary, dictionary, and comment-ban checks. They remain under
   the existing `thethracian` namespace and are all errors.
 - Explicit predicate and assertion functions may use runtime `typeof`; ordinary ad hoc narrowing
   remains banned. Predicate calls do not discard caller type evidence and are not widening.
@@ -64,23 +67,26 @@ TypeScript/Oxlint high-signal policy:
 - The audit-flagged generic homegrown rules, flagged Effect preference rules, and semantically
   unsound module-scope rules are physically removed. The retained Effect plugin is disabled by
   default; `effect: true` enables exactly 18 safety rules, 19 specialized analyzers remain registered
-  for explicit rule configuration, and 60 strict architecture rules require explicit
+  for explicit rule configuration, and 59 strict architecture rules require explicit
   `effect.strict.rules` selections and path groups.
 - Semantic `thx-codemod-fix` rewrites remain available as an explicit migration command, but are not part of lint fixes or staged-file hooks.
 
 Current implementation:
 
-- TypeScript/Effect: the 18 exported safety rules are exact, import-aware checks for floating Effects/fibers, missing generator delegation, eager recursion, silent error swallowing, error-cause preservation, resource scoping, and unbounded concurrency. The opt-in service-constructor import rule is also enabled with `effect: true`. Nineteen specialized analyzers remain registered for explicit rule configuration, and 60 project-boundary rules remain available only through explicit rule and path selection. The retained Effect rule surface is 97 rules, plus that additional opt-in rule.
+- TypeScript/Effect: the 18 exported safety rules are exact, import-aware checks for floating Effects/fibers, missing generator delegation, eager recursion, silent error swallowing, error-cause preservation, resource scoping, and unbounded concurrency. The opt-in service-constructor import rule is also enabled with `effect: true`. Nineteen specialized analyzers remain registered for explicit rule configuration, and 59 project-boundary rules remain available only through explicit rule and path selection. The retained Effect rule surface is 96 rules, plus that additional opt-in rule. Comment-required rules are removed.
 - TypeScript/Oxlint: `max-depth` (5 levels), `max-nested-callbacks` (6 levels), `max-params` (7 params), `max-lines-per-function` (150 lines), and `complexity` (20) are errors. Safety rules include `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-eval`, `no-new-func`, `no-script-url`, `prefer-const`, `preserve-caught-error`, strict equality, and type-aware unsafe/async operations. Line width is formatter-owned; global `console`, noisy naming, null, ternary, magic-number, file-size, import-count, documentation, and absolute `any`/assertion bans are intentionally absent.
-- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, `unwrap_used = "deny"`, `expect_used = "deny"`, `unused_result_ok = "deny"` (calling .ok() discards errors), `as_conversions = "deny"` (no implicit type coercion via `as`), and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_docs`, `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `unused_crate_dependencies` are all `deny`; silent error swallowing is handled by `unused_must_use` (ignored Results), `unused_result_ok` (discarded errors via .ok()), and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints; tests are granted unwrap/expect/panic exceptions via clippy.toml.
+- Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, `unwrap_used = "deny"`, `expect_used = "deny"`, `unused_result_ok = "deny"` (calling .ok() discards errors), `as_conversions = "deny"` (no implicit type coercion via `as`), and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `unused_crate_dependencies` are all `deny`; silent error swallowing is handled by `unused_must_use` (ignored Results), `unused_result_ok` (discarded errors via .ok()), and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints; tests are granted unwrap/expect/panic exceptions via clippy.toml. `cargo thx-lint check` rejects lexical comments with a compiler-derived lexer; Clippy alone cannot enforce this. Documentation requirements are disabled, including inherited Clippy `missing_errors_doc`, `missing_panics_doc`, and `missing_safety_doc`.
 - Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, `VariableRebinding`, `Specs` (every public function requires @spec), and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents; immutability is enforced by Elixir's immutable data structures plus `VariableRebinding` to forbid variable rebinding within a scope.
 
 ## Ways Of Working
 
+Elixir's shipped `NoComments` check rejects lexical comments and clears inline Credo suppressions.
+Elixir documentation attributes remain allowed. CI and pre-push run `lint:projects` for all three languages.
+
 ### Working on retained Effect rules
 
 Effect checks are package behavior, not a replacement for the upstream Oxlint allowlist. Keep the
-18 safety rules, 19 specialized analyzers, and 60 strict architecture rules explicit, import-aware,
+18 safety rules, 19 specialized analyzers, and 59 strict architecture rules explicit, import-aware,
 and error-only. Add a
 new Effect rule only when it has a reproducible correctness, resource-safety, or project-boundary
 signal, and keep preference-only or migration behavior out of the default bucket. Update
@@ -184,7 +190,7 @@ You MUST follow Red → Green → Refactor for every new feature or bug fix.
 
 8. Refactor for clarity, performance, idiomatic style.
 9. Run tests after each refactor: they must stay passing.
-10. Add typespecs, documentation, inline comments for complex logic.
+10. Add native typespecs and external documentation for complex logic; do not add source comments.
 11. Run full quality pipeline.
 
 ### CRITICAL RULES

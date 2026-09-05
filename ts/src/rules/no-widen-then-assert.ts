@@ -51,7 +51,6 @@ function isBroadRecordKeyType(type: ESTree.TSType): boolean {
   return unwrapped.type === 'TSTypeReference' && typeReferenceName(unwrapped) === 'PropertyKey';
 }
 
-// oxlint-disable-next-line complexity -- handles all supported broad-record AST representations.
 function isBroadRecordType(type: ESTree.TSType): boolean {
   const unwrapped = unwrapTypeParentheses(type);
 
@@ -73,7 +72,10 @@ function isBroadRecordType(type: ESTree.TSType): boolean {
   }
 
   if (unwrapped.type !== 'TSTypeLiteral' || unwrapped.members.length !== 1) return false;
-  const [member] = unwrapped.members;
+  return isBroadRecordMember(unwrapped.members[0]);
+}
+
+function isBroadRecordMember(member: ESTree.TSSignature | undefined): boolean {
   const [parameter] = member?.type === 'TSIndexSignature' ? member.parameters : [];
   return (
     member?.type === 'TSIndexSignature' &&
@@ -124,24 +126,23 @@ function typesHaveSameSyntax(
 
 function isDefinitelyObjectType(type: ESTree.TSType): boolean {
   const unwrapped = unwrapTypeParentheses(type);
-  // oxlint-disable-next-line typescript/switch-exhaustiveness-check -- the default branch handles unsupported AST types.
-  switch (unwrapped.type) {
-    case 'TSArrayType':
-    case 'TSConstructorType':
-    case 'TSFunctionType':
-    case 'TSMappedType':
-    case 'TSObjectKeyword':
-    case 'TSTupleType':
-      return true;
-    case 'TSTypeLiteral':
-      return unwrapped.members.length > 0;
-    case 'TSIntersectionType':
-      return unwrapped.types.every(isDefinitelyObjectType);
-    case 'TSTypeOperator':
-      return unwrapped.operator === 'readonly' && isDefinitelyObjectType(unwrapped.typeAnnotation);
-    default:
-      return false;
+  if (
+    unwrapped.type === 'TSArrayType' ||
+    unwrapped.type === 'TSConstructorType' ||
+    unwrapped.type === 'TSFunctionType' ||
+    unwrapped.type === 'TSMappedType' ||
+    unwrapped.type === 'TSObjectKeyword' ||
+    unwrapped.type === 'TSTupleType'
+  ) {
+    return true;
   }
+  if (unwrapped.type === 'TSTypeLiteral') return unwrapped.members.length > 0;
+  if (unwrapped.type === 'TSIntersectionType') return unwrapped.types.every(isDefinitelyObjectType);
+  return (
+    unwrapped.type === 'TSTypeOperator' &&
+    unwrapped.operator === 'readonly' &&
+    isDefinitelyObjectType(unwrapped.typeAnnotation)
+  );
 }
 
 function isDefinitelyNarrowerRecordType(type: ESTree.TSType): boolean {
@@ -237,7 +238,6 @@ function variableDeclarator(variable: Variable): ESTree.VariableDeclarator | nul
   return null;
 }
 
-// oxlint-disable-next-line complexity -- traces immutable evidence through all supported expressions.
 function knownValueEvidence(
   expression: ESTree.Expression,
   scopes: Parameters<typeof resolvedVariableForIdentifier>[0],
@@ -274,11 +274,20 @@ function knownValueEvidence(
   }
 
   if (unwrapped.type !== 'Identifier') return null;
-  const variable = resolvedVariableForIdentifier(scopes, unwrapped);
+  return knownIdentifierEvidence(unwrapped, scopes, boundary, visitedVariables);
+}
+
+function knownIdentifierEvidence(
+  identifier: ESTree.IdentifierReference,
+  scopes: Parameters<typeof resolvedVariableForIdentifier>[0],
+  boundary: ESTree.Node | null,
+  visitedVariables: ReadonlySet<Variable>,
+): KnownValueEvidence | null {
+  const variable = resolvedVariableForIdentifier(scopes, identifier);
   if (variable === null || visitedVariables.has(variable)) return null;
 
   const annotatedIdentifier = variable.identifiers.find(
-    (identifier) => identifier.typeAnnotation !== null && identifier.typeAnnotation !== undefined,
+    (binding) => binding.typeAnnotation !== null && binding.typeAnnotation !== undefined,
   );
   const annotation = annotatedIdentifier?.typeAnnotation?.typeAnnotation;
   if (annotation !== undefined && annotatedIdentifier !== undefined) {
@@ -330,9 +339,6 @@ function widenedBinding(
   }
 
   const boundary = functionBoundary(declarator);
-  // Oxlint 1.66 models variable binding identifiers without their optional
-  // TypeScript annotation even though the parser supplies it at runtime.
-  // SAFETY: The structural bridge reflects the parser field omitted by that type definition.
   const binding = declarator.id as {
     readonly typeAnnotation?: ESTree.TSTypeAnnotation | null;
   };
@@ -365,7 +371,6 @@ function assertionIsNarrower(
   return isDefinitelyNarrowerRecordType(assertedType);
 }
 
-/** Detect immutable local bindings that erase a known type and are later asserted back to a narrower type. */
 export const noWidenThenAssertRule = defineRule({
   meta: {
     type: 'problem',

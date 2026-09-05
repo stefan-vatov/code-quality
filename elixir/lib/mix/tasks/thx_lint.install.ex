@@ -36,7 +36,7 @@ defmodule Mix.Tasks.ThxLint.Install do
 
   @impl true
   def run(args) do
-    {opts, _argv, invalid} = OptionParser.parse(args, switches: [cwd: :string, force: :boolean, yes: :boolean])
+    {opts, _argv, invalid} = OptionParser.parse(args, strict: [cwd: :string, force: :boolean, yes: :boolean])
 
     if invalid != [] do
       Mix.raise("Unknown option(s): #{inspect(invalid)}")

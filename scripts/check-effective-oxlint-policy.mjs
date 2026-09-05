@@ -29,8 +29,7 @@ const normalizeSetting = (setting) => {
   }
 
   const [severity, ...options] = setting;
-  // Oxlint's --print-config representation wraps rule options in one array,
-  // while defineConfig accepts the options object directly.
+
   const unwrappedOptions = options.length === 1 && Array.isArray(options[0]) ? options[0] : options;
   return [normalizeSeverity(severity), ...unwrappedOptions];
 };

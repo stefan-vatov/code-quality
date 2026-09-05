@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*             Opt-in strict custom Effect lint rule definitions.             */
-/* -------------------------------------------------------------------------- */
 import { Array, pipe } from 'effect';
 import { effectStrictASTSpecs } from './effect-strict-ast-specs';
 import { effectStrictCoreSpecs } from './effect-strict-core-specs';

@@ -107,10 +107,69 @@ defmodule TheThracianCredo.InstallTest do
     assert Code.eval_string(credo) |> elem(0) |> is_map()
   end
 
+  test "rejects unknown options" do
+    project = temp_project("unknown")
+    assert_raise Mix.Error, ~r/Unknown option/, fn -> Install.run(["--cwd", project, "--unknown"]) end
+    refute File.exists?(Path.join(project, ".credo.exs"))
+  end
+
+  test "patches formatter options without replacing existing choices" do
+    project = temp_project("formatter")
+    target = Path.join(project, ".formatter.exs")
+    File.write!(target, "[inputs: [\"lib/*.ex\"]]")
+    Install.run(["--cwd", project])
+    {options, _} = target |> File.read!() |> Code.eval_string()
+    assert options[:inputs] == ["lib/*.ex"]
+    assert options[:line_length] == 150
+    assert options[:trailing_comma]
+    File.write!(target, "[line_length: 100, trailing_comma: false]")
+    Install.run(["--cwd", project])
+    assert File.read!(target) == "[line_length: 100, trailing_comma: false]"
+  end
+
+  test "preserves unmanaged auxiliary files unless force is requested" do
+    project = temp_project("force")
+    target = Path.join(project, ".dialyzer_ignore.exs")
+    File.write!(target, "[:existing]")
+    Install.run(["--cwd", project])
+    assert File.read!(target) == "[:existing]"
+    Install.run(["--cwd", project, "--force"])
+    assert {[], _} = target |> File.read!() |> Code.eval_string()
+  end
+
+  test "patches extra and empty check maps while preserving other plugins and remaining idempotent" do
+    for checks <- ["%{extra: []}", "%{disabled: []}"] do
+      project = temp_project("check-maps")
+      target = Path.join(project, ".credo.exs")
+      File.write!(target, "%{configs: [%{plugins: [{OtherPlugin, []}], checks: #{checks}}]}")
+      Install.run(["--cwd", project])
+      first = File.read!(target)
+      Install.run(["--cwd", project])
+      assert File.read!(target) == first
+      {config, _} = Code.eval_string(first)
+      assert hd(config.configs).plugins == [{TheThracianCredo, []}, {OtherPlugin, []}]
+      assert hd(config.configs).checks.extra == TheThracianCredo.checks()
+    end
+  end
+
+  test "reports unpatchable configs without overwriting them" do
+    for {config, message} <- [
+          {"%{configs: []}", ~r/Could not find a plugins/},
+          {"%{plugins: []}", ~r/Could not find a checks/}
+        ] do
+      project = temp_project("invalid")
+      target = Path.join(project, ".credo.exs")
+      File.write!(target, config)
+      assert_raise Mix.Error, message, fn -> Install.run(["--cwd", project]) end
+      assert File.read!(target) == config
+    end
+  end
+
   defp temp_project(name) do
-    path = Path.join(System.tmp_dir!(), "the-thracian-credo-#{name}-#{System.unique_integer([:positive])}")
+    path = Path.expand("../.consumer-tests/install-#{name}-#{System.unique_integer([:positive])}", __DIR__)
     File.rm_rf!(path)
     File.mkdir_p!(path)
+    on_exit(fn -> File.rm_rf!(path) end)
     path
   end
 

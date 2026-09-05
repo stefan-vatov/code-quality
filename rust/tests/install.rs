@@ -33,6 +33,14 @@ fn installs_rust_lints_into_package_projects() {
     assert!(cargo_toml.contains(NEW_MARKER));
     assert!(cargo_toml.contains("# VERSION 0.1.0"));
     assert!(cargo_toml.contains("[lints.rust]"));
+    assert!(!cargo_toml.contains("missing_docs ="));
+    for rule in [
+        "missing_errors_doc",
+        "missing_panics_doc",
+        "missing_safety_doc",
+    ] {
+        assert!(cargo_toml.contains(&format!("{rule} = \"allow\"")));
+    }
     assert!(rustfmt.contains(NEW_MARKER));
     assert!(rustfmt.contains("max_width = 150"));
     assert!(clippy.contains(NEW_MARKER));
@@ -170,6 +178,45 @@ fn installed_lints_are_enforced_by_cargo_clippy() {
     assert!(!output.status.success());
     assert!(stderr.contains("print_stdout"));
     assert!(!stderr.contains("unknown lint"));
+}
+
+#[test]
+fn workspace_preset_has_no_documentation_requirements() {
+    let project = temp_project("workspace-docs");
+    fs::write(project.join("Cargo.toml"), "[workspace]\nmembers = []\n").unwrap();
+    run_thx_lint(["init", "--cwd", project.to_str().unwrap(), "--write"]);
+    let manifest = fs::read_to_string(project.join("Cargo.toml")).unwrap();
+    assert!(!manifest.contains("missing_docs ="));
+    for rule in [
+        "missing_errors_doc",
+        "missing_panics_doc",
+        "missing_safety_doc",
+    ] {
+        assert!(manifest.contains(&format!("{rule} = \"allow\"")));
+    }
+}
+
+#[test]
+fn installed_policy_accepts_undocumented_public_functions() {
+    let project = temp_project("no-docs");
+    fs::write(project.join("README.md"), "Consumer fixture\n").unwrap();
+    fs::write(project.join("Cargo.toml"), "[package]\nname = \"consumer\"\nversion = \"0.1.0\"\nedition = \"2024\"\ndescription = \"fixture\"\nlicense = \"MIT\"\nrepository = \"https://example.com/repo\"\nkeywords = [\"test\"]\ncategories = [\"development-tools\"]\n").unwrap();
+    fs::create_dir(project.join("src")).unwrap();
+    fs::write(
+        project.join("src/lib.rs"),
+        "pub fn fail() -> Result<(), std::io::Error> { Err(std::io::Error::other(\"failure\")) }\n",
+    )
+    .unwrap();
+    run_thx_lint(["init", "--cwd", project.to_str().unwrap(), "--write"]);
+    assert_success(
+        Command::new("cargo")
+            .args(["clippy", "--manifest-path"])
+            .arg(project.join("Cargo.toml"))
+            .args(["--", "-D", "warnings"])
+            .output()
+            .unwrap(),
+    );
+    run_thx_lint(["check", "--cwd", project.to_str().unwrap()]);
 }
 
 fn run_thx_lint<const N: usize>(args: [&str; N]) {

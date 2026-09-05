@@ -28,7 +28,6 @@ const visitorFor = (ruleName: string, source: string, reports: ASTNode[]): Visit
   });
 
 const effectProgram = (program: ReturnType<typeof parseSync>['program'] | ASTNode): ASTNode => {
-  // SAFETY: the parser returns a Program with recursive AST fields; the bridge adds dictionary access only.
   return program as ASTNode;
 };
 

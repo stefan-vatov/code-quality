@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Lexical state machines shared by Effect source-navigation rules.      */
-/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_LOWER, CLS_UPPER } from './char-class';
 import {
   findLineTerminatorIndex,
@@ -379,17 +376,6 @@ const findJSXElementEnd = (source: string, startIndex: number): number => {
   return startIndex;
 };
 
-/**
- * Advance past a quoted, commented, regular-expression, template, or JSX region.
- *
- * @param source - Complete source text being scanned.
- * @param index - Current source offset.
- * @param sourceLength - Cached source length for EOF fallbacks.
- * @param charCode - Character code at the current offset.
- * @returns The first code offset after a lexical region, or the unchanged offset.
- * @throws Does not throw.
- * @internal
- */
 export const nextSourceLexicalIndex = (
   source: string,
   index: number,

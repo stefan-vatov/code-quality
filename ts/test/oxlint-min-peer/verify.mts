@@ -39,8 +39,7 @@ const expectedRuleIDs = [
   'thethracian/effect-no-global-fetch',
 ];
 
-/** @param {string} fixturePath @param {readonly string[]} extraArguments */
-const runOxlint = (fixturePath, extraArguments = []) =>
+const runOxlint = (fixturePath: string, extraArguments: readonly string[] = []) =>
   spawnSync(
     'pnpm',
     [

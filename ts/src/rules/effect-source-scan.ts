@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*              Source scanning utilities for Effect lint rules.              */
-/* -------------------------------------------------------------------------- */
 import { createWeightedCache } from './source-cache';
 import { isLineTerminatorCode } from './effect-source-line-terminators';
 import { scanSource } from './effect-source-jsx-scanner';
@@ -63,40 +60,13 @@ const stripSource = (source: string): string => {
 const cacheResult = (source: string, value: string): string =>
   codeOnlyCache.set(source, value, sourceProjectionWeight(source, value));
 
-/**
- * Return the matching call parenthesis, or the final source index for an unmatched call.
- *
- * @param source - Complete source text.
- * @param openParenIndex - Offset of the opening parenthesis.
- * @returns The matching closing offset or the final source offset.
- * @throws Does not throw.
- * @internal
- */
 export const findBalancedCallEnd = (source: string, openParenIndex: number): number =>
   sourceNavigationIndex(source).matchingCall(openParenIndex);
 
-/**
- * Blank comments, strings, template text, JSX literals, and regular expressions without changing
- * source offsets.
- *
- * @param source - Complete source text.
- * @returns A coordinate-preserving code-only projection.
- * @throws Does not throw.
- * @internal
- */
 export const stripCommentsAndStrings = (source: string): string => {
   const cached = codeOnlyCache.get(source);
   return cached ?? cacheResult(source, stripSource(source));
 };
 
-/**
- * Return the matching brace from the shared lexical boundary index.
- *
- * @param source - Complete source text.
- * @param openIndex - Offset of the opening brace.
- * @returns The matching closing offset, or `-1` when unmatched.
- * @throws Does not throw.
- * @internal
- */
 export const findMatchingBrace = (source: string, openIndex: number): number =>
   sourceNavigationIndex(source).matchingBrace(openIndex);

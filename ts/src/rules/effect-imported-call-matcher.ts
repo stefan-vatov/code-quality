@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*    Imported-reference identity for strict AST-backed Effect call rules.    */
-/* -------------------------------------------------------------------------- */
-
 import { Predicate } from 'effect';
 import type { NativeReference, NativeSourceCode } from './effect-native-references';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
@@ -30,11 +26,6 @@ interface CalleeReference {
   node: ASTNode;
 }
 
-/**
- * Per-rule imported call matcher initialized by the host Program visitor.
- *
- * @internal
- */
 export interface ImportedEffectCallMatcher {
   initialize: (node: ASTNode) => void;
   matches: (callee: ASTNode | undefined) => boolean;
@@ -323,7 +314,7 @@ const pushFallbackNodeChildren = (
       pending.push({
         kind: 'visit',
         scopes: scopesForChild(nodeScopes, node, entry[0]),
-        // SAFETY: AST nodes expose only ASTProperty values through Object.entries during fallback traversal.
+
         value: entry[1] as ASTProperty,
       });
     }
@@ -419,18 +410,6 @@ const nativeReferencesFor = (state: MatcherState): WeakMap<object, NativeReferen
   return mutableState.nativeReferences;
 };
 
-/**
- * Build an exact imported-reference matcher for selected functions of one Effect API module. Native
- * Oxlint visitors use scope-manager identity in constant time. Direct synthetic callers receive a
- * lexical Program fallback so tests and older compatible hosts retain exact semantics.
- *
- * @param context - The current rule context.
- * @param APIName - The Effect API namespace, such as `Effect`.
- * @param functionNames - Callable exports accepted by this matcher.
- * @returns A Program initializer and allocation-free callee predicate.
- * @throws Does not throw.
- * @internal
- */
 export const importedEffectCallMatcher = (
   context: Context,
   APIName: string,

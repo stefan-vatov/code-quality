@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Core runtime for source-backed and AST-backed Effect lint rules.      */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, Predicate, String, pipe } from 'effect';
 import {
   LINE_START_CACHE_MAX_WEIGHT,
@@ -19,11 +16,6 @@ import { isASTArray } from './effect-ast';
 import type { ASTNode, ASTValue } from './effect-ast';
 import type { NativeSourceCode } from './effect-native-types';
 
-/**
- * Describes the Oxlint context exposed to composed Effect rules.
- *
- * @internal
- */
 export interface Context {
   report: (descriptor: {
     loc?: { column: number; line: number };
@@ -35,11 +27,6 @@ export interface Context {
   sourceCode?: NativeSourceCode;
 }
 
-/**
- * Describes a source-backed Effect rule and its visitor factories.
- *
- * @internal
- */
 export interface SourceRule {
   meta?: {
     docs?: {
@@ -61,11 +48,6 @@ export interface SourceRule {
 
 export type VisitorMap = Record<string, ((node: ASTNode) => void) | undefined>;
 
-/**
- * Describes one generated Effect lint rule.
- *
- * @internal
- */
 export interface RuleSpec {
   ast?: (context: Context, source: string) => VisitorMap;
   name: string;
@@ -538,11 +520,6 @@ const makeProgramRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRule 
   return makeProgramOnlyRule(spec, options);
 };
 
-/**
- * Builds named Effect rules from declarative rule specifications.
- *
- * @internal
- */
 export const makeRules = (
   specs: readonly RuleSpec[],
   options: MakeRulesOptions = {},

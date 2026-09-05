@@ -74,7 +74,7 @@ the result; it does not add warnings or weaken any selected rule.
 
 The package also enables 15 package-local TypeScript safety rules by default. They cover
 evidence-preserving assertions, unknown/object boundaries, runtime reflection, module mocking, and
-unsafe type-shape contracts. The rules are listed in the [TypeScript package README](ts/README.md)
+unsafe type-shape contracts, and comment-free source code. The rules are listed in the [TypeScript package README](ts/README.md)
 and share the existing `thethracian` plugin namespace.
 
 The package also ships The Thracian's Effect-specific checks. The audit-listed Effect preference
@@ -82,7 +82,7 @@ rules and semantically unsound module-scope rules were removed from the package;
 hidden by configuration. The retained Effect policy is separate from the upstream base: `effect: true`
 enables the 18 safety rules and the additional service-constructor import rule, 19 specialized
 migration/version/error-model/schema/test analyzers remain registered for explicit rule
-configuration, and the 60 strict architecture rules are selected by name and supplied with the path
+configuration, and the 59 strict architecture rules are selected by name and supplied with the path
 groups they inspect. See the [TypeScript package README](ts/README.md) for the complete API and rule
 behavior.
 
@@ -95,11 +95,15 @@ are never invoked by Oxlint, `lint:fix`, `lint-staged`, or other automatic lint 
 cargo install cargo-thx-lint
 cargo thx-lint init --write
 cargo fmt --all -- --check
+cargo thx-lint check
 cargo clippy --all-targets -- -D warnings
 ```
 
 The installer is idempotent. Managed files and Cargo manifest regions are replaced in place on
 rerun, and legacy npm-wrapper markers are migrated automatically.
+
+`cargo thx-lint check` rejects lexical Rust comments, including documentation comments, using a
+compiler-derived lexer. This is a separate stable Cargo check; Clippy alone does not enforce it.
 
 ### Elixir
 
@@ -120,6 +124,11 @@ mix credo --strict
 
 The installer preserves existing Credo config when it can patch it safely, writes versioned
 managed blocks for owned config, and can be rerun after package upgrades.
+
+All three packages ban lexical source comments. Literal strings containing comment markers are
+allowed, as are interpreter shebangs and Elixir documentation attributes. TypeScript's
+`thethracian/no-comments` and Elixir's shipped `NoComments` check run with their normal linters.
+Repository CI and pre-push run `pnpm run lint:projects` to enforce all three language policies.
 
 ## Rules At A Glance
 

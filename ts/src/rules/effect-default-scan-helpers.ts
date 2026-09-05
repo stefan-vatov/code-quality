@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Shared scan helpers for always-on Effect lint predicates.          */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, Option, pipe } from 'effect';
 import {
   findBalancedCallEnd,
@@ -64,11 +61,6 @@ const createEffectCallPatternSourceCache = (): EffectCallPatternSourceCache =>
     maxWeight: EFFECT_CALL_PATTERN_SOURCE_MAX_WEIGHT,
   });
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectAliasesPattern = (source: string): string => {
   const cachedPattern = effectAliasesPatternCache.get(source);
   if (cachedPattern !== undefined) {
@@ -82,11 +74,6 @@ export const effectAliasesPattern = (source: string): string => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectCallPattern = (source: string, methods: string): RegExp => {
   const sourceCache =
     effectCallPatternCache.get(source) ??
@@ -107,11 +94,6 @@ export const effectCallPattern = (source: string, methods: string): RegExp => {
   return pattern;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const localCallSegment = (source: string, targetIndex: number): string => {
   const openParenIndex = source.indexOf('(', targetIndex);
   return Match.value(openParenIndex).pipe(
@@ -125,11 +107,6 @@ export const localCallSegment = (source: string, targetIndex: number): string =>
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectCallBodies = (source: string, callPattern: RegExp): string[] => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -150,11 +127,6 @@ export const effectCallBodies = (source: string, callPattern: RegExp): string[] 
   );
 };
 
-/**
- * Find a match within any Effect.gen call body without materializing body strings.
- *
- * @internal
- */
 export const someEffectGenBodyMatch = (source: string, pattern: RegExp): boolean => {
   const code = stripCommentsAndStrings(source);
   const genMatches = code.matchAll(effectCallPattern(source, 'gen'));
@@ -183,10 +155,5 @@ export const someEffectGenBodyMatch = (source: string, pattern: RegExp): boolean
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const strippedCallSegment = (source: string, targetIndex: number): string =>
   stripComments(localCallSegment(source, targetIndex));

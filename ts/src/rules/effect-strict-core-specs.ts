@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*             Core opt-in strict custom Effect lint rule specs.              */
-/* -------------------------------------------------------------------------- */
 import { Array, pipe } from 'effect';
 import { exportedDeclarationTexts, stripCommentsAndStrings } from './effect-source-helpers';
 import {
@@ -45,11 +42,6 @@ import type { RuleSpec } from './effect-rule-core';
 import { hasRunForkWithoutObserver } from './effect-default-helpers';
 import { runSyncServerHandlerAST } from './effect-strict-server-handler-ast';
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectStrictCoreSpecs: readonly RuleSpec[] = pipe(
   [
     {
@@ -380,22 +372,6 @@ export const effectStrictCoreSpecs: readonly RuleSpec[] = pipe(
       name: 'effect-no-ad-hoc-effect-wrapper-abstractions',
       patterns: [/function\s+(?:runEffect|makeEffect|effectify|toEffect)\s*\(/],
       tokens: ['runEffect', 'makeEffect', 'effectify', 'toEffect'],
-    },
-    {
-      check: (source): boolean =>
-        pipe(
-          source.split('\n'),
-          Array.some((line): boolean => {
-            if (!/(?:eslint|oxlint)-disable[^\n]*effect-/.test(line)) {
-              return false;
-            }
-
-            return !/(?:reason|because)[^\n]*(?:[A-Z]+-\d+|#\d+)/.test(line);
-          }),
-        ),
-      message: 'Effect rule suppressions must name a rule, a reason, and a tracking ticket.',
-      name: 'effect-require-effect-suppression-reason-and-ticket',
-      tokens: ['disable', 'effect-'],
     },
   ] satisfies readonly RuleSpec[],
   Array.map((spec): RuleSpec => spec),

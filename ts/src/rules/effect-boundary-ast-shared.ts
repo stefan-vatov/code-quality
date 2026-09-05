@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*         Shared Effect call identity for AST-backed boundary rules.         */
-/* -------------------------------------------------------------------------- */
-
 import { childNode, identifierName } from './effect-ast';
 import { effectFunctionAliases, effectImportAliases } from './effect-rule-core';
 import type { ASTNode } from './effect-ast';
@@ -12,11 +8,6 @@ import { isImportReference } from './effect-native-references';
 import { scopeHasBinding } from './effect-ast-scope';
 import { stripComments } from './effect-source-helpers';
 
-/**
- * Imported Effect bindings used by boundary rules.
- *
- * @internal
- */
 export interface EffectAPIBindings {
   directFunctionNames: Map<string, string>;
   directFunctions: Set<string>;
@@ -37,21 +28,11 @@ const transparentExpressionTypes: ReadonlySet<string> = new Set([
   'TSTypeAssertion',
 ]);
 
-/**
- * Determine whether an AST node introduces a deferred function body.
- *
- * @internal
- */
 export const isFunctionNode = (node: ASTNode | undefined): node is ASTNode =>
   node?.type === 'ArrowFunctionExpression' ||
   node?.type === 'FunctionDeclaration' ||
   node?.type === 'FunctionExpression';
 
-/**
- * Find a function through syntax-only expression wrappers.
- *
- * @internal
- */
 export const unwrappedExpression = (node: ASTNode | undefined): ASTNode | undefined => {
   let current = node;
   while (current && transparentExpressionTypes.has(current.type)) {
@@ -75,7 +56,6 @@ const rootEffectNamespacesFor = (source: string): Set<string> => {
   return namespaces;
 };
 
-/** Build the imported Effect binding index for one source file. @internal */
 export const effectAPIBindingsFor = (source: string): EffectAPIBindings => ({
   directFunctionNames: new Map(),
   directFunctions: new Set(effectFunctionAliases(source, 'Effect')),
@@ -86,7 +66,6 @@ export const effectAPIBindingsFor = (source: string): EffectAPIBindings => ({
   syncFunctions: new Set(effectFunctionAliases(source, 'Effect', 'sync')),
 });
 
-/** Replace source-fallback bindings with exact Program import identities. @internal */
 export const indexEffectAPIBindingsFromProgram = (
   bindings: EffectAPIBindings,
   program: ASTNode,
@@ -94,7 +73,6 @@ export const indexEffectAPIBindingsFromProgram = (
   indexEffectAPIBindings(bindings, program);
 };
 
-/** Check a lexical scope stack for a value binding. @internal */
 export const isShadowed = (name: string, scopes: ScopeStack): boolean =>
   scopeHasBinding(name, scopes);
 
@@ -201,7 +179,6 @@ const isDirectEffectCall = (
   return !isShadowed(name, scopes);
 };
 
-/** Test whether call syntax could refer to an imported Effect API before scope lookup. @internal */
 export const couldBeEffectCall = (
   node: ASTNode,
   APIName: string | undefined,
@@ -223,7 +200,6 @@ export const couldBeEffectCall = (
   return Boolean(name && directBindingsFor(APIName, bindings).has(name));
 };
 
-/** Test a call against imported Effect namespace and direct bindings. @internal */
 export const isEffectCall = (
   node: ASTNode,
   APIName: string | undefined,
@@ -265,7 +241,6 @@ const directEffectAPIName = (name: string | undefined, bindings: EffectAPIBindin
   return importedName ?? fallbackDirectEffectAPIName(name, bindings);
 };
 
-/** Read the canonical API name of a verified Effect call when known. @internal */
 export const effectCallAPIName = (
   node: ASTNode,
   bindings: EffectAPIBindings,

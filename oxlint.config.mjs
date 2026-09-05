@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/* Repository Oxlint configuration using the published TypeScript package.    */
-/* -------------------------------------------------------------------------- */
 import theThracian from '@thethracian/oxlint-config';
 
 const config = theThracian({

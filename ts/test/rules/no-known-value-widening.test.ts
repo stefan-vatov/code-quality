@@ -38,7 +38,7 @@ tester.run('thethracian/no-known-value-widening', noKnownValueWideningRule, {
     'function isString(value: unknown): value is string { return true; } declare const input: unknown; isString(input);',
     'function isString(value: string | unknown): value is string { return true; } declare const input: string | unknown; isString(input);',
     'function isString(value: unknown): value is string { return true; } declare function readInput(): unknown; isString(readInput());',
-    // Predicate calls narrow the caller's value; they never overwrite its declared type.
+
     "function isString(value: unknown): value is string { return true; } isString('known');",
     "function isString(value: unknown): value is string { return true; } const known = 'known'; isString(known);",
     "function isString(value: string | unknown): value is string { return true; } isString('known');",

@@ -254,12 +254,6 @@ const strictCases: RuleCase[] = [
     valid: 'const program = Effect.gen(function* () { return 1; });',
   },
   {
-    name: 'effect-require-effect-suppression-reason-and-ticket',
-    invalid: '// oxlint-disable-next-line thethracian/effect-no-floating-effect',
-    valid:
-      '// oxlint-disable-next-line thethracian/effect-no-floating-effect -- reason: generated shim ABC-123',
-  },
-  {
     name: 'effect-no-crypto-randomUUID',
     invalid: 'const id = crypto.randomUUID();',
     valid: 'const id = yield* Random.next;',

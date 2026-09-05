@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Construction-time viability for Effect v4 eager combinators.        */
-/* -------------------------------------------------------------------------- */
-
 import type { EagerEffectAPI, RecursionPhaseBindings } from './effect-recursion-phases';
 import { Predicate } from 'effect';
 import { childNode, childNodes, identifierName } from './effect-ast';
@@ -11,29 +7,14 @@ import type { ScopeStack } from './effect-ast-scope';
 import { eagerEffectAPIName } from './effect-recursion-phases';
 import { effectFunctionAliases } from './effect-rule-aliases';
 
-/**
- * Statically known construction-time state of an Effect expression.
- *
- * @internal
- */
 export type EffectResolution = 'failure' | 'pending' | 'success' | 'unknown';
 
-/**
- * Exact named imports needed by the construction-time classifier.
- *
- * @internal
- */
 export interface EffectResolutionBindings {
   delayFunctions: ReadonlySet<string>;
   failureFunctions: ReadonlyMap<string, 'die' | 'fail' | 'failCause'>;
   phase: RecursionPhaseBindings;
 }
 
-/**
- * Canonical eager call shape after normalizing data-first and data-last forms.
- *
- * @internal
- */
 export interface EagerEffectInvocation {
   APIName: EagerEffectAPI;
   callback?: ASTNode;
@@ -103,11 +84,6 @@ const curriedInvocation = (
   return { APIName, ...argumentsValue };
 };
 
-/**
- * Build exact named-import identities used by resolution classification.
- *
- * @internal
- */
 export const effectResolutionBindingsFor = (
   source: string,
   phase: RecursionPhaseBindings,
@@ -145,11 +121,6 @@ const directCanonicalName = (
   return undefined;
 };
 
-/**
- * Classify only Effect expressions whose construction-time state is provable.
- *
- * @internal
- */
 export const effectResolutionOf = (
   value: ASTNode | undefined,
   bindings: EffectResolutionBindings,
@@ -178,11 +149,6 @@ const resolutionForAPIName = (APIName: string | undefined): EffectResolution => 
   return 'unknown';
 };
 
-/**
- * Check whether a resolved failure is guaranteed to contain a typed Fail reason.
- *
- * @internal
- */
 export const isCatchableFailure = (
   value: ASTNode | undefined,
   bindings: EffectResolutionBindings,
@@ -198,11 +164,6 @@ export const isCatchableFailure = (
   return APIName === 'fail';
 };
 
-/**
- * Normalize an eager Effect call without guessing through dynamic values.
- *
- * @internal
- */
 export const eagerEffectInvocation = (
   node: ASTNode,
   bindings: EffectResolutionBindings,
@@ -255,11 +216,6 @@ const matchCallbackName = (resolution: EffectResolution): string => {
   return 'onFailure';
 };
 
-/**
- * Pick the only match callback selected by a statically resolved input.
- *
- * @internal
- */
 export const selectedMatchCallback = (
   options: ASTNode | undefined,
   resolution: EffectResolution,
@@ -305,11 +261,6 @@ const eagerMatchCallback = (
   return undefined;
 };
 
-/**
- * Select the only eager callback proven to execute during construction.
- *
- * @internal
- */
 export const selectedEagerCallback = (
   node: ASTNode,
   bindings: EffectResolutionBindings,

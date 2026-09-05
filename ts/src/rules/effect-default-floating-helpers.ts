@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*                   Floating Effect expression detection.                    */
-/* -------------------------------------------------------------------------- */
 import { Array, Match, pipe } from 'effect';
 import { findBalancedCallEnd, stripCommentsAndStrings } from './effect-source-helpers';
 import { createWeightedCache } from './source-cache';
@@ -283,11 +280,6 @@ const hasFloatingPipeStatement = (code: string): boolean => {
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasFloatingEffect = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const aliasNeedles = pipe(

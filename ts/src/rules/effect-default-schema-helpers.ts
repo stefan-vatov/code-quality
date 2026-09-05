@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*           Schema boundary predicates for always-on Effect rules.           */
-/* -------------------------------------------------------------------------- */
 import { Array, pipe } from 'effect';
 import { isInsideCall, stripCommentsAndStrings } from './effect-source-helpers';
 import { localCallSegment } from './effect-default-scan-helpers';
@@ -34,11 +31,6 @@ const firstIndexAtOrAfter = (indexes: readonly number[], targetIndex: number): n
   return low;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasExternalJSONWithoutDecodeUnknown = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   return pipe(
@@ -246,11 +238,6 @@ const hasUnhandledSchemaDecodeBinding = (
   return false;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasCastAfterSchemaDecode = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const assertions = collectSchemaAssertions(code);
@@ -263,11 +250,6 @@ export const hasCastAfterSchemaDecode = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasUnhandledSchemaEffectDecode = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
   const handledBindingPositions = collectHandledBindingPositions(code);
@@ -277,11 +259,6 @@ export const hasUnhandledSchemaEffectDecode = (source: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasJSONParsedBeforeSchemaStringDecode = (source: string): boolean =>
   /Schema\.decode[A-Za-z]*\s*\((?![^)]*Schema\.parseJson)[\s\S]*?\)\s*\(\s*JSON\.parse\s*\(/.test(
     stripCommentsAndStrings(source),

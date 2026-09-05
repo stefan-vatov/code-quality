@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*          Incremental JavaScript lexer for regex source indexing.           */
-/* -------------------------------------------------------------------------- */
 import { CHAR_CLASS, CLS_DIGIT, CLS_LOWER, CLS_UNDER, CLS_UPPER } from './char-class';
 import { findLineTerminatorIndex, isLineTerminatorCode } from './effect-source-line-terminators';
 import { REGEXTokenContext } from './effect-source-regex-lexer-context';
@@ -407,11 +404,6 @@ const consumeOperator = (
   charCode: number,
 ): number => context.consumeOperator(source, index, charCode);
 
-/**
- * Primitive operations shared by the incremental source lexer.
- *
- * @internal
- */
 export const regexLexerPrimitives = {
   afterValue,
   arrowOperator,

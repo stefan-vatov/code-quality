@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Coordinate-preserving comment stripping for Effect source rules.      */
-/* -------------------------------------------------------------------------- */
 import { createWeightedCache } from './source-cache';
 import { isLineTerminatorCode } from './effect-source-line-terminators';
 import { scanSource } from './effect-source-jsx-scanner';
@@ -56,15 +53,6 @@ const stripSourceComments = (source: string): string => {
   return output.join('');
 };
 
-/**
- * Blank comments while preserving strings, templates, regex literals, JSX literals, and source
- * coordinates.
- *
- * @param source - Complete source text.
- * @returns Source text with comment characters replaced by spaces.
- * @throws Does not throw.
- * @internal
- */
 export const stripComments = (source: string): string => {
   const cached = commentCache.get(source);
   return cached ?? cacheResult(source, stripSourceComments(source));

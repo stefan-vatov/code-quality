@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*          Available custom Effect rule definitions for explicit presets.     */
-/* -------------------------------------------------------------------------- */
 import { effectRecursionAST } from './effect-recursion-ast';
 import {
   hasErrorMappingWithoutCause,

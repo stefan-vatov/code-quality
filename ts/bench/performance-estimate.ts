@@ -1,7 +1,5 @@
 #!/usr/bin/env node
-/* -------------------------------------------------------------------------- */
-/*       Estimate custom rule and codemod runtime from calibrated budgets.    */
-/* -------------------------------------------------------------------------- */
+
 import { readFileSync } from 'node:fs';
 
 interface BudgetEntry {

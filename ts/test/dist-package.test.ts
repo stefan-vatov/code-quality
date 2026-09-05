@@ -85,7 +85,6 @@ const astBackedCLICases: readonly CliAstCase[] = [
   },
 ];
 
-// SAFETY: callers import freshly compiled local modules using their corresponding source export types.
 const importFresh = <T extends { default: BuiltConfigFactory } | BuiltPlugin | BuiltRuleNames>(
   path: string,
 ): Promise<T> => import(`${pathToFileURL(path).href}?t=${Date.now()}`) as Promise<T>;
@@ -108,11 +107,9 @@ describe('published TypeScript package shape', (): void => {
   it(
     'enforces module-mocking policy on executable repository tests',
     () => {
-      // Keep the real CLI regression with the other builds to avoid concurrent dist cleanup.
       execFileSync('pnpm', ['--dir', 'ts', 'build'], { cwd: repoRoot, stdio: 'pipe' });
       const directory = mkdtempSync(join(repoRoot, 'ts/test/lint-regression-'));
       try {
-        // The .mts extension avoids racing the separate .ts source-inventory test.
         const filename = join(directory, 'mocking.test.mts');
         writeFileSync(filename, "import { vi } from 'vitest';\nvi.mock('./dependency');\n");
         const result = spawnSync(
@@ -271,9 +268,7 @@ describe('published TypeScript package CLI rules', (): void => {
         const selectedConfig = theThracianOxlint({
           effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
         });
-        // This CLI fixture intentionally exercises every registered rule. The
-        // published preset only enables the safety bucket; the rest are added
-        // here explicitly so coverage does not imply a noisy default policy.
+
         const config = {
           ...selectedConfig,
           rules: {
@@ -391,12 +386,12 @@ describe('published TypeScript package exports', (): void => {
           encoding: 'utf-8',
           stdio: ['ignore', 'pipe', 'pipe'],
         });
-        // SAFETY: the local consumer above serializes a numeric array length and a checked plugin path.
+
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
         expect(parsed.effectRuleCount).toBe(19);
         expect(existsSync(parsed.pluginPath)).toBe(true);
-        // SAFETY: the package manifest is local JSON; only its optional codemod executable mapping is read.
+
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
           bin?: { 'thx-codemod-fix'?: string };
         };
@@ -481,12 +476,9 @@ describe('full preset rule compatibility', (): void => {
     },
     {
       name: 'actual widening and unchecked assertions remain forbidden',
-      errors: [
-        'no-known-value-widening',
-        'no-widen-then-assert',
-        'require-safety-comment-for-type-assertion',
-      ],
+      errors: ['no-known-value-widening', 'no-widen-then-assert', 'no-comments'],
       source: `
+        // forbidden comment
         const value: unknown = { id: 'known' };
         export const item = value as { id: string };
       `,

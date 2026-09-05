@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*           Source predicates for opt-in strict Effect lint rules.           */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, pipe } from 'effect';
 import {
   exportedDeclarationTexts,
@@ -38,11 +35,6 @@ const codeMatchIndexOrFalse = (
     Option.getOrElse((): false => false),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasRetryScheduleWithoutJitter = (source: string): boolean =>
   pipe(
     matchesIn(source, /\bEffect\.retry\s*\(/g),
@@ -64,11 +56,6 @@ const declarationBeforeBody = (declaration: string): string => {
   return declaration.slice(0, bodyStart);
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const publicAPIDeclarationSignature = (declaration: string): string => {
   if (/^\s*(?:export\s+)?(?:async\s+)?function\b/.test(declaration)) {
     return declarationBeforeBody(declaration);
@@ -108,11 +95,6 @@ const hasClassPromiseReturningPublicMember = (declaration: string): boolean => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasPromiseReturningPublicAPI = (source: string): boolean =>
   pipe(
     exportedDeclarationTexts(source),
@@ -130,11 +112,6 @@ export const hasPromiseReturningPublicAPI = (source: string): boolean =>
     }),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasExportedRunPromiseAPI = (source: string): boolean =>
   pipe(
     exportedDeclarationTexts(source),
@@ -143,36 +120,16 @@ export const hasExportedRunPromiseAPI = (source: string): boolean =>
     ),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasRunSyncInServerRequestHandler = hasRunSyncInServerRequestHandlerSource;
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasCryptoRandomUUID = (source: string): number | false =>
   matchIndexOrFalse(/\bcrypto\.randomUUID\s*\(/.exec(stripCommentsAndStrings(source)));
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasSchemaInstanceof = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
   return matchIndexOrFalse(/\binstanceof\s+[A-Z][\w$]*(?:Schema|Request)\b/.exec(code));
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasSchemaStructWithTag = (source: string): number | false =>
   matchIndexOrFalse(
     /\bSchema\.Struct\s*\(\s*{[\s\S]*?_tag\s*:\s*Schema\.Literal\s*\(/.exec(
@@ -180,11 +137,6 @@ export const hasSchemaStructWithTag = (source: string): number | false =>
     ),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasSchemaUnionOfLiterals = (source: string): number | false =>
   matchIndexOrFalse(
     /\bSchema\.Union\s*\(\s*Schema\.Literal\s*\([^)]*\)\s*,\s*Schema\.Literal\s*\(/.exec(
@@ -202,11 +154,6 @@ const nonDeterministicServiceKeyIndex = (
     return className !== key && !key.endsWith(`/${className}`);
   });
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasNonDeterministicServiceKey = (source: string): number | false => {
   const code = stripComments(source);
   const codeOnly = stripCommentsAndStrings(source);
@@ -222,11 +169,6 @@ export const hasNonDeterministicServiceKey = (source: string): number | false =>
   return nonDeterministicServiceKeyIndex(code, codeOnly, servicePattern);
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasMultipleProvideChain = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
   return matchIndexOrFalse(
@@ -234,21 +176,11 @@ export const hasMultipleProvideChain = (source: string): number | false => {
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasLayerEffectWithScope = (source: string): number | false => {
   const code = stripCommentsAndStrings(source);
   return matchIndexOrFalse(/\bLayer\.effect\s*\([\s\S]*?\b(?:Scope\.Scope|Scope)\b/.exec(code));
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasNodeBuiltinImport = (source: string): number | false =>
   codeMatchIndexOrFalse(
     stripComments(source),
@@ -256,11 +188,6 @@ export const hasNodeBuiltinImport = (source: string): number | false =>
     /\bfrom\s+['"]node:(?:fs|fs\/promises|path|child_process|crypto|stream|http|https)['"]/g,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasGlobalFetch = (source: string, context: RuleContext): number | false => {
   const code = stripCommentsAndStrings(source);
   if (isConfiguredPath(context, 'adapterLayers')) {
@@ -275,21 +202,11 @@ export const hasGlobalFetch = (source: string, context: RuleContext): number | f
   );
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasEffectSucceedWithVoid = (source: string): number | false =>
   matchIndexOrFalse(
     /\bEffect\.succeed\s*\(\s*(?:undefined|void\s+0)?\s*\)/.exec(stripCommentsAndStrings(source)),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasMapToVoid = (source: string): number | false =>
   matchIndexOrFalse(
     /\bEffect\.map\s*\(\s*\(\s*\)\s*=>\s*(?:undefined|void\s+0|\{\s*\})\s*\)/.exec(
@@ -297,11 +214,6 @@ export const hasMapToVoid = (source: string): number | false =>
     ),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasMapFlatten = (source: string): number | false =>
   matchIndexOrFalse(
     /\bEffect\.map\s*\([\s\S]*?\)\s*,\s*Effect\.flatten\b|\bEffect\.map\s*\([\s\S]*?\)\.pipe\s*\(\s*Effect\.flatten\b/.exec(
@@ -309,11 +221,6 @@ export const hasMapFlatten = (source: string): number | false =>
     ),
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const effectWrapperStatement = (source: string, targetIndex: number): string | undefined => {
   const statementStart = Math.max(
     source.lastIndexOf(';', targetIndex) + 1,
@@ -327,11 +234,6 @@ export const effectWrapperStatement = (source: string, targetIndex: number): str
   return undefined;
 };
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const hasDirectPlatformAccess = (source: string, context: RuleContext): boolean => {
   if (isConfiguredPath(context, 'adapterLayers')) {
     return false;

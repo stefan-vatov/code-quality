@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*           Oxlint-native reference identity for Effect AST rules.           */
-/* -------------------------------------------------------------------------- */
-
 import type { Context } from './effect-rule-core';
 import { Predicate } from 'effect';
 import type {
@@ -34,14 +30,6 @@ const nativeScopeManagerFor = (sourceCode: NativeSourceCode): NativeSourceCode['
   }
 };
 
-/**
- * Narrow a lint context to an Oxlint-native SourceCode implementation.
- *
- * @param context - The current lint context.
- * @returns Native SourceCode when scope and global-reference APIs are available.
- * @throws Does not throw.
- * @internal
- */
 export const nativeSourceCodeFor = (context: Context): NativeSourceCode | undefined => {
   const sourceCode = context.sourceCode;
   if (!Predicate.isRecord(sourceCode)) {
@@ -90,14 +78,6 @@ const referenceValuesFor = (
   scope: NativeScope | undefined,
 ): readonly NativeReference[] | undefined => scope?.references;
 
-/**
- * Index Oxlint reference nodes by object identity for constant-time lookup.
- *
- * @param sourceCode - The native SourceCode instance.
- * @param references - The per-file reference index to populate.
- * @throws Does not throw.
- * @internal
- */
 export const indexNativeReferences = (
   sourceCode: NativeSourceCode,
   references: WeakMap<object, NativeReference>,
@@ -111,16 +91,6 @@ export const indexNativeReferences = (
   }
 };
 
-/**
- * Return the shared reference-identity index for one native SourceCode object. The first caller pays
- * the scope walk. Every matcher created for the same file then reuses the exact WeakMap without
- * retaining either identifier nodes or SourceCode objects after the host releases them.
- *
- * @param sourceCode - The native SourceCode instance.
- * @returns The lazily created per-file reference index.
- * @throws Does not throw.
- * @internal
- */
 export const nativeReferenceIndexFor = (
   sourceCode: NativeSourceCode,
 ): WeakMap<object, NativeReference> => {
@@ -153,15 +123,6 @@ const hasImportDefinition = (definitions: readonly NativeDefinition[] | undefine
   );
 };
 
-/**
- * Determine whether an identifier resolves to an imported value binding.
- *
- * @param node - The identifier reference node.
- * @param references - The per-file native reference index.
- * @returns `true` only for references resolved to an import definition.
- * @throws Does not throw.
- * @internal
- */
 export const isImportReference = (
   node: import('./effect-ast').ASTNode | undefined,
   references: WeakMap<object, NativeReference> | undefined,

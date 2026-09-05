@@ -66,15 +66,12 @@ describe('theThracianOxlint', () => {
   it('enables only individually selected path-independent strict Effect rules', () => {
     const config = theThracianOxlint({
       effect: {
-        strict: { rules: ['effect-require-effect-suppression-reason-and-ticket'] },
+        strict: { rules: ['effect-no-crypto-randomUUID'] },
       },
     });
 
     expect(config.rules).toHaveProperty('thethracian/effect-no-floating-effect', 'error');
-    expect(config.rules).toHaveProperty(
-      'thethracian/effect-require-effect-suppression-reason-and-ticket',
-      'error',
-    );
+    expect(config.rules).toHaveProperty('thethracian/effect-no-crypto-randomUUID', 'error');
     expect(config.rules).not.toHaveProperty('thethracian/effect-no-run-outside-entrypoints');
   });
 });

@@ -26,7 +26,7 @@ function collectInferTypeParameterNames(
   names: Set<string>,
 ): void {
   if (node.type === 'TSInferType') names.add(node.typeParameter.name.name);
-  // SAFETY: Oxlint's visitor keys identify only child-node properties, which use this concrete union.
+
   const record = node as VisitorFields;
   for (const key of visitorKeys[node.type] ?? []) {
     const value = record[key];
@@ -41,7 +41,6 @@ function collectInferTypeParameterNames(
   }
 }
 
-/** Collect type binders that are in scope at a node and can shadow module aliases. */
 export function lexicalTypeParameterNames(
   node: ESTree.Node,
   visitorKeys: VisitorKeys,

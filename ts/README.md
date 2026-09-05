@@ -55,25 +55,34 @@ reliable defect signal.
 The package-local plugin enables these 15 rules as errors in every configuration. They use Oxlint's
 ESTree and lexical-scope APIs, resolve same-file aliases, and deliberately stop at file boundaries:
 
-| Rule                                                    | Policy                                                                                          |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `thethracian/no-chained-type-assertions`                | Rejects nested type assertions that fabricate evidence; `as const` chains remain valid.         |
-| `thethracian/no-conditional-empty-object-spread`        | Rejects conditional object spreads whose empty branch silently omits fields.                    |
-| `thethracian/no-known-value-widening`                   | Rejects known values widened into `unknown`, `object`, anonymous objects, or open dictionaries. |
-| `thethracian/no-module-mocking`                         | Rejects Vitest and Jest module-mocking calls.                                                   |
-| `thethracian/no-object-parameters`                      | Rejects `object` and aliases resolving to it on function inputs.                                |
-| `thethracian/no-reflect-apply`                          | Requires typed calls instead of global `Reflect.apply`.                                         |
-| `thethracian/no-reflect-get`                            | Requires typed property access or boundary parsing instead of global `Reflect.get`.             |
-| `thethracian/no-runtime-typeof`                         | Rejects ad hoc `typeof` narrowing; explicit type guards and existence probes remain valid.      |
-| `thethracian/no-shape-in-symbol-names`                  | Rejects locally owned symbol names containing `shape`; static member names remain valid.        |
-| `thethracian/no-unknown-parameters`                     | Rejects `unknown` function inputs except supported predicate and `cause` conventions.           |
-| `thethracian/no-unknown-returns`                        | Rejects explicit `unknown`, `Promise<unknown>`, and `PromiseLike<unknown>` return contracts.    |
-| `thethracian/no-unknown-type-aliases`                   | Rejects aliases that resolve to `unknown`.                                                      |
-| `thethracian/no-unsafe-dictionary-type`                 | Rejects dictionary value contracts based on `unknown`, `any`, `object`, or `{}`.                |
-| `thethracian/no-widen-then-assert`                      | Rejects immutable flows that widen evidence and later assert it back to a narrow type.          |
-| `thethracian/require-safety-comment-for-type-assertion` | Requires a nearby invariant justification for non-const assertions.                             |
+| Rule                                             | Policy                                                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `thethracian/no-chained-type-assertions`         | Rejects nested type assertions that fabricate evidence; `as const` chains remain valid.         |
+| `thethracian/no-conditional-empty-object-spread` | Rejects conditional object spreads whose empty branch silently omits fields.                    |
+| `thethracian/no-known-value-widening`            | Rejects known values widened into `unknown`, `object`, anonymous objects, or open dictionaries. |
+| `thethracian/no-module-mocking`                  | Rejects Vitest and Jest module-mocking calls.                                                   |
+| `thethracian/no-object-parameters`               | Rejects `object` and aliases resolving to it on function inputs.                                |
+| `thethracian/no-reflect-apply`                   | Requires typed calls instead of global `Reflect.apply`.                                         |
+| `thethracian/no-reflect-get`                     | Requires typed property access or boundary parsing instead of global `Reflect.get`.             |
+| `thethracian/no-runtime-typeof`                  | Rejects ad hoc `typeof` narrowing; explicit type guards and existence probes remain valid.      |
+| `thethracian/no-shape-in-symbol-names`           | Rejects locally owned symbol names containing `shape`; static member names remain valid.        |
+| `thethracian/no-unknown-parameters`              | Rejects `unknown` function inputs except supported predicate and `cause` conventions.           |
+| `thethracian/no-unknown-returns`                 | Rejects explicit `unknown`, `Promise<unknown>`, and `PromiseLike<unknown>` return contracts.    |
+| `thethracian/no-unknown-type-aliases`            | Rejects aliases that resolve to `unknown`.                                                      |
+| `thethracian/no-unsafe-dictionary-type`          | Rejects dictionary value contracts based on `unknown`, `any`, `object`, or `{}`.                |
+| `thethracian/no-widen-then-assert`               | Rejects immutable flows that widen evidence and later assert it back to a narrow type.          |
+| `thethracian/no-comments`                        | Rejects line, block, JSDoc, JSX, and interpolation comments; interpreter shebangs remain valid. |
 
 These rules have no automatic migration behavior and do not replace the native Oxlint allowlist.
+
+Comments are errors in JavaScript and TypeScript, including documentation and lint-directive
+comments. The rule uses parser comment tokens, so strings, template text, and regular expressions
+containing comment-like text are unaffected. Interpreter shebangs are execution directives and
+remain valid. There is no automatic comment deletion: removing compiler directives or semantic
+annotations can change behavior. Put explanations in external documentation instead.
+
+The former safety-comment assertion rule and Effect suppression-comment requirement are removed.
+Assertions remain subject to the type-safety rules; they no longer require comments.
 
 The preset configures `no-runtime-typeof` with `allowInTypeGuards: true`: predicate and assertion
 functions can establish primitive contracts without the boxed `instanceof` checks rejected by
@@ -179,7 +188,7 @@ advice.
 
 ## Strict Effect architecture (explicit opt in)
 
-There are 60 retained strict Effect architecture rules. None is enabled by `effect: true` alone.
+There are 59 retained strict Effect architecture rules. None is enabled by `effect: true` alone.
 Select each rule by name and provide every path group that it inspects; selected rules remain
 errors.
 
@@ -201,8 +210,8 @@ explicit disable. The path groups are project declarations, not guessed `src/**`
 
 The plugin also retains 19 specialized migration, version, error-model, schema, and test analyzers
 for explicit rule configuration. They are never in the base preset or the 18-rule safety bucket,
-and they never become warnings. Together with the 18 safety rules and 60 strict architecture rules,
-the retained Effect rule surface is 97 rules; the service-constructor rule above is an additional
+and they never become warnings. Together with the 18 safety rules and 59 strict architecture rules,
+the retained Effect rule surface is 96 rules; the service-constructor rule above is an additional
 opt-in rule outside those buckets.
 
 ## Semantic codemods (explicit only)
@@ -229,7 +238,7 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
 | TypeScript safety    | 15 package-local errors for evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                                                     |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
-| Effect               | 18 safety errors with `effect: true`; 60 architecture errors only when explicitly selected with paths                                                                                          |
+| Effect               | 18 safety errors with `effect: true`; 59 architecture errors only when explicitly selected with paths                                                                                          |
 | Deliberate omissions | No global `console`, null, ternary, magic-number, naming, file-size, import-count, documentation, or absolute assertion/`any` bans                                                             |
 
 ## Registry links

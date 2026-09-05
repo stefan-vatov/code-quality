@@ -166,7 +166,6 @@ function aliasSubstitution(
   return next;
 }
 
-// oxlint-disable-next-line complexity -- resolves nested local aliases in one bounded AST traversal.
 function unsafeDirectValue(
   type: ESTree.TSType,
   environment: TypeEnvironment,
@@ -196,6 +195,15 @@ function unsafeDirectValue(
       : null;
   }
   if (unwrapped.type !== 'TSTypeReference') return null;
+  return unsafeReferenceValue(unwrapped, environment, substitutions, resolvingAliases);
+}
+
+function unsafeReferenceValue(
+  unwrapped: ESTree.TSTypeReference,
+  environment: TypeEnvironment,
+  substitutions: TypeAliasEnvironment,
+  resolvingAliases: ReadonlySet<string>,
+): UnsafeDictionary['unsafeValue'] | null {
   const name = typeReferenceName(unwrapped);
   if (name === null) return null;
   if (TRANSPARENT_WRAPPERS.has(name) && isBuiltIn(name, unwrapped, environment)) {
@@ -223,7 +231,6 @@ function unsafeDirectValue(
   return unsafeDirectValue(alias.typeAnnotation, environment, nextSubstitutions, nextResolving);
 }
 
-// oxlint-disable-next-line complexity -- classifies every supported dictionary value shape together.
 function dictionaryValueTypes(
   type: ESTree.TSType,
   environment: TypeEnvironment,
@@ -247,6 +254,15 @@ function dictionaryValueTypes(
   }
 
   if (unwrapped.type !== 'TSTypeReference') return [];
+  return dictionaryReferenceValueTypes(unwrapped, environment, substitutions, resolvingAliases);
+}
+
+function dictionaryReferenceValueTypes(
+  unwrapped: ESTree.TSTypeReference,
+  environment: TypeEnvironment,
+  substitutions: TypeAliasEnvironment,
+  resolvingAliases: ReadonlySet<string>,
+): readonly ResolvedType[] {
   const name = typeReferenceName(unwrapped);
   if (name === null) return [];
 
@@ -276,6 +292,16 @@ function dictionaryValueTypes(
       : dictionaryValueTypes(source, environment, substitutions, resolvingAliases);
   }
 
+  return dictionaryAliasValueTypes(unwrapped, name, environment, substitutions, resolvingAliases);
+}
+
+function dictionaryAliasValueTypes(
+  unwrapped: ESTree.TSTypeReference,
+  name: string,
+  environment: TypeEnvironment,
+  substitutions: TypeAliasEnvironment,
+  resolvingAliases: ReadonlySet<string>,
+): readonly ResolvedType[] {
   const alias = visibleTypeAlias(name, unwrapped, environment.typeAliases);
   if (alias === null || resolvingAliases.has(name)) return [];
   const nextSubstitutions = aliasSubstitution(alias, unwrapped, substitutions);
@@ -309,7 +335,6 @@ export function classifyUnsafeDictionary(
   return null;
 }
 
-// oxlint-disable-next-line complexity -- preserves the complete type-shape classifier.
 export function classifyWideningTarget(
   type: ESTree.TSType,
   environment: TypeEnvironment,
@@ -326,6 +351,13 @@ export function classifyWideningTarget(
   }
   if (unwrapped.type === 'TSMappedType') return { kind: 'open dictionary' };
   if (unwrapped.type !== 'TSTypeReference') return null;
+  return classifyWideningReference(unwrapped, environment);
+}
+
+function classifyWideningReference(
+  unwrapped: ESTree.TSTypeReference,
+  environment: TypeEnvironment,
+): WideningTarget | null {
   const name = typeReferenceName(unwrapped);
   if (name === null) return null;
   if (TRANSPARENT_WRAPPERS.has(name) && isBuiltIn(name, unwrapped, environment)) {
@@ -412,7 +444,6 @@ function isBroadMappedKey(
   return isBroadMappedKey(alias.typeAnnotation, environment, substitutions, nextVisited);
 }
 
-// oxlint-disable-next-line complexity -- follows transparent aliases while carrying substitutions.
 function classifyAliasBroadTarget(
   type: ESTree.TSType,
   environment: TypeEnvironment,
@@ -433,6 +464,15 @@ function classifyAliasBroadTarget(
       : null;
   }
   if (unwrapped.type !== 'TSTypeReference') return null;
+  return classifyAliasBroadReference(unwrapped, environment, substitutions, resolvingAliases);
+}
+
+function classifyAliasBroadReference(
+  unwrapped: ESTree.TSTypeReference,
+  environment: TypeEnvironment,
+  substitutions: TypeAliasEnvironment,
+  resolvingAliases: ReadonlySet<string>,
+): WideningTarget | null {
   const name = typeReferenceName(unwrapped);
   if (name === null) return null;
   const substitution = substitutions.get(name);

@@ -27,7 +27,6 @@ const visitNode = (value: ASTValue, visit: (node: ASTNode) => void): void => {
 };
 
 const parseProgram = (source: string): ASTNode =>
-  // SAFETY: Oxc produces a Program with a string type and AST-valued fields consumed by this traversal.
   parseSync(domainFile, source, { sourceType: 'module' }).program as ASTNode &
     ReturnType<typeof parseSync>['program'];
 

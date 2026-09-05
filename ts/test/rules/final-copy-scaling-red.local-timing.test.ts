@@ -19,8 +19,6 @@ const median = (values: readonly number[]): number => {
 };
 
 const collectGarbage = (): void => {
-  // SAFETY: Node exposes gc as a callable only with --expose-gc; the optional
-  // property models its absence and the call is guarded with optional chaining.
   const runtime = globalThis as typeof globalThis & { ['gc']?: () => void };
   runtime['gc']?.();
 };

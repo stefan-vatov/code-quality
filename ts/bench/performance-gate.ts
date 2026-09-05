@@ -275,9 +275,6 @@ interface CandidateFixture extends Fixture {
   subsystem: CandidateSubsystem;
 }
 
-// Every rule is timed on shared candidate-free fixtures. This smaller matrix additionally measures
-// candidate-position and input-scaling behavior for the recursion and native-reference hot paths;
-// rule correctness and positive candidates remain covered by focused unit tests for each rule.
 const candidateSubsystems = [
   {
     candidate:

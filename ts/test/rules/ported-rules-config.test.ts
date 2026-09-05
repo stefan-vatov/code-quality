@@ -23,7 +23,7 @@ const genericRuleNames = [
   'no-unknown-type-aliases',
   'no-unsafe-dictionary-type',
   'no-widen-then-assert',
-  'require-safety-comment-for-type-assertion',
+  'no-comments',
 ] as const;
 
 describe('ported rule integration', (): void => {

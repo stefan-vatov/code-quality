@@ -1,6 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*      Conservative codemod for sorting top-level import declarations.       */
-/* -------------------------------------------------------------------------- */
 import { Array, Option, Order, pipe } from 'effect';
 import type { Identifier, ImportDeclaration, Node, Statement } from 'jscodeshift';
 import jscodeshift from 'jscodeshift';
@@ -331,10 +328,5 @@ const importSortReplacement = (source: string): Replacement | undefined =>
     Option.getOrUndefined,
   );
 
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
 export const sortImportDeclarations = (source: string): string =>
   applyReplacement(source, importSortReplacement(source));

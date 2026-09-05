@@ -1,7 +1,3 @@
-/* -------------------------------------------------------------------------- */
-/*        Execution-aware recursion analysis for Effect constructors.         */
-/* -------------------------------------------------------------------------- */
-
 import { Array, pipe } from 'effect';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
 import { eagerEffectAPIName, recursionPhaseBindingsFor } from './effect-recursion-phases';
@@ -205,15 +201,6 @@ const recursionVisitors = (state: RecursionVisitorState): VisitorMap => ({
   },
 });
 
-/**
- * Build AST visitors for eagerly recursive Effect constructors.
- *
- * @param context - The lint rule context.
- * @param source - The complete file source used only for Effect import provenance.
- * @returns Declaration visitors that report eager recursive Effect construction.
- * @throws Does not throw.
- * @internal
- */
 export const effectRecursionAST = (context: Context, source: string): VisitorMap => {
   const bindings = effectAPIBindingsFor(source);
   const phaseBindings = recursionPhaseBindingsFor(source, bindings);

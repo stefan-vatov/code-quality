@@ -46,7 +46,7 @@ describe('Effect return-in-gen differential local timing', (): void => {
 
       expect(result.error).toBeUndefined();
       expect(result.status).toBe(0);
-      // SAFETY: the successful child executes probeSource above, which serializes these exact measurement fields.
+
       const measurements = JSON.parse(result.stdout) as Array<{
         depth: number;
         elapsedMs: number;
