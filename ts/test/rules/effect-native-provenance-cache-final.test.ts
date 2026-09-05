@@ -1,11 +1,11 @@
+import { describe, expect, it } from 'vitest';
+import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
 import {
   type NativeReference,
   type NativeSourceCode,
   nativeSourceCodeFor,
 } from '../../src/rules/effect-native-references';
-import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/rules/effect-rule-core';
-import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
 import { runRule } from './effect-rule-test-utils';
 
 const domainFile = 'src/domain/native-provenance.ts';
@@ -57,50 +57,6 @@ describe('source-backed Effect alias provenance', (): void => {
     `;
 
     expect(runRule('effect-no-known-fake-api', source, domainFile)).toHaveLength(1);
-  });
-});
-
-describe('globalThis.fetch provenance inside Effect async wrappers', (): void => {
-  it.each(['promise', 'tryPromise'])(
-    'reports globalThis.fetch inside Effect.%s',
-    (wrapper): void => {
-      const source = `
-        import { Effect } from "effect";
-        const request = Effect.${wrapper}(() => globalThis.fetch("/users"));
-      `;
-
-      expect(runRule('effect-no-global-fetch', source, domainFile)).toHaveLength(1);
-    },
-  );
-
-  it.each([
-    [
-      'a callback parameter',
-      `
-        import { Effect } from "effect";
-        const request = (globalThis: HTTPClient) =>
-          Effect.tryPromise(() => globalThis.fetch("/users"));
-      `,
-    ],
-    [
-      'a function-local binding',
-      `
-        import { Effect } from "effect";
-        function request() {
-          const globalThis = client;
-          return Effect.promise(() => globalThis.fetch("/users"));
-        }
-      `,
-    ],
-    [
-      'an unrelated local receiver',
-      `
-        import { Effect } from "effect";
-        const request = Effect.promise(() => client.fetch("/users"));
-      `,
-    ],
-  ])('allows globalThis-like fetch resolved through %s', (_label, source): void => {
-    expect(runRule('effect-no-global-fetch', source, domainFile)).toHaveLength(0);
   });
 });
 

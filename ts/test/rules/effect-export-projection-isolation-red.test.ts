@@ -1,28 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { exportedDeclarationTexts } from '../../src/rules/effect-exported-declarations';
-import { hasPromiseReturningPublicAPI } from '../../src/rules/effect-strict-internals';
-import { runRule } from './effect-rule-test-utils';
 
 const sourceLines = (...lines: string[]): string => lines.join('\n');
-
-interface DownstreamCounts {
-  readonly promise: number;
-}
 
 const expectProjection = (source: string, declarations: readonly string[]): void => {
   expect.soft(exportedDeclarationTexts(source)).toEqual(declarations);
 };
-
-const expectDownstreamCounts = (source: string, expected: DownstreamCounts): void => {
-  expect.soft(hasPromiseReturningPublicAPI(source)).toBe(expected.promise > 0);
-  expect
-    .soft(runRule('effect-no-promise-returning-public-api', source))
-    .toHaveLength(expected.promise);
-};
-
-const privateSiblingCounts = {
-  promise: 0,
-} as const;
 
 describe('Effect export-list declarator isolation', (): void => {
   it('does not project a private Promise arrow after the exported declarator', (): void => {
@@ -33,7 +16,6 @@ describe('Effect export-list declarator isolation', (): void => {
     );
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, privateSiblingCounts);
   });
 
   it('does not project a private Promise arrow before the exported declarator', (): void => {
@@ -44,7 +26,6 @@ describe('Effect export-list declarator isolation', (): void => {
     );
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, privateSiblingCounts);
   });
 
   it('retains a later exported Promise arrow as a positive control', (): void => {
@@ -56,7 +37,6 @@ describe('Effect export-list declarator isolation', (): void => {
     );
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, { promise: 1 });
   });
 });
 
@@ -70,7 +50,6 @@ describe('Effect export-list binding identity', (): void => {
     );
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, { promise: 0 });
   });
 
   it('keeps an aliased object-destructured export as a positive control', (): void => {
@@ -78,7 +57,6 @@ describe('Effect export-list binding identity', (): void => {
     const source = sourceLines(declaration, 'export { publicLoad as load };');
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, { promise: 0 });
   });
 
   it('keeps an array-destructured export as a positive control', (): void => {
@@ -86,7 +64,6 @@ describe('Effect export-list binding identity', (): void => {
     const source = sourceLines(declaration, 'export { publicLoad };');
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, { promise: 0 });
   });
 });
 
@@ -102,7 +79,6 @@ describe('Effect export-list overload and generator resolution', (): void => {
     const source = sourceLines(firstSignature, secondSignature, implementation, 'export { load };');
 
     expectProjection(source, [firstSignature, secondSignature, implementation]);
-    expectDownstreamCounts(source, { promise: 1 });
   });
 
   it('resolves a local generator declaration through an export list', (): void => {
@@ -114,7 +90,6 @@ describe('Effect export-list overload and generator resolution', (): void => {
     const source = sourceLines(declaration, 'export { load };');
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, { promise: 0 });
   });
 });
 
@@ -129,6 +104,5 @@ describe('Effect default identifier wrappers', (): void => {
     const source = sourceLines(declaration, `export default ${exportedExpression};`);
 
     expectProjection(source, [declaration]);
-    expectDownstreamCounts(source, { promise: 1 });
   });
 });

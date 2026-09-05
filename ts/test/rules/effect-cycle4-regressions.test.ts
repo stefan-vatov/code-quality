@@ -1,18 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index';
-import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
-import {
-  runAllRules,
-  runConfiguredRules,
-  runRule,
-  strictEffectTestPaths,
-} from './effect-rule-test-utils';
-
-function reportedEffectRules(source: string): string[] {
-  return runAllRules(source)
-    .map((report) => report.ruleName)
-    .filter((ruleName): ruleName is string => Boolean(ruleName?.startsWith('effect-')));
-}
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 4 regression coverage', () => {
   it('allows assigned multiline piped Effect values', () => {
@@ -51,32 +38,5 @@ describe('Effect cycle 4 regression coverage', () => {
 
     expect(runRule('effect-require-error-cause-preserved', invalid)).toHaveLength(1);
     expect(runRule('effect-require-error-cause-preserved', valid)).toHaveLength(0);
-  });
-
-  it('does not duplicate legacy Context.Tag service diagnostics', () => {
-    const source = 'const UserRepo = Context.Tag<UserRepo>("UserRepo");';
-
-    expect(reportedEffectRules(source)).toStrictEqual([
-      'effect-no-deprecated-context-tag-function',
-    ]);
-  });
-
-  it('runs all-rule golden checks through the published config profiles', () => {
-    const source = 'Effect.runPromise(program);';
-    const defaultRules = runConfiguredRules(theThracianOxlint(), source, 'src/domain/user.ts');
-    const strictRules = runConfiguredRules(
-      theThracianOxlint({
-        effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
-      }),
-      source,
-      'src/domain/user.ts',
-    );
-
-    expect(defaultRules.map((report) => report.ruleName)).not.toContain(
-      'effect-no-run-outside-entrypoints',
-    );
-    expect(strictRules.map((report) => report.ruleName)).toContain(
-      'effect-no-run-outside-entrypoints',
-    );
   });
 });

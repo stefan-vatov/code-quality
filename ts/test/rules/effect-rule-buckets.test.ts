@@ -1,85 +1,38 @@
 import { describe, expect, it } from 'vitest';
+import theThracianOxlint from '../../src/index';
+import effectDefaultRules from '../../src/rules/effect-default';
 import {
   effectDefaultRuleNames,
   effectSafetyRuleNames,
   effectStrictRuleNames,
 } from '../../src/rules/effect-rule-names';
-import effectDefaultRules from '../../src/rules/effect-default';
 import effectStrictRules from '../../src/rules/effect-strict';
 import plugin from '../../src/rules/plugin';
-import { sorted, strictEffectTestPaths } from './effect-rule-test-utils';
-import theThracianOxlint from '../../src/index';
 
-describe('Effect rule buckets', (): void => {
-  it('keeps bucket names, implementations, and plugin registration in exact sync', (): void => {
-    expect(effectDefaultRuleNames).toHaveLength(37);
-    expect(effectStrictRuleNames).toHaveLength(59);
-    expect(new Set([...effectDefaultRuleNames, ...effectStrictRuleNames]).size).toBe(96);
-    expect(sorted(Object.keys(effectDefaultRules))).toEqual(sorted(effectDefaultRuleNames));
-    expect(sorted(Object.keys(effectStrictRules))).toEqual(sorted(effectStrictRuleNames));
-
-    for (const ruleName of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
-      expect(plugin.rules, `${ruleName} must be registered`).toHaveProperty(ruleName);
-    }
-    expect(plugin.rules).not.toHaveProperty('complexity');
+describe('Effect rule buckets', () => {
+  it('keeps names, implementations, and registration in exact sync', () => {
+    expect(effectSafetyRuleNames).toHaveLength(18);
+    expect(effectDefaultRuleNames).toHaveLength(34);
+    expect(effectStrictRuleNames).toStrictEqual(['effect-no-runSync-in-server-request-handlers']);
+    const names = [...effectDefaultRuleNames, ...effectStrictRuleNames];
+    expect(new Set(names).size).toBe(35);
+    expect(Object.keys(effectDefaultRules).sort()).toEqual([...effectDefaultRuleNames].sort());
+    expect(Object.keys(effectStrictRules).sort()).toEqual([...effectStrictRuleNames].sort());
+    expect(
+      Object.keys(plugin.rules)
+        .filter((name) => name.startsWith('effect-'))
+        .sort(),
+    ).toEqual(names.sort());
   });
 
-  it('keeps published config bucket enablement in exact sync', (): void => {
-    const defaultConfig = theThracianOxlint();
-    const safetyConfig = theThracianOxlint({ effect: true });
-    const disabledConfig = theThracianOxlint({ effect: false });
-    const strictOptions = { ...strictEffectTestPaths, rules: effectStrictRuleNames };
-    const strictConfig = theThracianOxlint({ effect: { strict: strictOptions } });
-    const strictObjectConfig = theThracianOxlint({
-      effect: { strict: { enabled: true, ...strictOptions } },
-    });
-
-    for (const ruleName of effectSafetyRuleNames) {
-      expect(defaultConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
-      expect(safetyConfig.rules).toHaveProperty(`thethracian/${ruleName}`, 'error');
-      expect(strictConfig.rules).toHaveProperty(`thethracian/${ruleName}`, 'error');
-      expect(disabledConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
+  it('enables all retained Effect rules with one boolean option', () => {
+    const enabled = theThracianOxlint({ effect: true });
+    const disabled = theThracianOxlint({ effect: false });
+    const base = theThracianOxlint();
+    for (const name of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
+      expect(enabled.rules).toHaveProperty(`thethracian/${name}`, 'error');
+      expect(disabled.rules).not.toHaveProperty(`thethracian/${name}`);
+      expect(base.rules).not.toHaveProperty(`thethracian/${name}`);
     }
-    for (const ruleName of effectDefaultRuleNames) {
-      if (!effectSafetyRuleNames.some((safetyRuleName) => safetyRuleName === ruleName)) {
-        expect(defaultConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
-        expect(safetyConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
-      }
-    }
-    for (const ruleName of effectStrictRuleNames) {
-      expect(defaultConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
-      expect(safetyConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
-      expect(disabledConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
-      const strictSetting = strictConfig.rules?.[`thethracian/${ruleName}`];
-      const strictObjectSetting = strictObjectConfig.rules?.[`thethracian/${ruleName}`];
-      expect(Array.isArray(strictSetting) ? strictSetting[0] : strictSetting).toBe('error');
-      expect(
-        Array.isArray(strictObjectSetting) ? strictObjectSetting[0] : strictObjectSetting,
-      ).toBe('error');
-    }
-  });
-
-  it('declares options schemas for strict rules that receive project path configuration', (): void => {
-    for (const ruleName of effectStrictRuleNames) {
-      const rule = plugin.rules[ruleName];
-
-      expect(rule?.meta?.schema, `${ruleName} must accept strict path options`).toBeDefined();
-    }
-  });
-
-  it('keeps the strict path option schema keys stable', (): void => {
-    const rule = plugin.rules['effect-no-run-outside-entrypoints'];
-    const schema = rule?.meta?.schema;
-    const firstSchema = Array.isArray(schema) ? schema[0] : undefined;
-
-    expect(Object.keys(firstSchema?.properties ?? {}).sort()).toStrictEqual([
-      'adapterLayers',
-      'compositionRoots',
-      'configLayers',
-      'domain',
-      'entrypoints',
-      'integrationTests',
-      'unitTests',
-    ]);
   });
 });

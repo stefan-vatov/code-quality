@@ -4,6 +4,24 @@
 
 ### Breaking Changes
 
+- Reduced Effect to 35 rules: the unchanged 18 safety rules plus fake-API, service-self-match,
+  focused-test, skipped-test, synchronous server-handler checks, and 12 canonical-pattern rules.
+  Canonical rules enforce simple Effect operators, schema construction and decoding conventions,
+  explicit error contracts, class-based services, and class-aligned service identifiers. Their
+  restored implementations use structural checks instead of the former textual heuristics.
+  Other deleted rules have no warning or optional registrations; architecture path rules remain
+  deleted from the shared preset; consuming repositories own architecture boundary policies.
+- Replaced Effect object options with `effect?: boolean`. `effect: true` enables all 35 Effect
+  rules plus `no-service-constructor-imports`; any nonboolean value throws `TypeError`. Removed
+  public strict rule selection, path groups, `EffectStrictRuleName`, `TheThracianEffectOptions`,
+  and `TheThracianEffectStrictOptions`. Migrate old strict objects to `true` or `false`.
+- Deleted TypeScript/JavaScript `no-comments` while preserving all 14 imported generic
+  rules and the service-constructor rule. Rust and Elixir comment bans are unchanged. The base
+  preset with `typeAware: true` enables 174 errors (160 native plus 14 generic); Effect-enabled
+  local lint enables 210. Syntax-only totals are 143 without Effect and 179 with Effect.
+
+- Added a 5,000-line file limit, excluding blank lines and comments, enforced as an error.
+
 - Lowered the exported cyclomatic complexity limit from 20 to 10 per function, enforced as
   an error. Refactored rule helpers to comply without suppressions or behavioral changes.
 
@@ -33,7 +51,7 @@
 
 - fix(ts)!: replace noisy lint rules with strict signal (#29) (c4d143c)
 
-## Unreleased (next breaking release)
+## Earlier unreleased migration notes (superseded above)
 
 ### Breaking Changes
 

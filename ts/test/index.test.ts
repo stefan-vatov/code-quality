@@ -1,9 +1,8 @@
-import { isAbsolute } from 'node:path';
 import { Predicate } from 'effect';
+import { isAbsolute } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../src/index';
-import { effectSafetyRuleNames, effectStrictRuleNames } from '../src/rules/effect-rule-names';
-import type { TheThracianEffectStrictOptions } from '../src/index';
+import { effectDefaultRuleNames, effectStrictRuleNames } from '../src/rules/effect-rule-names';
 
 function effectRuleKeys(config: ReturnType<typeof theThracianOxlint>): string[] {
   return Object.keys(config.rules ?? {}).filter((ruleName) =>
@@ -44,14 +43,19 @@ describe('theThracianOxlint', () => {
     expect(effectRuleKeys(config)).toHaveLength(0);
   });
 
-  it('enables only the high-confidence Effect safety bucket when requested', () => {
+  it('enables every retained Effect rule when requested', () => {
     const config = theThracianOxlint({ effect: true });
 
     expect(config.rules).toHaveProperty('thethracian/effect-no-floating-effect', 'error');
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-known-fake-api');
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-run-outside-entrypoints');
+    expect(config.rules).toHaveProperty('thethracian/effect-no-known-fake-api', 'error');
+    expect(config.rules).toHaveProperty(
+      'thethracian/effect-no-runSync-in-server-request-handlers',
+      'error',
+    );
     expect(effectRuleKeys(config).sort()).toStrictEqual(
-      effectSafetyRuleNames.map((ruleName) => `thethracian/${ruleName}`).sort(),
+      [...effectDefaultRuleNames, ...effectStrictRuleNames]
+        .map((ruleName) => `thethracian/${ruleName}`)
+        .sort(),
     );
   });
 
@@ -59,100 +63,10 @@ describe('theThracianOxlint', () => {
     const config = theThracianOxlint({ effect: false });
 
     expect(config.rules).not.toHaveProperty('thethracian/effect-no-floating-effect');
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-run-outside-entrypoints');
-    expect(effectRuleKeys(config)).toHaveLength(0);
-  });
-
-  it('enables only individually selected path-independent strict Effect rules', () => {
-    const config = theThracianOxlint({
-      effect: {
-        strict: { rules: ['effect-no-crypto-randomUUID'] },
-      },
-    });
-
-    expect(config.rules).toHaveProperty('thethracian/effect-no-floating-effect', 'error');
-    expect(config.rules).toHaveProperty('thethracian/effect-no-crypto-randomUUID', 'error');
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-run-outside-entrypoints');
-  });
-});
-
-describe('strict Effect configuration', () => {
-  it('enables opt-in Effect strict project rules with the object form', () => {
-    const strictOptions = {
-      adapterLayers: ['platform/adapters/**'],
-      compositionRoots: ['apps/api/main.ts'],
-      configLayers: ['settings/**'],
-      domain: ['features/**'],
-      entrypoints: ['workers/main.ts'],
-      integrationTests: ['tests/integration/**/*.ts'],
-      unitTests: ['tests/unit/**/*.ts'],
-      rules: effectStrictRuleNames,
-    };
-    const config = theThracianOxlint({
-      effect: {
-        strict: strictOptions,
-      },
-    });
-
-    expect(effectRuleKeys(config).sort()).toStrictEqual(
-      [...effectSafetyRuleNames, ...effectStrictRuleNames]
-        .map((ruleName) => `thethracian/${ruleName}`)
-        .sort(),
+    expect(config.rules).not.toHaveProperty(
+      'thethracian/effect-no-runSync-in-server-request-handlers',
     );
-    for (const ruleName of effectStrictRuleNames) {
-      const setting = config.rules?.[`thethracian/${ruleName}`];
-      expect(Array.isArray(setting) ? setting[0] : setting).toBe('error');
-    }
-    expect(config.rules).toHaveProperty('thethracian/effect-no-run-outside-entrypoints', [
-      'error',
-      {
-        entrypoints: ['workers/main.ts'],
-        integrationTests: ['tests/integration/**/*.ts'],
-        unitTests: ['tests/unit/**/*.ts'],
-      },
-    ]);
-    expect(config.rules).toHaveProperty('thethracian/effect-no-global-fetch', [
-      'error',
-      { adapterLayers: ['platform/adapters/**'] },
-    ]);
-    expect(config.rules).toHaveProperty('thethracian/effect-no-crypto-randomUUID', 'error');
-  });
-
-  it('keeps the entire Effect profile explicitly disableable', () => {
-    const config = theThracianOxlint({
-      effect: {
-        enabled: false,
-        strict: { entrypoints: ['workers/main.ts'], rules: effectStrictRuleNames },
-      },
-    });
-
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-run-outside-entrypoints');
-  });
-
-  it('does not forward unsupported strict path keys that are absent from rule schemas', () => {
-    const unsupportedStrictOptions = {
-      enabled: true,
-      loggerLayers: ['observability/**'],
-      rules: ['effect-no-crypto-randomUUID'],
-    } satisfies TheThracianEffectStrictOptions & { loggerLayers: readonly string[] };
-    const config = theThracianOxlint({ effect: { strict: unsupportedStrictOptions } });
-
-    expect(config.rules).toHaveProperty('thethracian/effect-no-crypto-randomUUID', 'error');
-  });
-
-  it('filters unsupported strict path keys when supported keys are present', () => {
-    const mixedStrictOptions = {
-      adapterLayers: ['platform/**'],
-      enabled: true,
-      loggerLayers: ['observability/**'],
-      rules: ['effect-no-global-fetch'],
-    } satisfies TheThracianEffectStrictOptions & { loggerLayers: readonly string[] };
-    const config = theThracianOxlint({ effect: { strict: mixedStrictOptions } });
-
-    expect(config.rules).toHaveProperty('thethracian/effect-no-global-fetch', [
-      'error',
-      { adapterLayers: ['platform/**'] },
-    ]);
+    expect(effectRuleKeys(config)).toHaveLength(0);
   });
 });
 

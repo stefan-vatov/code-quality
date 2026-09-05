@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../src/index';
-import { effectSafetyRuleNames } from '../src/rules/effect-rule-names';
-import type { EffectStrictRuleName, TheThracianEffectStrictOptions } from '../src/index';
 
 const removedRules = [
   'arrow-body-style',
@@ -16,7 +14,6 @@ const removedRules = [
   'import/max-dependencies',
   'import/extensions',
   'init-declarations',
-  'max-lines',
   'max-statements',
   'new-cap',
   'no-inline-comments',
@@ -80,49 +77,6 @@ const removedInheritedRules = [
   'unicorn/prefer-string-starts-ends-with',
   'unicorn/require-module-specifiers',
 ] as const;
-
-const strictPathRequirements = [
-  ['effect-no-direct-clock-random-outside-adapters', 'adapterLayers'],
-  ['effect-no-direct-http-fs-outside-platform-services', 'adapterLayers'],
-  ['effect-no-direct-process-env-outside-config-layer', 'configLayers'],
-  ['effect-no-global-fetch', 'adapterLayers'],
-  ['effect-no-leaked-service-dependencies', 'domain'],
-  ['effect-no-live-services-in-unit-tests', 'integrationTests'],
-  ['effect-no-live-services-in-unit-tests', 'unitTests'],
-  ['effect-no-node-builtins-when-effect-platform-exists', 'adapterLayers'],
-  ['effect-no-provide-in-domain-modules', 'domain'],
-  ['effect-no-run-outside-entrypoints', 'entrypoints'],
-  ['effect-no-run-outside-entrypoints', 'integrationTests'],
-  ['effect-no-run-outside-entrypoints', 'unitTests'],
-  ['effect-no-service-construction-outside-layer', 'adapterLayers'],
-  ['effect-no-service-construction-outside-layer', 'configLayers'],
-  ['effect-no-test-runtime-leakage', 'integrationTests'],
-  ['effect-no-test-runtime-leakage', 'unitTests'],
-  ['effect-prefer-in-memory-implementations', 'integrationTests'],
-  ['effect-prefer-in-memory-implementations', 'unitTests'],
-  ['effect-require-centralized-provision', 'compositionRoots'],
-  ['effect-require-platform-runmain-at-entrypoints', 'entrypoints'],
-  ['effect-require-provided-services-in-tests', 'integrationTests'],
-  ['effect-require-provided-services-in-tests', 'unitTests'],
-  ['effect-require-testclock-for-time-code', 'integrationTests'],
-  ['effect-require-testclock-for-time-code', 'unitTests'],
-  ['effect-schema-require-config-schema', 'configLayers'],
-] as const;
-
-const explicitStrictPaths = {
-  adapterLayers: ['platform/**'],
-  compositionRoots: ['apps/main.ts'],
-  configLayers: ['config/**'],
-  domain: ['domain/**'],
-  entrypoints: ['apps/main.ts'],
-  integrationTests: ['test/integration/**'],
-  unitTests: ['test/unit/**'],
-};
-
-const effectRuleKeys = (config: ReturnType<typeof theThracianOxlint>): string[] =>
-  Object.keys(config.rules ?? {}).filter((ruleName): boolean =>
-    ruleName.startsWith('thethracian/effect-'),
-  );
 
 const packageJSON = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
@@ -198,6 +152,10 @@ describe('high-signal strict config', (): void => {
 
     expect(config.rules).toHaveProperty('complexity', ['error', { max: 10 }]);
     expect(config.rules).toHaveProperty('max-depth', ['error', { max: 5 }]);
+    expect(config.rules).toHaveProperty('max-lines', [
+      'error',
+      { max: 5000, skipBlankLines: true, skipComments: true },
+    ]);
     expect(config.rules).toHaveProperty('max-lines-per-function', [
       'error',
       { max: 150, skipBlankLines: true, skipComments: true },
@@ -219,135 +177,9 @@ describe('high-signal strict config', (): void => {
   );
 });
 
-describe('high-signal strict config Effect selection', (): void => {
-  it('does not enable Effect rules for consumers that did not request them', (): void => {
-    expect(effectRuleKeys(theThracianOxlint())).toStrictEqual([]);
-  });
-
-  it('enables only the Effect safety set when Effect support is requested', (): void => {
-    const configuredRules = effectRuleKeys(theThracianOxlint({ effect: true })).sort();
-    const expectedRules = effectSafetyRuleNames.map((ruleName) => `thethracian/${ruleName}`).sort();
-
-    expect(configuredRules).toStrictEqual(expectedRules);
-  });
-
-  it('enables only explicitly selected strict Effect rules', (): void => {
-    const strict = {
-      adapterLayers: ['platform/**'],
-      rules: ['effect-no-global-fetch'],
-    } satisfies TheThracianEffectStrictOptions;
-    const config = theThracianOxlint({ effect: { enabled: true, strict } });
-
-    expect(config.rules).toHaveProperty('thethracian/effect-no-global-fetch', [
-      'error',
-      { adapterLayers: ['platform/**'] },
-    ]);
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-crypto-randomUUID');
-  });
-
-  it('rejects strict architecture rules without their explicit project paths', (): void => {
-    const strict = {
-      rules: ['effect-no-global-fetch'],
-    } satisfies TheThracianEffectStrictOptions;
-
-    expect(() => theThracianOxlint({ effect: { enabled: true, strict } })).toThrowError(
-      'Strict Effect rule effect-no-global-fetch requires explicit path option: adapterLayers',
-    );
-  });
-
-  it.each(strictPathRequirements)(
-    'requires %s to declare its %s project paths',
-    (ruleName, pathOption): void => {
-      const strict: TheThracianEffectStrictOptions = {
-        ...explicitStrictPaths,
-        rules: [ruleName],
-      };
-      Reflect.deleteProperty(strict, pathOption);
-
-      expect(() =>
-        theThracianOxlint({
-          effect: { enabled: true, strict },
-        }),
-      ).toThrowError(`Strict Effect rule ${ruleName} requires explicit path option: ${pathOption}`);
-    },
-  );
-
-  it('rejects malformed strict Effect path groups before defaults can leak in', (): void => {
-    const strict: TheThracianEffectStrictOptions = {
-      adapterLayers: ['platform/**'],
-      rules: ['effect-no-global-fetch'],
-    };
-    Reflect.set(strict, 'adapterLayers', 'platform/**');
-
-    expect(() => theThracianOxlint({ effect: { enabled: true, strict } })).toThrowError(
-      'Strict Effect path option adapterLayers must be an array of strings',
-    );
-  });
-
-  it('rejects unknown strict Effect rule names at compile time', (): void => {
-    expectTypeOf<'effect-not-a-real-rule'>().not.toMatchTypeOf<EffectStrictRuleName>();
-  });
-
-  it('rejects unknown strict Effect rule names at runtime', (): void => {
-    const invalidStrictOptions: TheThracianEffectStrictOptions = {
-      rules: [],
-    };
-    Reflect.set(invalidStrictOptions, 'rules', ['effect-not-a-real-rule']);
-
-    expect(() =>
-      theThracianOxlint({ effect: { enabled: true, strict: invalidStrictOptions } }),
-    ).toThrowError('Unknown strict Effect rule: effect-not-a-real-rule');
-  });
-
-  it('rejects the removed pathless strict boolean shortcut', (): void => {
-    const effect = { strict: false as const };
-    Reflect.set(effect, 'strict', true);
-
-    expect(() => theThracianOxlint({ effect })).toThrowError(
-      'effect.strict: true is no longer supported; select rules and provide their explicit project paths',
-    );
-  });
-
-  it('rejects malformed strict Effect option objects', (): void => {
-    const strict: TheThracianEffectStrictOptions = { rules: [], enabled: true };
-    Reflect.deleteProperty(strict, 'rules');
-
-    expect(() => theThracianOxlint({ effect: { strict } })).toThrowError(
-      'effect.strict must be false or an object with a rules array',
-    );
-  });
-
-  it('honors an explicitly disabled strict rule selection', (): void => {
-    const config = theThracianOxlint({
-      effect: {
-        strict: {
-          adapterLayers: ['platform/**'],
-          enabled: false,
-          rules: ['effect-no-global-fetch'],
-        },
-      },
-    });
-
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-global-fetch');
-  });
-
-  it('accepts strict false while retaining the requested Effect safety bucket', (): void => {
-    const config = theThracianOxlint({ effect: { strict: false } });
-
-    expect(effectRuleKeys(config).sort()).toStrictEqual(
-      effectSafetyRuleNames.map((ruleName) => `thethracian/${ruleName}`).sort(),
-    );
-    expect(config.rules).not.toHaveProperty('thethracian/effect-no-global-fetch');
-  });
-});
-
 describe('high-signal strict config severity and automatic fixes', (): void => {
   it('exports only error rules, never warnings or rule-level removals', (): void => {
-    const strict = {
-      adapterLayers: ['platform/**'],
-      rules: ['effect-no-global-fetch'],
-    } satisfies TheThracianEffectStrictOptions;
-    const config = theThracianOxlint({ effect: { enabled: true, strict } });
+    const config = theThracianOxlint({ effect: true });
 
     for (const setting of Object.values(config.rules ?? {})) {
       const severity = Array.isArray(setting) ? setting[0] : setting;

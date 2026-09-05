@@ -1,10 +1,10 @@
+import { Schema } from 'effect';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Schema } from 'effect';
 
 const parsePackage = Schema.decodeUnknownSync(
   Schema.parseJson(Schema.Struct({ peerDependencies: Schema.Struct({ oxlint: Schema.String }) })),
@@ -36,7 +36,7 @@ const oxlintSpecifier = `oxlint@${minimumPeerVersion}`;
 const expectedRuleIDs = [
   'thethracian/effect-no-floating-effect',
   'thethracian/effect-require-yield-star',
-  'thethracian/effect-no-global-fetch',
+  'thethracian/effect-no-runSync-in-server-request-handlers',
 ];
 
 const runOxlint = (fixturePath: string, extraArguments: readonly string[] = []) =>
@@ -80,7 +80,7 @@ assert.deepStrictEqual(ruleIDs.toSorted(), expectedRuleIDs.toSorted());
 
 const { default: fullConfig } = await import('./full.config.mjs');
 const sourceRuleNames = Object.keys(fullConfig.rules ?? {}).toSorted();
-assert.equal(sourceRuleNames.length, 193, 'full minimum-peer config must expose 193 rules');
+assert.equal(sourceRuleNames.length, 210, 'full minimum-peer config must expose 210 rules');
 const sourceNativeRuleNames = sourceRuleNames.filter(
   (ruleName) => !ruleName.startsWith('thethracian/'),
 );
@@ -90,12 +90,12 @@ const sourcePackageRuleNames = sourceRuleNames.filter((ruleName) =>
 const sourceEffectRuleNames = sourcePackageRuleNames.filter((ruleName) =>
   ruleName.startsWith('thethracian/effect-'),
 );
-assert.equal(sourceNativeRuleNames.length, 159, 'full config must expose 159 native rules');
-assert.equal(sourcePackageRuleNames.length, 34, 'full config must expose 34 package rules');
+assert.equal(sourceNativeRuleNames.length, 160, 'full config must expose 160 native rules');
+assert.equal(sourcePackageRuleNames.length, 50, 'full config must expose 50 package rules');
 assert.equal(
   sourceEffectRuleNames.length,
-  18,
-  'full config must expose all 18 Effect safety rules',
+  35,
+  'full config must expose all 35 retained Effect rules',
 );
 assert.ok(
   sourceRuleNames.includes('thethracian/no-service-constructor-imports'),

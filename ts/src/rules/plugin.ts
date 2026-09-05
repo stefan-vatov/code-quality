@@ -15,7 +15,6 @@ import { noUnknownReturnsRule } from './no-unknown-returns';
 import { noUnknownTypeAliasesRule } from './no-unknown-type-aliases';
 import { noUnsafeDictionaryTypeRule } from './no-unsafe-dictionary-type';
 import { noWidenThenAssertRule } from './no-widen-then-assert';
-import { noCommentsRule } from './no-comments';
 import { noServiceConstructorImportsRule } from './no-service-constructor-imports';
 
 type OxlintPlugin = Parameters<typeof eslintCompatPlugin>[0];
@@ -41,7 +40,6 @@ const plugin = {
     'no-unknown-type-aliases': noUnknownTypeAliasesRule,
     'no-unsafe-dictionary-type': noUnsafeDictionaryTypeRule,
     'no-widen-then-assert': noWidenThenAssertRule,
-    'no-comments': noCommentsRule,
     'no-service-constructor-imports': noServiceConstructorImportsRule,
   },
 };

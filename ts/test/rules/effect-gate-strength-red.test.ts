@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 
 interface BudgetEntry {
   iterations: number;
@@ -110,7 +110,7 @@ describe('Effect gate strength RED contracts', (): void => {
 
   it('crosses every changed subsystem with all candidate positions and scales', (): void => {
     const matrix = declarationBody('candidateSubsystems');
-    const subsystems = ['recursion', 'native'] as const;
+    const subsystems = ['recursion'] as const;
 
     for (const subsystem of subsystems) {
       expect(matrix, `missing ${subsystem} candidate subsystem`).toMatch(

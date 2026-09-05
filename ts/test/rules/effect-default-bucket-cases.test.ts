@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { runConfiguredRules, runRule, sorted, withAllEffectRules } from './effect-rule-test-utils';
-import type { RuleCase } from './effect-rule-test-utils';
-import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
 import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
+import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
+import type { RuleCase } from './effect-rule-test-utils';
+import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
+import { effectCanonicalSpecs } from '../../src/rules/effect-canonical-patterns';
 
 const defaultCases: RuleCase[] = [
   {
@@ -20,15 +21,6 @@ const defaultCases: RuleCase[] = [
     name: 'effect-require-return-yield-star',
     invalid: 'const p = Effect.gen(function* () { return Effect.succeed(1); });',
     valid: 'const p = Effect.gen(function* () { return yield* Effect.succeed(1); });',
-  },
-  {
-    name: 'effect-schema-no-redundant-tag-identifier',
-    invalid:
-      'import { Schema } from "effect"; ' +
-      'class NotFound extends Schema.TaggedClass<NotFound>("NotFound")("NotFound", { id: Schema.String }) {}',
-    valid:
-      'import { Schema } from "effect"; ' +
-      'class NotFound extends Schema.TaggedClass<NotFound>()("NotFound", { id: Schema.String }) {}',
   },
   {
     name: 'effect-no-floating-fiber',
@@ -53,54 +45,14 @@ const defaultCases: RuleCase[] = [
       'Effect.tryPromise({ try: () => fetch("/"), catch: (error) => new FetchError({ error }) });',
   },
   {
-    name: 'effect-no-catchAll-with-mapError',
-    invalid: 'program.pipe(Effect.catchAll((error) => Effect.fail(new Wrapped({ error }))));',
-    valid: 'program.pipe(Effect.mapError((error) => new Wrapped({ error })));',
-  },
-  {
     name: 'effect-require-error-cause-preserved',
     invalid: 'program.pipe(Effect.mapError(() => new WrappedError("x")));',
     valid: 'program.pipe(Effect.mapError((cause) => new WrappedError("x", { cause })));',
   },
   {
-    name: 'effect-no-error-channel-widening-to-unknown',
-    invalid: 'const p: Effect<string, unknown> = value;',
-    valid: 'const p: Effect<string, DomainError> = value;',
-  },
-  {
     name: 'effect-no-runfork-without-observer',
     invalid: 'Effect.runFork(program);',
     valid: 'const fiber = Effect.runFork(program); fiber.addObserver(() => undefined);',
-  },
-  {
-    name: 'effect-schema-require-parse-error-handling',
-    invalid: 'Schema.decodeUnknown(User)(payload).pipe(Effect.orDie);',
-    valid: 'return Schema.decodeUnknown(User)(payload);',
-  },
-  {
-    name: 'effect-schema-use-decodeUnknown-for-external-data',
-    invalid: 'const body = response.json();',
-    valid: 'Schema.decodeUnknown(User)(yield* response.json);',
-  },
-  {
-    name: 'effect-schema-require-parseJson-for-json-strings',
-    invalid: 'Schema.decodeUnknown(User)(JSON.parse(body));',
-    valid: 'Schema.decodeUnknown(Schema.parseJson(User))(body);',
-  },
-  {
-    name: 'effect-schema-correct-number-type-for-parsed-json',
-    invalid: 'const parsed = Schema.decodeUnknownSync(Schema.NumberFromString)(JSON.parse(body));',
-    valid: 'const parsed = JSON.parse(body); const S = Schema.Number;',
-  },
-  {
-    name: 'effect-schema-avoid-old-type-names',
-    invalid: 'Schema.string();',
-    valid: 'Schema.String;',
-  },
-  {
-    name: 'effect-schema-no-cast-after-decode',
-    invalid: 'const user = Schema.decodeUnknown(User)(payload) as User;',
-    valid: 'const user = Schema.decodeUnknown(User)(payload);',
   },
   {
     name: 'effect-require-acquire-release',
@@ -148,24 +100,6 @@ const defaultCases: RuleCase[] = [
     valid: 'Stream.buffer(source, 128);',
   },
   {
-    name: 'effect-testClock-requires-fork',
-    filename: 'src/user.test.ts',
-    invalid: 'TestClock.adjust("1 second");',
-    valid: 'const fiber = yield* Effect.fork(program); yield* TestClock.adjust("1 second");',
-  },
-  {
-    name: 'effect-testClock-requires-testContext',
-    filename: 'src/user.test.ts',
-    invalid: 'it("works", () => TestClock.adjust("1 second"));',
-    valid: 'it.effect("works", () => TestClock.adjust("1 second"));',
-  },
-  {
-    name: 'effect-no-real-sleep-in-tests',
-    filename: 'src/user.test.ts',
-    invalid: 'Effect.sleep("1 second");',
-    valid: 'TestClock.adjust("1 second");',
-  },
-  {
     name: 'effect-no-focused-effect-tests',
     filename: 'src/user.test.ts',
     invalid: 'it.effect.only("works", () => program);',
@@ -178,24 +112,9 @@ const defaultCases: RuleCase[] = [
     valid: 'it.effect("works", () => program);',
   },
   {
-    name: 'effect-no-obsolete-imports',
-    invalid: 'import { Effect } from "@effect/io";',
-    valid: 'import { Schema } from "effect";',
-  },
-  {
     name: 'effect-no-known-fake-api',
     invalid: 'Effect.fromPromise(() => fetch("/"));',
     valid: 'Effect.fromNullable(value);',
-  },
-  {
-    name: 'effect-no-deprecated-schema-package',
-    invalid: 'import { Schema } from "@effect/schema";',
-    valid: 'import { Schema } from "effect";',
-  },
-  {
-    name: 'effect-no-deprecated-context-tag-function',
-    invalid: 'const UserRepo = Context.Tag<UserRepo>("UserRepo");',
-    valid: 'class UserRepo extends Context.Tag("UserRepo")<UserRepo, Service>() {}',
   },
   {
     name: 'effect-require-service-self-match',
@@ -207,7 +126,11 @@ const defaultCases: RuleCase[] = [
 describe('retained non-strict Effect rule behavior', (): void => {
   it('has one behavior case for every retained non-strict rule', (): void => {
     expect(sorted(defaultCases.map((testCase) => testCase.name))).toStrictEqual(
-      sorted(effectDefaultRuleNames),
+      sorted(
+        effectDefaultRuleNames.filter(
+          (name) => !effectCanonicalSpecs.some((spec) => spec.name === name),
+        ),
+      ),
     );
   });
 
@@ -219,7 +142,7 @@ describe('retained non-strict Effect rule behavior', (): void => {
   it.each(defaultCases)(
     'keeps explicitly selected config behavior for Effect rule $name',
     (testCase): void => {
-      const config = withAllEffectRules(theThracianOxlint({ effect: true }));
+      const config = theThracianOxlint({ effect: true });
       const invalidRuleNames = runConfiguredRules(config, testCase.invalid, testCase.filename).map(
         (report) => report.ruleName,
       );

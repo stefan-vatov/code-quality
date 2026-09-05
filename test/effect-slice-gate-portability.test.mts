@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -13,7 +13,7 @@ const rootTextOrEmpty = (path: string) => (existsSync(rootPath(path)) ? rootText
 const minimumPeerRuleIDs = [
   'thethracian/effect-no-floating-effect',
   'thethracian/effect-require-yield-star',
-  'thethracian/effect-no-global-fetch',
+  'thethracian/effect-no-runSync-in-server-request-handlers',
 ];
 
 describe('Effect slice quality gate portability', () => {
@@ -112,7 +112,7 @@ describe('Effect slice quality gate portability', () => {
     expect(verifier).toContain('minimumPeerVersion');
     expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
     expect(verifier).toContain("await import('./full.config.mjs')");
-    expect(verifier).toContain('full minimum-peer config must expose 193 rules');
+    expect(verifier).toContain('full minimum-peer config must expose 210 rules');
     expect(verifier).toMatch(/--format(?:=|['",\s]+)json/u);
     expect(verifier).toContain('Schema.parseJson');
     expect(verifier).toContain('diagnostics');

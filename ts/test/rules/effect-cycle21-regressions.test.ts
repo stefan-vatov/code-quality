@@ -1,27 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index';
-import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
-import {
-  runConfiguredRules,
-  runRule,
-  strictEffectTestPaths,
-  withAllEffectRules,
-} from './effect-rule-test-utils';
-
-function configuredEffectRuleNames(source: string, filename = 'src/domain/user.ts'): string[] {
-  return runConfiguredRules(
-    withAllEffectRules(
-      theThracianOxlint({
-        effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
-      }),
-    ),
-    source,
-    filename,
-  )
-    .map((report) => report.ruleName)
-    .filter((ruleName): ruleName is string => Boolean(ruleName))
-    .sort();
-}
+import { runRule } from './effect-rule-test-utils';
 
 describe('Effect cycle 21 regression coverage', () => {
   it('detects floating Effects behind inline guards', () => {
@@ -33,21 +11,5 @@ describe('Effect cycle 21 regression coverage', () => {
     expect(
       runRule('effect-no-floating-effect', 'const docs = "if (enabled) Effect.succeed(1)";'),
     ).toHaveLength(0);
-  });
-
-  it('keeps overlap-prone configured diagnostics canonical', () => {
-    expect(configuredEffectRuleNames('fetch(url);')).toStrictEqual([
-      'effect-no-direct-http-fs-outside-platform-services',
-    ]);
-    expect(
-      configuredEffectRuleNames(
-        'const program = Effect.tryPromise({ try: () => fetch("/users"), catch: toError });',
-        'src/adapters/http.ts',
-      ),
-    ).toStrictEqual([
-      'effect-require-retry-policy-for-idempotent-external-effects',
-      'effect-require-span-external',
-      'effect-require-timeout-on-external-effects',
-    ]);
   });
 });

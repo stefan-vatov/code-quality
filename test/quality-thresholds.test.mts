@@ -1,9 +1,9 @@
+import publishedFactory from '@thethracian/oxlint-config';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import localFactory from '../ts/src/index';
-import publishedFactory from '@thethracian/oxlint-config';
 import { repositoryConfig } from '../oxlint.repository.mjs';
+import localFactory from '../ts/src/index';
 
 interface RepositoryConfigs {
   'package.json': {
@@ -222,7 +222,7 @@ describe('quality gate documentation and release verification', () => {
     expect(verifier).toContain('minimumPeerVersion');
     expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
     expect(verifier).toContain("await import('./full.config.mjs')");
-    expect(verifier).toContain('full minimum-peer config must expose 193 rules');
+    expect(verifier).toContain('full minimum-peer config must expose 210 rules');
     expect(verifier).toContain("'--format'");
     expect(verifier).toContain("'json'");
     expect(verifier).toMatch(
@@ -246,7 +246,7 @@ describe('quality gate documentation and release verification', () => {
     for (const ruleName of [
       'thethracian/effect-no-floating-effect',
       'thethracian/effect-require-yield-star',
-      'thethracian/effect-no-global-fetch',
+      'thethracian/effect-no-runSync-in-server-request-handlers',
     ]) {
       expect(compatibilityConfig).toContain(`'${ruleName}': 'error'`);
     }
@@ -256,7 +256,7 @@ describe('quality gate documentation and release verification', () => {
 
     expect(invalidFixture).toContain('void Effect.succeed(0);');
     expect(invalidFixture).toContain('yield Effect.succeed(1);');
-    expect(invalidFixture).toContain("try: () => fetch('/users')");
+    expect(invalidFixture).toContain('export const handler = () => Effect.runSync(program);');
     expect(safeFixture).toContain('Effect.succeed(1).pipe(Effect.map((value) => value + 1))');
   });
 });

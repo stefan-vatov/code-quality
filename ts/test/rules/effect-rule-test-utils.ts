@@ -2,21 +2,16 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { parseSync } from 'oxc-parser';
-import { Predicate } from 'effect';
 import { expect } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { isASTArray, isASTNode } from '../../src/rules/effect-ast';
 import type { ASTNode, ASTValue } from '../../src/rules/effect-ast';
-import type { StrictPathOptions } from '../../src/rules/effect-path-options';
+import { isASTArray, isASTNode } from '../../src/rules/effect-ast';
 import type { Context, SourceRule, VisitorMap } from '../../src/rules/effect-rule-core';
-import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
 import plugin from '../../src/rules/plugin';
 
 type Report = Parameters<Context['report']>[0] & {
   ruleName?: string;
 };
-
-type RuleSetting = NonNullable<ReturnType<typeof theThracianOxlint>['rules']>[string];
 
 type RuleCase = {
   filename?: string;
@@ -26,16 +21,6 @@ type RuleCase = {
 };
 
 const programNode: ASTNode = { type: 'Program', range: [0, 0] };
-
-const strictEffectTestPaths = {
-  adapterLayers: ['src/adapters/**', 'src/platform/**', 'src/infrastructure/**'],
-  compositionRoots: ['src/main.ts', 'src/server.ts', 'src/cli.ts', '**/*.entry.ts'],
-  configLayers: ['src/config/**', 'src/layers/**', 'src/infrastructure/**'],
-  domain: ['src/domain/**', 'src/core/**', 'src/features/**'],
-  entrypoints: ['src/main.ts', 'src/server.ts', 'src/cli.ts', '**/*.entry.ts'],
-  integrationTests: ['**/*.integration.test.ts', '**/*.integration.spec.ts'],
-  unitTests: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx'],
-} as const;
 
 function traverse(node: ASTValue, visitors: VisitorMap): void {
   if (!isASTNode(node)) {
@@ -79,12 +64,7 @@ function sorted(values: readonly string[]): string[] {
   return [...values].sort((left, right) => left.localeCompare(right));
 }
 
-function runRule(
-  ruleName: string,
-  source: string,
-  filename = 'src/domain/user.ts',
-  options?: StrictPathOptions,
-): Report[] {
+function runRule(ruleName: string, source: string, filename = 'src/domain/user.ts'): Report[] {
   const root = mkdtempSync(join(tmpdir(), 'thx-effect-bucket-rule-'));
   const filePath = join(root, filename);
   const reports: Report[] = [];
@@ -93,7 +73,7 @@ function runRule(
   writeFileSync(filePath, source);
 
   try {
-    runRuleAtPath(ruleName, filePath, reports, options, source);
+    runRuleAtPath(ruleName, filePath, reports, source);
   } finally {
     rmSync(root, { force: true, recursive: true });
   }
@@ -101,17 +81,10 @@ function runRule(
   return reports;
 }
 
-function runRuleAtPath(
-  ruleName: string,
-  filePath: string,
-  reports: Report[],
-  options?: StrictPathOptions,
-  source = '',
-): void {
+function runRuleAtPath(ruleName: string, filePath: string, reports: Report[], source = ''): void {
   const rule = getEffectRule(ruleName);
   const visitors = rule.create({
     filename: filePath,
-    options: options ? [options] : [],
     report(report: Report) {
       reports.push(report);
     },
@@ -122,11 +95,7 @@ function runRuleAtPath(
   traverse(ast, visitors);
 }
 
-function runAllRules(
-  source: string,
-  filename = 'src/domain/user.ts',
-  options?: StrictPathOptions,
-): Report[] {
+function runAllRules(source: string, filename = 'src/domain/user.ts'): Report[] {
   const root = mkdtempSync(join(tmpdir(), 'thx-effect-all-rules-'));
   const filePath = join(root, filename);
   const reports: Report[] = [];
@@ -142,7 +111,6 @@ function runAllRules(
 
       const visitors = getEffectRule(ruleName).create({
         filename: filePath,
-        options: options ? [options] : [],
         report(report: Report) {
           reports.push({ ...report, ruleName });
         },
@@ -157,19 +125,6 @@ function runAllRules(
   }
 
   return reports;
-}
-
-function ruleOptionsFromSetting(setting: RuleSetting | undefined): StrictPathOptions | undefined {
-  if (!Array.isArray(setting)) {
-    return undefined;
-  }
-
-  const [, options] = setting;
-  if (!Predicate.isRecord(options)) {
-    return undefined;
-  }
-
-  return options as StrictPathOptions;
 }
 
 function runConfiguredRules(
@@ -185,17 +140,15 @@ function runConfiguredRules(
   writeFileSync(filePath, source);
 
   try {
-    for (const [fullRuleName, setting] of Object.entries(config.rules ?? {})) {
+    for (const fullRuleName of Object.keys(config.rules ?? {})) {
       if (!fullRuleName.startsWith('thethracian/effect-')) {
         continue;
       }
 
       const ruleName = fullRuleName.replace(/^thethracian\//, '');
       const rule = getEffectRule(ruleName);
-      const options = ruleOptionsFromSetting(setting);
       const visitors = rule.create({
         filename: filePath,
-        options: options ? [options] : [],
         report(report: Report) {
           reports.push({ ...report, ruleName });
         },
@@ -212,32 +165,5 @@ function runConfiguredRules(
   return reports;
 }
 
-function withAllEffectRules(
-  config: ReturnType<typeof theThracianOxlint>,
-): ReturnType<typeof theThracianOxlint> {
-  const strictSetting = config.rules?.['thethracian/effect-no-run-outside-entrypoints'];
-  const strictOptions = ruleOptionsFromSetting(strictSetting);
-  const defaultRuleSetting: RuleSetting = strictOptions ? ['error', strictOptions] : 'error';
-
-  return {
-    ...config,
-    rules: {
-      ...config.rules,
-      ...Object.fromEntries(
-        effectDefaultRuleNames.map((ruleName) => [`thethracian/${ruleName}`, defaultRuleSetting]),
-      ),
-    },
-  };
-}
-
-export {
-  getEffectRule,
-  runAllRules,
-  runConfiguredRules,
-  runRule,
-  runRuleAtPath,
-  sorted,
-  strictEffectTestPaths,
-  withAllEffectRules,
-};
+export { getEffectRule, runAllRules, runConfiguredRules, runRule, runRuleAtPath, sorted };
 export type { Report, RuleCase };

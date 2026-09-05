@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import type { LocalBinding } from '../../src/rules/effect-recursion-local-bindings';
-import { hasTopLevelPipeOperator } from '../../src/rules/effect-strict-segment-helpers';
 import { resolveLocalTarget } from '../../src/rules/effect-recursion-local-bindings';
 
 const DEEP_SCAN_SIZES = [10_000, 100_000] as const;
@@ -20,11 +19,6 @@ const attempt = <Value>(run: () => Value): Attempt<Value> => {
   }
 };
 
-const whitespaceSource = (size: number): string => `value.pipe(${' '.repeat(size)}Effect.retry(1))`;
-
-const nonTopLevelOperatorSource = (count: number): string =>
-  `value.pipe(${'xEffect.retry() '.repeat(count)})`;
-
 const aliasScope = (depth: number): ReadonlyMap<string, LocalBinding> => {
   const bindings = new Map<string, LocalBinding>();
   for (let index = 0; index < depth; index += 1) {
@@ -37,28 +31,6 @@ const aliasScope = (depth: number): ReadonlyMap<string, LocalBinding> => {
 };
 
 describe('remaining source hotspot regressions', (): void => {
-  it('keeps strict pipe whitespace backscans stack-safe at deep whitespace runs', (): void => {
-    const outcomes = DEEP_SCAN_SIZES.map((size) =>
-      attempt((): boolean => hasTopLevelPipeOperator(whitespaceSource(size), 'retry')),
-    );
-
-    expect(outcomes).toStrictEqual([
-      { kind: 'success', value: true },
-      { kind: 'success', value: true },
-    ]);
-  });
-
-  it('keeps strict pipe operator scans stack-safe across many non-top-level matches', (): void => {
-    const outcomes = DEEP_SCAN_SIZES.map((size) =>
-      attempt((): boolean => hasTopLevelPipeOperator(nonTopLevelOperatorSource(size), 'retry')),
-    );
-
-    expect(outcomes).toStrictEqual([
-      { kind: 'success', value: false },
-      { kind: 'success', value: false },
-    ]);
-  });
-
   it('keeps local recursion alias-chain resolution stack-safe at deep chains', (): void => {
     const outcomes = DEEP_SCAN_SIZES.map((size) =>
       attempt(() => resolveLocalTarget('alias0', 'loop', [aliasScope(size)])),

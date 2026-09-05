@@ -5,8 +5,6 @@ import {
   findMatchingBrace,
   stripCommentsAndStrings,
 } from '../../src/rules/effect-source-scan';
-import { hasPromiseReturningPublicAPI } from '../../src/rules/effect-strict-internals';
-import { runRule } from './effect-rule-test-utils';
 
 const sourceLines = (...lines: string[]): string => lines.join('\n');
 
@@ -288,32 +286,4 @@ const registerCallableBoundaryTests = (): void => {
 describe('Effect exported declaration contracts', (): void => {
   registerExportDeclarationTests();
   registerCallableBoundaryTests();
-});
-
-describe('Effect exported declaration downstream diagnostics', (): void => {
-  it('keeps Promise-returning API diagnostics visible after an object return type', (): void => {
-    const runPromiseSource = sourceLines(
-      'export function execute(): Promise<{ readonly value: number }> {',
-      '  return Effect.runPromise(Effect.succeed({ value: 1 }));',
-      '}',
-    );
-
-    expect(hasPromiseReturningPublicAPI(runPromiseSource)).toBe(true);
-    expect(runRule('effect-no-promise-returning-public-api', runPromiseSource)).toHaveLength(1);
-  });
-
-  it('keeps class Promise diagnostics visible after Schema.Class fields', (): void => {
-    const source = sourceLines(
-      'export class User extends Schema.Class<User>("User")({',
-      '  id: Schema.String,',
-      '}) {',
-      '  async save(): Promise<void> {',
-      '    return Effect.runPromise(program);',
-      '  }',
-      '}',
-    );
-
-    expect(hasPromiseReturningPublicAPI(source)).toBe(true);
-    expect(runRule('effect-no-promise-returning-public-api', source)).toHaveLength(1);
-  });
 });

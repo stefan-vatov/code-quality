@@ -1,37 +1,14 @@
 import { dirname, join } from 'node:path';
 import { Predicate } from 'effect';
-import { effectSafetyRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
-import type { EffectStrictRuleName } from './rules/effect-rule-names';
+import { effectDefaultRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
 import { defineConfig } from 'oxlint';
 import { fileURLToPath } from 'node:url';
-import { strictPathOptionKeys } from './rules/effect-path-options';
-import type { StrictPathOptionKey, StrictPathOptions } from './rules/effect-path-options';
-
-export type { EffectStrictRuleName } from './rules/effect-rule-names';
 
 export interface TheThracianOxlintOptions {
   typeAware?: boolean;
-  effect?: boolean | TheThracianEffectOptions;
+  effect?: boolean;
 }
 
-export interface TheThracianEffectOptions {
-  enabled?: boolean;
-  strict?: false | TheThracianEffectStrictOptions;
-}
-
-export interface TheThracianEffectStrictOptions {
-  adapterLayers?: readonly string[];
-  compositionRoots?: readonly string[];
-  configLayers?: readonly string[];
-  domain?: readonly string[];
-  enabled?: boolean;
-  entrypoints?: readonly string[];
-  integrationTests?: readonly string[];
-  rules: readonly EffectStrictRuleName[];
-  unitTests?: readonly string[];
-}
-
-type OxlintRuleSetting = 'error' | ['error', StrictPathOptions];
 type ToggleRuleSetting = 'error';
 type DefineConfigInput = Parameters<typeof defineConfig>[0];
 type RuleMap = NonNullable<DefineConfigInput['rules']>;
@@ -66,7 +43,6 @@ const portedRuleNames = [
   'no-unknown-type-aliases',
   'no-unsafe-dictionary-type',
   'no-widen-then-assert',
-  'no-comments',
 ] as const;
 
 const portedRules: RuleMap = {
@@ -91,6 +67,7 @@ const nativeRuleAllowlist = [
   'import/no-duplicates',
   'import/no-self-import',
   'max-depth',
+  'max-lines',
   'max-lines-per-function',
   'max-nested-callbacks',
   'max-params',
@@ -273,164 +250,18 @@ const typeAwareNativeRuleNames = [
 
 const typeAwareNativeRuleNameSet = new Set<string>(typeAwareNativeRuleNames);
 
-const isEffectOptions = (
-  effect: TheThracianOxlintOptions['effect'],
-): effect is TheThracianEffectOptions => Predicate.isObject(effect) && !Array.isArray(effect);
-
-const isEffectEnabled = (effect: TheThracianOxlintOptions['effect']): boolean => {
-  if (effect === true) {
-    return true;
+const buildEffectRules = (effect: boolean | undefined): RuleMap => {
+  if (effect !== undefined && !Predicate.isBoolean(effect)) {
+    throw new TypeError('effect must be a boolean');
   }
-  if (isEffectOptions(effect)) {
-    return effect.enabled !== false;
-  }
-  return false;
-};
-
-const isStrictEffectOptions = (value: unknown): value is TheThracianEffectStrictOptions => {
-  if (!Predicate.isObject(value) || Array.isArray(value) || !('rules' in value)) {
-    return false;
-  }
-  const rules = value.rules;
-  return Array.isArray(rules) && rules.every(Predicate.isString);
-};
-
-const getStrictEffectOptions = (
-  effect: TheThracianOxlintOptions['effect'],
-): TheThracianEffectStrictOptions | undefined => {
-  if (!isEffectEnabled(effect) || !isEffectOptions(effect)) {
-    return undefined;
-  }
-
-  const strict: unknown = effect.strict;
-  if (strict === undefined || strict === false) {
-    return undefined;
-  }
-  if (strict === true) {
-    throw new TypeError(
-      'effect.strict: true is no longer supported; select rules and provide their explicit project paths',
-    );
-  }
-  if (!isStrictEffectOptions(strict)) {
-    throw new TypeError('effect.strict must be false or an object with a rules array');
-  }
-  if (strict.enabled === false) {
-    return undefined;
-  }
-
-  return strict;
-};
-
-const strictEffectRuleNameSet = new Set<string>(effectStrictRuleNames);
-
-const strictRulePathRequirements: Partial<
-  Record<EffectStrictRuleName, readonly StrictPathOptionKey[]>
-> = {
-  'effect-no-direct-clock-random-outside-adapters': ['adapterLayers'],
-  'effect-no-direct-http-fs-outside-platform-services': ['adapterLayers'],
-  'effect-no-direct-process-env-outside-config-layer': ['configLayers'],
-  'effect-no-global-fetch': ['adapterLayers'],
-  'effect-no-leaked-service-dependencies': ['domain'],
-  'effect-no-live-services-in-unit-tests': ['unitTests', 'integrationTests'],
-  'effect-no-node-builtins-when-effect-platform-exists': ['adapterLayers'],
-  'effect-no-provide-in-domain-modules': ['domain'],
-  'effect-no-run-outside-entrypoints': ['entrypoints', 'unitTests', 'integrationTests'],
-  'effect-no-service-construction-outside-layer': ['adapterLayers', 'configLayers'],
-  'effect-no-test-runtime-leakage': ['unitTests', 'integrationTests'],
-  'effect-prefer-in-memory-implementations': ['unitTests', 'integrationTests'],
-  'effect-require-centralized-provision': ['compositionRoots'],
-  'effect-require-platform-runmain-at-entrypoints': ['entrypoints'],
-  'effect-require-provided-services-in-tests': ['unitTests', 'integrationTests'],
-  'effect-require-testclock-for-time-code': ['unitTests', 'integrationTests'],
-  'effect-schema-require-config-schema': ['configLayers'],
-};
-
-const selectedStrictRuleNames = (
-  strictOptions: TheThracianEffectStrictOptions,
-): readonly EffectStrictRuleName[] => {
-  for (const ruleName of strictOptions.rules) {
-    if (!strictEffectRuleNameSet.has(ruleName)) {
-      throw new TypeError(`Unknown strict Effect rule: ${ruleName}`);
-    }
-  }
-
-  return strictOptions.rules;
-};
-
-const validateStrictRulePaths = (
-  strictOptions: TheThracianEffectStrictOptions,
-  ruleNames: readonly EffectStrictRuleName[],
-): void => {
-  for (const ruleName of ruleNames) {
-    const requiredPathOptions: readonly StrictPathOptionKey[] =
-      strictRulePathRequirements[ruleName] ?? [];
-    for (const pathOption of requiredPathOptions) {
-      if (!Object.hasOwn(strictOptions, pathOption)) {
-        throw new TypeError(
-          `Strict Effect rule ${ruleName} requires explicit path option: ${pathOption}`,
-        );
-      }
-    }
-  }
-};
-
-const validateStrictPathOptions = (strictOptions: TheThracianEffectStrictOptions): void => {
-  for (const pathOption of strictPathOptionKeys) {
-    if (!Object.hasOwn(strictOptions, pathOption)) {
-      continue;
-    }
-    const value = strictOptions[pathOption];
-    if (!Array.isArray(value) || !value.every(Predicate.isString)) {
-      throw new TypeError(`Strict Effect path option ${pathOption} must be an array of strings`);
-    }
-  }
-};
-
-const buildEffectRules = (
-  effect: TheThracianOxlintOptions['effect'],
-): Record<string, OxlintRuleSetting> => {
-  if (!isEffectEnabled(effect)) {
-    return {};
-  }
-
-  const strictOptions = getStrictEffectOptions(effect);
-  if (strictOptions) {
-    validateStrictPathOptions(strictOptions);
-  }
-  const ruleEntries: [string, OxlintRuleSetting][] = effectSafetyRuleNames.map((ruleName) => [
-    `thethracian/${ruleName}`,
-    'error',
+  if (!effect) return {};
+  return Object.fromEntries<'error'>([
+    ...[...effectDefaultRuleNames, ...effectStrictRuleNames].map((name): [string, 'error'] => [
+      `thethracian/${name}`,
+      'error',
+    ]),
+    ['thethracian/no-service-constructor-imports', 'error'],
   ]);
-
-  if (strictOptions) {
-    const strictRuleNames = selectedStrictRuleNames(strictOptions);
-    validateStrictRulePaths(strictOptions, strictRuleNames);
-    ruleEntries.push(
-      ...strictRuleNames.map((ruleName): [string, OxlintRuleSetting] => [
-        `thethracian/${ruleName}`,
-        strictEffectRuleSetting(ruleName, strictOptions),
-      ]),
-    );
-  }
-
-  ruleEntries.push(['thethracian/no-service-constructor-imports', 'error']);
-
-  return Object.fromEntries(ruleEntries);
-};
-
-const strictEffectRuleSetting = (
-  ruleName: EffectStrictRuleName,
-  strictOptions: TheThracianEffectStrictOptions,
-): OxlintRuleSetting => {
-  const requiredPathOptions = strictRulePathRequirements[ruleName];
-  if (!requiredPathOptions || requiredPathOptions.length === 0) {
-    return 'error';
-  }
-
-  const pathOptions: StrictPathOptions = Object.fromEntries(
-    requiredPathOptions.map((pathOption) => [pathOption, strictOptions[pathOption]]),
-  );
-  return ['error', pathOptions];
 };
 
 const typeAwareRuleSetting = (isTypeAware: boolean | undefined): ToggleRuleSetting | undefined => {
@@ -470,6 +301,7 @@ const configuredNativeRules: RuleMap = {
     },
   ],
   'max-depth': ['error', { max: 5 }],
+  'max-lines': ['error', { max: 5000, skipBlankLines: true, skipComments: true }],
   'max-lines-per-function': [
     'error',
     {

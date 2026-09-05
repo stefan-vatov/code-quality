@@ -37,20 +37,4 @@ describe('Effect cycle 8 regression coverage', (): void => {
     expect(runRule('effect-require-acquire-release', valid)).toHaveLength(0);
     expect(runRule('effect-require-acquire-release', invalid)).toHaveLength(1);
   });
-
-  it('does not let resource detection span from one Layer.effect into a scoped layer', (): void => {
-    const valid = `
-      const PureLayer = Layer.effect(Service, Effect.succeed(service));
-      const ScopedLayer = Layer.scoped(
-        SocketService,
-        Effect.sync(() => openSocket())
-      );
-    `;
-
-    const invalid =
-      'const UnsafeLayer = Layer.effect(SocketService, Effect.sync(() => openSocket()));';
-
-    expect(runRule('effect-require-scoped-for-resource-layers', valid)).toHaveLength(0);
-    expect(runRule('effect-require-scoped-for-resource-layers', invalid)).toHaveLength(1);
-  });
 });

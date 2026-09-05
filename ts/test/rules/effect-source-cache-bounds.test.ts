@@ -1,7 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { createWeightedCache } from '../../src/rules/source-cache';
-import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
 
 const sourceText = (path: string): string => readFileSync(path, 'utf8');
 
@@ -109,21 +109,6 @@ const cacheIntegrations: readonly CacheIntegration[] = [
     cacheName: 'floatingEffectPatternCache',
     label: 'floating Effect pattern',
     path: sourcePath('effect-default-floating-helpers.ts'),
-  },
-  {
-    cacheName: 'localEffectCallSegmentCache',
-    label: 'local Effect call segment',
-    path: sourcePath('effect-strict-segment-helpers.ts'),
-  },
-  {
-    cacheName: 'enclosingEffectWrapperSegmentCache',
-    label: 'enclosing Effect wrapper segment',
-    path: sourcePath('effect-strict-segment-helpers.ts'),
-  },
-  {
-    cacheName: 'globCache',
-    label: 'glob',
-    path: sourcePath('effect-path-options.ts'),
   },
 ];
 

@@ -76,18 +76,18 @@ assert.deepStrictEqual(
 
 assert.equal(
   baseSourceNativeEntries.length,
-  128,
-  'base source config must expose 128 syntax-only native rules',
+  129,
+  'base source config must expose 129 syntax-only native rules',
 );
 assert.equal(
   sourceNativeEntries.length,
-  159,
-  'type-aware source config must expose 159 native rules',
+  160,
+  'type-aware source config must expose 160 native rules',
 );
 assert.equal(
   printedNativeEntries.length,
-  159,
-  'resolved type-aware config must expose 159 native rules',
+  160,
+  'resolved type-aware config must expose 160 native rules',
 );
 
 const sourceNative = Object.fromEntries(
@@ -106,7 +106,7 @@ const effectConfig = theThracianOxlint({ effect: true, typeAware: true });
 const effectRules = Object.entries(effectConfig.rules ?? {}).filter(([ruleName]) =>
   ruleName.startsWith('thethracian/effect-'),
 );
-assert.equal(effectRules.length, 18, 'effect: true must enable exactly the safety bucket');
+assert.equal(effectRules.length, 35, 'effect: true must enable every retained Effect rule');
 assert.ok(
   effectRules.every(([, setting]) => normalizeSeverity(severityOf(setting)) === 'error'),
   'Active custom Effect rules must all be errors',

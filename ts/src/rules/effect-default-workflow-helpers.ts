@@ -8,66 +8,15 @@ import {
 import {
   findBalancedCallEnd,
   findMatchingBrace,
-  findStatementEnd,
   stripComments,
   stripCommentsAndStrings,
 } from './effect-source-helpers';
 import { hasRecursiveEffectSource } from './effect-recursion-source';
 
-const JSON_PARSE_PATTERN = /\bJSON\.parse\s*\(/g;
-const JSON_NUMBER_FROM_STRING_PATTERN =
-  /\b(?:[A-Za-z_$][\w$]*NumberFromString|Schema\.NumberFromString)\b/g;
-
 interface PromiseObjectBody {
   readonly body: string;
   readonly rawBody: string;
 }
-
-const firstIndexAtOrAfter = (indexes: readonly number[], targetIndex: number): number => {
-  let low = 0;
-  let high = indexes.length;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if ((indexes[middle] ?? Number.POSITIVE_INFINITY) < targetIndex) {
-      low = middle + 1;
-    } else {
-      high = middle;
-    }
-  }
-  return low;
-};
-
-const matchIndexes = (code: string, pattern: RegExp): number[] => {
-  const indexes: number[] = [];
-  for (const match of code.matchAll(pattern)) {
-    indexes.push(match.index);
-  }
-  return indexes;
-};
-
-const statementStartScanner = (code: string): ((matchIndex: number) => number) => {
-  let scanIndex = 0;
-  let statementStart = 0;
-  return (matchIndex): number => {
-    while (scanIndex < matchIndex) {
-      if (code[scanIndex] === ';' || code[scanIndex] === '\n') {
-        statementStart = scanIndex + 1;
-      }
-      scanIndex += 1;
-    }
-    return statementStart;
-  };
-};
-
-const hasIndexAtOrBefore = (
-  indexes: readonly number[],
-  startIndex: number,
-  endIndex: number,
-): boolean => {
-  const firstIndex = firstIndexAtOrAfter(indexes, startIndex);
-  const index = indexes[firstIndex];
-  return index !== undefined && index <= endIndex;
-};
 
 export const hasUnboundedEffectConcurrency = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);
@@ -91,20 +40,6 @@ export const hasUnboundedFlatMapConcurrency = (source: string): boolean => {
       ),
     ),
   );
-};
-
-export const hasParsedJSONNumberFromString = (source: string): boolean => {
-  const code = stripCommentsAndStrings(source);
-  const numberFromStringIndexes = matchIndexes(code, JSON_NUMBER_FROM_STRING_PATTERN);
-  const getStatementStart = statementStartScanner(code);
-  for (const match of code.matchAll(JSON_PARSE_PATTERN)) {
-    const statementStart = getStatementStart(match.index);
-    const statementEnd = findStatementEnd(code, statementStart);
-    if (hasIndexAtOrBefore(numberFromStringIndexes, statementStart, statementEnd)) {
-      return true;
-    }
-  }
-  return false;
 };
 
 export const hasReturnEffectInGen = (source: string): boolean => {

@@ -1,7 +1,7 @@
+import { Predicate } from 'effect';
 import { isAbsolute, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { Predicate } from 'effect';
 
 type PluginEntry = NonNullable<ReturnType<typeof theThracianOxlint>['jsPlugins']>[number];
 
@@ -23,7 +23,6 @@ const genericRuleNames = [
   'no-unknown-type-aliases',
   'no-unsafe-dictionary-type',
   'no-widen-then-assert',
-  'no-comments',
 ] as const;
 
 describe('ported rule integration', (): void => {

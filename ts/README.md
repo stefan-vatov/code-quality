@@ -21,7 +21,7 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The base config selects 143 reviewed rules: 128 syntax-only upstream Oxlint rules and 15
+The syntax-only base config selects 143 reviewed rules: 129 syntax-only upstream Oxlint rules and 14
 package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
@@ -29,30 +29,31 @@ warning downgrade and is not a collection of rule-level disables: unapproved rul
 enter the effective allowlist.
 
 The audit physically removed generic homegrown rules whose style or naming opinions did not provide a
-dependable correctness signal. It also removed the flagged Effect preference rules and semantically
+dependable correctness signal. It also removed unreliable Effect heuristics and semantically
 unsound module-scope rules; those rules are not merely hidden by configuration. The retained
-package-local Effect safety and architecture rules are a separate, intentionally opt-in policy and
-remain available below.
+package-local Effect rules form one opt-in preset, described below.
 
 The base structural limits are deliberately configurable values with clear review value:
 
-| Rule                     |                                         Limit |
-| ------------------------ | --------------------------------------------: |
-| `complexity`             |                                            10 |
-| `max-depth`              |                                      5 levels |
-| `max-lines-per-function` | 150 lines, excluding blank lines and comments |
-| `max-nested-callbacks`   |                                      6 levels |
-| `max-params`             |                                  7 parameters |
+| Rule                     |                                           Limit |
+| ------------------------ | ----------------------------------------------: |
+| `complexity`             |                                              10 |
+| `max-lines`              | 5,000 lines, excluding blank lines and comments |
+| `max-depth`              |                                        5 levels |
+| `max-lines-per-function` |   150 lines, excluding blank lines and comments |
+| `max-nested-callbacks`   |                                        6 levels |
+| `max-params`             |                                    7 parameters |
 
-Line width belongs to the formatter, not the lint policy. There is no maximum file-length or
-import-count rule. The base profile also intentionally omits global `console`, naming, null,
+Line width belongs to the formatter, not the lint policy. Files are capped at 5,000 lines, excluding blank lines and comments. There is no
+import-count rule. General naming preferences are absent except for the imported symbol-name rule.
+The base profile also intentionally omits global `console`, null,
 ternary, magic-number, documentation, and absolute `any`/assertion bans: those rules produce
 mechanical churn or reject legitimate framework, generated-code, and interop boundaries without a
 reliable defect signal.
 
 ## Additional TypeScript safety rules
 
-The package-local plugin enables these 15 rules as errors in every configuration. They use Oxlint's
+The package-local plugin enables these 14 rules as errors in every configuration. They use Oxlint's
 ESTree and lexical-scope APIs, resolve same-file aliases, and deliberately stop at file boundaries:
 
 | Rule                                             | Policy                                                                                          |
@@ -71,15 +72,11 @@ ESTree and lexical-scope APIs, resolve same-file aliases, and deliberately stop 
 | `thethracian/no-unknown-type-aliases`            | Rejects aliases that resolve to `unknown`.                                                      |
 | `thethracian/no-unsafe-dictionary-type`          | Rejects dictionary value contracts based on `unknown`, `any`, `object`, or `{}`.                |
 | `thethracian/no-widen-then-assert`               | Rejects immutable flows that widen evidence and later assert it back to a narrow type.          |
-| `thethracian/no-comments`                        | Rejects line, block, JSDoc, JSX, and interpolation comments; interpreter shebangs remain valid. |
 
 These rules have no automatic migration behavior and do not replace the native Oxlint allowlist.
 
-Comments are errors in JavaScript and TypeScript, including documentation and lint-directive
-comments. The rule uses parser comment tokens, so strings, template text, and regular expressions
-containing comment-like text are unaffected. Interpreter shebangs are execution directives and
-remain valid. There is no automatic comment deletion: removing compiler directives or semantic
-annotations can change behavior. Put explanations in external documentation instead.
+The TypeScript/JavaScript `no-comments` rule has been deleted. Comments and documentation
+comments are allowed by this package; Rust and Elixir retain their separate comment policies.
 
 The former safety-comment assertion rule and Effect suppression-comment requirement are removed.
 Assertions remain subject to the type-safety rules; they no longer require comments.
@@ -133,8 +130,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 15 package-local rules and adds all 31 approved semantic rules for 174
-selected errors in total (159 native upstream errors plus the 15 package-local rules). They include
+Type-aware mode keeps the 14 package-local rules and adds all 31 approved semantic rules for 174
+selected errors in total (160 native upstream errors plus the 14 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -144,12 +141,13 @@ Explicit `any` annotations, non-null assertions, and boundary type assertions re
 validated, generated, framework, and interop boundaries. The type-aware unsafe-operation rules
 still reject unchecked use of those values.
 
-## Effect safety rules (opt in)
+## Effect safety and canonical-pattern rules (opt in)
 
 Effect rules are disabled by default. Pass `effect: true` when the project uses Effect and wants
-the 18 retained high-confidence safety rules plus the additional
+all 35 retained Effect rules plus the additional
 `thethracian/no-service-constructor-imports` rule. These package-local rules are all reported as
-errors and focus on observable hazards rather than style preferences:
+errors. They combine safety checks with deliberate canonical-pattern guardrails for consistent
+Effect code, including AI-generated code:
 
 ```js
 export default theThracian({
@@ -157,7 +155,7 @@ export default theThracian({
 });
 ```
 
-The safety bucket is exactly:
+The unchanged 18-rule safety bucket is:
 
 ```text
 effect-no-floating-effect
@@ -186,33 +184,57 @@ concurrency. The additional service-constructor rule rejects named `make<Capabil
 relative project modules outside focused test files. They do not include preference-only migration
 advice.
 
-## Strict Effect architecture (explicit opt in)
+The other five retained Effect rules are also enabled by `effect: true`:
 
-There are 59 retained strict Effect architecture rules. None is enabled by `effect: true` alone.
-Select each rule by name and provide every path group that it inspects; selected rules remain
-errors.
-
-```js
-export default theThracian({
-  effect: {
-    strict: {
-      adapterLayers: ['src/platform/**'],
-      entrypoints: ['src/main.ts'],
-      rules: ['effect-no-global-fetch', 'effect-require-platform-runmain-at-entrypoints'],
-    },
-  },
-});
+```text
+effect-no-known-fake-api
+effect-require-service-self-match
+effect-no-focused-effect-tests
+effect-no-skipped-effect-tests
+effect-no-runSync-in-server-request-handlers
 ```
 
-The API rejects `effect.strict: true`, unknown rule names, missing required path groups, and
-malformed path arrays. Use `strict: false` or `strict: { enabled: false, rules: [...] }` for an
-explicit disable. The path groups are project declarations, not guessed `src/**` defaults.
+The public option is `effect?: boolean`. Omit it or pass `false` to disable Effect rules and the
+service-constructor rule. Any nonboolean value, including the former strict options object, throws
+`TypeError`. Replace old `effect: { strict: ... }` configurations with `effect: true` or `false`;
+rule selections and path groups are no longer supported. The public `EffectStrictRuleName`,
+`TheThracianEffectOptions`, and `TheThracianEffectStrictOptions` types are removed.
 
-The plugin also retains 19 specialized migration, version, error-model, schema, and test analyzers
-for explicit rule configuration. They are never in the base preset or the 18-rule safety bucket,
-and they never become warnings. Together with the 18 safety rules and 59 strict architecture rules,
-the retained Effect rule surface is 96 rules; the service-constructor rule above is an additional
-opt-in rule outside those buckets.
+Twelve canonical-pattern rules are also enabled, with no separate switches or warning tier:
+
+```text
+effect-no-catchAll-with-mapError
+effect-prefer-effect-void
+effect-prefer-asVoid
+effect-prefer-flatMap-over-map-flatten
+effect-prefer-succeed-for-static-layers
+effect-prefer-schema-tagged-struct
+effect-prefer-single-schema-literal-union
+effect-schema-require-parseJson-for-json-strings
+effect-schema-no-cast-after-decode
+effect-no-error-channel-widening-to-unknown
+effect-require-service-class-pattern
+effect-require-deterministic-service-keys
+```
+
+These are intentional conventions, not claims that every rejected alternative is a runtime bug.
+The checks use AST structure and Effect import identity rather than nearby text. Pure result
+discarding excludes side-effecting callbacks; literal-union simplification excludes annotated
+alternatives. Service keys must equal the class name or end with `/ClassName`.
+Schema cast checks cover direct assertions of decoder calls, not arbitrary downstream dataflow;
+the error-channel rule rejects explicit `unknown` error arguments, not every inferred widening.
+Rules report errors without semantic autofixes.
+
+The other deleted rules remain absent, including path-based architecture rules and unreliable
+resource heuristics. Restoring the canonical rules does not reintroduce strict selections or path
+groups. Architecture boundaries belong in consuming repositories with concrete path or import
+contracts, not in this shared preset. The package does not infer module roles from unrelated imports
+or name suffixes, or require consumers to adopt a prescribed folder structure.
+
+With `typeAware: true`, the base preset enables 174 errors (160 native plus 14 generic), or
+210 with `effect: true` (174 plus 35 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 143 and 179 respectively. Internal name lists retain
+34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)
 
@@ -234,12 +256,12 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 
 | Area                 | Policy                                                                                                                                                                                         |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Shape                | 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 10                                                                                                             |
+| Shape                | 5,000-line files, 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 10                                                                                           |
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
-| TypeScript safety    | 15 package-local errors for evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                                                     |
+| TypeScript safety    | 14 package-local errors for evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                                                     |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
-| Effect               | 18 safety errors with `effect: true`; 59 architecture errors only when explicitly selected with paths                                                                                          |
-| Deliberate omissions | No global `console`, null, ternary, magic-number, naming, file-size, import-count, documentation, or absolute assertion/`any` bans                                                             |
+| Effect               | 35 Effect errors plus the service-constructor rule with `effect: true`                                                                                                                         |
+| Deliberate omissions | No global `console`, null, ternary, magic-number, general naming (except the imported symbol-name rule), import-count, documentation, or absolute assertion/`any` bans                         |
 
 ## Registry links
 

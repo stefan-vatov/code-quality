@@ -1,12 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it, vi } from 'vitest';
 import {
   type Context,
   type RuleSpec,
   type VisitorMap,
   makeRules,
 } from '../../src/rules/effect-rule-core';
-import { describe, expect, it, vi } from 'vitest';
-import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
 
 const sourceText = (path: string): string =>
   readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf-8');
@@ -158,8 +158,6 @@ const registerTokenInvariants = (): void => {
       ['effect-no-floating-fiber', "tokens: ['fork'],"],
       ['effect-no-runfork-without-observer', "tokens: ['runFork'],"],
       ['effect-require-suspend-for-recursion', "tokens: ['function', '=>'],"],
-      ['effect-schema-no-cast-after-decode', "tokenGroups: [['Schema.decode'], [' as ']],"],
-      ['effect-no-deprecated-context-tag-function', "tokens: ['Context.Tag'],"],
     ] as const) {
       expect(defaultRulesSource).toContain(`name: '${ruleName}',`);
       expect(defaultRulesSource).toContain(tokenLine);
@@ -170,68 +168,6 @@ const registerTokenInvariants = (): void => {
     const defaultHelpersSource = sourceText('../../src/rules/effect-default-floating-helpers.ts');
 
     expect(defaultHelpersSource).not.toContain("code.split('\\n')");
-  });
-
-  it('uses per-rule tokens for expensive strict Program-only checks', (): void => {
-    const strictRulesSource = joinedSourceText(
-      '../../src/rules/effect-strict-core-specs.ts',
-      '../../src/rules/effect-strict-ast-specs.ts',
-    );
-
-    for (const [ruleName, tokenLine] of [
-      [
-        'effect-schema-require-validation-at-input-boundaries',
-        "tokens: ['.body', '.params', '.query', '.payload'],",
-      ],
-      [
-        'effect-schema-require-validation-at-output-boundaries',
-        "tokens: ['Response.json', 'return json'],",
-      ],
-      [
-        'effect-schema-require-http-client-response-schema',
-        "tokens: ['HttpClient.', 'response.json'],",
-      ],
-      [
-        'effect-schema-require-http-server-request-schema',
-        "tokens: ['HttpRouter.', 'HttpServerRequest'],",
-      ],
-      [
-        'effect-schema-require-persistence-schema',
-        "tokens: ['db.', 'database.', 'collection.', 'repository.'],",
-      ],
-      ['effect-schema-require-public-command-schema', "tokens: ['handler'],"],
-      [
-        'effect-require-timeout-on-external-effects',
-        "tokens: ['HttpClient.', 'fetch', 'FileSystem.', 'SqlClient.'],",
-      ],
-      [
-        'effect-require-retry-policy-for-idempotent-external-effects',
-        "tokens: ['HttpClient.', 'fetch', 'find', 'lookup', 'read'],",
-      ],
-      [
-        'effect-require-schedule-jitter-for-retries',
-        "tokenGroups: [['Effect.retry'], ['Schedule.']],",
-      ],
-      [
-        'effect-require-span-external',
-        "tokens: ['HttpClient.', 'fetch', 'FileSystem.', 'SqlClient.'],",
-      ],
-      ['effect-require-semaphore-for-shared-resources', "tokens: ['Effect.forEach'],"],
-      ['effect-require-ref-for-shared-mutable-state', "tokens: ['let '],"],
-      ['effect-require-scoped-in-loops', "tokens: ['open', 'connect', 'subscribe', 'listen'],"],
-      ['effect-require-onExit-for-cleanup', "tokens: ['Effect.ensuring', 'cleanup'],"],
-      ['effect-use-batched-resolver-for-n-plus-one', "tokens: ['Effect.forEach'],"],
-      ['effect-require-provided-services-in-tests', "tokens: ['Service', 'Repo', 'Client'],"],
-      ['effect-prefer-in-memory-implementations', "tokens: ['real'],"],
-      ['effect-no-live-services-in-unit-tests', "tokens: ['Live', 'Layer.live'],"],
-      [
-        'effect-require-testclock-for-time-code',
-        "tokens: ['Effect.timeout', 'Effect.delay', 'Clock.'],",
-      ],
-    ] as const) {
-      expect(strictRulesSource).toContain(`name: '${ruleName}',`);
-      expect(strictRulesSource).toContain(tokenLine);
-    }
   });
 
   it('lets individual rules skip canonicalization when required tokens are absent', (): void => {

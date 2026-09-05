@@ -1,16 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { runAllRules, runRule } from './effect-rule-test-utils';
-import type { StrictPathOptions } from '../../src/rules/effect-path-options';
-
-function reportedEffectRules(
-  source: string,
-  filename?: string,
-  options?: StrictPathOptions,
-): string[] {
-  return runAllRules(source, filename, options)
-    .map((report) => report.ruleName)
-    .filter((ruleName): ruleName is string => Boolean(ruleName?.startsWith('effect-')));
-}
 
 const registerEffectAndFiberTests = (): void => {
   it('allows pure Effect namespace predicates returned from Effect.gen', () => {
@@ -144,91 +133,6 @@ const registerResourceAndPolicyTests = (): void => {
     expect(runRule('effect-require-scoped-for-resources', source)).toHaveLength(1);
   });
 
-  it('does not let one scoped layer hide a separate unscoped resource layer', () => {
-    const source = `
-      const SafeLayer = Layer.scoped(Database, openConnection);
-      const UnsafeLayer = Layer.effect(SocketService, openSocket);
-    `;
-
-    expect(runRule('effect-require-scoped-for-resource-layers', source)).toHaveLength(1);
-  });
-
-  it('does not let one scoped loop hide another loop with unscoped resource acquisition', () => {
-    const source = `
-      for (const item of safeItems) {
-        Effect.scoped(openConnection(item));
-      }
-      for (const item of unsafeItems) {
-        openSocket(item);
-      }
-    `;
-
-    expect(runRule('effect-require-scoped-in-loops', source)).toHaveLength(1);
-  });
-
-  it('does not let one scoped stream hide a separate unsafe resource stream', () => {
-    const source = `
-      const safe = Stream.scoped(openConnection());
-      const unsafe = Stream.fromIterable(openSocket());
-    `;
-
-    expect(runRule('effect-require-stream-resource-safety', source)).toHaveLength(1);
-  });
-
-  it('does not let one Ref usage hide another unsafe mutable binding', () => {
-    const source = `
-      import { Effect, Ref } from "effect";
-
-      const counter = Ref.make(0);
-      let unsafeCounter = 0;
-    `;
-
-    expect(runRule('effect-require-ref-for-shared-mutable-state', source)).toHaveLength(1);
-  });
-
-  it('requires timeout on external calls without flagging imports', () => {
-    const importOnly = 'import { HttpClient } from "@effect/platform";';
-    const externalCall = 'const response = HttpClient.get(url);';
-    const timed = 'const response = HttpClient.get(url).pipe(Effect.timeout("1 second"));';
-
-    expect(runRule('effect-require-timeout-on-external-effects', importOnly)).toHaveLength(0);
-    expect(runRule('effect-require-timeout-on-external-effects', externalCall)).toHaveLength(1);
-    expect(runRule('effect-require-timeout-on-external-effects', timed)).toHaveLength(0);
-  });
-
-  it('requires retry policy for idempotent HttpClient calls', () => {
-    const missingRetry = 'const response = HttpClient.get(url).pipe(Effect.timeout("1 second"));';
-    const retried = 'const response = HttpClient.get(url).pipe(Effect.retry(policy));';
-
-    expect(
-      runRule('effect-require-retry-policy-for-idempotent-external-effects', missingRetry),
-    ).toHaveLength(1);
-    expect(
-      runRule('effect-require-retry-policy-for-idempotent-external-effects', retried),
-    ).toHaveLength(0);
-  });
-
-  it('does not treat distinct layer constants as duplicate layer instances', () => {
-    const distinct = `
-      const UserLayer = Layer.succeed(UserRepo, userRepo);
-      const ClockLayer = Layer.succeed(Clock, clock);
-    `;
-    const duplicate = `
-      const FirstUserLayer = Layer.succeed(UserRepo, userRepo);
-      const SecondUserLayer = Layer.succeed(UserRepo, userRepo);
-    `;
-
-    expect(runRule('effect-no-duplicate-layer-instances', distinct)).toHaveLength(0);
-    expect(runRule('effect-no-duplicate-layer-instances', duplicate)).toHaveLength(1);
-  });
-
-  it('passes strict path options through all-rule diagnostics', () => {
-    const options = { configLayers: ['settings/**'] };
-    const rules = reportedEffectRules('process.env.API_TOKEN;', 'settings/config.ts', options);
-
-    expect(rules).not.toContain('effect-no-direct-process-env-outside-config-layer');
-  });
-
   it('keeps a canonical world-class Effect module clean across all Effect rules', () => {
     const source = `
       import { Context, Effect, Schema } from "effect";
@@ -251,7 +155,7 @@ const registerResourceAndPolicyTests = (): void => {
       });
     `;
 
-    expect(reportedEffectRules(source, 'src/domain/user.ts')).toStrictEqual([]);
+    expect(runAllRules(source, 'src/domain/user.ts')).toStrictEqual([]);
   });
 };
 

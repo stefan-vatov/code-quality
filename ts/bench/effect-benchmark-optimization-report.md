@@ -1,6 +1,6 @@
 # Effect Rule Benchmark Optimization Report
 
-Historical optimization timings for retained Effect rules with a recorded comparison. `performance-budgets.json` is the authoritative inventory for the complete 97-rule surface.
+Historical measurements from the earlier Effect rule surface, including rules since deleted. These rows are not the active inventory or current performance guarantees. `performance-budgets.json` tracks the current 23 Effect rules and 15 other custom rules; all retained limits are unchanged.
 
 | Rule                                                        | Baseline ops/s | Run 1 ops/s | Run 2 ops/s | Run 3 ops/s | Final ops gain | Baseline median ns | Run 1 median ns | Run 2 median ns | Run 3 median ns | Final median gain |
 | ----------------------------------------------------------- | -------------: | ----------: | ----------: | ----------: | -------------: | -----------------: | --------------: | --------------: | --------------: | ----------------: |

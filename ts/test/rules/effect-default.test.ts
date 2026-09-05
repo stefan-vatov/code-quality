@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { ASTNode } from '../../src/rules/effect-ast';
-import { getEffectRule } from './effect-rule-test-utils';
 import type { Report } from './effect-rule-test-utils';
+import { getEffectRule } from './effect-rule-test-utils';
 
 const programNode: ASTNode = { type: 'Program', range: [0, 0] };
 
@@ -56,10 +56,6 @@ describe('Effect default custom rules', () => {
       const payload = JSON.parse(body) as UserPayload;
       const program = Effect.fromPromise(() => fetch("/users/1"));
     `;
-
-    expect(runRule('effect-no-obsolete-imports', invalid)[0]?.message).toContain(
-      'Import Effect APIs from the main effect package',
-    );
     expect(runRule('effect-no-known-fake-api', invalid)[0]?.message).toContain(
       'is not a known Effect API for the configured version',
     );

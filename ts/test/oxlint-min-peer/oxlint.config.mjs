@@ -1,9 +1,7 @@
 import theThracianOxlint from '../../dist/index.js';
 
 const packageConfig = theThracianOxlint({
-  effect: {
-    enabled: true,
-  },
+  effect: true,
 });
 
 export default {
@@ -11,6 +9,6 @@ export default {
   rules: {
     'thethracian/effect-no-floating-effect': 'error',
     'thethracian/effect-require-yield-star': 'error',
-    'thethracian/effect-no-global-fetch': 'error',
+    'thethracian/effect-no-runSync-in-server-request-handlers': 'error',
   },
 };

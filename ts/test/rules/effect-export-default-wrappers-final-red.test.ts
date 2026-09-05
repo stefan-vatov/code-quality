@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { exportedDeclarationTexts } from '../../src/rules/effect-exported-declarations';
-import { hasPromiseReturningPublicAPI } from '../../src/rules/effect-strict-internals';
-import { runRule } from './effect-rule-test-utils';
 
 const sourceLines = (...lines: string[]): string => lines.join('\n');
 
@@ -10,8 +8,6 @@ const expectProjectedPromiseBinding = (exportedExpression: string): void => {
   const source = sourceLines(promiseDeclaration, `export default ${exportedExpression};`);
 
   expect.soft(exportedDeclarationTexts(source)).toEqual([promiseDeclaration]);
-  expect.soft(hasPromiseReturningPublicAPI(source)).toBe(true);
-  expect.soft(runRule('effect-no-promise-returning-public-api', source)).toHaveLength(1);
 };
 
 const expectUnprojectedWrappedExpression = (exportedExpression: string): void => {
@@ -19,8 +15,6 @@ const expectUnprojectedWrappedExpression = (exportedExpression: string): void =>
   const source = sourceLines(promiseDeclaration, exportDeclaration);
 
   expect.soft(exportedDeclarationTexts(source)).toEqual([exportDeclaration]);
-  expect.soft(hasPromiseReturningPublicAPI(source)).toBe(false);
-  expect.soft(runRule('effect-no-promise-returning-public-api', source)).toHaveLength(0);
 };
 
 describe('Effect default-export TypeScript identifier wrappers', (): void => {

@@ -10,10 +10,9 @@ import {
   hasYieldWithoutStarInGen,
 } from './effect-default-helpers';
 import { makeRules } from './effect-rule-core';
-import schemaNoRedundantTagIdentifierRule from './effect-schema-no-redundant-tag-identifier';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
-import { strictPathOptionsSchema } from './effect-path-options';
+import { effectCanonicalSpecs } from './effect-canonical-patterns';
 
 type RuleSpec = Parameters<typeof makeRules>[0][number];
 const effectDefaultRuleTokens = [
@@ -83,22 +82,10 @@ const effectDefaultSpecs = [
     tokens: ['tryPromise'],
   },
   {
-    message: 'Use mapError directly instead of catchAll when only transforming the error.',
-    name: 'effect-no-catchAll-with-mapError',
-    patterns: [/Effect\.catchAll\s*\([\s\S]*?=>\s*Effect\.fail\s*\(/],
-    tokens: ['catchAll'],
-  },
-  {
     check: hasErrorMappingWithoutCause,
     message: 'Preserve the original cause when mapping or wrapping Effect errors.',
     name: 'effect-require-error-cause-preserved',
     tokens: ['mapError', 'catchAll'],
-  },
-  {
-    message: 'Do not widen Effect error channels to unknown.',
-    name: 'effect-no-error-channel-widening-to-unknown',
-    patterns: [/Effect\s*<[^>]*,\s*unknown\b/, /Effect\.fail\s*<\s*unknown\b/],
-    tokens: ['unknown'],
   },
   {
     check: hasRunForkWithoutObserver,
@@ -108,14 +95,13 @@ const effectDefaultSpecs = [
   },
   ...effectDefaultEnvironmentSpecs,
   ...effectDefaultCompatibilitySpecs,
+  ...effectCanonicalSpecs,
 ] satisfies readonly RuleSpec[];
 
 const effectDefaultRules = {
   ...makeRules(effectDefaultSpecs, {
     defaultTokens: effectDefaultRuleTokens,
-    schema: strictPathOptionsSchema,
   }),
-  'effect-schema-no-redundant-tag-identifier': schemaNoRedundantTagIdentifierRule,
 };
 
 export default effectDefaultRules;

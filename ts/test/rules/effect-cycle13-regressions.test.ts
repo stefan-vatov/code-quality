@@ -22,17 +22,6 @@ describe('Effect cycle 13 regression coverage', () => {
     expect(runRule('effect-require-scoped-for-acquireRelease', invalid)).toHaveLength(1);
   });
 
-  it('does not flag Schema decode effects that remain in the typed Effect channel', () => {
-    const valid = `
-      const decoded = Schema.decodeUnknown(User)(payload);
-      return yield* decoded;
-    `;
-    const invalid = 'const decoded = Schema.decodeUnknown(User)(payload);';
-
-    expect(runRule('effect-schema-require-parse-error-handling', valid)).toHaveLength(0);
-    expect(runRule('effect-schema-require-parse-error-handling', invalid)).toHaveLength(1);
-  });
-
   it('ignores fake Effect API names that appear only inside strings or comments', () => {
     const validString = 'const message = "Effect.fromPromise(() => fetch())";';
     const validComment = '// Effect.tryCatch(() => value)';
@@ -74,18 +63,5 @@ describe('Effect cycle 13 regression coverage', () => {
 
     expect(runRule('effect-require-error-cause-preserved', invalid)).toHaveLength(1);
     expect(runRule('effect-require-error-cause-preserved', valid)).toHaveLength(0);
-  });
-
-  it('keeps retry jitter checks local to the retry schedule', () => {
-    const invalid = `
-      Effect.retry(program, Schedule.exponential("1 second"));
-      const other = Schedule.jittered(policy);
-    `;
-    const valid = `
-      Effect.retry(program, Schedule.exponential("1 second").pipe(Schedule.jittered));
-    `;
-
-    expect(runRule('effect-require-schedule-jitter-for-retries', invalid)).toHaveLength(1);
-    expect(runRule('effect-require-schedule-jitter-for-retries', valid)).toHaveLength(0);
   });
 });

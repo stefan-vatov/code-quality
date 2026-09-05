@@ -1,62 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint, { type TheThracianOxlintOptions } from '../../src/index';
-import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
-import {
-  runConfiguredRules,
-  runRule,
-  strictEffectTestPaths,
-  withAllEffectRules,
-} from './effect-rule-test-utils';
+import theThracianOxlint from '../../src/index';
+import { runConfiguredRules, runRule } from './effect-rule-test-utils';
 
 function configuredEffectRuleNames(
   source: string,
   filename = 'src/domain/user.ts',
-  strict: TheThracianOxlintOptions['effect'] = {
-    strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames },
-  },
+  effect = true,
 ): string[] {
-  return runConfiguredRules(
-    withAllEffectRules(theThracianOxlint({ effect: strict })),
-    source,
-    filename,
-  )
+  return runConfiguredRules(theThracianOxlint({ effect }), source, filename)
     .map((report) => report.ruleName)
     .filter((ruleName): ruleName is string => Boolean(ruleName))
     .sort();
 }
 
 const registerConfiguredRuleTests = (): void => {
-  it('applies configured strict test globs to explicitly selected test analyzers', () => {
-    const effect = {
-      strict: {
-        ...strictEffectTestPaths,
-        unitTests: ['tests/unit/**'],
-        rules: effectStrictRuleNames,
-      },
-    };
+  it('detects focused and skipped Effect tests in test files', () => {
+    const effect = true;
 
     expect(
       configuredEffectRuleNames(
         'it.effect.only("x", () => program);',
-        'tests/unit/user.ts',
+        'tests/unit/user.test.ts',
         effect,
       ),
     ).toStrictEqual(['effect-no-focused-effect-tests']);
     expect(
       configuredEffectRuleNames(
         'it.effect.skip("x", () => program);',
-        'tests/unit/user.ts',
+        'tests/unit/user.test.ts',
         effect,
       ),
     ).toStrictEqual(['effect-no-skipped-effect-tests']);
-  });
-
-  it('keeps strict test time diagnostics canonical when the real-sleep analyzer owns the issue', () => {
-    const source = 'it.effect("waits", () => Effect.sleep(Duration.seconds(1)));';
-
-    expect(configuredEffectRuleNames(source, 'src/foo.test.ts')).toStrictEqual([
-      'effect-no-real-sleep-in-tests',
-    ]);
   });
 
   it('keeps unobserved runFork under fiber-observation ownership before entrypoint ownership', () => {
@@ -83,21 +57,6 @@ const registerConfiguredRuleTests = (): void => {
     ).toHaveLength(0);
   });
 
-  it('detects runtime calls through submodule namespace and named imports', () => {
-    expect(
-      runRule(
-        'effect-no-run-outside-entrypoints',
-        'import * as E from "effect/Effect"; E.runPromise(program);',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-run-outside-entrypoints',
-        'import { runPromise } from "effect/Effect"; runPromise(program);',
-      ),
-    ).toHaveLength(1);
-  });
-
   it('detects aliased Effect.gen return anti-patterns', () => {
     const source =
       'import { Effect as E } from "effect"; E.gen(function* () { return E.succeed(1); });';
@@ -106,155 +65,9 @@ const registerConfiguredRuleTests = (): void => {
   });
 };
 
-const registerReexportBoundaryTests = (): void => {
-  it('checks re-exported public API types, interfaces, and classes', () => {
-    expect(
-      runRule(
-        'effect-schema-no-unknown-crossing-boundary',
-        'interface Input { payload: unknown } export { Input };',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'type Loader = () => Promise<User>; export { Loader };',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'type Loader = () => Promise<User>; export type { Loader };',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-schema-no-unknown-crossing-boundary',
-        'interface Input { payload: unknown } export { type Input };',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'class Repo { load(): Promise<User> { return promise; } } export { Repo };',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export { Loader }; type Loader = () => Promise<User>;',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export type { Loader }; type Loader = () => Promise<User>;',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export { load }; async function load(): Promise<User> { return promise; }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'type Loader = () => Promise<User>; export type { Loader } from "./api";',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-schema-no-unknown-crossing-boundary',
-        'interface Input { payload: unknown } export { type Input } from "./api";',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { static load(): Promise<User> { return promise; } }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { public static async load() { return user; } }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { private static load(): Promise<User> { return promise; } }',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export abstract class Repo { abstract load(): Promise<User>; }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo extends Base { override load(): Promise<User> { return promise; } }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { load = async () => user; }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { load = (): Promise<User> => promise; }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { private load = async () => user; }',
-      ),
-    ).toHaveLength(0);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { get load(): Promise<User> { return promise; } }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { public accessor load: Promise<User>; }',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-no-promise-returning-public-api',
-        'export class Repo { private get load(): Promise<User> { return promise; } }',
-      ),
-    ).toHaveLength(0);
-  });
-};
+const registerReexportBoundaryTests = (): void => {};
 
 const registerLocalPolicyTests = (): void => {
-  it('does not let string text satisfy timeout and retry policy checks', () => {
-    expect(
-      runRule(
-        'effect-require-timeout-on-external-effects',
-        'const docs = "Effect.timeout("; const program = Effect.tryPromise({ try: () => fetch(url), catch: toError });',
-        'src/adapters/http.ts',
-      ),
-    ).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-require-retry-policy-for-idempotent-external-effects',
-        'const docs = "Effect.retry("; const program = Effect.tryPromise({ try: () => fetch(url), catch: toError }).pipe(Effect.timeout(1000));',
-        'src/adapters/http.ts',
-      ),
-    ).toHaveLength(1);
-  });
-
   it('rejects untagged tryPromise catch objects', () => {
     expect(
       runRule(
@@ -266,12 +79,6 @@ const registerLocalPolicyTests = (): void => {
 
   it('detects parenthesized floating Effects and casts after decoded bindings', () => {
     expect(runRule('effect-no-floating-effect', '(Effect.succeed(1));')).toHaveLength(1);
-    expect(
-      runRule(
-        'effect-schema-no-cast-after-decode',
-        'const decoded = Schema.decodeUnknown(User)(payload); const user = decoded as User;',
-      ),
-    ).toHaveLength(1);
   });
 };
 

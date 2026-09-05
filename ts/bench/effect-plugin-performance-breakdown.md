@@ -1,6 +1,6 @@
 # Effect Plugin Performance Breakdown
 
-Retained Effect rule surface: 37 non-strict rules (18 safety and 19 specialized) plus 60 strict opt-in rules, for 97 total. The rows below contain only retained rules with a recorded historical sample; `performance-budgets.json` is the authoritative inventory for all 97 rules.
+Historical measurements from the earlier Effect rule surface, including rules since deleted. These rows are not the active inventory or current performance guarantees. `performance-budgets.json` tracks the current 23 Effect rules and 15 other custom rules; all retained limits are unchanged.
 
 | Rule                                                        |   ops/sec | median ns | p95 ns | total ms | reports |
 | ----------------------------------------------------------- | --------: | --------: | -----: | -------: | ------: |

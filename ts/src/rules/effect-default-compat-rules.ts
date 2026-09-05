@@ -41,13 +41,6 @@ const hasServiceSelfMismatch = (source: string): number | false => {
 
 export const effectDefaultCompatibilitySpecs = [
   {
-    message:
-      'Import Effect APIs from the main effect package; deprecated split packages are blocked.',
-    name: 'effect-no-obsolete-imports',
-    patterns: [/from\s+['"]@effect\/(?:io|data)['"]/],
-    tokens: ['@effect/io', '@effect/data'],
-  },
-  {
     ast: (context): VisitorMap => {
       const fakeEffectAPI = importedEffectCallMatcher(context, 'Effect', [
         'bracket',
@@ -73,21 +66,6 @@ export const effectDefaultCompatibilitySpecs = [
     message: 'This is not a known Effect API for the configured version.',
     name: 'effect-no-known-fake-api',
     tokens: ['fromPromise', 'tryCatch', 'bracket', 'fromEither'],
-  },
-  {
-    message: 'Use Schema from effect/Schema instead of @effect/schema.',
-    name: 'effect-no-deprecated-schema-package',
-    patterns: [/from\s+['"]@effect\/schema['"]/],
-    tokens: ['@effect/schema'],
-  },
-  {
-    message: 'Use the current Context.Tag class/service pattern instead of deprecated tag helpers.',
-    name: 'effect-no-deprecated-context-tag-function',
-    patterns: [
-      /\b(?:const|let|var)\s+[A-Z][\w$]*\s*=\s*Context\.Tag(?:<[^>]+>)?\s*\(\s*['"][^'"]+['"]\s*\)/,
-      /(?:^|[;\n]\s*)Context\.Tag(?:<[^>]+>)?\s*\(\s*['"][^'"]+['"]\s*\)/,
-    ],
-    tokens: ['Context.Tag'],
   },
   {
     ast: (context, source): VisitorMap => ({

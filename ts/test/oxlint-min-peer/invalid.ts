@@ -5,8 +5,5 @@ const program = Effect.gen(function* () {
   yield Effect.succeed(1);
   return 1;
 });
-export const requested = Effect.tryPromise({
-  catch: (error) => error,
-  try: () => fetch('/users'),
-});
 export { program };
+export const handler = () => Effect.runSync(program);

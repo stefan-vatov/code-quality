@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { findREGEXLiteralEnd, isREGEXLiteralStart } from '../../src/rules/effect-source-regex-scan';
+import { stripComments } from '../../src/rules/effect-source-comments';
 import {
   findStatementEnd,
   isInsideCall,
   sameFunctionTail,
   statementAfter,
 } from '../../src/rules/effect-source-navigation';
-import { hasSharedResourceForEachWithoutSemaphore } from '../../src/rules/effect-strict-helpers';
-import { stripComments } from '../../src/rules/effect-source-comments';
+import { findREGEXLiteralEnd, isREGEXLiteralStart } from '../../src/rules/effect-source-regex-scan';
 
 describe('stripComments', (): void => {
   it('preserves CRLF source positions while removing a line comment', (): void => {
@@ -290,31 +289,5 @@ describe('source navigation', (): void => {
       'Effect.succeed(first);\n\nexport async function next() {\n  return Effect.void;\n}';
 
     expect(sameFunctionTail(source, 0)).toBe('Effect.succeed(first);');
-  });
-});
-
-describe('shared-resource statement boundaries', (): void => {
-  it('does not borrow a shared-resource token from the following statement', (): void => {
-    const source = [
-      'const jobs = pipe(',
-      '  Effect.forEach(items, runItem),',
-      '  Effect.map(Array.length),',
-      ');',
-      'const pool = createPool();',
-    ].join('\n');
-
-    expect(hasSharedResourceForEachWithoutSemaphore(source)).toBe(false);
-  });
-
-  it('does not borrow a semaphore token from the following statement', (): void => {
-    const source = [
-      'const jobs = pipe(',
-      '  Effect.forEach(items, (item) => pool.run(item)),',
-      '  Effect.map(Array.length),',
-      ');',
-      'const permit = Semaphore.make(1);',
-    ].join('\n');
-
-    expect(hasSharedResourceForEachWithoutSemaphore(source)).toBe(true);
   });
 });

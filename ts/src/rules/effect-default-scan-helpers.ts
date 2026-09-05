@@ -94,7 +94,7 @@ export const effectCallPattern = (source: string, methods: string): RegExp => {
   return pattern;
 };
 
-export const localCallSegment = (source: string, targetIndex: number): string => {
+const localCallSegment = (source: string, targetIndex: number): string => {
   const openParenIndex = source.indexOf('(', targetIndex);
   return Match.value(openParenIndex).pipe(
     Match.when(

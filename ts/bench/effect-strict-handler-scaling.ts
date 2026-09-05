@@ -5,7 +5,7 @@ import {
   createStrictHandlerSource,
 } from './effect-strict-handler-fixtures.js';
 import type { BenchRow } from './performance-gate-support.js';
-import { hasRunSyncInServerRequestHandler } from '../src/rules/effect-strict-source-predicates.js';
+import { hasRunSyncInServerRequestHandler } from '../src/rules/effect-strict-internals.js';
 import { pathToFileURL } from 'node:url';
 import { percentile } from './performance-gate-measurement.js';
 

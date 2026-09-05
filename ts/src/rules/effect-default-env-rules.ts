@@ -1,19 +1,9 @@
 import {
-  hasCastAfterSchemaDecode,
-  hasExternalJSONWithoutDecodeUnknown,
   hasForkDaemonWithoutCleanup,
   hasForkInUninterruptibleWithoutRestore,
-  hasJSONParsedBeforeSchemaStringDecode,
-  hasParsedJSONNumberFromString,
   hasUnboundedEffectConcurrency,
   hasUnboundedFlatMapConcurrency,
-  hasUnhandledSchemaEffectDecode,
 } from './effect-default-helpers';
-import {
-  hasForkBeforeTestClockAdjust,
-  hasRealSleepWithoutTestClock,
-  hasTestClockWithoutEffectContext,
-} from './effect-default-test-helpers';
 import {
   hasUnreleasedAcquire,
   hasUnscopedAcquireRelease,
@@ -22,11 +12,6 @@ import {
 import { isEffectTestPath } from './effect-path-options';
 import { stripCommentsAndStrings } from './effect-source-helpers';
 import type { Context as RuleContext, RuleSpec } from './effect-rule-core';
-
-const hasTestClockAdjustWithoutFork = (source: string): boolean => {
-  const code = stripCommentsAndStrings(source);
-  return /TestClock\.adjust\s*\(/.test(code) && !hasForkBeforeTestClockAdjust(source);
-};
 
 const hasFocusedEffectTest = (source: string, context: RuleContext): boolean =>
   isEffectTestPath(context) &&
@@ -37,42 +22,6 @@ const hasSkippedEffectTest = (source: string, context: RuleContext): boolean =>
   /\b(?:it|describe)\.effect\.skip\s*\(/.test(stripCommentsAndStrings(source));
 
 export const effectDefaultEnvironmentSpecs = [
-  {
-    check: hasUnhandledSchemaEffectDecode,
-    message: 'Schema parsing must expose parse errors through typed Effect handling.',
-    name: 'effect-schema-require-parse-error-handling',
-    tokens: ['decode'],
-  },
-  {
-    check: hasExternalJSONWithoutDecodeUnknown,
-    message: 'External data must enter through Schema.decodeUnknown.',
-    name: 'effect-schema-use-decodeUnknown-for-external-data',
-    tokens: ['.json'],
-  },
-  {
-    check: hasJSONParsedBeforeSchemaStringDecode,
-    message: 'Use Schema.parseJson when decoding JSON strings with Schema.',
-    name: 'effect-schema-require-parseJson-for-json-strings',
-    tokens: ['JSON.parse'],
-  },
-  {
-    check: hasParsedJSONNumberFromString,
-    message: 'Use the correct Schema number type for already-parsed JSON numbers.',
-    name: 'effect-schema-correct-number-type-for-parsed-json',
-    tokens: ['JSON.parse'],
-  },
-  {
-    message: 'Use current Effect Schema API names instead of obsolete lowercase helpers.',
-    name: 'effect-schema-avoid-old-type-names',
-    patterns: [/\bSchema\.(?:string|number|boolean|array|object)\s*\(/],
-    tokens: ['Schema.'],
-  },
-  {
-    check: hasCastAfterSchemaDecode,
-    message: 'Do not cast after Schema decoding; let the schema provide the type.',
-    name: 'effect-schema-no-cast-after-decode',
-    tokenGroups: [['Schema.decode'], [' as ']],
-  },
   {
     check: hasUnreleasedAcquire,
     message: 'Resource acquisition must use acquireRelease, scoped, or equivalent finalization.',
@@ -128,27 +77,6 @@ export const effectDefaultEnvironmentSpecs = [
       /\bStream\.(?:buffer|fromQueue|async|asyncPush)\s*\([^)]*\b(?:Infinity|unbounded)\b/,
     ],
     tokens: ['unbounded', 'Infinity'],
-  },
-  {
-    check: (source, context): boolean =>
-      isEffectTestPath(context) && hasTestClockAdjustWithoutFork(source),
-    message: 'Fork time-dependent work before adjusting TestClock.',
-    name: 'effect-testClock-requires-fork',
-    tokens: ['TestClock.adjust'],
-  },
-  {
-    check: (source, context): boolean =>
-      isEffectTestPath(context) && hasTestClockWithoutEffectContext(source),
-    message: 'Use Effect test context when using TestClock.',
-    name: 'effect-testClock-requires-testContext',
-    tokens: ['TestClock'],
-  },
-  {
-    check: (source, context): boolean =>
-      isEffectTestPath(context) && hasRealSleepWithoutTestClock(source),
-    message: 'Use TestClock instead of real sleeps in Effect tests.',
-    name: 'effect-no-real-sleep-in-tests',
-    tokens: ['sleep'],
   },
   {
     check: hasFocusedEffectTest,

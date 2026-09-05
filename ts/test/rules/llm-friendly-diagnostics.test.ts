@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import plugin from '../../src/rules/plugin';
 import { effectDefaultRuleNames, effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import plugin from '../../src/rules/plugin';
 import { runRule } from './effect-rule-test-utils';
 
 const expectLLMFriendly = (message: string): void => {
@@ -18,16 +18,6 @@ describe('LLM-friendly custom rule diagnostics', () => {
     }
 
     expectLLMFriendly(report.message);
-  });
-
-  it('enriches AST-backed Effect reports too', () => {
-    const [report] = runRule(
-      'effect-no-catchAll-with-mapError',
-      'program.pipe(Effect.catchAll(() => Effect.fail(error)));',
-    );
-
-    expect(report).toBeDefined();
-    expectLLMFriendly(report?.message ?? '');
   });
 
   it.each([...effectDefaultRuleNames, ...effectStrictRuleNames])(

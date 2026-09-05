@@ -26,16 +26,6 @@ const ITERATIONS =
 const outputPath = outputArgIndex === -1 ? undefined : process.argv[outputArgIndex + 1];
 
 const programNode = { range: [0, 0], type: 'Program' };
-const strictOptions = {
-  adapterLayers: ['src/adapters/**'],
-  compositionRoots: ['src/main.ts', 'src/server.ts', 'src/cli.ts'],
-  configLayers: ['src/config/**'],
-  domain: ['src/domain/**'],
-  entrypoints: ['src/main.ts', 'src/server.ts', 'src/cli.ts'],
-  integrationTests: ['tests/integration/**'],
-  unitTests: ['tests/unit/**', '**/*.test.ts'],
-};
-
 const fixtures: BenchFixture[] = [
   {
     filename: 'src/domain/user.ts',
@@ -159,7 +149,7 @@ function runRule(ruleName: string, fixture: BenchFixture): number {
   let reports = 0;
   const visitors = rule.create({
     filename: fixture.filename,
-    options: [strictOptions],
+    options: [],
     report() {
       reports++;
     },

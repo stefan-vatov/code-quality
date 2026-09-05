@@ -80,16 +80,6 @@ const assertBenchmarkHits = (): void => {
   }
 };
 
-const strictOptions = {
-  adapterLayers: ['src/adapters/**'],
-  compositionRoots: ['src/main.ts', 'src/server.ts', 'src/cli.ts'],
-  configLayers: ['src/config/**'],
-  domain: ['src/domain/**'],
-  entrypoints: ['src/main.ts', 'src/server.ts', 'src/cli.ts'],
-  integrationTests: ['tests/integration/**'],
-  unitTests: ['tests/unit/**', '**/*.test.ts'],
-};
-
 const ruleFixtures: Fixture[] = [
   {
     filename: 'src/domain/user.ts',
@@ -107,6 +97,12 @@ const ruleFixtures: Fixture[] = [
       const mapped = Effect.flatMap(program, (value) => Effect.succeed(value)); E.gen(function* () { return E.succeed(1); }); runPromise(program);
       Effect.tryPromise({ try: () => fetch("/users"), catch: (error) => ({ error }) });
       Effect.forEach(items, work, { concurrency: "unbounded" }); Effect.fail("bad"); Effect.fail(new Error("bad"));
+      Effect.catchAll(program, error => Effect.fail(error)); Effect.succeed(undefined);
+      Effect.map(program, () => undefined); Effect.flatten(Effect.map(program, transform));
+      Layer.effect(Repo, Effect.succeed(service)); Schema.Union(Schema.Literal("a"), Schema.Literal("b"));
+      Schema.decodeUnknownSync(User)(JSON.parse(body)); Schema.decodeUnknownSync(User)(body) as User;
+      type UnknownFailure = Effect.Effect<string, unknown>; Context.GenericTag("Repo");
+      class KeyMismatch extends Context.Tag("Different")<KeyMismatch, Service>() {}
     `,
   },
   {
@@ -196,7 +192,7 @@ const runRule = (name: string, fixture: Fixture): number => {
   try {
     const visitors = create({
       filename: fixture.filename,
-      options: [strictOptions],
+      options: [],
       report(): void {
         reports += 1;
         hits.candidateHits += 1;
@@ -282,11 +278,6 @@ const candidateSubsystems = [
     name: 'recursion',
     ruleName: 'effect-require-suspend-for-recursion',
   },
-  {
-    candidate: 'const request = Effect.tryPromise(() => fetch("/users"));',
-    name: 'native',
-    ruleName: 'effect-no-global-fetch',
-  },
 ].map((subsystem): CandidateSubsystem => subsystem);
 const candidateShapes = ['candidate-free', 'early-candidate', 'late-candidate'] as const;
 const candidateScales = [100, 1_000, 5_000] as const;
@@ -311,9 +302,6 @@ const assertRuleBenchmarkHits = (): void => {
     const hits = benchmarkHitsFor(ruleName);
     const failures =
       hits.candidateHits > 0 ? [] : [`${name}/${ruleName} did not exercise a candidate`];
-    if (name === 'native' && hits.referenceEntryHits === 0) {
-      failures.push(`${name}/${ruleName} did not enter native references`);
-    }
     return failures;
   });
   if (missing.length > 0) {

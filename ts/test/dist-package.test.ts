@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { Predicate } from 'effect';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -9,11 +9,10 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { tmpdir } from 'node:os';
-import { strictEffectTestPaths } from './rules/effect-rule-test-utils';
+import { describe, expect, it } from 'vitest';
 
 const repoRoot = join(import.meta.dirname, '..', '..');
 const distPackageTestTimeoutMs = 30_000;
@@ -30,58 +29,10 @@ type CliAstCase = {
 
 const astBackedCLICases: readonly CliAstCase[] = [
   {
-    ruleName: 'effect-schema-no-redundant-tag-identifier',
-    filename: 'src/domain/redundant-schema-tag-identifier.ts',
-    source:
-      'import { Schema } from "effect";\nclass NotFound extends Schema.TaggedClass<NotFound>("NotFound")("NotFound", { id: Schema.String }) {}',
-  },
-  {
-    ruleName: 'effect-no-crypto-randomUUID',
-    filename: 'src/domain/uuid.ts',
-    source: 'const id = crypto.randomUUID();',
-  },
-  {
-    ruleName: 'effect-require-schema-is-over-instanceof',
-    filename: 'src/domain/instanceof.ts',
-    source: 'const ok = value instanceof UserSchema;',
-  },
-  {
-    ruleName: 'effect-prefer-schema-tagged-struct',
-    filename: 'src/domain/tagged-struct.ts',
-    source: 'const User = Schema.Struct({ _tag: Schema.Literal("User") });',
-  },
-  {
-    ruleName: 'effect-prefer-single-schema-literal-union',
-    filename: 'src/domain/literal-union.ts',
-    source: 'const Status = Schema.Union(Schema.Literal("A"), Schema.Literal("B"));',
-  },
-  {
-    ruleName: 'effect-require-deterministic-service-keys',
-    filename: 'src/domain/service-key.ts',
-    source:
-      'import { Effect } from "effect";\nclass UserRepo extends Effect.Service<UserRepo>()("Repo", {}) {}',
-  },
-  {
-    ruleName: 'effect-no-node-builtins-when-effect-platform-exists',
-    filename: 'src/domain/node-builtins.ts',
-    source: 'import { readFileSync } from "node:fs";\nconst text = readFileSync(path);',
-  },
-  {
-    ruleName: 'effect-no-global-fetch',
-    filename: 'src/domain/global-fetch.ts',
-    source:
-      'import { Effect } from "effect";\nconst response = Effect.tryPromise({ try: () => fetch("/users"), catch: (error) => error });',
-  },
-  {
     ruleName: 'effect-require-suspend-for-recursion',
     filename: 'src/domain/eager-recursion.ts',
     source:
       'import { Effect as Fx } from "effect";\nconst loop = (value: number): Fx.Effect<number> => { Fx.succeed(undefined); return loop(value - 1); };',
-  },
-  {
-    ruleName: 'effect-prefer-effect-void',
-    filename: 'src/domain/effect-void.ts',
-    source: 'import { Effect } from "effect";\nconst done = Effect.succeed(void 0);',
   },
 ];
 
@@ -104,6 +55,35 @@ const runOxlintJSON = (args: string[], cwd: string): string => {
 };
 
 describe('published TypeScript package shape', (): void => {
+  it.each([4999, 5000, 5001])(
+    'enforces the file-length boundary with %i nonblank lines',
+    (lines) => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], { cwd: repoRoot, stdio: 'pipe' });
+      const directory = mkdtempSync(join(repoRoot, 'file-length-boundary-'));
+      try {
+        const filename = join(directory, 'values.ts');
+        writeFileSync(
+          filename,
+          Array.from(
+            { length: lines },
+            (_, index) => `export const value${index} = ${index};`,
+          ).join('\n\n') + '\n',
+        );
+        const result = spawnSync(
+          join(repoRoot, 'node_modules/.bin/oxlint'),
+          ['-c', 'oxlint.workspace.config.mjs', '--format', 'json', filename],
+          { cwd: repoRoot, encoding: 'utf8' },
+        );
+        expect(result.error).toBeUndefined();
+        expect(result.status, result.stdout + result.stderr).toBe(lines > 5000 ? 1 : 0);
+        expect(result.stdout.includes('max-lines'), result.stdout).toBe(lines > 5000);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+    distPackageTestTimeoutMs,
+  );
+
   it.each([
     [9, 0],
     [10, 1],
@@ -154,7 +134,7 @@ describe('published TypeScript package shape', (): void => {
         ] as const) {
           const filename = join(directory, relative);
           mkdirSync(join(filename, '..'), { recursive: true });
-          writeFileSync(filename, '// forbidden source comment\nexport const value = 1;\n');
+          writeFileSync(filename, 'debugger;\nexport const value = 1;\n');
           const result = spawnSync(
             join(repoRoot, 'node_modules/.bin/oxlint'),
             ['-c', config, '--format', 'json', '--no-error-on-unmatched-pattern', filename],
@@ -164,7 +144,7 @@ describe('published TypeScript package shape', (): void => {
           expect(result.status, `${config}: ${relative}\n${result.stdout}\n${result.stderr}`).toBe(
             included ? 1 : 0,
           );
-          expect(result.stdout.includes('no-comments'), relative).toBe(included);
+          expect(result.stdout.includes('no-debugger'), relative).toBe(included);
         }
       } finally {
         rmSync(directory, { recursive: true, force: true });
@@ -214,7 +194,7 @@ describe('published TypeScript package shape', (): void => {
   );
 
   it(
-    'publishes strict Effect rule names as a literal union',
+    'publishes only boolean Effect configuration options',
     (): void => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
         cwd: repoRoot,
@@ -228,10 +208,11 @@ describe('published TypeScript package shape', (): void => {
       const publicDeclarations = readFileSync(join(repoRoot, 'ts', 'dist', 'index.d.ts'), 'utf8');
 
       expect(declarations).toContain(
-        'effectStrictRuleNames: readonly ["effect-no-run-outside-entrypoints"',
+        'effectStrictRuleNames: readonly ["effect-no-runSync-in-server-request-handlers"]',
       );
-      expect(declarations).not.toContain('effectStrictRuleNames: [string, ...string[]]');
-      expect(publicDeclarations).toContain('export type { EffectStrictRuleName }');
+      expect(publicDeclarations).toContain('effect?: boolean');
+      expect(publicDeclarations).not.toContain('EffectStrictRuleName');
+      expect(publicDeclarations).not.toContain('TheThracianEffectStrictOptions');
     },
     distPackageTestTimeoutMs,
   );
@@ -251,7 +232,7 @@ describe('published TypeScript package shape', (): void => {
         join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
       );
       const config = theThracianOxlint({
-        effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+        effect: true,
       });
       const pluginPath = config.jsPlugins
         ?.filter(Predicate.isString)
@@ -287,29 +268,29 @@ describe('published TypeScript package CLI rules', (): void => {
           join(repoRoot, 'ts', 'dist', 'index.js'),
         );
         const config = theThracianOxlint({
-          effect: { strict: { rules: ['effect-require-span-external'] } },
+          effect: true,
         });
         const rules = {
-          'thethracian/effect-require-span-external':
-            config.rules?.['thethracian/effect-require-span-external'],
+          'thethracian/effect-no-floating-effect':
+            config.rules?.['thethracian/effect-no-floating-effect'],
         };
         const configPath = join(root, '.oxlintrc.json');
         const sourcePath = join(root, 'invalid.ts');
 
-        expect(rules['thethracian/effect-require-span-external']).toBe('error');
+        expect(rules['thethracian/effect-no-floating-effect']).toBe('error');
 
         writeFileSync(
           configPath,
           JSON.stringify({ jsPlugins: config.jsPlugins, rules }, undefined, 2),
         );
-        writeFileSync(sourcePath, 'HttpClient.get(url).pipe(Effect.timeout("1 second"));\n');
+        writeFileSync(sourcePath, 'import { Effect } from "effect";\nEffect.succeed(1);\n');
 
         const output = runOxlintJSON(
           [sourcePath, '--config', configPath, '--disable-nested-config', '--format', 'json'],
           repoRoot,
         );
 
-        expect(output).toContain('effect-require-span-external');
+        expect(output).toContain('effect-no-floating-effect');
       } finally {
         rmSync(root, { force: true, recursive: true });
       }
@@ -318,7 +299,7 @@ describe('published TypeScript package CLI rules', (): void => {
   );
 
   it(
-    'executes every AST-backed Effect rule through the real Oxlint CLI',
+    'executes retained AST-backed Effect rules through the real Oxlint CLI',
     async (): Promise<void> => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
         cwd: repoRoot,
@@ -335,7 +316,7 @@ describe('published TypeScript package CLI rules', (): void => {
           join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
         );
         const selectedConfig = theThracianOxlint({
-          effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
+          effect: true,
         });
 
         const config = {
@@ -420,12 +401,7 @@ describe('published TypeScript package exports', (): void => {
           import { codemodFix } from '@thethracian/oxlint-config/codemod-fix';
 
           const config = theThracianOxlint({
-            effect: {
-              strict: {
-                adapterLayers: ['platform/**'],
-                rules: ['effect-no-global-fetch'],
-              },
-            },
+            effect: true,
           });
           const effectRules = Object.keys(config.rules ?? {}).filter((ruleName) =>
             ruleName.startsWith('thethracian/effect-')
@@ -435,7 +411,7 @@ describe('published TypeScript package exports', (): void => {
           if (!pluginPath) {
             throw new Error('missing package-local plugin path');
           }
-          const globalFetchSetting = config.rules?.['thethracian/effect-no-global-fetch'];
+          const globalFetchSetting = config.rules?.['thethracian/effect-no-runSync-in-server-request-handlers'];
           const globalFetchSeverity = Array.isArray(globalFetchSetting)
             ? globalFetchSetting[0]
             : globalFetchSetting;
@@ -458,7 +434,7 @@ describe('published TypeScript package exports', (): void => {
 
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(19);
+        expect(parsed.effectRuleCount).toBe(35);
         expect(existsSync(parsed.pluginPath)).toBe(true);
 
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
@@ -545,9 +521,8 @@ describe('full preset rule compatibility', (): void => {
     },
     {
       name: 'actual widening and unchecked assertions remain forbidden',
-      errors: ['no-known-value-widening', 'no-widen-then-assert', 'no-comments'],
+      errors: ['no-known-value-widening', 'no-widen-then-assert'],
       source: `
-        // forbidden comment
         const value: unknown = { id: 'known' };
         export const item = value as { id: string };
       `,

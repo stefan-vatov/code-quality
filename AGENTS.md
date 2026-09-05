@@ -38,10 +38,10 @@ Cross-language correctness invariants:
   `IO.inspect`, `IEx.pry`, and equivalent language-specific traps. Console and print policies remain
   language-specific because they can be legitimate application output.
 - No silent catch: empty catch/rescue blocks are forbidden; all exceptions must be routed to a logger, error reporter, or re-raised.
-- No source comments: TypeScript/JavaScript, Rust, and Elixir reject lexical comments, including
-  documentation comments and comment-based suppressions. Interpreter shebangs are allowed.
-  String literals and Elixir documentation attributes are not comments. Keep explanations in
-  external documentation and use native types instead of JSDoc annotations.
+- Rust and Elixir reject lexical comments, including documentation comments and comment-based
+  suppressions; interpreter shebangs and Elixir documentation attributes remain allowed.
+  TypeScript/JavaScript no longer ship a comment-ban rule. Keep complex explanations in external
+  documentation and use native types instead of JSDoc annotations.
 - No unhandled async work: promises/futures/results must be awaited, returned, or explicitly handled.
 - Exhaustiveness required: unions/enums must be exhaustively handled in switch/match statements.
 - No unchecked dynamic escape hatches: ban constructs that bypass the type system (unsafe any operations, wildcard enum matches, underspecified function specs).
@@ -53,28 +53,29 @@ TypeScript/Oxlint high-signal policy:
   Oxlint's implicit correctness warnings are neutralized once with a category-level
   `correctness: 'allow'` reset before the allowlist is applied. There are no rule-level `off`
   entries and no warning severity.
-- Size limits are complexity 10, nesting depth 5, function length 150 lines, nested callbacks 6, and parameters 7. Line width is formatter-owned and has no lint cap.
-- There is no maximum file-length or import-count rule. Those caps encouraged shim modules and mechanical decomposition without improving behavior.
-- Naming preferences, null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
-- The package-local plugin also enables 15 TypeScript safety rules by default: assertion-chain,
+- Size limits are complexity 10, nesting depth 5, file length 5,000 lines (excluding blank lines and comments), function length 150 lines, nested callbacks 6, and parameters 7. Line width is formatter-owned and has no lint cap.
+- Files are capped at 5,000 lines, excluding blank lines and comments. There is no import-count rule. Split oversized files along meaningful module boundaries rather than creating mechanical shards.
+- General naming preferences (except the imported symbol-name rule), null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
+- The package-local plugin also enables 14 TypeScript safety rules by default: assertion-chain,
   conditional-spread, known-value-widening, module-mocking, object-parameter, Reflect, runtime
-  `typeof`, symbol-name, unknown-boundary, dictionary, and comment-ban checks. They remain under
+  `typeof`, symbol-name, unknown-boundary, and dictionary checks. They remain under
   the existing `thethracian` namespace and are all errors.
 - Explicit predicate and assertion functions may use runtime `typeof`; ordinary ad hoc narrowing
   remains banned. Predicate calls do not discard caller type evidence and are not widening.
   `typescript/no-unnecessary-type-parameters` is omitted because its broad-type replacements
   conflict with the generic boundary rules.
-- The audit-flagged generic homegrown rules, flagged Effect preference rules, and semantically
-  unsound module-scope rules are physically removed. The retained Effect plugin is disabled by
-  default; `effect: true` enables exactly 18 safety rules, 19 specialized analyzers remain registered
-  for explicit rule configuration, and 59 strict architecture rules require explicit
-  `effect.strict.rules` selections and path groups.
+- Preserve the 14 imported generic rules and `no-service-constructor-imports`.
+  The separate TypeScript `no-comments` rule is deleted. Effect is disabled by default;
+  `effect: true` enables all 35 retained Effect rules plus the service-constructor rule.
+  The retained set includes 12 canonical-pattern guardrails documented in `ts/README.md`.
+  Other deleted Effect rules remain absent, with no warnings or optional registrations.
+  The public option is `effect?: boolean`; nonboolean values throw `TypeError`.
 - Semantic `thx-codemod-fix` rewrites remain available as an explicit migration command, but are not part of lint fixes or staged-file hooks.
 
 Current implementation:
 
-- TypeScript/Effect: the 18 exported safety rules are exact, import-aware checks for floating Effects/fibers, missing generator delegation, eager recursion, silent error swallowing, error-cause preservation, resource scoping, and unbounded concurrency. The opt-in service-constructor import rule is also enabled with `effect: true`. Nineteen specialized analyzers remain registered for explicit rule configuration, and 59 project-boundary rules remain available only through explicit rule and path selection. The retained Effect rule surface is 96 rules, plus that additional opt-in rule. Comment-required rules are removed.
-- TypeScript/Oxlint: `max-depth` (5 levels), `max-nested-callbacks` (6 levels), `max-params` (7 params), `max-lines-per-function` (150 lines), and `complexity` (10) are errors. Safety rules include `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-eval`, `no-new-func`, `no-script-url`, `prefer-const`, `preserve-caught-error`, strict equality, and type-aware unsafe/async operations. Line width is formatter-owned; global `console`, noisy naming, null, ternary, magic-number, file-size, import-count, documentation, and absolute `any`/assertion bans are intentionally absent.
+- TypeScript/Effect: retain the 18 safety rules plus `effect-no-known-fake-api`, `effect-require-service-self-match`, `effect-no-focused-effect-tests`, `effect-no-skipped-effect-tests`, `effect-no-runSync-in-server-request-handlers`, and 12 canonical-pattern guardrails listed in `ts/README.md`. All 35 are errors with `effect: true`, alongside the service-constructor rule. The old strict selections, path groups, and public strict/options types are removed. Internal default and strict name lists contain 34 and one rule respectively; these do not expose separate consumer options.
+- TypeScript/Oxlint: `max-lines` (5,000 lines, excluding blank lines and comments), `max-depth` (5 levels), `max-nested-callbacks` (6 levels), `max-params` (7 params), `max-lines-per-function` (150 lines), and `complexity` (10) are errors. Safety rules include `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-eval`, `no-new-func`, `no-script-url`, `prefer-const`, `preserve-caught-error`, strict equality, and type-aware unsafe/async operations. Line width is formatter-owned; global `console`, noisy naming, null, ternary, magic-number, import-count, documentation, and absolute `any`/assertion bans are intentionally absent.
 - Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, `unwrap_used = "deny"`, `expect_used = "deny"`, `unused_result_ok = "deny"` (calling .ok() discards errors), `as_conversions = "deny"` (no implicit type coercion via `as`), and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `unused_crate_dependencies` are all `deny`; silent error swallowing is handled by `unused_must_use` (ignored Results), `unused_result_ok` (discarded errors via .ok()), and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints; tests are granted unwrap/expect/panic exceptions via clippy.toml. `cargo thx-lint check` rejects lexical comments with a compiler-derived lexer; Clippy alone cannot enforce this. Documentation requirements are disabled, including inherited Clippy `missing_errors_doc`, `missing_panics_doc`, and `missing_safety_doc`.
 - Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, `VariableRebinding`, `Specs` (every public function requires @spec), and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents; immutability is enforced by Elixir's immutable data structures plus `VariableRebinding` to forbid variable rebinding within a scope.
 
@@ -85,12 +86,14 @@ Elixir documentation attributes remain allowed. CI and pre-push run `lint:projec
 
 ### Working on retained Effect rules
 
-Effect checks are package behavior, not a replacement for the upstream Oxlint allowlist. Keep the
-18 safety rules, 19 specialized analyzers, and 59 strict architecture rules explicit, import-aware,
-and error-only. Add a
-new Effect rule only when it has a reproducible correctness, resource-safety, or project-boundary
-signal, and keep preference-only or migration behavior out of the default bucket. Update
-`ts/README.md`, tests, and the strict-rule/path validation together.
+Effect checks are package behavior, not a replacement for the upstream Oxlint allowlist. Keep
+the 35 retained rules explicit, import-aware, and error-only. Preserve the imported 14 generic
+rules and service-constructor rule. Add a new Effect rule only when it has a reproducible
+correctness, resource-safety, or deliberate canonical-pattern signal. Opinionated rules must
+reliably identify their target and avoid semantic damage or superficial lint evasion. Boundary
+rules remain deleted from this shared preset; consuming repositories own their architecture
+contracts and any path/import boundary enforcement. Update
+`ts/README.md`, tests, and boolean-option validation together.
 
 Use the existing package boundaries. Do not split a language across multiple top-level folders unless there is a concrete package boundary that needs independent publishing.
 
@@ -116,9 +119,13 @@ When changing repo tooling:
 
 - Normal lint commands, staged hooks, and Nx TypeScript lint use the locally built package.
   `lint:published:type-aware` is reserved for validating the installed published consumer config.
-  Both configs share `oxlint.repository.mjs`, enabling 271 errors: the 159 reviewed native rules,
-  15 generic rules, the service-constructor rule, and all 96 retained Effect rules. Strict path
-  groups describe this package's existing adapters, entrypoints, configuration, and domain code.
+  Both configs share `oxlint.repository.mjs`. Repository configuration calls
+  `factory({ effect: true, typeAware: true })` and adds ignores, without extra rules or path groups.
+  The local config enables 210 errors: 160 reviewed native rules, 14 generic rules, the
+  service-constructor rule, and all 35 retained Effect rules. With `typeAware: true`, the base preset
+  enables 174 errors; syntax-only totals are 143 without Effect and 179 with Effect.
+  The installed published factory still enables 193 errors with Effect: 159 native, 15 generic,
+  18 safety rules, and the service-constructor rule, until the new package is published.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while
   excluding tests, scripts, benchmarks, JavaScript, and generated/dependency output. Test programs
   remain typechecked separately; invalid minimum-peer programs use their compatibility harness.

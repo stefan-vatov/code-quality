@@ -102,114 +102,24 @@
     }
   },
   "rules": {
-    "effect-avoid-layer-explosion": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 122574,
-      "observedMedianNs": 20429,
-      "observedP95Ns": 2698950,
-      "operationsPerSample": 1,
-      "p95LimitNs": 16193700,
-      "runs": 20
-    },
-    "effect-no-ad-hoc-effect-wrapper-abstractions": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 32820,
-      "observedMedianNs": 5470,
-      "observedP95Ns": 19920,
-      "operationsPerSample": 1,
-      "p95LimitNs": 119520,
-      "runs": 20
-    },
     "effect-no-catchAll-with-mapError": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 25680,
-      "observedMedianNs": 4280,
-      "observedP95Ns": 9459,
+      "medianLimitNs": 176220,
+      "observedMedianNs": 29370,
+      "observedP95Ns": 145630,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-crypto-randomUUID": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 26520,
-      "observedMedianNs": 4420,
-      "observedP95Ns": 11820,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-deprecated-context-tag-function": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25200,
-      "observedMedianNs": 4200,
-      "observedP95Ns": 8980,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-deprecated-schema-package": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4090,
-      "observedP95Ns": 8740,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-direct-clock-random-outside-adapters": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 30000,
-      "observedMedianNs": 5000,
-      "observedP95Ns": 82596,
-      "operationsPerSample": 1,
-      "p95LimitNs": 495576,
-      "runs": 20
-    },
-    "effect-no-direct-http-fs-outside-platform-services": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 50760,
-      "observedMedianNs": 8460,
-      "observedP95Ns": 929616,
-      "operationsPerSample": 1,
-      "p95LimitNs": 5577696,
-      "runs": 20
-    },
-    "effect-no-direct-process-env-outside-config-layer": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 29094,
-      "observedMedianNs": 4849,
-      "observedP95Ns": 46788,
-      "operationsPerSample": 1,
-      "p95LimitNs": 280728,
-      "runs": 20
-    },
-    "effect-no-duplicate-layer-instances": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 28980,
-      "observedMedianNs": 4830,
-      "observedP95Ns": 77487,
-      "operationsPerSample": 1,
-      "p95LimitNs": 464922,
+      "p95LimitNs": 873780,
       "runs": 20
     },
     "effect-no-error-channel-widening-to-unknown": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 25020,
-      "observedMedianNs": 4170,
-      "observedP95Ns": 60557,
+      "medianLimitNs": 64920,
+      "observedMedianNs": 10820,
+      "observedP95Ns": 494712,
       "operationsPerSample": 1,
-      "p95LimitNs": 363342,
+      "p95LimitNs": 2968272,
       "runs": 20
     },
     "effect-no-floating-effect": {
@@ -252,16 +162,6 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
-    "effect-no-global-fetch": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4090,
-      "observedP95Ns": 102325,
-      "operationsPerSample": 1,
-      "p95LimitNs": 613950,
-      "runs": 20
-    },
     "effect-no-known-fake-api": {
       "inputSamples": 7,
       "iterations": 20,
@@ -270,106 +170,6 @@
       "observedP95Ns": 11589,
       "operationsPerSample": 1,
       "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-leaked-service-dependencies": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 29520,
-      "observedMedianNs": 4920,
-      "observedP95Ns": 46568,
-      "operationsPerSample": 1,
-      "p95LimitNs": 279408,
-      "runs": 20
-    },
-    "effect-no-live-services-in-unit-tests": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25560,
-      "observedMedianNs": 4260,
-      "observedP95Ns": 8859,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-multiple-provide-chain": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4049,
-      "observedP95Ns": 9539,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-node-builtins-when-effect-platform-exists": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4050,
-      "observedP95Ns": 8750,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-obsolete-imports": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4109,
-      "observedP95Ns": 8669,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-promise-returning-public-api": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 60114,
-      "observedMedianNs": 10019,
-      "observedP95Ns": 169602,
-      "operationsPerSample": 1,
-      "p95LimitNs": 1017612,
-      "runs": 20
-    },
-    "effect-no-provide-in-domain-modules": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25620,
-      "observedMedianNs": 4270,
-      "observedP95Ns": 10239,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-no-real-sleep-in-tests": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 30000,
-      "observedMedianNs": 5000,
-      "observedP95Ns": 257328,
-      "operationsPerSample": 1,
-      "p95LimitNs": 1543968,
-      "runs": 20
-    },
-    "effect-no-run-outside-entrypoints": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 137214,
-      "observedMedianNs": 22869,
-      "observedP95Ns": 110824,
-      "operationsPerSample": 1,
-      "p95LimitNs": 664944,
-      "runs": 20
-    },
-    "effect-no-runSync-in-server-request-handlers": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 27300,
-      "observedMedianNs": 4550,
-      "observedP95Ns": 35358,
-      "operationsPerSample": 1,
-      "p95LimitNs": 212148,
       "runs": 20
     },
     "effect-no-runfork-without-observer": {
@@ -382,14 +182,14 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
-    "effect-no-service-construction-outside-layer": {
+    "effect-no-runSync-in-server-request-handlers": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 31320,
-      "observedMedianNs": 5220,
-      "observedP95Ns": 28439,
+      "medianLimitNs": 27300,
+      "observedMedianNs": 4550,
+      "observedP95Ns": 35358,
       "operationsPerSample": 1,
-      "p95LimitNs": 170634,
+      "p95LimitNs": 212148,
       "runs": 20
     },
     "effect-no-silent-error-swallowing": {
@@ -410,16 +210,6 @@
       "observedP95Ns": 42918,
       "operationsPerSample": 1,
       "p95LimitNs": 257508,
-      "runs": 20
-    },
-    "effect-no-test-runtime-leakage": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 31200,
-      "observedMedianNs": 5200,
-      "observedP95Ns": 27599,
-      "operationsPerSample": 1,
-      "p95LimitNs": 165594,
       "runs": 20
     },
     "effect-no-unbounded-queue": {
@@ -445,81 +235,61 @@
     "effect-prefer-asVoid": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 38940,
-      "observedMedianNs": 6490,
-      "observedP95Ns": 12680,
+      "medianLimitNs": 79440,
+      "observedMedianNs": 13240,
+      "observedP95Ns": 431432,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
+      "p95LimitNs": 2588592,
       "runs": 20
     },
     "effect-prefer-effect-void": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 135114,
-      "observedMedianNs": 22519,
-      "observedP95Ns": 75226,
+      "medianLimitNs": 94680,
+      "observedMedianNs": 15780,
+      "observedP95Ns": 428421,
       "operationsPerSample": 1,
-      "p95LimitNs": 451356,
+      "p95LimitNs": 2570526,
       "runs": 20
     },
     "effect-prefer-flatMap-over-map-flatten": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 37080,
-      "observedMedianNs": 6180,
-      "observedP95Ns": 12110,
+      "medianLimitNs": 83160,
+      "observedMedianNs": 13860,
+      "observedP95Ns": 75560,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-prefer-in-memory-implementations": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4080,
-      "observedP95Ns": 8869,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-prefer-pubsub-for-broadcast": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 26880,
-      "observedMedianNs": 4480,
-      "observedP95Ns": 16080,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
+      "p95LimitNs": 453360,
       "runs": 20
     },
     "effect-prefer-schema-tagged-struct": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 61314,
-      "observedMedianNs": 10219,
-      "observedP95Ns": 76166,
+      "medianLimitNs": 84300,
+      "observedMedianNs": 14050,
+      "observedP95Ns": 78190,
       "operationsPerSample": 1,
-      "p95LimitNs": 456996,
+      "p95LimitNs": 469140,
       "runs": 20
     },
     "effect-prefer-single-schema-literal-union": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 83394,
-      "observedMedianNs": 13899,
-      "observedP95Ns": 39608,
+      "medianLimitNs": 75300,
+      "observedMedianNs": 12550,
+      "observedP95Ns": 66820,
       "operationsPerSample": 1,
-      "p95LimitNs": 237648,
+      "p95LimitNs": 400920,
       "runs": 20
     },
     "effect-prefer-succeed-for-static-layers": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 28800,
-      "observedMedianNs": 4800,
-      "observedP95Ns": 16270,
+      "medianLimitNs": 82560,
+      "observedMedianNs": 13760,
+      "observedP95Ns": 73080,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
+      "p95LimitNs": 438480,
       "runs": 20
     },
     "effect-require-acquire-release": {
@@ -528,16 +298,6 @@
       "medianLimitNs": 29340,
       "observedMedianNs": 4890,
       "observedP95Ns": 10459,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-batching-for-resolver": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25560,
-      "observedMedianNs": 4260,
-      "observedP95Ns": 9680,
       "operationsPerSample": 1,
       "p95LimitNs": 100000,
       "runs": 20
@@ -562,24 +322,14 @@
       "p95LimitNs": 427062,
       "runs": 20
     },
-    "effect-require-centralized-provision": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3799,
-      "observedP95Ns": 8230,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
     "effect-require-deterministic-service-keys": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 26100,
-      "observedMedianNs": 4350,
-      "observedP95Ns": 9290,
+      "medianLimitNs": 37440,
+      "observedMedianNs": 6240,
+      "observedP95Ns": 37880,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
+      "p95LimitNs": 227280,
       "runs": 20
     },
     "effect-require-error-cause-preserved": {
@@ -588,76 +338,6 @@
       "medianLimitNs": 25000,
       "observedMedianNs": 3990,
       "observedP95Ns": 8659,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-explicit-asyncPush-buffer": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3529,
-      "observedP95Ns": 7980,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-layer-memoization-constant": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4110,
-      "observedP95Ns": 89825,
-      "operationsPerSample": 1,
-      "p95LimitNs": 538950,
-      "runs": 20
-    },
-    "effect-require-layer-scoped-when-scope-required": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3880,
-      "observedP95Ns": 22289,
-      "operationsPerSample": 1,
-      "p95LimitNs": 133734,
-      "runs": 20
-    },
-    "effect-require-onExit-for-cleanup": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4150,
-      "observedP95Ns": 11770,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-platform-runmain-at-entrypoints": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 32700,
-      "observedMedianNs": 5450,
-      "observedP95Ns": 19549,
-      "operationsPerSample": 1,
-      "p95LimitNs": 117294,
-      "runs": 20
-    },
-    "effect-require-provided-services-in-tests": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3810,
-      "observedP95Ns": 35468,
-      "operationsPerSample": 1,
-      "p95LimitNs": 212808,
-      "runs": 20
-    },
-    "effect-require-ref-for-shared-mutable-state": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3590,
-      "observedP95Ns": 8400,
       "operationsPerSample": 1,
       "p95LimitNs": 100000,
       "runs": 20
@@ -672,16 +352,6 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
-    "effect-require-retry-policy-for-idempotent-external-effects": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 44880,
-      "observedMedianNs": 7480,
-      "observedP95Ns": 896957,
-      "operationsPerSample": 1,
-      "p95LimitNs": 5381742,
-      "runs": 20
-    },
     "effect-require-return-yield-star": {
       "inputSamples": 7,
       "iterations": 20,
@@ -690,26 +360,6 @@
       "observedP95Ns": 282456,
       "operationsPerSample": 1,
       "p95LimitNs": 1694736,
-      "runs": 20
-    },
-    "effect-require-schedule-jitter-for-retries": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 31314,
-      "observedMedianNs": 5219,
-      "observedP95Ns": 63407,
-      "operationsPerSample": 1,
-      "p95LimitNs": 380442,
-      "runs": 20
-    },
-    "effect-require-schema-is-over-instanceof": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3509,
-      "observedP95Ns": 7829,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
       "runs": 20
     },
     "effect-require-scoped-for-acquireRelease": {
@@ -722,16 +372,6 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
-    "effect-require-scoped-for-resource-layers": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3860,
-      "observedP95Ns": 18019,
-      "operationsPerSample": 1,
-      "p95LimitNs": 108114,
-      "runs": 20
-    },
     "effect-require-scoped-for-resources": {
       "inputSamples": 7,
       "iterations": 20,
@@ -742,34 +382,14 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
-    "effect-require-scoped-in-loops": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3949,
-      "observedP95Ns": 8679,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-semaphore-for-shared-resources": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3920,
-      "observedP95Ns": 531844,
-      "operationsPerSample": 1,
-      "p95LimitNs": 3191064,
-      "runs": 20
-    },
     "effect-require-service-class-pattern": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3530,
-      "observedP95Ns": 9240,
+      "medianLimitNs": 61500,
+      "observedMedianNs": 10250,
+      "observedP95Ns": 61520,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
+      "p95LimitNs": 369120,
       "runs": 20
     },
     "effect-require-service-self-match": {
@@ -782,46 +402,6 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
-    "effect-require-span-external": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 28980,
-      "observedMedianNs": 4830,
-      "observedP95Ns": 76476,
-      "operationsPerSample": 1,
-      "p95LimitNs": 458856,
-      "runs": 20
-    },
-    "effect-require-stream-resource-safety": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3820,
-      "observedP95Ns": 12229,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-stream-termination": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3370,
-      "observedP95Ns": 9490,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-suspend-for-circular-deps": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3779,
-      "observedP95Ns": 11100,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
     "effect-require-suspend-for-recursion": {
       "inputSamples": 7,
       "iterations": 20,
@@ -830,36 +410,6 @@
       "observedP95Ns": 221970,
       "operationsPerSample": 1,
       "p95LimitNs": 1331820,
-      "runs": 20
-    },
-    "effect-require-tag-identifier": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3889,
-      "observedP95Ns": 8440,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-require-testclock-for-time-code": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 57594,
-      "observedMedianNs": 9599,
-      "observedP95Ns": 68497,
-      "operationsPerSample": 1,
-      "p95LimitNs": 410982,
-      "runs": 20
-    },
-    "effect-require-timeout-on-external-effects": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25080,
-      "observedMedianNs": 4180,
-      "observedP95Ns": 68437,
-      "operationsPerSample": 1,
-      "p95LimitNs": 410622,
       "runs": 20
     },
     "effect-require-typed-error-in-trypromise": {
@@ -882,184 +432,24 @@
       "p95LimitNs": 1050312,
       "runs": 20
     },
-    "effect-schema-avoid-old-type-names": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25980,
-      "observedMedianNs": 4330,
-      "observedP95Ns": 11389,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-schema-correct-number-type-for-parsed-json": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3640,
-      "observedP95Ns": 406821,
-      "operationsPerSample": 1,
-      "p95LimitNs": 2440926,
-      "runs": 20
-    },
     "effect-schema-no-cast-after-decode": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 32754,
-      "observedMedianNs": 5459,
-      "observedP95Ns": 102395,
+      "medianLimitNs": 41460,
+      "observedMedianNs": 6910,
+      "observedP95Ns": 50400,
       "operationsPerSample": 1,
-      "p95LimitNs": 614370,
-      "runs": 20
-    },
-    "effect-schema-no-redundant-tag-identifier": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 2780,
-      "observedP95Ns": 7719,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-schema-no-unknown-crossing-boundary": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3110,
-      "observedP95Ns": 21549,
-      "operationsPerSample": 1,
-      "p95LimitNs": 129294,
-      "runs": 20
-    },
-    "effect-schema-require-config-schema": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3330,
-      "observedP95Ns": 33029,
-      "operationsPerSample": 1,
-      "p95LimitNs": 198174,
-      "runs": 20
-    },
-    "effect-schema-require-http-client-response-schema": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3520,
-      "observedP95Ns": 9179,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-schema-require-http-server-request-schema": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3830,
-      "observedP95Ns": 81666,
-      "operationsPerSample": 1,
-      "p95LimitNs": 489996,
-      "runs": 20
-    },
-    "effect-schema-require-parse-error-handling": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3880,
-      "observedP95Ns": 58917,
-      "operationsPerSample": 1,
-      "p95LimitNs": 353502,
+      "p95LimitNs": 302400,
       "runs": 20
     },
     "effect-schema-require-parseJson-for-json-strings": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3050,
-      "observedP95Ns": 11050,
+      "medianLimitNs": 78240,
+      "observedMedianNs": 13040,
+      "observedP95Ns": 439941,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-schema-require-persistence-schema": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 4040,
-      "observedP95Ns": 11479,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-schema-require-public-command-schema": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3140,
-      "observedP95Ns": 7389,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-schema-require-validation-at-input-boundaries": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25380,
-      "observedMedianNs": 4230,
-      "observedP95Ns": 9450,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
-      "runs": 20
-    },
-    "effect-schema-require-validation-at-output-boundaries": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3759,
-      "observedP95Ns": 29528,
-      "operationsPerSample": 1,
-      "p95LimitNs": 177168,
-      "runs": 20
-    },
-    "effect-schema-use-decodeUnknown-for-external-data": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3360,
-      "observedP95Ns": 84606,
-      "operationsPerSample": 1,
-      "p95LimitNs": 507636,
-      "runs": 20
-    },
-    "effect-testClock-requires-fork": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3550,
-      "observedP95Ns": 43928,
-      "operationsPerSample": 1,
-      "p95LimitNs": 263568,
-      "runs": 20
-    },
-    "effect-testClock-requires-testContext": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3410,
-      "observedP95Ns": 42088,
-      "operationsPerSample": 1,
-      "p95LimitNs": 252528,
-      "runs": 20
-    },
-    "effect-use-batched-resolver-for-n-plus-one": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 25000,
-      "observedMedianNs": 3110,
-      "observedP95Ns": 76646,
-      "operationsPerSample": 1,
-      "p95LimitNs": 459876,
+      "p95LimitNs": 2639646,
       "runs": 20
     },
     "no-chained-type-assertions": {
@@ -1210,16 +600,6 @@
       "observedP95Ns": 283931,
       "operationsPerSample": 1,
       "p95LimitNs": 1703586,
-      "runs": 20
-    },
-    "no-comments": {
-      "inputSamples": 7,
-      "iterations": 20,
-      "medianLimitNs": 26640,
-      "observedMedianNs": 4440,
-      "observedP95Ns": 15620,
-      "operationsPerSample": 1,
-      "p95LimitNs": 100000,
       "runs": 20
     }
   }

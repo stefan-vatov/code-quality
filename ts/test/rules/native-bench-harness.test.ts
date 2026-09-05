@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { RuleTester } from 'oxlint/plugins-dev';
 import type { Rule } from '@oxlint/plugins';
-import { benchmarkNativeRule } from '../../bench/performance-native-harness';
+import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, expect, it } from 'vitest';
 import { nativeRuleFixtures } from '../../bench/performance-native-fixtures';
+import { benchmarkNativeRule } from '../../bench/performance-native-harness';
 import plugin from '../../src/rules/plugin';
 
 describe('native benchmark host', () => {
@@ -10,8 +10,6 @@ describe('native benchmark host', () => {
     ['no-reflect-get', 'Reflect.get(owner, key);', 1],
     ['no-reflect-get', 'const Reflect = { get() {} }; Reflect.get();', 0],
     ['no-reflect-get', 'function read(Reflect: Reader) { Reflect.get(); }', 0],
-    ['no-comments', '// comment\nconst value = input as User;', 1],
-    ['no-comments', 'export const value = input as User;', 0],
     [
       'no-widen-then-assert',
       'const source = { id: 1 }; const widened: unknown = source; const value = widened as User;',
@@ -32,7 +30,7 @@ describe('native benchmark host', () => {
 
   it('exercises a reporting candidate for every native rule in both phases', () => {
     const rules = Object.entries(plugin.rules).filter(([name]) => !name.startsWith('effect-'));
-    expect(rules).toHaveLength(16);
+    expect(rules).toHaveLength(15);
     expect(nativeRuleFixtures).toHaveLength(7);
     for (const [name, rule] of rules) {
       for (const cold of [true, false]) {
