@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.1 - 2026-09-05
+
+### Changes
+
+- chore: enable full typescript lint policy (deab231)
+
 ## 0.7.0 - 2026-09-05
 
 ### Breaking Changes
