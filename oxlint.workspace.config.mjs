@@ -1,40 +1,8 @@
 import { existsSync } from 'node:fs';
+import { repositoryConfig } from './oxlint.repository.mjs';
 
 const packageModule = existsSync(new URL('./ts/dist/index.js', import.meta.url))
   ? await import('./ts/dist/index.js')
   : await import('@thethracian/oxlint-config');
-const theThracian = packageModule.default;
 
-const config = theThracian({
-  effect: true,
-  typeAware: true,
-});
-
-const localRepositoryConfig = {
-  ...config,
-  ignorePatterns: [
-    'oxlint.workspace.config.mjs',
-    '**/node_modules/**',
-    '**/dist/**',
-    '**/build/**',
-    '**/coverage/**',
-    'ts/codemod-quality-output/**',
-    '**/scripts/**',
-
-    'ts/test/oxlint-min-peer/{invalid,safe,native-apis}.ts',
-    '**/fixtures/**',
-    '**/bench/**',
-    '**/.next/**',
-    '**/.nuxt/**',
-    '**/out/**',
-    '**/out-tsc/**',
-    '**/.turbo/**',
-    '**/.cache/**',
-  ],
-  options: {
-    ...config.options,
-    denyWarnings: true,
-  },
-};
-
-export default localRepositoryConfig;
+export default repositoryConfig(packageModule.default);

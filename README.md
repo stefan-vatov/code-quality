@@ -183,9 +183,17 @@ This is a pnpm and Nx workspace. TypeScript is packed through npm tooling, Rust 
 Elixir through Mix/Hex. The root package is private and owns workspace orchestration only.
 
 `lint`, `lint:fix`, the type-aware variants, staged hooks, and the Nx TypeScript lint target
-build and use the local TypeScript package. Executable tests are linted too; deliberately invalid
-minimum-peer programs remain fixtures checked by their compatibility harness. Test tooling has
-its own TypeScript project, separate from the published source build.
+build and use the local TypeScript package. Both local and published configs share
+`oxlint.repository.mjs`: 271 error rules, including all 19 specialized Effect analyzers and all
+59 strict Effect rules. Repository lint scans from the root and includes non-test fixtures.
+Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
+the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.
+
+Strict path groups match package responsibilities: the config factory, codemod filesystem runner,
+and source cache are platform adapters; the two CLI launchers are entrypoints; the config factory
+and Vitest configs are configuration modules; rule analyzers and codemods are domain code.
+These are the rules' normal architectural boundaries, not disabled rules or lint suppressions.
+The exported consumer defaults remain unchanged; this repository explicitly opts into the full set.
 
 `pnpm run lint:published:type-aware` checks the installed published package independently. CI uses
 that command for post-release consumer verification.

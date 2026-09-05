@@ -116,8 +116,12 @@ When changing repo tooling:
 
 - Normal lint commands, staged hooks, and Nx TypeScript lint use the locally built package.
   `lint:published:type-aware` is reserved for validating the installed published consumer config.
-  Executable TypeScript tests are linted using `ts/test/tsconfig.json`; intentionally invalid
-  minimum-peer programs are excluded from repository lint and checked by their own harness.
+  Both configs share `oxlint.repository.mjs`, enabling 271 errors: the 159 reviewed native rules,
+  15 generic rules, the service-constructor rule, and all 96 retained Effect rules. Strict path
+  groups describe this package's existing adapters, entrypoints, configuration, and domain code.
+  Repository lint scans all owned TypeScript from the root, including non-test fixtures, while
+  excluding tests, scripts, benchmarks, JavaScript, and generated/dependency output. Test programs
+  remain typechecked separately; invalid minimum-peer programs use their compatibility harness.
 
 - Keep root scripts aligned with Nx targets.
 - Prefer `pnpm run lint`, `pnpm run check`, `pnpm run test:projects`, `pnpm run build`, and `pnpm run knip:ci`.

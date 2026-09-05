@@ -1,6 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
+import localFactory from '../ts/src/index';
+import publishedFactory from '@thethracian/oxlint-config';
+import { repositoryConfig } from '../oxlint.repository.mjs';
 
 interface RepositoryConfigs {
   'package.json': {
@@ -32,15 +35,13 @@ const sourceFiles = (directory: string) =>
     .map((entry) => `${entry.parentPath}/${entry.name}`);
 
 describe('quality threshold configuration', () => {
-  it.each(['oxlint.workspace.config.mjs', 'oxlint.config.mjs'])(
-    'excludes generated codemod samples from %s',
-    async (path) => {
-      const { default: config } = (await import(new URL(`../${path}`, import.meta.url).href)) as {
-        default: { ignorePatterns: string[] };
-      };
-      expect(config.ignorePatterns).toContain('ts/codemod-quality-output/**');
-    },
-  );
+  it.each([
+    ['local', localFactory],
+    ['published', publishedFactory],
+  ] as const)('excludes generated codemod samples from %s', (_name, factory) => {
+    const config = repositoryConfig(factory);
+    expect(config.ignorePatterns).toContain('ts/codemod-quality-output/**');
+  });
 
   it('keeps source imports extensionless for this package build pipeline', () => {
     const offenders = [...sourceFiles('ts/src'), ...sourceFiles('ts/test')].flatMap((path) => {
@@ -135,29 +136,27 @@ describe('quality threshold configuration', () => {
 
     expect(packageJSON.scripts['codemod:ts:local']).toBe('tsx ts/src/codemod-fix/cli.ts ts/src');
     expect(packageJSON.scripts['lint:local']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs .',
     );
     expect(packageJSON.scripts['lint:local:type-aware']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test --type-aware --type-check',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs . --type-aware --type-check',
     );
     expect(packageJSON.scripts['lint:local:fix']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test --fix',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs . --fix',
     );
     expect(packageJSON.scripts['lint:local:type-aware:fix']).toBe(
-      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs ts test --type-aware --type-check --fix',
+      'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs . --type-aware --type-check --fix',
     );
     expect(localConfig).toContain("existsSync(new URL('./ts/dist/index.js', import.meta.url))");
     expect(localConfig).toContain("await import('./ts/dist/index.js')");
     expect(localConfig).toContain("await import('@thethracian/oxlint-config')");
-    expect(localConfig).toContain("'oxlint.workspace.config.mjs'");
-    expect(publishedConfig).toContain("'oxlint.workspace.config.mjs'");
+    expect(localConfig).toContain("from './oxlint.repository.mjs'");
+    expect(publishedConfig).toContain("from './oxlint.repository.mjs'");
     expect(knipConfig.ignore).toContain('oxlint.workspace.config.mjs');
     expect(packageJSON.scripts.lint).toBe('pnpm run lint:local');
     expect(packageJSON.scripts['lint:fix']).toBe('pnpm run lint:local:fix');
     expect(packageJSON.scripts['lint:type-aware:fix']).toBe('pnpm run lint:local:type-aware:fix');
-    expect(rootJSON('ts/project.json').targets.lint.command).toContain(
-      'oxlint -c oxlint.workspace.config.mjs',
-    );
+    expect(rootJSON('ts/project.json').targets.lint.command).toBe('pnpm run lint:ci');
     expect(packageJSON.scripts['lint:ci']).toBe(
       'pnpm run lint:local:type-aware && pnpm run format:check',
     );
@@ -204,7 +203,7 @@ describe('quality gate documentation and release verification', () => {
     );
     expect(ciWorkflow).toContain('run: pnpm run lint:published:type-aware');
     expect(rootJSON('package.json').scripts['lint:published:type-aware']).toBe(
-      'oxlint -c oxlint.config.mjs ts --type-aware --type-check',
+      'oxlint -c oxlint.config.mjs . --type-aware --type-check',
     );
   });
 

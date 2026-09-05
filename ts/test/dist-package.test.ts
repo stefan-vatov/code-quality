@@ -104,13 +104,49 @@ const runOxlintJSON = (args: string[], cwd: string): string => {
 };
 
 describe('published TypeScript package shape', (): void => {
+  it.each(['oxlint.config.mjs', 'oxlint.workspace.config.mjs'])(
+    'lints source and fixtures but excludes tests, scripts, and benchmarks in %s',
+    (config) => {
+      const directory = mkdtempSync(join(repoRoot, 'lint-scope-'));
+      try {
+        for (const [relative, included] of [
+          ['src/example.ts', true],
+          ['src/fixtures/example.ts', true],
+          ['src/example.test.ts', false],
+          ['test/example.ts', false],
+          ['tests/example.ts', false],
+          ['scripts/example.ts', false],
+          ['bench/example.ts', false],
+          ['benchmarks/example.ts', false],
+        ] as const) {
+          const filename = join(directory, relative);
+          mkdirSync(join(filename, '..'), { recursive: true });
+          writeFileSync(filename, '// forbidden source comment\nexport const value = 1;\n');
+          const result = spawnSync(
+            join(repoRoot, 'node_modules/.bin/oxlint'),
+            ['-c', config, '--format', 'json', '--no-error-on-unmatched-pattern', filename],
+            { cwd: repoRoot, encoding: 'utf8' },
+          );
+          expect(result.error).toBeUndefined();
+          expect(result.status, `${config}: ${relative}\n${result.stdout}\n${result.stderr}`).toBe(
+            included ? 1 : 0,
+          );
+          expect(result.stdout.includes('no-comments'), relative).toBe(included);
+        }
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+    30_000,
+  );
+
   it(
-    'enforces module-mocking policy on executable repository tests',
+    'enforces module-mocking policy on repository source',
     () => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], { cwd: repoRoot, stdio: 'pipe' });
-      const directory = mkdtempSync(join(repoRoot, 'ts/test/lint-regression-'));
+      const directory = mkdtempSync(join(repoRoot, 'lint-regression-'));
       try {
-        const filename = join(directory, 'mocking.test.mts');
+        const filename = join(directory, 'mocking.mts');
         writeFileSync(filename, "import { vi } from 'vitest';\nvi.mock('./dependency');\n");
         const result = spawnSync(
           join(repoRoot, 'node_modules/.bin/oxlint'),
