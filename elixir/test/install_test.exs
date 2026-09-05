@@ -16,7 +16,7 @@ defmodule TheThracianCredo.InstallTest do
     formatter = File.read!(Path.join(project, ".formatter.exs"))
 
     assert credo =~ @new_marker
-    assert credo =~ "# VERSION 0.1.0"
+    assert credo =~ "# VERSION #{Mix.Project.config()[:version]}"
     assert credo =~ "{TheThracianCredo, []}"
     assert formatter =~ @new_marker
     assert formatter =~ "line_length: 150"
@@ -48,7 +48,7 @@ defmodule TheThracianCredo.InstallTest do
 
     assert count(credo, @new_marker) == 1
     refute credo =~ "0.0.1"
-    assert credo =~ "# VERSION 0.1.0"
+    assert credo =~ "# VERSION #{Mix.Project.config()[:version]}"
   end
 
   test "migrates legacy npm owned regions" do

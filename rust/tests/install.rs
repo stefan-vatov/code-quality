@@ -31,7 +31,7 @@ fn installs_rust_lints_into_package_projects() {
     let clippy = fs::read_to_string(project.join("clippy.toml")).unwrap();
 
     assert!(cargo_toml.contains(NEW_MARKER));
-    assert!(cargo_toml.contains("# VERSION 0.1.0"));
+    assert!(cargo_toml.contains(&format!("# VERSION {}", env!("CARGO_PKG_VERSION"))));
     assert!(cargo_toml.contains("[lints.rust]"));
     assert!(!cargo_toml.contains("missing_docs ="));
     for rule in [
@@ -94,7 +94,7 @@ fn reruns_replace_owned_regions_without_duplication() {
 
     assert_eq!(cargo_toml.matches(NEW_MARKER).count(), 1);
     assert!(!cargo_toml.contains("old_lint"));
-    assert!(cargo_toml.contains("# VERSION 0.1.0"));
+    assert!(cargo_toml.contains(&format!("# VERSION {}", env!("CARGO_PKG_VERSION"))));
 }
 
 #[test]
