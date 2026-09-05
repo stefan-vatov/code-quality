@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 - 2026-09-05
+
+### Breaking Changes
+
+- feat(ts)!: simplify lint policy and restore canonical effect rules (a8e396c)
+- feat(ts)!: lower cyclomatic complexity limit to 10 (b7b3db6)
+
 ## Unreleased
 
 ### Breaking Changes
