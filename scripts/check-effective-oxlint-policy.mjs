@@ -82,13 +82,13 @@ assert.equal(
 );
 assert.equal(
   sourceNativeEntries.length,
-  160,
-  'type-aware source config must expose 160 native rules',
+  159,
+  'type-aware source config must expose 159 native rules',
 );
 assert.equal(
   printedNativeEntries.length,
-  160,
-  'resolved type-aware config must expose 160 native rules',
+  159,
+  'resolved type-aware config must expose 159 native rules',
 );
 
 const sourceNative = Object.fromEntries(

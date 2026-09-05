@@ -97,9 +97,11 @@ const portedRuleNames = [
   'require-safety-comment-for-type-assertion',
 ] as const;
 
-const portedRules: RuleMap = Object.fromEntries(
-  portedRuleNames.map((ruleName) => [`thethracian/${ruleName}`, 'error']),
-);
+const portedRules: RuleMap = {
+  ...Object.fromEntries(portedRuleNames.map((ruleName) => [`thethracian/${ruleName}`, 'error'])),
+  // Guards establish a primitive contract without requiring boxed instanceof checks.
+  'thethracian/no-runtime-typeof': ['error', { allowInTypeGuards: true }],
+};
 
 /**
  * Native rules are listed explicitly instead of inherited from Oxlint
@@ -236,7 +238,6 @@ const nativeRuleAllowlist = [
   'typescript/no-unnecessary-type-assertion',
   'typescript/no-unnecessary-type-constraint',
   'typescript/no-unnecessary-type-conversion',
-  'typescript/no-unnecessary-type-parameters',
   'typescript/no-unsafe-argument',
   'typescript/no-unsafe-assignment',
   'typescript/no-unsafe-call',
@@ -293,7 +294,6 @@ const typeAwareNativeRuleNames = [
   'typescript/no-unnecessary-type-arguments',
   'typescript/no-unnecessary-type-assertion',
   'typescript/no-unnecessary-type-conversion',
-  'typescript/no-unnecessary-type-parameters',
   'typescript/no-unsafe-argument',
   'typescript/no-unsafe-assignment',
   'typescript/no-unsafe-call',

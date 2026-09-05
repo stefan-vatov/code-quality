@@ -408,3 +408,141 @@ describe('published TypeScript package exports', (): void => {
     distPackageTestTimeoutMs,
   );
 });
+
+describe('full preset rule compatibility', (): void => {
+  it.each([
+    {
+      name: 'generic consumers without erased object or unknown parameters',
+      errors: [],
+      source: `
+        export function keys<T extends object>(value: T): string[] { return Object.keys(value); }
+        export function count<T extends Record<string, unknown>>(value: T): number { return Object.keys(value).length; }
+        export function ignore<T>(value: T): void { void value; }
+      `,
+    },
+    {
+      name: 'primitive type guards without instanceof or unchecked assertions',
+      errors: [],
+      source: `
+        export function isString(value: unknown): value is string { return typeof value === 'string'; }
+        export function assertString(value: unknown): asserts value is string {
+          if (typeof value !== 'string') throw new TypeError('expected string');
+        }
+      `,
+    },
+    {
+      name: 'local guards narrowing known unions without losing evidence',
+      errors: [],
+      source: `
+        function isString(value: unknown): value is string { return typeof value === 'string'; }
+        export function length(value: string | number): number { return isString(value) ? value.length : value; }
+      `,
+    },
+    {
+      name: 'Effect resource scoping, generator delegation, and error causes together',
+      errors: [],
+      source: `
+        import { Effect } from 'effect';
+        class LoadError extends Error {
+          readonly _tag = 'LoadError';
+          constructor(cause: unknown) { super('load failed', { cause }); }
+        }
+        export const resource = Effect.scoped(Effect.gen(function* () {
+          return yield* Effect.acquireRelease(Effect.succeed('resource'), () => Effect.void);
+        }));
+        export const load = Effect.tryPromise({
+          try: () => Promise.resolve('loaded'),
+          catch: (cause) => new LoadError(cause),
+        });
+      `,
+    },
+    {
+      name: 'boundary and dictionary bans remain active',
+      errors: [
+        'no-object-parameters',
+        'no-unknown-parameters',
+        'no-unsafe-dictionary-type',
+        'no-unknown-returns',
+      ],
+      source: `
+        export function keys(value: object): string[] { return Object.keys(value); }
+        export function ignore(value: unknown): void { void value; }
+        export function count(value: Record<string, unknown>): number { return Object.keys(value).length; }
+        export declare function read(): unknown;
+      `,
+    },
+    {
+      name: 'ad hoc typeof and boxed instanceof remain forbidden',
+      errors: ['no-runtime-typeof', 'no-instanceof-builtins'],
+      source: `
+        export function check(value: string | number): boolean { return typeof value === 'string'; }
+        export function boxed(value: unknown): value is string { return value instanceof String; }
+      `,
+    },
+    {
+      name: 'actual widening and unchecked assertions remain forbidden',
+      errors: [
+        'no-known-value-widening',
+        'no-widen-then-assert',
+        'require-safety-comment-for-type-assertion',
+      ],
+      source: `
+        const value: unknown = { id: 'known' };
+        export const item = value as { id: string };
+      `,
+    },
+  ])(
+    'checks $name',
+    async ({ source, errors }): Promise<void> => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], { cwd: repoRoot, stdio: 'pipe' });
+      const root = mkdtempSync(join(tmpdir(), 'thx-rule-compatibility-'));
+      try {
+        const { default: factory } = await importFresh<{ default: BuiltConfigFactory }>(
+          join(repoRoot, 'ts/dist/index.js'),
+        );
+        const configPath = join(root, '.oxlintrc.json');
+        symlinkSync(join(repoRoot, 'ts/node_modules'), join(root, 'node_modules'), 'dir');
+        writeFileSync(configPath, JSON.stringify(factory({ typeAware: true, effect: true })));
+        writeFileSync(
+          join(root, 'tsconfig.json'),
+          JSON.stringify({
+            compilerOptions: {
+              strict: true,
+              target: 'ES2023',
+              module: 'ESNext',
+              moduleResolution: 'Bundler',
+              noEmit: true,
+              types: [],
+              skipLibCheck: true,
+            },
+            include: ['*.ts'],
+          }),
+        );
+        writeFileSync(join(root, 'valid.ts'), source);
+        const result = spawnSync(
+          join(repoRoot, 'node_modules/.bin/oxlint'),
+          ['-c', configPath, '--disable-nested-config', '--format', 'json', join(root, 'valid.ts')],
+          { cwd: root, encoding: 'utf8' },
+        );
+        expect(result.error).toBeUndefined();
+        expect(result.status, result.stdout + result.stderr).toBe(errors.length === 0 ? 0 : 1);
+        for (const ruleName of errors) {
+          expect(result.stdout).toContain(`(${ruleName})`);
+        }
+        if (errors.length === 0) {
+          const fixed = spawnSync(
+            join(repoRoot, 'node_modules/.bin/oxlint'),
+            ['-c', configPath, '--disable-nested-config', '--fix', join(root, 'valid.ts')],
+            { cwd: root, encoding: 'utf8' },
+          );
+          expect(fixed.error).toBeUndefined();
+          expect(fixed.status, fixed.stdout + fixed.stderr).toBe(0);
+          expect(readFileSync(join(root, 'valid.ts'), 'utf8')).toBe(source);
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+    distPackageTestTimeoutMs,
+  );
+});

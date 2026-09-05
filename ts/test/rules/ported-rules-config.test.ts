@@ -31,8 +31,13 @@ describe('ported rule integration', (): void => {
     const config = theThracianOxlint();
 
     for (const ruleName of genericRuleNames) {
-      expect(config.rules).toHaveProperty(`thethracian/${ruleName}`, 'error');
+      const setting = config.rules?.[`thethracian/${ruleName}`];
+      expect(Array.isArray(setting) ? setting[0] : setting).toBe('error');
     }
+    expect(config.rules).toHaveProperty('thethracian/no-runtime-typeof', [
+      'error',
+      { allowInTypeGuards: true },
+    ]);
 
     const pluginPath = config.jsPlugins
       ?.map(pluginSpecifier)

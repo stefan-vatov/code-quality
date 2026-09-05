@@ -64,7 +64,7 @@ ESTree and lexical-scope APIs, resolve same-file aliases, and deliberately stop 
 | `thethracian/no-object-parameters`                      | Rejects `object` and aliases resolving to it on function inputs.                                |
 | `thethracian/no-reflect-apply`                          | Requires typed calls instead of global `Reflect.apply`.                                         |
 | `thethracian/no-reflect-get`                            | Requires typed property access or boundary parsing instead of global `Reflect.get`.             |
-| `thethracian/no-runtime-typeof`                         | Requires boundary parsing instead of ad hoc `typeof` narrowing.                                 |
+| `thethracian/no-runtime-typeof`                         | Rejects ad hoc `typeof` narrowing; explicit type guards and existence probes remain valid.      |
 | `thethracian/no-shape-in-symbol-names`                  | Rejects locally owned symbol names containing `shape`; static member names remain valid.        |
 | `thethracian/no-unknown-parameters`                     | Rejects `unknown` function inputs except supported predicate and `cause` conventions.           |
 | `thethracian/no-unknown-returns`                        | Rejects explicit `unknown`, `Promise<unknown>`, and `PromiseLike<unknown>` return contracts.    |
@@ -74,6 +74,17 @@ ESTree and lexical-scope APIs, resolve same-file aliases, and deliberately stop 
 | `thethracian/require-safety-comment-for-type-assertion` | Requires a nearby invariant justification for non-const assertions.                             |
 
 These rules have no automatic migration behavior and do not replace the native Oxlint allowlist.
+
+The preset configures `no-runtime-typeof` with `allowInTypeGuards: true`: predicate and assertion
+functions can establish primitive contracts without the boxed `instanceof` checks rejected by
+`unicorn/no-instanceof-builtins`. Other runtime `typeof` narrowing remains forbidden. Calling a
+type guard does not erase the caller's type, so `no-known-value-widening` checks explicit storage,
+return, and assertion types, not predicate arguments.
+
+`typescript/no-unnecessary-type-parameters` is intentionally omitted. Its recommendation to
+replace generic parameters with `unknown`, `object`, or broad dictionaries conflicts with the
+boundary rules above. Generic consumers may keep their type parameters; unchecked operations
+remain errors.
 
 The mocking rule follows named and namespace imports, including `vitest.vi.mock(...)` and
 `globals.jest.mock(...)`, without treating shadowed local objects as test frameworks. The symbol
@@ -113,11 +124,11 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 15 package-local rules and adds all 32 approved semantic rules for 175
-selected errors in total (160 native upstream errors plus the 15 package-local rules). They include
+Type-aware mode keeps the 15 package-local rules and adds all 31 approved semantic rules for 174
+selected errors in total (159 native upstream errors plus the 15 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
-those 32 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
+those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
 it. Type-aware linting is slower because Oxlint loads project type information.
 
 Explicit `any` annotations, non-null assertions, and boundary type assertions remain available at

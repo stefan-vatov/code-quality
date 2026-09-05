@@ -57,6 +57,10 @@ TypeScript/Oxlint high-signal policy:
   conditional-spread, known-value-widening, module-mocking, object-parameter, Reflect, runtime
   `typeof`, symbol-name, unknown-boundary, dictionary, and safety-comment checks. They remain under
   the existing `thethracian` namespace and are all errors.
+- Explicit predicate and assertion functions may use runtime `typeof`; ordinary ad hoc narrowing
+  remains banned. Predicate calls do not discard caller type evidence and are not widening.
+  `typescript/no-unnecessary-type-parameters` is omitted because its broad-type replacements
+  conflict with the generic boundary rules.
 - The audit-flagged generic homegrown rules, flagged Effect preference rules, and semantically
   unsound module-scope rules are physically removed. The retained Effect plugin is disabled by
   default; `effect: true` enables exactly 18 safety rules, 19 specialized analyzers remain registered

@@ -81,7 +81,7 @@ assert.deepStrictEqual(ruleIDs.toSorted(), expectedRuleIDs.toSorted());
 
 const { default: fullConfig } = await import('./full.config.mjs');
 const sourceRuleNames = Object.keys(fullConfig.rules ?? {}).toSorted();
-assert.equal(sourceRuleNames.length, 194, 'full minimum-peer config must expose 194 rules');
+assert.equal(sourceRuleNames.length, 193, 'full minimum-peer config must expose 193 rules');
 const sourceNativeRuleNames = sourceRuleNames.filter(
   (ruleName) => !ruleName.startsWith('thethracian/'),
 );
@@ -91,7 +91,7 @@ const sourcePackageRuleNames = sourceRuleNames.filter((ruleName) =>
 const sourceEffectRuleNames = sourcePackageRuleNames.filter((ruleName) =>
   ruleName.startsWith('thethracian/effect-'),
 );
-assert.equal(sourceNativeRuleNames.length, 160, 'full config must expose 160 native rules');
+assert.equal(sourceNativeRuleNames.length, 159, 'full config must expose 159 native rules');
 assert.equal(sourcePackageRuleNames.length, 34, 'full config must expose 34 package rules');
 assert.equal(
   sourceEffectRuleNames.length,

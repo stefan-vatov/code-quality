@@ -69,6 +69,7 @@ const removedInheritedRules = [
   'typescript/no-explicit-any',
   'typescript/no-non-null-assertion',
   'typescript/no-unsafe-type-assertion',
+  'typescript/no-unnecessary-type-parameters',
   'typescript/prefer-namespace-keyword',
   'unicorn/consistent-function-scoping',
   'unicorn/no-array-reverse',
@@ -177,7 +178,6 @@ describe('high-signal strict config', (): void => {
       'typescript/no-unnecessary-type-arguments',
       'typescript/no-unnecessary-type-assertion',
       'typescript/no-unnecessary-type-conversion',
-      'typescript/no-unnecessary-type-parameters',
       'typescript/no-unsafe-argument',
       'typescript/no-unsafe-assignment',
       'typescript/no-unsafe-call',
@@ -193,7 +193,8 @@ describe('high-signal strict config', (): void => {
       'typescript/switch-exhaustiveness-check',
       'typescript/unbound-method',
     ]);
-    expect(Object.keys(typeAwareRules)).toHaveLength(175);
+    expect(Object.keys(typeAwareRules)).toHaveLength(174);
+    expect(typeAwareRules).not.toHaveProperty('typescript/no-unnecessary-type-parameters');
   });
 
   it('uses strict but non-fragmenting numeric limits', (): void => {
