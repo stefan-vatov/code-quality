@@ -188,6 +188,7 @@ export const moduleLevelMatches = (
   const matches: ModuleSourceMatch[] = [];
   for (const match of index.code.matchAll(pattern)) {
     if (index.modulePositions[match.index] === 1) {
+      // SAFETY: RegExpMatchArray.index was checked by the module-position lookup above.
       matches.push(match as ModuleSourceMatch);
     }
   }

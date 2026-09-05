@@ -3,15 +3,28 @@ import type { NativeSourceCode } from '../../src/rules/effect-native-references'
 import { effectGlobalFetchAST } from '../../src/rules/effect-global-fetch-ast';
 
 type SyntheticNode = {
-  [key: string]: unknown;
+  arguments?: SyntheticNode[];
+  body?: SyntheticNode[];
+  callee?: SyntheticNode;
+  computed?: boolean;
+  elements?: SyntheticNode[];
+  imported?: SyntheticNode;
+  importKind?: string;
+  local?: SyntheticNode;
+  name?: string;
+  object?: SyntheticNode;
+  property?: SyntheticNode;
+  source?: SyntheticNode;
+  specifiers?: SyntheticNode[];
   type: string;
+  value?: string;
 };
 
 const DEEP_DEPTHS = [2_048, 10_000];
 const CYCLIC_NODE_COUNT = 10_000;
 const GLOBAL_FETCH_SOURCE = 'import { Effect } from "effect"; Effect.promise(() => fetch())';
 
-const makeNode = (type: string, properties: Record<string, unknown> = {}): SyntheticNode => ({
+const makeNode = (type: string, properties: Omit<SyntheticNode, 'type'> = {}): SyntheticNode => ({
   type,
   ...properties,
 });
@@ -99,8 +112,12 @@ const reportsFromNativeGlobalFetch = (depth: number, cyclic: boolean): number =>
     },
     GLOBAL_FETCH_SOURCE,
   );
-  visitors.Program(program);
-  visitors.CallExpression(wrapper);
+  const { Program, CallExpression } = visitors;
+  if (!Program || !CallExpression) {
+    throw new Error('Global-fetch analysis must register Program and CallExpression visitors');
+  }
+  Program(program);
+  CallExpression(wrapper);
   return reports.length;
 };
 

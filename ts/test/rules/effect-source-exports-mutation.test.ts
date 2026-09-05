@@ -78,7 +78,7 @@ describe('Effect source scanner contracts', (): void => {
   });
 });
 
-describe('Effect exported declaration contracts', (): void => {
+const registerExportDeclarationTests = (): void => {
   it('extracts direct functions, values, types, interfaces, and classes exactly once', (): void => {
     const source = sourceLines(
       'export const direct = wrap({ semi: ";" });',
@@ -169,7 +169,9 @@ describe('Effect exported declaration contracts', (): void => {
 
     expect(exportedDeclarationTexts(source)).toEqual([]);
   });
+};
 
+const registerCallableBoundaryTests = (): void => {
   it('isolates arrow and function bodies while excluding non-callable initializers', (): void => {
     const source = sourceLines(
       'export const block = (input: string) => {',
@@ -281,6 +283,11 @@ describe('Effect exported declaration contracts', (): void => {
   ])('supports destructured and typed arrow parameters', ({ source }): void => {
     expectSingleExportProjection(source);
   });
+};
+
+describe('Effect exported declaration contracts', (): void => {
+  registerExportDeclarationTests();
+  registerCallableBoundaryTests();
 });
 
 describe('Effect exported declaration downstream diagnostics', (): void => {

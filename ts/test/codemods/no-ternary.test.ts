@@ -98,7 +98,9 @@ describe('preferExplicitBranches', (): void => {
 
     expect(preferExplicitBranches(input)).toBe(input);
   });
+});
 
+describe('preferExplicitBranches assignments and IIFEs', (): void => {
   it('converts plain assignment ternaries to explicit branches', (): void => {
     const input = `let label = "";
 

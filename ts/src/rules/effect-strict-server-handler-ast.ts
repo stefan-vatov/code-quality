@@ -1,9 +1,10 @@
 /* -------------------------------------------------------------------------- */
 /*       AST detection for synchronous Effect server-request handlers.        */
 /* -------------------------------------------------------------------------- */
+import { Predicate } from 'effect';
 import { asNode, childNode, identifierName } from './effect-ast';
 import type { ASTNode } from './effect-ast';
-import type { Context } from './effect-rule-core';
+import type { Context, VisitorMap } from './effect-rule-core';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
 
 const HANDLER_NAMES = new Set(['action', 'handler', 'loader', 'route']);
@@ -88,8 +89,8 @@ class RangeStartHeap {
 }
 
 const numericProperty = (node: ASTNode, key: string): number | undefined => {
-  const value: unknown = Reflect.get(node, key);
-  if (typeof value === 'number') {
+  const value = node[key];
+  if (Predicate.isNumber(value)) {
     return value;
   }
   return undefined;
@@ -115,7 +116,7 @@ const nodeRange = (node: ASTNode | undefined): SourceRange | undefined => {
 };
 
 const memberPropertyName = (node: ASTNode | undefined): string | undefined => {
-  if (node?.type !== 'MemberExpression' || Reflect.get(node, 'computed') === true) {
+  if (node?.type !== 'MemberExpression' || node.computed === true) {
     return undefined;
   }
   return identifierName(childNode(node, 'property'));
@@ -125,8 +126,8 @@ const literalStringValue = (node: ASTNode | undefined): string | undefined => {
   if (node?.type !== 'Literal') {
     return undefined;
   }
-  const value: unknown = Reflect.get(node, 'value');
-  if (typeof value !== 'string') {
+  const value = node.value;
+  if (!Predicate.isString(value)) {
     return undefined;
   }
   return value;
@@ -141,7 +142,7 @@ const isHandlerName = (node: ASTNode | undefined): boolean => {
 };
 
 const isUncomputedHandlerKey = (node: ASTNode): boolean =>
-  Reflect.get(node, 'computed') !== true && isHandlerName(childNode(node, 'key'));
+  node.computed !== true && isHandlerName(childNode(node, 'key'));
 
 const queueHandlerRanges = (index: HandlerRangeIndex): void => {
   const handlerIndex = index;
@@ -190,9 +191,7 @@ const isInsideHandlerRange = (node: ASTNode, index: HandlerRangeIndex): boolean 
  * @throws Does not throw.
  * @internal
  */
-export const runSyncServerHandlerAST = (
-  context: Context,
-): Record<string, (node: object) => void> => {
+export const runSyncServerHandlerAST = (context: Context): VisitorMap => {
   const runSync = importedEffectCallMatcher(context, 'Effect', ['runSync']);
   const handlerRanges: HandlerRangeIndex = {
     maxEnd: -1,

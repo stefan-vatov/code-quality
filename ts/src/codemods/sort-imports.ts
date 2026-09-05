@@ -1,9 +1,10 @@
 /* -------------------------------------------------------------------------- */
 /*      Conservative codemod for sorting top-level import declarations.       */
 /* -------------------------------------------------------------------------- */
-import { Array, Option, Order, Predicate, pipe } from 'effect';
-import type { ImportDeclaration, Statement } from 'jscodeshift';
+import { Array, Option, Order, pipe } from 'effect';
+import type { Identifier, ImportDeclaration, Node, Statement } from 'jscodeshift';
 import jscodeshift from 'jscodeshift';
+import { nodeEnd, nodeStart, sourceForNode } from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -12,15 +13,15 @@ interface Replacement {
 }
 
 interface ImportSpecifierNode {
-  imported?: unknown;
+  imported?: Node | null;
   importKind?: string;
-  local?: unknown;
+  local?: Node | null;
   type: string;
 }
 
 interface ImportNode {
   importKind?: string;
-  source: unknown;
+  source: Node;
   specifiers: readonly ImportSpecifierNode[];
 }
 
@@ -32,32 +33,8 @@ const syntaxOrder = {
 } as const;
 const codemodAPI = jscodeshift.withParser('ts');
 
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
-
 const isImportDeclaration = (statement: Statement): statement is ImportDeclaration =>
   statement.type === 'ImportDeclaration';
-
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
-
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
-  );
-
-const sourceForNode = (source: string, node: unknown): string =>
-  source.slice(nodeStart(node), nodeEnd(node));
 
 const compareText = Order.string;
 
@@ -86,30 +63,24 @@ const isDefaultSpecifier = (specifier: ImportSpecifierNode | undefined): boolean
 const isNamespaceSpecifier = (specifier: ImportSpecifierNode | undefined): boolean =>
   specifier?.type === 'ImportNamespaceSpecifier';
 
-const localName = (identifier: unknown): string =>
-  pipe(
-    Option.some(identifier),
-    Option.filter(isObjectRecord),
-    Option.filter((value): boolean => value.type === 'Identifier'),
-    Option.flatMapNullable((value) => value.name),
-    Option.filter(Predicate.isString),
-    Option.getOrElse((): string => ''),
-  );
+const isIdentifier = (node: Node | null | undefined): node is Identifier =>
+  node?.type === 'Identifier';
 
-const importedName = (node: unknown): string =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.match({
-      onNone: (): string => '',
-      onSome: (value): string => {
-        if (value.type === 'Identifier' && typeof value.name === 'string') {
-          return value.name;
-        }
-        return String(value.value);
-      },
-    }),
-  );
+const isLiteral = (node: Node | null | undefined): node is Node & { readonly value: unknown } =>
+  node?.type === 'Literal';
+
+const localName = (identifier: Node | null | undefined): string =>
+  isIdentifier(identifier) ? identifier.name : '';
+
+const importedName = (node: Node | null | undefined): string => {
+  if (isIdentifier(node)) {
+    return node.name;
+  }
+  if (isLiteral(node)) {
+    return String(node.value);
+  }
+  return '';
+};
 
 const importSpecifiers = (statement: ImportDeclaration): readonly ImportSpecifierNode[] =>
   pipe(importNode(statement).specifiers, Array.filter(isImportSpecifier));

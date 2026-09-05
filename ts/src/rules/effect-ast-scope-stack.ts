@@ -3,6 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import type { ScopeStack } from './effect-ast-scope';
+import { Predicate } from 'effect';
 
 interface ScopeStackPath {
   readonly base: ScopeStack;
@@ -14,6 +15,19 @@ interface ScopeStackPath {
 
 const scopeStackPaths = new WeakMap<object, ScopeStackPath>();
 const persistentScopeStackThreshold = 0;
+
+type ScopeHandler<Value> = (scope: ReadonlySet<string>, index: number, scopes: ScopeStack) => Value;
+type ScopeCollectionMethod =
+  | (<Value>(handler: ScopeHandler<Value>) => Value[])
+  | ((handler: ScopeHandler<boolean>) => boolean)
+  | ((handler: ScopeHandler<void>) => void);
+type ScopeStackProperty =
+  | ReadonlySet<string>
+  | ScopeCollectionMethod
+  | ((index: number) => ReadonlySet<string> | undefined)
+  | (() => IterableIterator<ReadonlySet<string>>)
+  | number
+  | undefined;
 
 const buildScopeValues = (path: ScopeStackPath): ScopeStack => {
   const values: ReadonlySet<string>[] = [];
@@ -41,7 +55,7 @@ const scopeValues = (path: ScopeStackPath): ScopeStack => {
 };
 
 const arrayIndexFor = (property: string | symbol): number | undefined => {
-  if (typeof property !== 'string' || property === '') {
+  if (!Predicate.isString(property) || property === '') {
     return undefined;
   }
   const index = Number(property);
@@ -118,7 +132,7 @@ const scopeStackMethod = (
   path: ScopeStackPath,
   property: string | symbol,
   receiver: ScopeStack,
-): unknown => {
+): ScopeStackProperty => {
   if (property === 'map' || property === 'every' || property === 'forEach' || property === 'some') {
     return scopeCollectionMethod(path, property, receiver);
   }
@@ -129,7 +143,7 @@ const scopeCollectionMethod = (
   path: ScopeStackPath,
   property: string | symbol,
   receiver: ScopeStack,
-): unknown => {
+): ScopeStackProperty => {
   const values = scopeValues(path);
   if (property === 'map') {
     return <Value>(
@@ -154,7 +168,10 @@ const scopeCollectionMethod = (
   return undefined;
 };
 
-const scopeStructuralMethod = (path: ScopeStackPath, property: string | symbol): unknown => {
+const scopeStructuralMethod = (
+  path: ScopeStackPath,
+  property: string | symbol,
+): ScopeStackProperty => {
   if (property === 'at') {
     const values = scopeValues(path);
     return (index: number): ReadonlySet<string> | undefined => values.at(index);
@@ -185,13 +202,6 @@ const scopeStackIndexedValue = (
 
 const isScopeStack = (value: unknown): value is ScopeStack => Array.isArray(value);
 
-const scopeStackReceiver = (value: unknown, fallback: ScopeStack): ScopeStack => {
-  if (isScopeStack(value)) {
-    return value;
-  }
-  return fallback;
-};
-
 const persistentScopeStack = (scopes: ScopeStack, bindings: ReadonlySet<string>): ScopeStack => {
   const previous = scopeStackPaths.get(scopes);
   const path: ScopeStackPath = {
@@ -202,8 +212,8 @@ const persistentScopeStack = (scopes: ScopeStack, bindings: ReadonlySet<string>)
   };
   const target: ReadonlySet<string>[] = [];
   const stack = new Proxy(target, {
-    get: (current, property, receiver): unknown => {
-      const stackReceiver = scopeStackReceiver(receiver, target);
+    get: (current, property, receiver): ScopeStackProperty => {
+      const stackReceiver = isScopeStack(receiver) ? receiver : target;
       const method = scopeStackMethod(path, property, stackReceiver);
       if (method !== undefined) {
         return method;
@@ -212,7 +222,7 @@ const persistentScopeStack = (scopes: ScopeStack, bindings: ReadonlySet<string>)
       if (indexedValue !== undefined) {
         return indexedValue;
       }
-      return Reflect.get(current, property, receiver);
+      return undefined;
     },
     has: (current, property): boolean => {
       const index = arrayIndexFor(property);

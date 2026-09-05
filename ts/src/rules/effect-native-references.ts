@@ -3,68 +3,35 @@
 /* -------------------------------------------------------------------------- */
 
 import type { Context } from './effect-rule-core';
+import { Predicate } from 'effect';
+import type {
+  NativeDefinition,
+  NativeReference,
+  NativeScope,
+  NativeSourceCode,
+} from './effect-native-types';
 
-/**
- * The subset of an Oxlint scope reference needed by custom Effect rules.
- *
- * @internal
- */
-export interface NativeReference {
-  identifier?: object;
-  resolved?: {
-    defs?: readonly { type?: string }[];
-  } | null;
-}
+export type {
+  NativeDefinition,
+  NativeImportNode,
+  NativeReference,
+  NativeResolvedReference,
+  NativeScope,
+  NativeScopeManager,
+  NativeSourceCode,
+} from './effect-native-types';
 
-/**
- * The allocation-free SourceCode capabilities used by custom Effect rules.
- *
- * @internal
- */
-export interface NativeSourceCode {
-  isGlobalReference?: (node: object) => boolean;
-  scopeManager?: {
-    scopes?: readonly object[];
-  };
-  visitorKeys?: Readonly<Record<string, readonly string[]>>;
-}
-
-const unreadableProperty = Symbol('unreadableProperty');
-
-const readProperty = (value: object, key: string): unknown => {
-  try {
-    return Reflect.get(value, key);
-  } catch {
-    return unreadableProperty;
-  }
-};
-
-const isRecord = (value: unknown): value is object =>
-  value !== null && typeof value === 'object' && !Array.isArray(value);
-
-const isWeakKey = (value: unknown): value is object =>
-  (value !== null && typeof value === 'object') || typeof value === 'function';
-
-const isUnknownArray = (value: unknown): value is readonly unknown[] => Array.isArray(value);
 const nativeReferenceIndexes = new WeakMap<NativeSourceCode, WeakMap<object, NativeReference>>();
 
-const asArray = (value: unknown): readonly unknown[] | undefined => {
-  if (isUnknownArray(value)) {
-    return value;
-  }
-  return undefined;
-};
-
-const nativeScopeManagerFor = (sourceCode: object): object | undefined => {
-  const scopeManager = readProperty(sourceCode, 'scopeManager');
-  if (!isRecord(scopeManager)) {
+const nativeScopeManagerFor = (sourceCode: NativeSourceCode): NativeSourceCode['scopeManager'] => {
+  try {
+    const scopeManager = sourceCode.scopeManager;
+    return Predicate.isRecord(scopeManager) && Array.isArray(scopeManager.scopes)
+      ? scopeManager
+      : undefined;
+  } catch {
     return undefined;
   }
-  const scopes = readProperty(scopeManager, 'scopes');
-  if (!isUnknownArray(scopes)) {
-    return undefined;
-  }
-  return scopeManager;
 };
 
 /**
@@ -76,52 +43,52 @@ const nativeScopeManagerFor = (sourceCode: object): object | undefined => {
  * @internal
  */
 export const nativeSourceCodeFor = (context: Context): NativeSourceCode | undefined => {
-  const sourceCode = readProperty(context, 'sourceCode');
-  if (!isRecord(sourceCode)) {
+  const sourceCode = context.sourceCode;
+  if (!Predicate.isRecord(sourceCode)) {
     return undefined;
   }
-  const isGlobalReference = readProperty(sourceCode, 'isGlobalReference');
-  if (typeof isGlobalReference !== 'function' || !nativeScopeManagerFor(sourceCode)) {
+  try {
+    if (!Predicate.isFunction(sourceCode.isGlobalReference)) {
+      return undefined;
+    }
+    return nativeScopeManagerFor(sourceCode) === undefined ? undefined : sourceCode;
+  } catch {
     return undefined;
   }
-  return sourceCode as NativeSourceCode;
 };
 
-const addReference = (references: WeakMap<object, NativeReference>, value: unknown): void => {
-  if (isRecord(value)) {
-    const reference = value as NativeReference;
-    const identifier = readProperty(reference, 'identifier');
-    if (isWeakKey(identifier)) {
-      references.set(identifier, reference);
+const addReference = (
+  references: WeakMap<object, NativeReference>,
+  reference: NativeReference | undefined,
+): void => {
+  const identifier = reference?.identifier;
+  if (Predicate.isRecord(identifier) && reference !== undefined) {
+    references.set(identifier, reference);
+  }
+};
+
+const isNativeReference = (value: unknown): value is NativeReference => Predicate.isRecord(value);
+
+const addReferences = (
+  references: WeakMap<object, NativeReference>,
+  values: readonly NativeReference[] | undefined,
+): void => {
+  if (!Array.isArray(values)) {
+    return;
+  }
+  for (const value of values) {
+    if (isNativeReference(value)) {
+      addReference(references, value);
     }
   }
 };
 
-const addReferences = (references: WeakMap<object, NativeReference>, values: unknown): void => {
-  if (!isUnknownArray(values)) {
-    return;
-  }
-  const valueCount = values.length;
-  for (let valueIndex = 0; valueIndex < valueCount; valueIndex += 1) {
-    addReference(references, values[valueIndex]);
-  }
-};
+const scopesFor = (sourceCode: NativeSourceCode): readonly NativeScope[] | undefined =>
+  nativeScopeManagerFor(sourceCode)?.scopes;
 
-const scopesFor = (sourceCode: NativeSourceCode): readonly unknown[] | undefined => {
-  const scopeManager = readProperty(sourceCode, 'scopeManager');
-  if (!isRecord(scopeManager)) {
-    return undefined;
-  }
-  const scopes = readProperty(scopeManager, 'scopes');
-  return asArray(scopes);
-};
-
-const referenceValuesFor = (scope: unknown): unknown => {
-  if (isRecord(scope)) {
-    return readProperty(scope, 'references');
-  }
-  return undefined;
-};
+const referenceValuesFor = (
+  scope: NativeScope | undefined,
+): readonly NativeReference[] | undefined => scope?.references;
 
 /**
  * Index Oxlint reference nodes by object identity for constant-time lookup.
@@ -139,9 +106,8 @@ export const indexNativeReferences = (
   if (!scopes) {
     return;
   }
-  const scopeCount = scopes.length;
-  for (let scopeIndex = 0; scopeIndex < scopeCount; scopeIndex += 1) {
-    addReferences(references, referenceValuesFor(scopes[scopeIndex]));
+  for (const scope of scopes) {
+    addReferences(references, referenceValuesFor(scope));
   }
 };
 
@@ -169,33 +135,22 @@ export const nativeReferenceIndexFor = (
 };
 
 const definitionsFor = (
-  node: object | undefined,
+  node: import('./effect-ast').ASTNode | undefined,
   references: WeakMap<object, NativeReference> | undefined,
-): readonly unknown[] | undefined => {
-  if (!node || !references) {
+): readonly NativeDefinition[] | undefined => {
+  if (node === undefined || references === undefined) {
     return undefined;
   }
-  const reference = references.get(node);
-  if (!isRecord(reference)) {
-    return undefined;
-  }
-  const resolved = readProperty(reference, 'resolved');
-  if (!isRecord(resolved)) {
-    return undefined;
-  }
-  const definitions = readProperty(resolved, 'defs');
-  return asArray(definitions);
+  return references.get(node)?.resolved?.defs;
 };
 
-const hasImportDefinition = (definitions: readonly unknown[]): boolean => {
-  const definitionCount = definitions.length;
-  for (let definitionIndex = 0; definitionIndex < definitionCount; definitionIndex += 1) {
-    const definition: unknown = definitions[definitionIndex];
-    if (isRecord(definition) && readProperty(definition, 'type') === 'ImportBinding') {
-      return true;
-    }
+const hasImportDefinition = (definitions: readonly NativeDefinition[] | undefined): boolean => {
+  if (!Array.isArray(definitions)) {
+    return false;
   }
-  return false;
+  return definitions.some(
+    (definition) => Predicate.isRecord(definition) && definition.type === 'ImportBinding',
+  );
 };
 
 /**
@@ -208,12 +163,9 @@ const hasImportDefinition = (definitions: readonly unknown[]): boolean => {
  * @internal
  */
 export const isImportReference = (
-  node: object | undefined,
+  node: import('./effect-ast').ASTNode | undefined,
   references: WeakMap<object, NativeReference> | undefined,
 ): boolean => {
   const definitions = definitionsFor(node, references);
-  if (definitions) {
-    return hasImportDefinition(definitions);
-  }
-  return false;
+  return hasImportDefinition(definitions);
 };

@@ -21,6 +21,11 @@ const JSON_PARSE_PATTERN = /\bJSON\.parse\s*\(/g;
 const JSON_NUMBER_FROM_STRING_PATTERN =
   /\b(?:[A-Za-z_$][\w$]*NumberFromString|Schema\.NumberFromString)\b/g;
 
+interface PromiseObjectBody {
+  readonly body: string;
+  readonly rawBody: string;
+}
+
 const firstIndexAtOrAfter = (indexes: readonly number[], targetIndex: number): number => {
   let low = 0;
   let high = indexes.length;
@@ -177,14 +182,16 @@ const tryPromiseObjectBody = (
   code: string,
   source: string,
   start: number,
-): { body: string; rawBody: string } | undefined => {
+): PromiseObjectBody | undefined => {
   const objectEnd = findMatchingBrace(code, start);
   return Match.value(objectEnd).pipe(
     Match.when(-1, (): undefined => undefined),
-    Match.orElse((end): { body: string; rawBody: string } => ({
-      body: code.slice(start + 1, end),
-      rawBody: source.slice(start + 1, end),
-    })),
+    Match.orElse(
+      (end): PromiseObjectBody => ({
+        body: code.slice(start + 1, end),
+        rawBody: source.slice(start + 1, end),
+      }),
+    ),
   );
 };
 

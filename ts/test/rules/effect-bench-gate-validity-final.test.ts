@@ -19,6 +19,7 @@ const readBenchFile = (filename: string): string =>
   readFileSync(fileURLToPath(new URL(`../../bench/${filename}`, import.meta.url)), 'utf8');
 
 const gateSource = readBenchFile('performance-gate.ts');
+// SAFETY: the repository-owned budget JSON contains rule entries with the harness metadata checked below.
 const budgets = JSON.parse(readBenchFile('performance-budgets.json')) as BudgetFile;
 
 const sourceBetween = (start: string, end: string): string => {
@@ -36,6 +37,10 @@ const numericConstant = (name: string): number => {
 };
 
 describe('Effect benchmark validity contracts', (): void => {
+  it('budgets every registered rule, including the native TypeScript rules', (): void => {
+    expect(Object.keys(budgets.rules).sort()).toStrictEqual(Object.keys(plugin.rules).sort());
+  });
+
   it('uses the median of repeated measurements to reject transient tail jitter', (): void => {
     const row = (medianNs: number, p95Ns: number): BenchRow => ({
       inputSamples: 7,
@@ -70,12 +75,8 @@ describe('Effect benchmark validity contracts', (): void => {
   it('requires only work paths exposed by the retained plugin', (): void => {
     const fixableRuleNames = Object.entries(plugin.rules)
       .filter(([, rule]): boolean => {
-        const meta: unknown = Reflect.get(rule, 'meta');
-        return (
-          typeof meta === 'object' &&
-          meta !== null &&
-          (Reflect.has(meta, 'fixable') || Reflect.get(meta, 'hasSuggestions') === true)
-        );
+        const meta = rule.meta;
+        return meta !== undefined && ('fixable' in meta || meta.hasSuggestions === true);
       })
       .map(([ruleName]) => ruleName);
 

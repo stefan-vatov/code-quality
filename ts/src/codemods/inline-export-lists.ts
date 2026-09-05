@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*            Conservative codemod for local export-list rewrites.            */
 /* -------------------------------------------------------------------------- */
-import { Array, HashSet, Option, Order, Predicate, pipe } from 'effect';
+import { Array, HashSet, Option, Order, pipe } from 'effect';
 import type {
   Declaration,
   ExportNamedDeclaration,
@@ -11,6 +11,7 @@ import type {
   VariableDeclarator,
 } from 'jscodeshift';
 import jscodeshift from 'jscodeshift';
+import { isCodemodNode, nodeEnd, nodeStart, type CodemodValue } from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -30,9 +31,6 @@ interface ProgramLike {
 const exportKeyword = 'export ';
 const codemodAPI = jscodeshift.withParser('ts');
 
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
-
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   pipe(
     replacements,
@@ -42,24 +40,6 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
       (current, replacement) =>
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
     ),
-  );
-
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
-
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
   );
 
 const lineEndAfter = (source: string, position: number): number => {
@@ -76,8 +56,8 @@ const lineEndAfter = (source: string, position: number): number => {
   );
 };
 
-const isIdentifier = (node: unknown): node is Identifier =>
-  isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
+const isIdentifier = (node: CodemodValue): node is Identifier =>
+  isCodemodNode(node) && node.type === 'Identifier';
 
 const isExportNamedDeclaration = (statement: Statement): statement is ExportNamedDeclaration =>
   statement.type === 'ExportNamedDeclaration';
@@ -85,13 +65,13 @@ const isExportNamedDeclaration = (statement: Statement): statement is ExportName
 const isVariableDeclaration = (declaration: Declaration): declaration is VariableDeclaration =>
   declaration.type === 'VariableDeclaration';
 
-const isVariableDeclarator = (declaration: unknown): declaration is VariableDeclarator =>
-  isObjectRecord(declaration) && 'id' in declaration;
+const isVariableDeclarator = (declaration: CodemodValue): declaration is VariableDeclarator =>
+  isCodemodNode(declaration) && declaration.type === 'VariableDeclarator';
 
-const exportSpecifierName = (specifier: unknown): string | undefined =>
+const exportSpecifierName = (specifier: CodemodValue): string | undefined =>
   pipe(
     Option.some(specifier),
-    Option.filter(isObjectRecord),
+    Option.filter(isCodemodNode),
     Option.filter((value): boolean => value.type === 'ExportSpecifier'),
     Option.flatMap((value) =>
       pipe(
@@ -120,7 +100,7 @@ const exportSpecifierName = (specifier: unknown): string | undefined =>
     Option.getOrUndefined,
   );
 
-const exportSpecifierNames = (specifiers: readonly unknown[]): string[] | undefined => {
+const exportSpecifierNames = (specifiers: readonly CodemodValue[]): string[] | undefined => {
   const names = pipe(
     specifiers,
     Array.map((specifier) => Option.fromNullable(exportSpecifierName(specifier))),
@@ -170,21 +150,26 @@ const variableStatementNames = (node: VariableDeclaration): readonly string[] =>
     }),
   );
 
-const declarationName = (node: Declaration): string | undefined =>
-  pipe(
-    Option.some(node as unknown),
-    Option.filter(isObjectRecord),
-    Option.flatMap((value) => Option.fromNullable(value.id)),
-    Option.filter(isIdentifier),
-    Option.map((value): string => value.name),
-    Option.getOrUndefined,
-  );
+const declarationName = (node: CodemodValue): string | undefined => {
+  if (!isCodemodNode(node)) {
+    return undefined;
+  }
+  const identifier = node.id;
+  return isIdentifier(identifier) ? identifier.name : undefined;
+};
 
 const unwrappedDeclaration = (node: Statement): Declaration | undefined => {
   if (isExportNamedDeclaration(node)) {
     return node.declaration ?? undefined;
   }
-  if (node.type === 'VariableDeclaration' || (isObjectRecord(node) && 'id' in node)) {
+  if (
+    node.type === 'VariableDeclaration' ||
+    node.type === 'FunctionDeclaration' ||
+    node.type === 'ClassDeclaration' ||
+    node.type === 'TSInterfaceDeclaration' ||
+    node.type === 'TSTypeAliasDeclaration' ||
+    node.type === 'TSEnumDeclaration'
+  ) {
     return node;
   }
   return undefined;

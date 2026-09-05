@@ -1,14 +1,20 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { Schema } from 'effect';
 
 const repoRoot = new URL('../..', import.meta.url);
-const rootJSON = (path: string): unknown =>
-  JSON.parse(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf-8'));
+const parsePackage = Schema.decodeUnknownSync(
+  Schema.parseJson(
+    Schema.Struct({ scripts: Schema.Record({ key: Schema.String, value: Schema.String }) }),
+  ),
+);
 
 describe('performance estimate calculator', () => {
   it('is wired as a package script for large-codebase runtime estimates', () => {
-    const packageJSON = rootJSON('package.json') as { scripts?: Record<string, string> };
+    const packageJSON = parsePackage(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'),
+    );
 
     expect(packageJSON.scripts?.['performance:estimate']).toBe(
       'tsx ts/bench/performance-estimate.ts',

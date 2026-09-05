@@ -16,6 +16,12 @@ const EXTERNAL_CALL_PATTERN =
 const IDEMPOTENT_EXTERNAL_CALL_PATTERN =
   /\b(?:HttpClient\.(?:get|head|put|delete)|fetch|(?:find|lookup|read)[A-Z]\w*)\s*\(/g;
 
+interface RetryScanResult {
+  readonly isMutatingFetch: boolean;
+  readonly segment: string;
+  readonly shouldSkipFetch: boolean;
+}
+
 const hasExternalCallSignal = (source: string): boolean =>
   pipe(
     ['HttpClient.', 'fetch', 'FileSystem.', 'SqlClient.'],
@@ -105,7 +111,7 @@ const retryScanInput = (
   code: string,
   match: RegExpMatchArray,
   options: { allowFetch: boolean },
-): { isMutatingFetch: boolean; segment: string; shouldSkipFetch: boolean } => {
+): RetryScanResult => {
   const index = match.index ?? 0;
   const enclosingWrapper = enclosingEffectWrapperSegment(code, index);
   const rawEnclosingWrapper = enclosingEffectWrapperSegment(source, index);

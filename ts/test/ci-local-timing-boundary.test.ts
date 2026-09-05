@@ -3,6 +3,7 @@ import { join, relative } from 'node:path';
 import { readFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { Predicate } from 'effect';
 
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const testRoot = join(repositoryRoot, 'ts', 'test');
@@ -47,10 +48,10 @@ const parseExclusions = (output: string): readonly string[] => {
   if (!Array.isArray(value)) {
     throw new Error('Vitest config probe did not return an exclusion array.');
   }
-  if (value.some((entry): boolean => typeof entry !== 'string')) {
+  if (value.some((entry): boolean => !Predicate.isString(entry))) {
     throw new Error('Vitest config probe returned a non-string exclusion.');
   }
-  return value.filter((entry): entry is string => typeof entry === 'string');
+  return value.filter(Predicate.isString);
 };
 
 const vitestExclusions = (isCI: boolean): readonly string[] => {

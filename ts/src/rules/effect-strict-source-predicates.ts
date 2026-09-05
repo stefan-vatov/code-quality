@@ -11,11 +11,7 @@ import {
 } from './effect-source-helpers';
 import { hasRunSyncInServerRequestHandlerSource } from './effect-strict-server-handler-source';
 import { isConfiguredPath } from './effect-path-options';
-
-interface RuleContext {
-  filename?: string;
-  options?: object[];
-}
+import type { Context as RuleContext } from './effect-rule-core';
 
 type IndexedMatch = RegExpExecArray;
 

@@ -23,7 +23,7 @@ function configuredEffectRuleNames(source: string, filename = 'src/domain/user.t
     .sort();
 }
 
-describe('Effect cycle 22 regression coverage', () => {
+const registerLocalStatementTests = (): void => {
   it('ignores strings inside template literal interpolations', () => {
     expect(
       runRule(
@@ -161,7 +161,9 @@ describe('Effect cycle 22 regression coverage', () => {
       ),
     ).toHaveLength(1);
   });
+};
 
+const registerResourceAndBoundaryTests = (): void => {
   it('ignores resource and layer trigger text inside ordinary strings', () => {
     expect(
       runRule(
@@ -257,4 +259,9 @@ describe('Effect cycle 22 regression coverage', () => {
       'effect-require-timeout-on-external-effects',
     ]);
   });
+};
+
+describe('Effect cycle 22 regression coverage', (): void => {
+  registerLocalStatementTests();
+  registerResourceAndBoundaryTests();
 });

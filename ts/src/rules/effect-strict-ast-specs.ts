@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*          AST-backed opt-in strict custom Effect lint rule specs.           */
 /* -------------------------------------------------------------------------- */
-import { Array, Option, pipe } from 'effect';
+import { Array, Option, Predicate, pipe } from 'effect';
 import {
   arrayValue,
   hasCryptoRandomUUID,
@@ -25,7 +25,7 @@ import {
   reportAST,
   serviceKeyFromClass,
 } from './effect-strict-internals';
-import type { RuleSpec } from './effect-rule-core';
+import type { RuleSpec, VisitorMap } from './effect-rule-core';
 import { asNode } from './effect-ast';
 import { effectGlobalFetchAST } from './effect-global-fetch-ast';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
@@ -39,7 +39,7 @@ import { isConfiguredPath } from './effect-path-options';
 export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
   [
     {
-      ast: (context): Record<string, (node: object) => void> => ({
+      ast: (context): VisitorMap => ({
         CallExpression(node): void {
           if (isMember(objectValue(node, 'callee'), 'crypto', 'randomUUID')) {
             reportAST(
@@ -56,15 +56,11 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['crypto.randomUUID'],
     },
     {
-      ast: (context): Record<string, (node: object) => void> => ({
+      ast: (context): VisitorMap => ({
         BinaryExpression(node): void {
-          const binary = node as { operator?: string; right?: object };
-          const rightName = identifierName(binary.right);
-          if (
-            binary.operator === 'instanceof' &&
-            rightName &&
-            /(?:Schema|Request)$/.test(rightName)
-          ) {
+          const operator = objectValue(node, 'operator');
+          const rightName = identifierName(objectValue(node, 'right'));
+          if (operator === 'instanceof' && rightName && /(?:Schema|Request)$/.test(rightName)) {
             reportAST(
               context,
               'Use Schema.is for schema-modeled domain checks instead of instanceof.',
@@ -79,7 +75,7 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['instanceof'],
     },
     {
-      ast: (context, source): Record<string, (node: object) => void> => ({
+      ast: (context, source): VisitorMap => ({
         CallExpression(node): void {
           const callArguments = arrayValue(objectValue(node, 'arguments'));
           const firstArg = pipe(callArguments, Array.head, Option.getOrUndefined);
@@ -117,7 +113,7 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['Schema', '_tag'],
     },
     {
-      ast: (context, source): Record<string, (node: object) => void> => ({
+      ast: (context, source): VisitorMap => ({
         CallExpression(node): void {
           const callArguments = arrayValue(objectValue(node, 'arguments'));
           const literalArgCount = pipe(
@@ -138,7 +134,7 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['Schema.Union', 'Schema.Literal', 'effect'],
     },
     {
-      ast: (context, source): Record<string, (node: object) => void> => ({
+      ast: (context, source): VisitorMap => ({
         ClassDeclaration(node): void {
           const { className, key } = serviceKeyFromClass(node, source);
           if (className && key && className !== key && !key.endsWith(`/${className}`)) {
@@ -168,12 +164,12 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['Layer.effect', 'Scope'],
     },
     {
-      ast: (context): Record<string, (node: object) => void> => ({
+      ast: (context): VisitorMap => ({
         ImportDeclaration(node): void {
-          const sourceValue = literalValue((node as { source?: object }).source);
+          const sourceValue = literalValue(objectValue(node, 'source'));
           if (
             !isConfiguredPath(context, 'adapterLayers') &&
-            typeof sourceValue === 'string' &&
+            Predicate.isString(sourceValue) &&
             /^node:(?:fs|fs\/promises|path|child_process|crypto|stream|http|https)$/.test(
               sourceValue,
             )
@@ -191,7 +187,7 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['node:'],
     },
     {
-      ast: (context, source): Record<string, (node: object) => void> => {
+      ast: (context, source): VisitorMap => {
         if (isConfiguredPath(context, 'adapterLayers')) {
           return { Program(): void {} };
         }
@@ -203,7 +199,7 @@ export const effectStrictASTSpecs: readonly RuleSpec[] = pipe(
       tokens: ['fetch'],
     },
     {
-      ast: (context): Record<string, (node: object) => void> => {
+      ast: (context): VisitorMap => {
         const effectSucceed = importedEffectCallMatcher(context, 'Effect', ['succeed']);
         return {
           CallExpression(node): void {

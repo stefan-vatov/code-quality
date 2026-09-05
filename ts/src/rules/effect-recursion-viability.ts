@@ -3,6 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import type { EagerEffectAPI, RecursionPhaseBindings } from './effect-recursion-phases';
+import { Predicate } from 'effect';
 import { childNode, childNodes, identifierName } from './effect-ast';
 import { effectCallAPIName, isShadowed, unwrappedExpression } from './effect-boundary-ast-shared';
 import type { ASTNode } from './effect-ast';
@@ -214,20 +215,12 @@ export const eagerEffectInvocation = (
   return curriedInvocation(node, bindings, scopes);
 };
 
-const reflectedString = (target: object, name: string): string | undefined => {
-  const value: unknown = Reflect.get(target, name);
-  if (typeof value === 'string') {
-    return value;
-  }
-  return undefined;
-};
-
 const matchPropertyName = (property: ASTNode): string | undefined => {
   const key = childNode(property, 'key');
-  if (Reflect.get(property, 'computed') === true) {
-    return reflectedString(key ?? {}, 'value');
+  if (property.computed === true) {
+    return Predicate.isString(key?.value) ? key.value : undefined;
   }
-  return identifierName(key) ?? reflectedString(key ?? {}, 'value');
+  return identifierName(key) ?? (Predicate.isString(key?.value) ? key.value : undefined);
 };
 
 interface MatchPropertySelection {
@@ -249,7 +242,7 @@ const matchPropertySelection = (
   if (propertyName !== selectedName) {
     return { isFinal: false };
   }
-  if (Reflect.get(property, 'kind') !== 'init') {
+  if (property.kind !== 'init') {
     return { isFinal: true };
   }
   return { isFinal: true, value: childNode(property, 'value') };

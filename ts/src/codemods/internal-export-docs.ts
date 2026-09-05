@@ -2,9 +2,10 @@
 /*          Codemod for internal exported declaration documentation.          */
 /* -------------------------------------------------------------------------- */
 import { Array, Option, Order, Predicate, pipe } from 'effect';
-import type { ExportNamedDeclaration, Statement } from 'jscodeshift';
+import type { Comment, ExportNamedDeclaration, Statement } from 'jscodeshift';
 import { formatJSDoc } from './comment-format';
 import jscodeshift from 'jscodeshift';
+import { nodeStart } from './ast-helpers';
 
 interface Insertion {
   position: number;
@@ -17,18 +18,6 @@ const internalExportDoc = formatJSDoc({
 });
 const internalHeaderScanLength = 240;
 const codemodAPI = jscodeshift.withParser('ts');
-
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
-
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
 
 const hasInternalFileHeader = (source: string): boolean => {
   const trimmedStart = source
@@ -47,33 +36,25 @@ const isExportedDeclarationStatement = (
   statement: Statement,
 ): statement is ExportNamedDeclaration =>
   statement.type === 'ExportNamedDeclaration' &&
-  isObjectRecord(statement) &&
-  Boolean(statement.declaration);
+  'declaration' in statement &&
+  statement.declaration !== null &&
+  statement.declaration !== undefined;
 
-const commentStart = (comment: unknown): number | undefined =>
-  pipe(
-    Option.some(comment),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrUndefined,
-  );
+const commentStart = (comment: Comment): number | undefined => {
+  const start = 'start' in comment ? comment.start : undefined;
+  return Predicate.isNumber(start) ? start : undefined;
+};
 
-const commentEnd = (comment: unknown): number | undefined =>
-  pipe(
-    Option.some(comment),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrUndefined,
-  );
+const commentEnd = (comment: Comment): number | undefined => {
+  const end = 'end' in comment ? comment.end : undefined;
+  return Predicate.isNumber(end) ? end : undefined;
+};
 
-const isJSDocComment = (source: string, comment: unknown): boolean => {
+const isJSDocComment = (source: string, comment: Comment): boolean => {
   const start = commentStart(comment);
   return pipe(
     Option.some(comment),
-    Option.filter(isObjectRecord),
-    Option.filter((value): boolean => value.type === 'CommentBlock'),
+    Option.filter((value): boolean => 'type' in value && value.type === 'CommentBlock'),
     Option.flatMap(() => Option.fromNullable(start)),
     Option.exists((value): boolean => source[value + 2] === '*'),
   );

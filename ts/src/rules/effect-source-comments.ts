@@ -41,7 +41,6 @@ const cacheResult = (source: string, value: string): string =>
   commentCache.set(source, value, sourceProjectionWeight(source, value));
 
 const stripSourceComments = (source: string): string => {
-  // oxlint-disable-next-line unicorn/prefer-spread -- preserve UTF-16 code-unit coordinates.
   const output = source.split('');
   const blankCharacter = (index: number): void => {
     output[index] = ' ';

@@ -22,12 +22,23 @@ interface DividerHeader {
   text: string;
 }
 
+interface DividerLine {
+  readonly end: number;
+  readonly line: string;
+  readonly next: number;
+}
+
+interface WhitespaceState {
+  readonly cursor: number;
+  readonly isDone: boolean;
+}
+
 const skipWhitespace = (source: string, start: number): number =>
   pipe(
     Array.range(start, source.length),
     Array.reduce(
-      { cursor: start, isDone: false },
-      (state, cursor): { cursor: number; isDone: boolean } => {
+      { cursor: start, isDone: false } satisfies WhitespaceState,
+      (state, cursor): WhitespaceState => {
         if (state.isDone) {
           return state;
         }
@@ -118,10 +129,7 @@ const isDividerFiller = (text: string): boolean =>
     Array.every((index): boolean => text.charAt(index) === '-'),
   );
 
-const dividerLineAt = (
-  source: string,
-  start: number,
-): { end: number; line: string; next: number } => {
+const dividerLineAt = (source: string, start: number): DividerLine => {
   const end = lineEnd(source, start);
   return {
     end,

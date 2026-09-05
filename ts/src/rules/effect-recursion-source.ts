@@ -118,7 +118,6 @@ const immediateMethodEnd = (source: string, start: number, end: number): number 
   return -1;
 };
 
-// oxlint-disable-next-line max-statements, no-ternary -- checks both immediate call suffix forms in one offset pass.
 const hasImmediateInvocationSuffix = (
   sourceIndex: RecursiveSourceIndex,
   target: number,
@@ -158,7 +157,6 @@ const lastRangeBefore = (ranges: readonly SourceRange[], target: number): number
   return low - 1;
 };
 
-// oxlint-disable-next-line complexity, max-statements -- walks the pre-indexed callback parent chain.
 const isDeferredEffectCallback = (sourceIndex: RecursiveSourceIndex, target: number): boolean => {
   const { deferredRanges: ranges } = sourceIndex;
   let rangeIndex = lastRangeBefore(ranges, target);
@@ -196,7 +194,6 @@ const appendNamedIndex = (
   }
 };
 
-// oxlint-disable-next-line max-statements -- collects parameter names once per arrow header.
 const parameterBindings = (source: string, start: number, end: number): ReadonlySet<string> => {
   const bindings = new Set<string>();
   PARAMETER_BINDING_PATTERN.lastIndex = 0;
@@ -212,7 +209,6 @@ const parameterBindings = (source: string, start: number, end: number): Readonly
   return bindings;
 };
 
-// oxlint-disable-next-line max-statements -- resolves one indexed arrow range without recursive descent.
 const arrowRangeFor = (
   code: string,
   navigation: SourceNavigationIndex,
@@ -256,54 +252,69 @@ const arrowRangesFor = (
   return ranges;
 };
 
-// oxlint-disable-next-line complexity, max-statements -- tracks four delimiter depths in one pass.
+interface GenericArrowDepths {
+  angle: number;
+  brace: number;
+  bracket: number;
+  parenthesis: number;
+}
+
+const isTopLevelGenericArrow = (depths: GenericArrowDepths): boolean =>
+  depths.angle === 0 && depths.brace === 0 && depths.bracket === 0 && depths.parenthesis === 0;
+
+const consumeGenericArrowCharacter = (
+  depths: GenericArrowDepths,
+  character: string | undefined,
+): void => {
+  if (character === '<') {
+    depths.angle += 1;
+    return;
+  }
+  if (character === '>' && depths.angle > 0) {
+    depths.angle -= 1;
+    return;
+  }
+  if (character === '(') {
+    depths.parenthesis += 1;
+    return;
+  }
+  if (character === ')') {
+    depths.parenthesis -= 1;
+    return;
+  }
+  if (character === '[') {
+    depths.bracket += 1;
+    return;
+  }
+  if (character === ']') {
+    depths.bracket -= 1;
+    return;
+  }
+  if (character === '{') {
+    depths.brace += 1;
+    return;
+  }
+  if (character === '}') {
+    depths.brace -= 1;
+  }
+};
+
 const genericArrowEnd = (source: string, start: number): number => {
-  let angleDepth = 0;
-  let braceDepth = 0;
-  let bracketDepth = 0;
-  let parenthesisDepth = 0;
+  const depths: GenericArrowDepths = { angle: 0, brace: 0, bracket: 0, parenthesis: 0 };
   for (let index = start; index < source.length; index += 1) {
     const character = source[index];
-    if (character === '<') {
-      angleDepth += 1;
-    } else if (character === '>' && angleDepth > 0) {
-      angleDepth -= 1;
-    } else if (character === '(') {
-      parenthesisDepth += 1;
-    } else if (character === ')') {
-      parenthesisDepth -= 1;
-    } else if (character === '[') {
-      bracketDepth += 1;
-    } else if (character === ']') {
-      bracketDepth -= 1;
-    } else if (character === '{') {
-      braceDepth += 1;
-    } else if (character === '}') {
-      braceDepth -= 1;
-    } else if (
-      character === '=' &&
-      source[index + 1] === '>' &&
-      angleDepth === 0 &&
-      braceDepth === 0 &&
-      bracketDepth === 0 &&
-      parenthesisDepth === 0
-    ) {
+    if (isTopLevelGenericArrow(depths) && character === '=' && source[index + 1] === '>') {
       return index + 2;
-    } else if (
-      character === ';' &&
-      angleDepth === 0 &&
-      braceDepth === 0 &&
-      bracketDepth === 0 &&
-      parenthesisDepth === 0
-    ) {
+    }
+    if (isTopLevelGenericArrow(depths) && character === ';') {
       return -1;
     }
+    consumeGenericArrowCharacter(depths, character);
   }
   return -1;
 };
 
 const restoreGenericArrowHeaders = (source: string, code: string): string => {
-  // oxlint-disable-next-line unicorn/prefer-spread, typescript/no-misused-spread -- preserve UTF-16 code-unit offsets.
   const output = code.split('');
   GENERIC_ARROW_DECLARATION_PATTERN.lastIndex = 0;
   let match = GENERIC_ARROW_DECLARATION_PATTERN.exec(code);
@@ -318,7 +329,6 @@ const restoreGenericArrowHeaders = (source: string, code: string): string => {
   return output.join('');
 };
 
-// oxlint-disable-next-line max-statements -- constructs all shared indexes in one source pass.
 const buildRecursiveSourceIndex = (code: string): RecursiveSourceIndex => {
   const navigation = sourceNavigationIndex(code);
   const arrowIndexes = matchIndexes(code, ARROW_INDEX);
@@ -412,7 +422,6 @@ const isShadowedRecursiveCall = (
   );
 };
 
-// oxlint-disable-next-line max-statements -- evaluates indexed candidates without rescanning body text.
 const hasUnsafeRecursiveRange = (
   sourceIndex: RecursiveSourceIndex,
   name: string,
@@ -440,7 +449,6 @@ const hasUnsafeRecursiveRange = (
   return false;
 };
 
-// oxlint-disable-next-line max-statements -- resolves one declaration from shared offsets.
 const isUnsafeFunctionMatch = (
   sourceIndex: RecursiveSourceIndex,
   match: RegExpExecArray,
@@ -487,7 +495,6 @@ const firstCodeIndex = (source: string, start: number): number => {
   return index;
 };
 
-// oxlint-disable-next-line max-statements, no-ternary -- resolves block and expression arrow bodies by offsets.
 const isUnsafeArrowMatch = (sourceIndex: RecursiveSourceIndex, match: RegExpExecArray): boolean => {
   const [, name] = match;
   const { code, navigation } = sourceIndex;

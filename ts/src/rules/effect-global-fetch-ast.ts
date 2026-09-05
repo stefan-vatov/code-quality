@@ -2,7 +2,12 @@
 /*        Scope-aware global fetch detection inside Effect async APIs.        */
 /* -------------------------------------------------------------------------- */
 
-import type { NativeReference, NativeSourceCode } from './effect-native-references';
+import { Predicate } from 'effect';
+import type {
+  NativeDefinition,
+  NativeReference,
+  NativeSourceCode,
+} from './effect-native-references';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
 import {
   globalFetchAsyncWrapperNames,
@@ -13,14 +18,12 @@ import {
   nativeReferenceIndexFor,
   nativeSourceCodeFor,
 } from './effect-native-references';
-import type { ASTNode } from './effect-ast';
-import type { Context } from './effect-rule-core';
+import type { ASTNode, ASTValue } from './effect-ast';
+import type { Context, VisitorMap } from './effect-rule-core';
 import type { GlobalFetchImportIndex } from './effect-global-fetch-imports';
 import type { ScopeStack } from './effect-ast-scope';
 import { scopeHasBinding } from './effect-ast-scope';
 import { visitFallbackTree } from './effect-global-fetch-ast-traversal';
-
-type VisitorMap = Record<string, (node: object) => void>;
 
 interface FetchRuleState extends GlobalFetchImportIndex {
   context: Context;
@@ -35,6 +38,12 @@ interface FetchRuleState extends GlobalFetchImportIndex {
   source: string;
 }
 
+interface MemberParts {
+  readonly object?: ASTNode;
+  readonly objectName?: string;
+  readonly propertyName?: string;
+}
+
 const nativeReferenceCaches = new WeakMap<FetchRuleState, WeakMap<object, NativeReference>>();
 
 const isShadowed = (name: string, scopes: ScopeStack): boolean => scopeHasBinding(name, scopes);
@@ -43,8 +52,8 @@ const stringValue = (node: ASTNode | undefined): string | undefined => {
   if (node?.type !== 'Literal') {
     return undefined;
   }
-  const value: unknown = Reflect.get(node, 'value');
-  if (typeof value === 'string') {
+  const value = node.value;
+  if (Predicate.isString(value)) {
     return value;
   }
   return undefined;
@@ -57,10 +66,8 @@ const indexFallbackScopes = (state: FetchRuleState, program: ASTNode): void => {
   });
 };
 
-const memberParts = (
-  node: ASTNode | undefined,
-): { object?: ASTNode; objectName?: string; propertyName?: string } => {
-  if (node?.type !== 'MemberExpression' || Reflect.get(node, 'computed') === true) {
+const memberParts = (node: ASTNode | undefined): MemberParts => {
+  if (node?.type !== 'MemberExpression' || node.computed === true) {
     return {};
   }
   const object = childNode(node, 'object');
@@ -94,18 +101,8 @@ const isUnresolvedReference = (state: FetchRuleState, node: ASTNode): boolean =>
   return reference !== undefined && reference.resolved === null;
 };
 
-const isTypeOnlyDefinition = (definition: object): boolean => {
-  const declaration: unknown = Reflect.get(definition, 'parent');
-  const specifier: unknown = Reflect.get(definition, 'node');
-  return (
-    (declaration !== null &&
-      typeof declaration === 'object' &&
-      Reflect.get(declaration, 'importKind') === 'type') ||
-    (specifier !== null &&
-      typeof specifier === 'object' &&
-      Reflect.get(specifier, 'importKind') === 'type')
-  );
-};
+const isTypeOnlyDefinition = (definition: NativeDefinition): boolean =>
+  definition.parent?.importKind === 'type' || definition.node?.importKind === 'type';
 
 const isTypeOnlyReference = (state: FetchRuleState, node: ASTNode): boolean => {
   const definitions = nativeReferencesFor(state)?.get(node)?.resolved?.defs;
@@ -185,7 +182,7 @@ interface GlobalFetchReference {
 }
 
 const memberPropertyName = (member: ASTNode, property: ASTNode | undefined): string | undefined => {
-  if (Reflect.get(member, 'computed') === true) {
+  if (member.computed === true) {
     return stringValue(property);
   }
   return identifierName(property);
@@ -238,9 +235,9 @@ const reportFetch = (state: FetchRuleState, node: ASTNode): void => {
 };
 
 type NativeWorkItem =
-  | { kind: 'visit'; value: unknown }
+  | { kind: 'visit'; value: ASTValue }
   | { kind: 'leave-node'; node: ASTNode }
-  | { kind: 'leave-array'; value: readonly unknown[] };
+  | { kind: 'leave-array'; value: readonly ASTValue[] };
 
 interface NativeTraversal {
   activeArrays: WeakSet<object>;
@@ -250,7 +247,7 @@ interface NativeTraversal {
   visitorKeys?: Readonly<Record<string, readonly string[]>>;
 }
 
-const pushNativeArray = (value: readonly unknown[], pending: NativeWorkItem[]): void => {
+const pushNativeArray = (value: readonly ASTValue[], pending: NativeWorkItem[]): void => {
   pending.push({ kind: 'leave-array', value });
   for (let index = value.length - 1; index >= 0; index -= 1) {
     pending.push({ kind: 'visit', value: value[index] });
@@ -265,7 +262,7 @@ const pushNativeKeyChildren = (
   for (let index = keys.length - 1; index >= 0; index -= 1) {
     const key = keys[index];
     if (key !== undefined) {
-      pending.push({ kind: 'visit', value: Reflect.get(node, key) });
+      pending.push({ kind: 'visit', value: node[key] });
     }
   }
 };
@@ -294,7 +291,7 @@ const pushNativeNodeChildren = (
   pushNativeReflectedChildren(node, pending);
 };
 
-const visitNativeArray = (value: readonly unknown[], traversal: NativeTraversal): void => {
+const visitNativeArray = (value: readonly ASTValue[], traversal: NativeTraversal): void => {
   if (traversal.activeArrays.has(value)) {
     return;
   }
@@ -302,7 +299,7 @@ const visitNativeArray = (value: readonly unknown[], traversal: NativeTraversal)
   pushNativeArray(value, traversal.pending);
 };
 
-const visitNativeNode = (value: unknown, traversal: NativeTraversal): void => {
+const visitNativeNode = (value: ASTValue, traversal: NativeTraversal): void => {
   const node = asNode(value);
   if (!node || traversal.activeNodes.has(node)) {
     return;

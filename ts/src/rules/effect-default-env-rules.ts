@@ -24,29 +24,7 @@ import {
 } from './effect-default-resource-helpers';
 import { isEffectTestPath } from './effect-path-options';
 import { stripCommentsAndStrings } from './effect-source-helpers';
-
-interface RuleContext {
-  filename?: string;
-  options?: object[];
-  report: (descriptor: {
-    loc?: { column: number; line: number };
-    message: string;
-    node: object;
-  }) => void;
-}
-
-interface RuleSpec {
-  ast?: (
-    context: RuleContext,
-    source: string,
-  ) => Record<string, ((node: object) => void) | undefined>;
-  check?: (source: string, context: RuleContext) => boolean | number | { index: number };
-  message: string;
-  name: string;
-  patterns?: readonly RegExp[];
-  tokenGroups?: readonly (readonly string[])[];
-  tokens?: readonly string[];
-}
+import type { Context as RuleContext, RuleSpec } from './effect-rule-core';
 
 const hasTestClockAdjustWithoutFork = (source: string): boolean => {
   const code = stripCommentsAndStrings(source);

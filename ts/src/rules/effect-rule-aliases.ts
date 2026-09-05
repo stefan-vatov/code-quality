@@ -308,6 +308,11 @@ const canonicalNames = HashSet.make(
   'TestClock',
 );
 
+interface CanonicalImportAlias {
+  readonly localName: string;
+  readonly moduleName: string;
+}
+
 const addCanonicalNamedImportAliases = (aliases: Map<string, string>, importList: string): void => {
   pipe(
     importList.split(','),
@@ -327,10 +332,12 @@ const addCanonicalNamespaceAliases = (aliases: Map<string, string>, source: stri
         /(?:^|\n)\s*import\s+(?!type\b)\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s*['"]effect\/([A-Za-z]+)['"]/g,
       ),
     ),
-    Array.map((match): { localName: string; moduleName: string } => ({
-      localName: match[1],
-      moduleName: match[2],
-    })),
+    Array.map(
+      (match): CanonicalImportAlias => ({
+        localName: match[1],
+        moduleName: match[2],
+      }),
+    ),
     Array.filter(
       ({ localName, moduleName }): boolean =>
         HashSet.has(canonicalNames, moduleName) && localName !== moduleName,

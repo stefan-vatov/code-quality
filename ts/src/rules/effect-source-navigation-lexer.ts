@@ -8,7 +8,7 @@ import {
   isLineTerminatorCode,
 } from './effect-source-line-terminators';
 import { findREGEXLiteralEnd, isREGEXLiteralStart } from './effect-source-regex-scan';
-import { Match } from 'effect';
+import { Match, Predicate } from 'effect';
 
 const CHAR_CODE_BACKSLASH = 92;
 const CHAR_CODE_BLOCK_COMMENT = 42;
@@ -314,7 +314,7 @@ const findJSXTag = (source: string, startIndex: number): JSXTag | undefined => {
   let { index } = start;
   while (index < source.length) {
     const next = nextJSXTagScan(source, startIndex, index, start.isClosing);
-    if (typeof next !== 'number') {
+    if (!Predicate.isNumber(next)) {
       return next;
     }
     index = next;
@@ -366,7 +366,7 @@ const initialJSXElementState = (
 
 const findJSXElementEnd = (source: string, startIndex: number): number => {
   const initialState = initialJSXElementState(source, startIndex);
-  if (typeof initialState === 'number') {
+  if (Predicate.isNumber(initialState)) {
     return initialState;
   }
   let state = initialState;

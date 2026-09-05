@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["**/*.ts", "**/*.mts", "**/*.mjs"],
+  "exclude": [
+    "**/fixtures/**",
+    "oxlint-min-peer/invalid.ts",
+    "oxlint-min-peer/safe.ts",
+    "oxlint-min-peer/native-apis.ts"
+  ]
+}

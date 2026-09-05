@@ -15,6 +15,8 @@ import {
 } from './performance-candidate-fixtures';
 import { assertBudgetManifest, failedBudgetRows } from './performance-gate-budgets';
 import { benchmarkCodemodFixtures, benchmarkCodemods } from './performance-gate-codemods';
+import { benchmarkNativeRule } from './performance-native-harness';
+import { nativeRuleFixtures } from './performance-native-fixtures';
 import {
   groupedBudgets,
   measureBenchmark,
@@ -213,27 +215,45 @@ const runRule = (name: string, fixture: Fixture): number => {
 
 const benchmark = measureBenchmark;
 const ruleNames = Object.keys(plugin.rules).sort();
+const nativeRuleNames = new Set(ruleNames.filter((name) => !name.startsWith('effect-')));
+const nativeRuleRow = (name: string, iterations: number, cold: boolean): BenchRow => {
+  const result = benchmarkNativeRule(name, plugin.rules[name], nativeRuleFixtures, {
+    cold,
+    iterations,
+    warmups: cold ? 0 : hotWarmupIterations,
+  });
+  if (result.reports === 0) {
+    throw new Error(
+      `${name} did not exercise a native reporting candidate (${cold ? 'cold' : 'hot'})`,
+    );
+  }
+  return result.row;
+};
 const coldRuleRows = (iterations: number): BenchRow[] =>
   ruleNames.map((name) =>
-    measurePreparedBenchmark(
-      name,
-      iterations,
-      ruleOperationsPerSample,
-      (sample) => uniqueFixture(ruleFixtures[sample % ruleFixtures.length], sample),
-      (fixture) => void runRule(name, fixture),
-      ruleFixtures.length,
-    ),
+    nativeRuleNames.has(name)
+      ? nativeRuleRow(name, iterations, true)
+      : measurePreparedBenchmark(
+          name,
+          iterations,
+          ruleOperationsPerSample,
+          (sample) => uniqueFixture(ruleFixtures[sample % ruleFixtures.length], sample),
+          (fixture) => void runRule(name, fixture),
+          ruleFixtures.length,
+        ),
   );
 const hotRuleRows = (iterations: number): BenchRow[] =>
   ruleNames.map((name) =>
-    benchmark(
-      name,
-      parsedRuleFixtures,
-      iterations,
-      ruleOperationsPerSample,
-      (fixture) => void runRule(name, fixture),
-      hotWarmupIterations,
-    ),
+    nativeRuleNames.has(name)
+      ? nativeRuleRow(name, iterations, false)
+      : benchmark(
+          name,
+          parsedRuleFixtures,
+          iterations,
+          ruleOperationsPerSample,
+          (fixture) => void runRule(name, fixture),
+          hotWarmupIterations,
+        ),
   );
 const codemodRows = (iterations: number, warmups: number): BenchRow[] =>
   Object.entries(codemods)
@@ -478,7 +498,7 @@ const checkBudgets = (): void => {
     throw new Error(`Performance gate failed.\n${failures.join('\n')}`);
   }
   process.stdout.write(
-    `Performance gate passed for ${ruleNames.length} candidate-free rule paths, ${candidateSubsystems.length} representative candidate subsystems, and ${Object.keys(codemods).length} codemods.\n`,
+    `Performance gate passed for ${ruleNames.length} rule paths (${nativeRuleNames.size} using the native Oxlint host), ${candidateSubsystems.length} representative candidate subsystems, and ${Object.keys(codemods).length} codemods.\n`,
   );
 };
 

@@ -1,16 +1,28 @@
 /* -------------------------------------------------------------------------- */
 /*        Branch-initializer repairs for the no-ternary codemod only.         */
 /* -------------------------------------------------------------------------- */
-import { Array, Option, Predicate, pipe } from 'effect';
+import { Array, Option, pipe } from 'effect';
 import type {
   AssignmentExpression,
+  BlockStatement,
   Expression,
   Identifier,
   IfStatement,
   Statement,
+  UpdateExpression,
   VariableDeclaration,
   VariableDeclarator,
 } from 'jscodeshift';
+import {
+  codemodObjectValues,
+  isCodemodArray,
+  isCodemodNode,
+  nodeEnd,
+  nodeStart,
+  sourceForNode,
+  type CodemodRecord,
+  type CodemodValue,
+} from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -40,47 +52,25 @@ interface BranchReplacementInput {
 
 const INDENT_STEP = '  ';
 
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
+const isIdentifier = (node: CodemodValue): node is Identifier =>
+  isCodemodNode(node) && node.type === 'Identifier';
 
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
+const isStatement = (node: CodemodValue): node is Statement => isCodemodNode(node);
 
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
-  );
+const isVariableDeclaration = (node: CodemodValue): node is VariableDeclaration =>
+  isCodemodNode(node) && node.type === 'VariableDeclaration';
 
-const sourceForNode = (source: string, node: unknown): string =>
-  source.slice(nodeStart(node), nodeEnd(node));
+const isVariableDeclarator = (node: CodemodValue): node is VariableDeclarator =>
+  isCodemodNode(node) && node.type === 'VariableDeclarator';
 
-const isIdentifier = (node: unknown): node is Identifier =>
-  isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
+const isIfStatement = (node: CodemodValue): node is IfStatement =>
+  isCodemodNode(node) && node.type === 'IfStatement';
 
-const isStatement = (node: unknown): node is Statement =>
-  isObjectRecord(node) && typeof node.type === 'string';
+const isAssignmentExpression = (node: CodemodValue): node is AssignmentExpression =>
+  isCodemodNode(node) && node.type === 'AssignmentExpression';
 
-const isVariableDeclaration = (node: unknown): node is VariableDeclaration =>
-  isObjectRecord(node) && node.type === 'VariableDeclaration' && Array.isArray(node.declarations);
-
-const isVariableDeclarator = (node: unknown): node is VariableDeclarator =>
-  isObjectRecord(node) && node.type === 'VariableDeclarator';
-
-const isIfStatement = (node: unknown): node is IfStatement =>
-  isObjectRecord(node) && node.type === 'IfStatement';
-
-const isAssignmentExpression = (node: unknown): node is AssignmentExpression =>
-  isObjectRecord(node) && node.type === 'AssignmentExpression';
+const isUpdateExpression = (node: CodemodValue): node is UpdateExpression =>
+  isCodemodNode(node) && node.type === 'UpdateExpression';
 
 const lineIndent = (source: string, index: number): string => {
   const lineStart = source.lastIndexOf('\n', index) + 1;
@@ -180,11 +170,9 @@ const branchInitializerText = (input: BranchTextInput): string => {
 
 const statementFromBlock = (statement: Statement): Statement | undefined =>
   pipe(
-    Option.some(statement as unknown),
-    Option.filter(isObjectRecord),
-    Option.filter((value): boolean => value.type === 'BlockStatement'),
+    Option.some(statement),
+    Option.filter((value): value is BlockStatement => value.type === 'BlockStatement'),
     Option.flatMapNullable((value) => value.body),
-    Option.filter(globalThis.Array.isArray),
     Option.filter((body): boolean => body.length === 1),
     Option.flatMap(Array.head),
     Option.filter(isStatement),
@@ -196,9 +184,11 @@ const normalizedStatement = (statement: Statement): Statement | undefined =>
 
 const assignmentExpression = (statement: Statement | undefined): AssignmentExpression | undefined =>
   pipe(
-    Option.fromNullable(statement as unknown),
-    Option.filter(isObjectRecord),
-    Option.filter((value): boolean => value.type === 'ExpressionStatement'),
+    Option.fromNullable(statement),
+    Option.filter(
+      (value): value is Statement & { expression: Expression } =>
+        value.type === 'ExpressionStatement',
+    ),
     Option.flatMapNullable((value) => value.expression),
     Option.filter(isAssignmentExpression),
     Option.filter((expression): boolean => expression.operator === '='),
@@ -220,37 +210,37 @@ interface WriteSearch {
   seen: WeakSet<object>;
 }
 
-const writesIdentifierInRecord = (node: Record<string, unknown>, search: WriteSearch): boolean => {
+const writesIdentifierInRecord = (node: CodemodRecord, search: WriteSearch): boolean => {
   if (search.seen.has(node)) {
     return false;
   }
   search.seen.add(node);
-  if (node.type === 'AssignmentExpression' && isIdentifier(node.left)) {
+  if (isAssignmentExpression(node) && isIdentifier(node.left)) {
     return node.operator === '=' && node.left.name === search.name;
   }
-  if (node.type === 'UpdateExpression' && isIdentifier(node.argument)) {
+  if (isUpdateExpression(node) && isIdentifier(node.argument)) {
     return node.argument.name === search.name;
   }
   return pipe(
-    Object.values(node),
+    codemodObjectValues(node),
     Array.some((value): boolean => writesIdentifierInValue(value, search)),
   );
 };
 
-const writesIdentifierInValue = (node: unknown, search: WriteSearch): boolean => {
-  if (globalThis.Array.isArray(node)) {
+const writesIdentifierInValue = (node: CodemodValue, search: WriteSearch): boolean => {
+  if (isCodemodArray(node)) {
     return pipe(
       node,
       Array.some((entry): boolean => writesIdentifierInValue(entry, search)),
     );
   }
-  if (!isObjectRecord(node)) {
+  if (!isCodemodNode(node)) {
     return false;
   }
   return writesIdentifierInRecord(node, search);
 };
 
-const writesIdentifier = (node: unknown, name: string): boolean =>
+const writesIdentifier = (node: CodemodValue, name: string): boolean =>
   writesIdentifierInValue(node, { name, seen: new WeakSet() });
 
 const hasLaterWrite = (

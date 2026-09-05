@@ -28,8 +28,9 @@ import {
   serviceKeyFromClass,
 } from '../../src/rules/effect-strict-internals';
 import { describe, expect, it } from 'vitest';
+import type { ASTNode, ASTObject, ASTValue } from '../../src/rules/effect-ast';
+import type { Context } from '../../src/rules/effect-rule-core';
 
-type ASTNode = Record<string, unknown>;
 type IndexedCheck = (source: string) => false | number;
 
 type IndexedCase = readonly [
@@ -41,17 +42,17 @@ type IndexedCase = readonly [
   nearMatches: readonly string[],
 ];
 
-const identifier = (name: string): ASTNode => ({ name, type: 'Identifier' });
-const literal = (value: boolean | null | number | string): ASTNode => ({
+const identifier = (name: string) => ({ name, type: 'Identifier' });
+const literal = (value: boolean | null | number | string) => ({
   type: 'Literal',
   value,
 });
-const member = (objectName: string, propertyName: string): ASTNode => ({
+const member = (objectName: string, propertyName: string) => ({
   object: identifier(objectName),
   property: identifier(propertyName),
   type: 'MemberExpression',
 });
-const call = (callee: ASTNode, arguments_: readonly ASTNode[] = []): ASTNode => ({
+const call = (callee: ASTNode, arguments_: readonly ASTNode[] = []) => ({
   arguments: arguments_,
   callee,
   type: 'CallExpression',
@@ -62,19 +63,15 @@ const serviceClass = (
   propertyName: string,
   innerArguments: readonly ASTNode[],
   outerArguments: readonly ASTNode[],
-): ASTNode => ({
+) => ({
   id: identifier(className),
   superClass: call(call(member(objectName, propertyName), innerArguments), outerArguments),
   type: 'ClassDeclaration',
 });
 const context = (
   filename = 'src/domain/user.ts',
-  options?: object,
-): {
-  filename: string;
-  options?: object[];
-  report: () => void;
-} => ({
+  options?: { adapterLayers: readonly string[] },
+): Context => ({
   filename,
   options: options ? [options] : undefined,
   report: (): void => undefined,
@@ -90,18 +87,21 @@ describe('strict AST value contracts', (): void => {
       nothing: null,
       total: 3,
     };
+    // SAFETY: Preserve the deliberately invalid function property to test its runtime rejection.
+    const input = node as typeof node & ASTObject;
 
-    expect(objectValue(node, 'enabled')).toBe(true);
-    expect(objectValue(node, 'handler')).toBeUndefined();
-    expect(objectValue(node, 'nested')).toStrictEqual({ type: 'Identifier' });
-    expect(objectValue(node, 'nothing')).toBeNull();
-    expect(objectValue(node, 'absent')).toBeUndefined();
+    expect(objectValue(input, 'enabled')).toBe(true);
+    expect(objectValue(input, 'handler')).toBeUndefined();
+    expect(objectValue(input, 'nested')).toStrictEqual({ type: 'Identifier' });
+    expect(objectValue(input, 'nothing')).toBeNull();
+    expect(objectValue(input, 'absent')).toBeUndefined();
     expect(objectValue('node', 'length')).toBeUndefined();
   });
 
   it('filters arrays and rejects non-array containers exactly', (): void => {
     const functionValue = (): void => undefined;
-    const values = arrayValue([0, 'value', null, undefined, {}, functionValue]);
+    // SAFETY: The function entry deliberately exercises filtering of invalid AST array values.
+    const values = arrayValue([0, 'value', null, undefined, {}, functionValue] as ASTValue[]);
     expect(values).toStrictEqual([0, 'value', null, undefined, {}]);
     expect(arrayValue({ 0: 'value', length: 1 })).toStrictEqual([]);
   });

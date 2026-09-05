@@ -2,14 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import plugin from '../../src/rules/plugin';
+import type { ASTNode } from '../../src/rules/effect-ast';
+import { getEffectRule } from './effect-rule-test-utils';
+import type { Report } from './effect-rule-test-utils';
 
-type Report = {
-  message: string;
-  node: object;
-};
-
-const programNode = { type: 'Program', range: [0, 0] };
+const programNode: ASTNode = { type: 'Program', range: [0, 0] };
 
 function runRule(ruleName: string, source: string, filename = 'src/domain/user.ts'): Report[] {
   const root = mkdtempSync(join(tmpdir(), 'thx-effect-rule-'));
@@ -20,8 +17,7 @@ function runRule(ruleName: string, source: string, filename = 'src/domain/user.t
   writeFileSync(filePath, source);
 
   try {
-    const rule = plugin.rules[ruleName as keyof typeof plugin.rules];
-    expect(rule, `${ruleName} must be registered`).toBeDefined();
+    const rule = getEffectRule(ruleName);
     const visitors = rule.create({
       filename: filePath,
       report(report: Report) {

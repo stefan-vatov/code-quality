@@ -53,6 +53,10 @@ TypeScript/Oxlint high-signal policy:
 - Size limits are complexity 20, nesting depth 5, function length 150 lines, nested callbacks 6, and parameters 7. Line width is formatter-owned and has no lint cap.
 - There is no maximum file-length or import-count rule. Those caps encouraged shim modules and mechanical decomposition without improving behavior.
 - Naming preferences, null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
+- The package-local plugin also enables 15 TypeScript safety rules by default: assertion-chain,
+  conditional-spread, known-value-widening, module-mocking, object-parameter, Reflect, runtime
+  `typeof`, symbol-name, unknown-boundary, dictionary, and safety-comment checks. They remain under
+  the existing `thethracian` namespace and are all errors.
 - The audit-flagged generic homegrown rules, flagged Effect preference rules, and semantically
   unsound module-scope rules are physically removed. The retained Effect plugin is disabled by
   default; `effect: true` enables exactly 18 safety rules, 19 specialized analyzers remain registered
@@ -62,7 +66,7 @@ TypeScript/Oxlint high-signal policy:
 
 Current implementation:
 
-- TypeScript/Effect: the 18 exported safety rules are exact, import-aware checks for floating Effects/fibers, missing generator delegation, eager recursion, silent error swallowing, error-cause preservation, resource scoping, and unbounded concurrency. Nineteen specialized analyzers remain registered for explicit rule configuration, and 60 project-boundary rules remain available only through explicit rule and path selection. The retained plugin surface is 97 rules.
+- TypeScript/Effect: the 18 exported safety rules are exact, import-aware checks for floating Effects/fibers, missing generator delegation, eager recursion, silent error swallowing, error-cause preservation, resource scoping, and unbounded concurrency. The opt-in service-constructor import rule is also enabled with `effect: true`. Nineteen specialized analyzers remain registered for explicit rule configuration, and 60 project-boundary rules remain available only through explicit rule and path selection. The retained Effect rule surface is 97 rules, plus that additional opt-in rule.
 - TypeScript/Oxlint: `max-depth` (5 levels), `max-nested-callbacks` (6 levels), `max-params` (7 params), `max-lines-per-function` (150 lines), and `complexity` (20) are errors. Safety rules include `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-eval`, `no-new-func`, `no-script-url`, `prefer-const`, `preserve-caught-error`, strict equality, and type-aware unsafe/async operations. Line width is formatter-owned; global `console`, noisy naming, null, ternary, magic-number, file-size, import-count, documentation, and absolute `any`/assertion bans are intentionally absent.
 - Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, `unwrap_used = "deny"`, `expect_used = "deny"`, `unused_result_ok = "deny"` (calling .ok() discards errors), `as_conversions = "deny"` (no implicit type coercion via `as`), and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_docs`, `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `unused_crate_dependencies` are all `deny`; silent error swallowing is handled by `unused_must_use` (ignored Results), `unused_result_ok` (discarded errors via .ok()), and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints; tests are granted unwrap/expect/panic exceptions via clippy.toml.
 - Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, `VariableRebinding`, `Specs` (every public function requires @spec), and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents; immutability is enforced by Elixir's immutable data structures plus `VariableRebinding` to forbid variable rebinding within a scope.
@@ -100,6 +104,11 @@ When changing exported config behavior:
 
 When changing repo tooling:
 
+- Normal lint commands, staged hooks, and Nx TypeScript lint use the locally built package.
+  `lint:published:type-aware` is reserved for validating the installed published consumer config.
+  Executable TypeScript tests are linted using `ts/test/tsconfig.json`; intentionally invalid
+  minimum-peer programs are excluded from repository lint and checked by their own harness.
+
 - Keep root scripts aligned with Nx targets.
 - Prefer `pnpm run lint`, `pnpm run check`, `pnpm run test:projects`, `pnpm run build`, and `pnpm run knip:ci`.
 - Hooks are managed through Husky and `prek.toml`; keep monorepo-level hooks at the root.
@@ -110,6 +119,8 @@ When changing repo tooling:
 Common commands:
 
 ```sh
+mise install
+mise exec -- pnpm run check
 pnpm install
 pnpm run lint
 pnpm run lint:ci

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index';
+import theThracianOxlint, { type TheThracianOxlintOptions } from '../../src/index';
 import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
 import {
   runConfiguredRules,
@@ -11,7 +11,7 @@ import {
 function configuredEffectRuleNames(
   source: string,
   filename = 'src/domain/user.ts',
-  strict: Parameters<typeof theThracianOxlint>[0]['effect'] = {
+  strict: TheThracianOxlintOptions['effect'] = {
     strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames },
   },
 ): string[] {
@@ -25,7 +25,7 @@ function configuredEffectRuleNames(
     .sort();
 }
 
-describe('Effect cycle 24 regression coverage', () => {
+const registerConfiguredRuleTests = (): void => {
   it('applies configured strict test globs to explicitly selected test analyzers', () => {
     const effect = {
       strict: {
@@ -104,7 +104,9 @@ describe('Effect cycle 24 regression coverage', () => {
 
     expect(runRule('effect-require-return-yield-star', source)).toHaveLength(1);
   });
+};
 
+const registerReexportBoundaryTests = (): void => {
   it('checks re-exported public API types, interfaces, and classes', () => {
     expect(
       runRule(
@@ -233,7 +235,9 @@ describe('Effect cycle 24 regression coverage', () => {
       ),
     ).toHaveLength(0);
   });
+};
 
+const registerLocalPolicyTests = (): void => {
   it('does not let string text satisfy timeout and retry policy checks', () => {
     expect(
       runRule(
@@ -269,4 +273,10 @@ describe('Effect cycle 24 regression coverage', () => {
       ),
     ).toHaveLength(1);
   });
+};
+
+describe('Effect cycle 24 regression coverage', (): void => {
+  registerConfiguredRuleTests();
+  registerReexportBoundaryTests();
+  registerLocalPolicyTests();
 });

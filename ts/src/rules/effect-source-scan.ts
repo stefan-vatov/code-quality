@@ -41,7 +41,6 @@ const blankRange = (
 };
 
 const stripSource = (source: string): string => {
-  // oxlint-disable-next-line unicorn/prefer-spread -- preserve UTF-16 code-unit coordinates.
   const output = source.split('');
   const blankCharacter = (index: number): void => {
     output[index] = ' ';

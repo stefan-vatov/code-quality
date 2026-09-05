@@ -22,7 +22,8 @@ const localRepositoryConfig = {
     '**/build/**',
     '**/coverage/**',
     '**/scripts/**',
-    '**/test/**',
+    // Deliberately invalid programs are checked by the minimum-peer harness.
+    'ts/test/oxlint-min-peer/{invalid,safe,native-apis}.ts',
     '**/fixtures/**',
     '**/bench/**',
     '**/.next/**',

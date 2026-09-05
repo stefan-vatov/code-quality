@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { Schema } from 'effect';
 
 const codemodFiles = [
   'ts/src/codemods/arrow-body-style.ts',
@@ -25,9 +26,13 @@ describe('jscodeshift codemod architecture', () => {
   });
 
   it('publishes jscodeshift as a runtime dependency for consumer CLI execution', () => {
-    const packageJson = JSON.parse(readFileSync('ts/package.json', 'utf8')) as {
-      dependencies?: Record<string, string>;
-    };
+    const packageJson = Schema.decodeUnknownSync(
+      Schema.parseJson(
+        Schema.Struct({
+          dependencies: Schema.Record({ key: Schema.String, value: Schema.String }),
+        }),
+      ),
+    )(readFileSync('ts/package.json', 'utf8'));
 
     expect(packageJson.dependencies).toHaveProperty('jscodeshift');
   });

@@ -41,7 +41,7 @@ const internalModuleHeader = `/* -----------------------------------------------
 const moduleScopePreamble = `import type { ASTPath as CodemodQualityModuleScope } from 'jscodeshift';
 
 type CodemodQualitySentinel = CodemodQualityModuleScope;
-const codemodQualitySentinel = undefined as CodemodQualitySentinel | undefined;
+declare const codemodQualitySentinel: CodemodQualitySentinel | undefined;
 void codemodQualitySentinel;
 
 `;
@@ -668,13 +668,13 @@ void value;
       {
         name: 'type-imports',
         source: withImportHeader(
-          `import type { ASTPath, Collection } from 'jscodeshift';\n\ntype Entry = ASTPath | Collection;\nconst entry = undefined as Entry | undefined;\nvoid entry;\n`,
+          `import type { ASTPath, Collection } from 'jscodeshift';\n\ntype Entry = ASTPath | Collection;\ndeclare const entry: Entry | undefined;\nvoid entry;\n`,
         ),
       },
       {
         name: 'mixed-groups',
         source: withImportHeader(
-          `import { NodeRuntime } from '@effect/platform-node';\nimport type { ASTPath } from 'jscodeshift';\nimport { Array } from 'effect';\n\ntype Entry = ASTPath;\nconst entry = undefined as Entry | undefined;\nvoid Array;\nvoid entry;\nvoid NodeRuntime;\n`,
+          `import { NodeRuntime } from '@effect/platform-node';\nimport type { ASTPath } from 'jscodeshift';\nimport { Array } from 'effect';\n\ntype Entry = ASTPath;\ndeclare const entry: Entry | undefined;\nvoid Array;\nvoid entry;\nvoid NodeRuntime;\n`,
         ),
       },
       {
@@ -719,7 +719,11 @@ void value;
   },
 ] satisfies readonly CodemodQualitySubject[];
 
-const extraCasesByCodemod = {
+interface CasesByCodemod {
+  readonly [name: string]: readonly CodemodQualityCase[];
+}
+
+const extraCasesByCodemod: CasesByCodemod = {
   'arrow-body-style': [
     {
       name: 'readonly-tuple-return',
@@ -1090,7 +1094,7 @@ export default formatValue;
 import type { ASTPath } from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 `,
     },
@@ -1855,7 +1859,7 @@ void jscodeshift;
 import type { ASTPath } from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void Array;
 void entry;
 `),
@@ -1866,7 +1870,7 @@ void entry;
 import jscodeshift from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 void jscodeshift;
 `),
@@ -1887,7 +1891,7 @@ import { Array } from 'effect';
 import type { ASTPath } from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void Array;
 void entry;
 void NodeRuntime;
@@ -1935,7 +1939,7 @@ void pipe;
 } from 'jscodeshift';
 
 type Entry = ASTPath | Collection | Identifier;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 `),
     },
@@ -1945,7 +1949,7 @@ void entry;
 import jscodeshift from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 void jscodeshift;
 `),
@@ -1971,7 +1975,7 @@ void Array;
       source: withImportHeader(`import type { ASTPath } from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 `),
     },
@@ -1989,7 +1993,7 @@ void jscodeshift;
 import type { ASTPath } from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void Array;
 void entry;
 `),
@@ -1997,7 +2001,7 @@ void entry;
   ],
 } satisfies Record<string, readonly CodemodQualityCase[]>;
 
-const broadEdgeCasesByCodemod = {
+const broadEdgeCasesByCodemod: CasesByCodemod = {
   'arrow-body-style': [
     {
       name: 'promise-return',
@@ -2892,7 +2896,7 @@ export { statuses };
       source: `${internalModuleHeader}import type { ASTPath as CodemodQualityModuleScope } from 'jscodeshift';
 
 type CodemodQualitySentinel = CodemodQualityModuleScope;
-const codemodQualitySentinel = undefined as CodemodQualitySentinel | undefined;
+declare const codemodQualitySentinel: CodemodQualitySentinel | undefined;
 void codemodQualitySentinel;
 
 ${internalDeclarationDoc}const value = 1;
@@ -2990,7 +2994,7 @@ ${moduleScopePreamble}export const value = 1;
       source: `${internalModuleHeader}import type { ASTPath as CodemodQualityModuleScope } from 'jscodeshift';
 
 type CodemodQualitySentinel = CodemodQualityModuleScope;
-const codemodQualitySentinel = undefined as CodemodQualitySentinel | undefined;
+declare const codemodQualitySentinel: CodemodQualitySentinel | undefined;
 void codemodQualitySentinel;
 
 export const value = 1;
@@ -3298,7 +3302,7 @@ import { NodeRuntime } from '@effect/platform-node';
 import { Array } from 'effect';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void Array;
 void entry;
 void NodeRuntime;
@@ -3310,7 +3314,7 @@ void NodeRuntime;
 import jscodeshift from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 void jscodeshift;
 `),
@@ -3336,7 +3340,7 @@ void pipe;
       source: withImportHeader(`import type { ASTPath } from 'jscodeshift';
 
 type Entry = ASTPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 `),
     },
@@ -3352,7 +3356,7 @@ void Array;
       source: withImportHeader(`import type { ASTPath as JSCodeshiftPath } from 'jscodeshift';
 
 type Entry = JSCodeshiftPath;
-const entry = undefined as Entry | undefined;
+declare const entry: Entry | undefined;
 void entry;
 `),
     },
@@ -3405,15 +3409,20 @@ const recreateOutputRoot = (): void => {
     'utf8',
   );
 
-  const nativeConfig = theThracianOxlint({ typeAware: true });
+  const config = theThracianOxlint({ typeAware: true });
+  // Codemod fixtures intentionally preserve broad contracts and explicit
+  // return shapes; the package-local rules have dedicated RuleTester suites.
+  const nativeRules = Object.fromEntries(
+    Object.entries(config.rules ?? {}).filter(([ruleName]) => !ruleName.startsWith('thethracian/')),
+  );
   writeFileSync(
     outputOxlintConfig,
     `${JSON.stringify(
       {
-        categories: nativeConfig.categories,
-        options: nativeConfig.options,
-        plugins: nativeConfig.plugins,
-        rules: nativeConfig.rules,
+        categories: config.categories,
+        options: config.options,
+        plugins: config.plugins,
+        rules: nativeRules,
       },
       null,
       2,

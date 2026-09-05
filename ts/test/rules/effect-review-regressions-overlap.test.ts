@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import plugin from '../../src/rules/plugin';
 import { runAllRules, runRule } from './effect-rule-test-utils';
 
-describe('Effect review overlap regressions', (): void => {
-  const reportedEffectRules = (source: string, filename?: string): string[] =>
-    runAllRules(source, filename)
-      .map((report) => report.ruleName)
-      .filter((ruleName): ruleName is string => Boolean(ruleName?.startsWith('effect-')));
+const reportedEffectRules = (source: string, filename?: string): string[] =>
+  runAllRules(source, filename)
+    .map((report) => report.ruleName)
+    .filter((ruleName): ruleName is string => Boolean(ruleName?.startsWith('effect-')));
 
+const registerResourceAndFiberOverlapTests = (): void => {
   it('does not duplicate catchAll-to-mapError diagnostics', (): void => {
     const source = `
       const recovered = program.pipe(
@@ -152,7 +152,9 @@ describe('Effect review overlap regressions', (): void => {
 
     expect(runRule('effect-no-real-sleep-in-tests', source, 'src/user.test.ts')).toHaveLength(1);
   });
+};
 
+const registerLayerAndSchemaOverlapTests = (): void => {
   it('allows memoized Layer constants and rejects layer factories', (): void => {
     const valid = `
       import { Layer } from "effect";
@@ -267,4 +269,9 @@ describe('Effect review overlap regressions', (): void => {
       ),
     ).toHaveLength(0);
   });
+};
+
+describe('Effect review overlap regressions', (): void => {
+  registerResourceAndFiberOverlapTests();
+  registerLayerAndSchemaOverlapTests();
 });

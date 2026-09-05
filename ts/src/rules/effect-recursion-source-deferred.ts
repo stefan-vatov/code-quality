@@ -28,6 +28,11 @@ interface DeferredCallCandidate extends SourceRange {
   parent: number;
 }
 
+interface DeferredCallCandidates {
+  readonly byOpen: Map<number, number>;
+  readonly candidates: DeferredCallCandidate[];
+}
+
 const matchIndexes = (source: string, pattern: RegExp): number[] => {
   const matcher = new RegExp(pattern.source, pattern.flags);
   return [...source.matchAll(matcher)].map((match) => match.index);
@@ -50,7 +55,7 @@ const lastIndexBefore = (indexes: readonly number[], target: number): number => 
 const deferredCallCandidates = (
   source: string,
   navigation: SourceNavigationIndex,
-): { byOpen: Map<number, number>; candidates: DeferredCallCandidate[] } => {
+): DeferredCallCandidates => {
   const byOpen = new Map<number, number>();
   const candidates: DeferredCallCandidate[] = [];
   for (const match of source.matchAll(DEFERRED_EFFECT_CALLBACK)) {
@@ -124,7 +129,6 @@ const closeDeferredArgumentCall = (index: number, scan: DeferredArgumentScan): v
   }
 };
 
-// oxlint-disable-next-line max-statements -- delimiter dispatch keeps one linear lexical pass.
 const scanDeferredDelimiter = (
   character: string | undefined,
   index: number,

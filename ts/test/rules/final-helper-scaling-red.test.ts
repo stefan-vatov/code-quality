@@ -13,7 +13,7 @@ import { parseSync } from 'oxc-parser';
 
 interface SemanticFixture {
   readonly expected: boolean;
-  readonly helper: SourceHelper;
+  readonly helper: (source: string) => boolean;
   readonly name: string;
   readonly source: string;
 }

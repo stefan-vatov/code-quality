@@ -40,6 +40,13 @@ interface FloatingLineInput {
   previous: string;
 }
 
+interface FloatingLineState {
+  readonly line: string;
+  readonly nextPrevious: string;
+  readonly nextStart?: number;
+  readonly previous: string;
+}
+
 const UTF16Bytes = (value: string): number => value.length * UTF16_CODE_UNIT_BYTES;
 const bytesForUTF16 = UTF16Bytes;
 
@@ -170,12 +177,12 @@ const floatingLineState = (
   code: string,
   lineStart: number,
   previous: string,
-): { line: string; nextPrevious: string; nextStart?: number; previous: string } => {
+): FloatingLineState => {
   const line = code.slice(lineStart, lineEndFor(code, lineStart)).trim();
   return Match.value(line).pipe(
     Match.when(
       (value): boolean => value === '',
-      (): { line: string; nextPrevious: string; nextStart?: number; previous: string } => ({
+      (): FloatingLineState => ({
         line,
         nextPrevious: previous,
         nextStart: nextLineStart(code, lineStart),
@@ -183,7 +190,7 @@ const floatingLineState = (
       }),
     ),
     Match.orElse(
-      (value): { line: string; nextPrevious: string; nextStart?: number; previous: string } => ({
+      (value): FloatingLineState => ({
         line: value,
         nextPrevious: value,
         nextStart: nextLineStart(code, lineStart),

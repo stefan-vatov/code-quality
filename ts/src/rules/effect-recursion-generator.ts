@@ -4,7 +4,7 @@
 
 import { asNode, childNode, childNodes } from './effect-ast';
 import { isFunctionNode, unwrappedExpression } from './effect-boundary-ast-shared';
-import type { ASTNode } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
 import type { EffectResolutionBindings } from './effect-recursion-viability';
 import type { ScopeStack } from './effect-ast-scope';
 import { effectResolutionOf } from './effect-recursion-viability';
@@ -29,7 +29,7 @@ const isStraightLineStatement = (statement: ASTNode): boolean =>
   statement.type === 'ExpressionStatement' ||
   statement.type === 'FunctionDeclaration';
 
-const appendNodeChildren = (node: ASTNode, pending: unknown[]): void => {
+const appendNodeChildren = (node: ASTNode, pending: ASTValue[]): void => {
   for (const [key, child] of Object.entries(node)) {
     if (key !== 'parent') {
       pending.push(child);
@@ -37,13 +37,13 @@ const appendNodeChildren = (node: ASTNode, pending: unknown[]): void => {
   }
 };
 
-const appendArrayValues = (value: readonly unknown[], pending: unknown[]): void => {
+const appendArrayValues = (value: readonly ASTValue[], pending: ASTValue[]): void => {
   for (const child of value) {
     pending.push(child);
   }
 };
 
-const nodeContainsYield = (node: ASTNode, pending: unknown[]): boolean => {
+const nodeContainsYield = (node: ASTNode, pending: ASTValue[]): boolean => {
   if (node.type === 'YieldExpression') {
     return true;
   }
@@ -53,9 +53,9 @@ const nodeContainsYield = (node: ASTNode, pending: unknown[]): boolean => {
   return false;
 };
 
-const containsYieldCandidate = (value: unknown, pending: unknown[]): boolean => {
+const containsYieldCandidate = (value: ASTValue, pending: ASTValue[]): boolean => {
   if (Array.isArray(value)) {
-    appendArrayValues(value as readonly unknown[], pending);
+    appendArrayValues(value, pending);
     return false;
   }
   const node = asNode(value);
@@ -65,8 +65,8 @@ const containsYieldCandidate = (value: unknown, pending: unknown[]): boolean => 
   return nodeContainsYield(node, pending);
 };
 
-const containsYield = (value: unknown): boolean => {
-  const pending: unknown[] = [value];
+const containsYield = (value: ASTValue): boolean => {
+  const pending: ASTValue[] = [value];
   while (pending.length > 0) {
     if (containsYieldCandidate(pending.pop(), pending)) {
       return true;

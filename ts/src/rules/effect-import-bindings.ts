@@ -2,8 +2,9 @@
 /*         Exact Program import indexing for shared Effect AST rules.         */
 /* -------------------------------------------------------------------------- */
 
+import { Predicate } from 'effect';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
-import type { ASTNode } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
 import type { EffectAPIBindings } from './effect-boundary-ast-shared';
 
 const ROOT_MODULE = 'effect';
@@ -13,14 +14,14 @@ const literalString = (node: ASTNode | undefined): string | undefined => {
   if (node?.type !== 'Literal' && node?.type !== 'StringLiteral') {
     return undefined;
   }
-  const value: unknown = Reflect.get(node, 'value');
-  if (typeof value === 'string') {
+  const value = node.value;
+  if (Predicate.isString(value)) {
     return value;
   }
   return undefined;
 };
 
-const isTypeOnly = (node: ASTNode): boolean => Reflect.get(node, 'importKind') === 'type';
+const isTypeOnly = (node: ASTNode): boolean => node.importKind === 'type';
 
 const resetBindings = (bindings: EffectAPIBindings): void => {
   bindings.directFunctionNames.clear();
@@ -122,12 +123,12 @@ const addImportDeclaration = (bindings: EffectAPIBindings, declaration: ASTNode)
   return true;
 };
 
-const indexProgramStatements = (bindings: EffectAPIBindings, body: unknown): boolean => {
+const indexProgramStatements = (bindings: EffectAPIBindings, body: ASTValue): boolean => {
   if (!Array.isArray(body)) {
     return false;
   }
   let hasEffectImport = false;
-  const statements: readonly unknown[] = body;
+  const statements: readonly ASTValue[] = body;
   const statementCount = statements.length;
   for (let statementIndex = 0; statementIndex < statementCount; statementIndex += 1) {
     const statement = asNode(statements[statementIndex]);
@@ -149,7 +150,7 @@ const indexProgramStatements = (bindings: EffectAPIBindings, body: unknown): boo
  */
 export const indexEffectAPIBindings = (bindings: EffectAPIBindings, program: ASTNode): void => {
   resetBindings(bindings);
-  const hasEffectImport = indexProgramStatements(bindings, Reflect.get(program, 'body'));
+  const hasEffectImport = indexProgramStatements(bindings, program.body);
   if (!hasEffectImport) {
     bindings.namespaces.add('Effect');
   }

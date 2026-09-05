@@ -1,11 +1,19 @@
 /* -------------------------------------------------------------------------- */
 /*             Shared AST helpers for custom Effect rule modules.             */
 /* -------------------------------------------------------------------------- */
-import { Array as EffectArray, HashSet, Option, Predicate, pipe } from 'effect';
+import { Array as EffectArray, Option, Predicate, pipe } from 'effect';
 import { effectImportAliases } from './effect-rule-core';
+import { isASTArray, isASTObject, isASTValue, type ASTNode, type ASTValue } from './effect-ast';
+
+export type { ASTValue } from './effect-ast';
+
+interface MemberParts {
+  readonly objectName?: string;
+  readonly propertyName?: string;
+}
 
 interface RuleContext {
-  report: (descriptor: { message: string; node: object }) => void;
+  report: (descriptor: { message: string; node: ASTNode }) => void;
 }
 
 /**
@@ -13,60 +21,29 @@ interface RuleContext {
  *
  * @internal
  */
-export type ASTValue = boolean | null | number | object | string | undefined;
-type ReflectedASTValue = ASTValue | bigint | symbol | ((...args: readonly never[]) => ASTValue);
-
-const astValueTypeNames: HashSet.HashSet<string> = HashSet.make(
-  'boolean',
-  'number',
-  'object',
-  'string',
-);
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const reportAST = (context: RuleContext, message: string, node: object): void => {
+export const reportAST = (context: RuleContext, message: string, node: ASTNode): void => {
   context.report({ message, node });
 };
 
-const isASTValue = (value: ReflectedASTValue): value is ASTValue =>
-  value === undefined || value === null || HashSet.has(astValueTypeNames, typeof value);
+/**
+ * Internal helper exported for package-local composition.
+ *
+ * @internal
+ */
+export const objectValue = (node: ASTValue, key: string): ASTValue => {
+  if (!isASTObject(node)) {
+    return undefined;
+  }
+  const value = node[key];
+  return isASTValue(value) ? value : undefined;
+};
 
 /**
  * Internal helper exported for package-local composition.
  *
  * @internal
  */
-export const objectValue = (node: ASTValue, key: string): ASTValue =>
-  pipe(
-    Option.fromNullable(node),
-    Option.filter(Predicate.isObject),
-    Option.flatMap((objectNode) => {
-      // oxlint-disable-next-line typescript/no-unsafe-assignment -- AST-REFLECT-001 validated below.
-      const value: ReflectedASTValue = Reflect.get(objectNode, key);
-      if (isASTValue(value)) {
-        return Option.some(value);
-      }
-      return Option.none<ASTValue>();
-    }),
-    Option.getOrUndefined,
-  );
-
-/**
- * Internal helper exported for package-local composition.
- *
- * @internal
- */
-export const arrayValue = (node: ASTValue): ASTValue[] =>
-  pipe(
-    Option.some(node),
-    Option.filter(Array.isArray),
-    Option.map(EffectArray.filter(isASTValue)),
-    Option.getOrElse((): ASTValue[] => []),
-  );
+export const arrayValue = (node: ASTValue): ASTValue[] => (isASTArray(node) ? [...node] : []);
 
 /**
  * Internal helper exported for package-local composition.
@@ -99,7 +76,7 @@ export const identifierName = (node: ASTValue): string | undefined =>
  *
  * @internal
  */
-export const memberParts = (node: ASTValue): { objectName?: string; propertyName?: string } =>
+export const memberParts = (node: ASTValue): MemberParts =>
   pipe(
     Option.some(node),
     Option.filter((value): boolean => nodeType(value) === 'MemberExpression'),
@@ -107,7 +84,7 @@ export const memberParts = (node: ASTValue): { objectName?: string; propertyName
       objectName: identifierName(objectValue(value, 'object')),
       propertyName: identifierName(objectValue(value, 'property')),
     })),
-    Option.getOrElse((): { objectName?: string; propertyName?: string } => ({})),
+    Option.getOrElse((): MemberParts => ({})),
   );
 
 const typeReferenceQualifiedName = (typeName: ASTValue): string | undefined =>

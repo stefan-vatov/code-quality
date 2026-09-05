@@ -2,6 +2,7 @@
 /*   Public Oxlint config factory for The Thracian TypeScript lint package.   */
 /* -------------------------------------------------------------------------- */
 import { dirname, join } from 'node:path';
+import { Predicate } from 'effect';
 import { effectSafetyRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
 import type { EffectStrictRuleName } from './rules/effect-rule-names';
 import { defineConfig } from 'oxlint';
@@ -53,6 +54,15 @@ type ToggleRuleSetting = 'error';
 type DefineConfigInput = Parameters<typeof defineConfig>[0];
 type RuleMap = NonNullable<DefineConfigInput['rules']>;
 
+interface TypeAwareConfigOptions {
+  readonly typeAware: true;
+  readonly typeCheck: true;
+}
+
+interface ConfigOptions {
+  readonly options?: TypeAwareConfigOptions;
+}
+
 /**
  * Oxlint enables a built-in correctness set as warnings when no category is
  * configured. Reset that implicit set so the explicit native allowlist below
@@ -64,6 +74,32 @@ const categories = {
 } as const;
 
 const plugins = ['typescript', 'oxc', 'import', 'promise', 'unicorn'] as const;
+
+/**
+ * Generic safety rules ported into the shared The Thracian plugin. Keep this
+ * list explicit so every imported rule is enabled as a blocking error.
+ */
+const portedRuleNames = [
+  'no-chained-type-assertions',
+  'no-conditional-empty-object-spread',
+  'no-known-value-widening',
+  'no-module-mocking',
+  'no-object-parameters',
+  'no-reflect-apply',
+  'no-reflect-get',
+  'no-runtime-typeof',
+  'no-shape-in-symbol-names',
+  'no-unknown-parameters',
+  'no-unknown-returns',
+  'no-unknown-type-aliases',
+  'no-unsafe-dictionary-type',
+  'no-widen-then-assert',
+  'require-safety-comment-for-type-assertion',
+] as const;
+
+const portedRules: RuleMap = Object.fromEntries(
+  portedRuleNames.map((ruleName) => [`thethracian/${ruleName}`, 'error']),
+);
 
 /**
  * Native rules are listed explicitly instead of inherited from Oxlint
@@ -274,30 +310,38 @@ const typeAwareNativeRuleNames = [
   'typescript/unbound-method',
 ] as const;
 
+const typeAwareNativeRuleNameSet = new Set<string>(typeAwareNativeRuleNames);
+
+const isEffectOptions = (
+  effect: TheThracianOxlintOptions['effect'],
+): effect is TheThracianEffectOptions => Predicate.isObject(effect) && !Array.isArray(effect);
+
 const isEffectEnabled = (effect: TheThracianOxlintOptions['effect']): boolean => {
   if (effect === true) {
     return true;
   }
-  if (effect && typeof effect === 'object') {
+  if (isEffectOptions(effect)) {
     return effect.enabled !== false;
   }
   return false;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-const isStrictEffectOptions = (value: unknown): value is TheThracianEffectStrictOptions =>
-  isRecord(value) && Array.isArray(value.rules);
+const isStrictEffectOptions = (value: unknown): value is TheThracianEffectStrictOptions => {
+  if (!Predicate.isObject(value) || Array.isArray(value) || !('rules' in value)) {
+    return false;
+  }
+  const rules = value.rules;
+  return Array.isArray(rules) && rules.every(Predicate.isString);
+};
 
 const getStrictEffectOptions = (
   effect: TheThracianOxlintOptions['effect'],
 ): TheThracianEffectStrictOptions | undefined => {
-  if (!isEffectEnabled(effect) || !effect || typeof effect !== 'object') {
+  if (!isEffectEnabled(effect) || !isEffectOptions(effect)) {
     return undefined;
   }
 
-  const strict: unknown = Reflect.get(effect, 'strict');
+  const strict: unknown = effect.strict;
   if (strict === undefined || strict === false) {
     return undefined;
   }
@@ -344,7 +388,7 @@ const selectedStrictRuleNames = (
   strictOptions: TheThracianEffectStrictOptions,
 ): readonly EffectStrictRuleName[] => {
   for (const ruleName of strictOptions.rules) {
-    if (typeof ruleName !== 'string' || !strictEffectRuleNameSet.has(ruleName)) {
+    if (!strictEffectRuleNameSet.has(ruleName)) {
       throw new TypeError(`Unknown strict Effect rule: ${ruleName}`);
     }
   }
@@ -374,8 +418,8 @@ const validateStrictPathOptions = (strictOptions: TheThracianEffectStrictOptions
     if (!Object.hasOwn(strictOptions, pathOption)) {
       continue;
     }
-    const value: unknown = Reflect.get(strictOptions, pathOption);
-    if (!Array.isArray(value) || !value.every((entry): boolean => typeof entry === 'string')) {
+    const value = strictOptions[pathOption];
+    if (!Array.isArray(value) || !value.every(Predicate.isString)) {
       throw new TypeError(`Strict Effect path option ${pathOption} must be an array of strings`);
     }
   }
@@ -408,6 +452,8 @@ const buildEffectRules = (
     );
   }
 
+  ruleEntries.push(['thethracian/no-service-constructor-imports', 'error']);
+
   return Object.fromEntries(ruleEntries);
 };
 
@@ -420,9 +466,9 @@ const strictEffectRuleSetting = (
     return 'error';
   }
 
-  const pathOptions = Object.fromEntries(
+  const pathOptions: StrictPathOptions = Object.fromEntries(
     requiredPathOptions.map((pathOption) => [pathOption, strictOptions[pathOption]]),
-  ) as StrictPathOptions;
+  );
   return ['error', pathOptions];
 };
 
@@ -435,7 +481,7 @@ const typeAwareRuleSetting = (isTypeAware: boolean | undefined): ToggleRuleSetti
 
 const typeAwareConfigOptions = (
   isTypeAware: boolean | undefined,
-): { typeAware: true; typeCheck: true } | undefined => {
+): TypeAwareConfigOptions | undefined => {
   if (isTypeAware) {
     return {
       typeAware: true,
@@ -445,16 +491,14 @@ const typeAwareConfigOptions = (
   return undefined;
 };
 
-const configOptions = (
-  typeAwareOptions: { typeAware: true; typeCheck: true } | undefined,
-): { options?: { typeAware: true; typeCheck: true } } => {
+const configOptions = (typeAwareOptions: TypeAwareConfigOptions | undefined): ConfigOptions => {
   if (typeAwareOptions) {
     return { options: typeAwareOptions };
   }
   return {};
 };
 
-const configuredNativeRules = {
+const configuredNativeRules: RuleMap = {
   complexity: ['error', { max: 20 }],
   eqeqeq: 'error',
   'import/no-duplicates': [
@@ -483,19 +527,14 @@ const configuredNativeRules = {
   'no-script-url': 'error',
   'prefer-const': ['error', { destructuring: 'any' }],
   'preserve-caught-error': 'error',
-} satisfies RuleMap;
+};
 
 const baseRules = (typeAwareRule: ToggleRuleSetting | undefined): RuleMap =>
   Object.fromEntries(
     nativeRuleAllowlist
-      .filter(
-        (ruleName) =>
-          !typeAwareNativeRuleNames.includes(
-            ruleName as (typeof typeAwareNativeRuleNames)[number],
-          ) || typeAwareRule,
-      )
-      .map((ruleName) => [ruleName, Reflect.get(configuredNativeRules, ruleName) ?? 'error']),
-  ) as RuleMap;
+      .filter((ruleName) => !typeAwareNativeRuleNameSet.has(ruleName) || typeAwareRule)
+      .map((ruleName) => [ruleName, configuredNativeRules[ruleName] ?? 'error']),
+  );
 
 /**
  * Builds The Thracian Oxlint config for TypeScript consumers.
@@ -518,6 +557,7 @@ export default function theThracianOxlint(
     plugins: [...plugins],
     rules: {
       ...baseRules(typeAwareRule),
+      ...portedRules,
       ...buildEffectRules(options.effect),
     },
   });

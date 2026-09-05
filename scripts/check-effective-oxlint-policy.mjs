@@ -105,12 +105,17 @@ assert.deepStrictEqual(
 
 const effectConfig = theThracianOxlint({ effect: true, typeAware: true });
 const effectRules = Object.entries(effectConfig.rules ?? {}).filter(([ruleName]) =>
-  ruleName.startsWith('thethracian/'),
+  ruleName.startsWith('thethracian/effect-'),
 );
 assert.equal(effectRules.length, 18, 'effect: true must enable exactly the safety bucket');
 assert.ok(
   effectRules.every(([, setting]) => normalizeSeverity(severityOf(setting)) === 'error'),
   'Active custom Effect rules must all be errors',
+);
+assert.equal(
+  normalizeSeverity(severityOf(effectConfig.rules?.['thethracian/no-service-constructor-imports'])),
+  'error',
+  'effect: true must enable the service-constructor import rule as an error',
 );
 
 console.log(

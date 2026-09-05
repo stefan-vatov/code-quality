@@ -4,6 +4,21 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Schema } from 'effect';
+
+const parsePackage = Schema.decodeUnknownSync(
+  Schema.parseJson(Schema.Struct({ peerDependencies: Schema.Struct({ oxlint: Schema.String }) })),
+);
+const parseDiagnostics = Schema.decodeUnknownSync(
+  Schema.parseJson(
+    Schema.Struct({ diagnostics: Schema.Array(Schema.Struct({ code: Schema.String })) }),
+  ),
+);
+const parseConfig = Schema.decodeUnknownSync(
+  Schema.parseJson(
+    Schema.Struct({ rules: Schema.Record({ key: Schema.String, value: Schema.Unknown }) }),
+  ),
+);
 
 const fixtureDirectory = dirname(fileURLToPath(import.meta.url));
 const configPath = join(fixtureDirectory, 'oxlint.config.mjs');
@@ -11,7 +26,7 @@ const fullConfigPath = join(fixtureDirectory, 'full.config.mjs');
 const invalidPath = join(fixtureDirectory, 'invalid.ts');
 const safePath = join(fixtureDirectory, 'safe.ts');
 const packagePath = join(fixtureDirectory, '..', '..', 'package.json');
-const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8'));
+const packageJSON = parsePackage(readFileSync(packagePath, 'utf8'));
 const minimumPeerRange = packageJSON.peerDependencies.oxlint;
 const minimumPeerVersion = /\d+\.\d+\.\d+/u.exec(minimumPeerRange)?.[0];
 
@@ -24,6 +39,7 @@ const expectedRuleIDs = [
   'thethracian/effect-no-global-fetch',
 ];
 
+/** @param {string} fixturePath @param {readonly string[]} extraArguments */
 const runOxlint = (fixturePath, extraArguments = []) =>
   spawnSync(
     'pnpm',
@@ -55,7 +71,7 @@ const runPrintConfig = () =>
 
 const invalidResult = runOxlint(invalidPath);
 assert.equal(invalidResult.status, 1, invalidResult.stderr);
-const { diagnostics } = JSON.parse(invalidResult.stdout);
+const { diagnostics } = parseDiagnostics(invalidResult.stdout);
 assert.equal(diagnostics.length, expectedRuleIDs.length);
 const ruleIDs = diagnostics.map(({ code }) => {
   const ruleId = code.replace(/^([^()]+)\((.+)\)$/u, '$1/$2');
@@ -65,18 +81,26 @@ assert.deepStrictEqual(ruleIDs.toSorted(), expectedRuleIDs.toSorted());
 
 const { default: fullConfig } = await import('./full.config.mjs');
 const sourceRuleNames = Object.keys(fullConfig.rules ?? {}).toSorted();
-assert.equal(sourceRuleNames.length, 178, 'full minimum-peer config must expose 178 rules');
+assert.equal(sourceRuleNames.length, 194, 'full minimum-peer config must expose 194 rules');
 const sourceNativeRuleNames = sourceRuleNames.filter(
   (ruleName) => !ruleName.startsWith('thethracian/'),
 );
-const sourceEffectRuleNames = sourceRuleNames.filter((ruleName) =>
+const sourcePackageRuleNames = sourceRuleNames.filter((ruleName) =>
   ruleName.startsWith('thethracian/'),
 );
+const sourceEffectRuleNames = sourcePackageRuleNames.filter((ruleName) =>
+  ruleName.startsWith('thethracian/effect-'),
+);
 assert.equal(sourceNativeRuleNames.length, 160, 'full config must expose 160 native rules');
+assert.equal(sourcePackageRuleNames.length, 34, 'full config must expose 34 package rules');
 assert.equal(
   sourceEffectRuleNames.length,
   18,
   'full config must expose all 18 Effect safety rules',
+);
+assert.ok(
+  sourceRuleNames.includes('thethracian/no-service-constructor-imports'),
+  'full config must expose the service-constructor import rule',
 );
 for (const ruleName of [
   'import/no-duplicates',
@@ -90,7 +114,7 @@ for (const ruleName of [
 
 const printResult = runPrintConfig();
 assert.equal(printResult.status, 0, printResult.stderr);
-const printedNativeRuleNames = Object.keys(JSON.parse(printResult.stdout).rules ?? {})
+const printedNativeRuleNames = Object.keys(parseConfig(printResult.stdout).rules)
   .filter((ruleName) => !ruleName.startsWith('thethracian/'))
   .toSorted();
 assert.deepStrictEqual(
@@ -109,7 +133,7 @@ try {
   const afterFix = readFileSync(temporarySafePath, 'utf8');
 
   assert.equal(safeResult.status, 0, safeResult.stderr);
-  assert.equal(JSON.parse(safeResult.stdout).diagnostics.length, 0);
+  assert.equal(parseDiagnostics(safeResult.stdout).diagnostics.length, 0);
   assert.equal(afterFix, beforeFix);
 } finally {
   rmSync(temporaryDirectory, { force: true, recursive: true });

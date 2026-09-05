@@ -50,7 +50,6 @@ const unclosedAngleStarts = (source: string, code: string): readonly number[] =>
 };
 
 const maskedSource = (source: string, starts: readonly number[]): string => {
-  // oxlint-disable-next-line unicorn/prefer-spread -- preserve UTF-16 code-unit coordinates.
   const masked = source.split('');
   for (const start of starts) {
     masked[start] = ' ';
@@ -59,7 +58,6 @@ const maskedSource = (source: string, starts: readonly number[]): string => {
 };
 
 const restoreAngleStarts = (projected: string, starts: readonly number[]): string => {
-  // oxlint-disable-next-line unicorn/prefer-spread -- preserve UTF-16 code-unit coordinates.
   const restored = projected.split('');
   for (const start of starts) {
     restored[start] = '<';

@@ -100,7 +100,7 @@ export const isShadowed = (name: string, scopes: ScopeStack): boolean =>
 
 const staticMember = (node: ASTNode | undefined): ASTNode | undefined => {
   const member = unwrappedExpression(node);
-  if (member?.type !== 'MemberExpression' || Reflect.get(member, 'computed') === true) {
+  if (member?.type !== 'MemberExpression' || member.computed === true) {
     return undefined;
   }
   return member;

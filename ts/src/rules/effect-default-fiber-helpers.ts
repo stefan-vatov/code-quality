@@ -46,6 +46,11 @@ interface AssignedRunFork {
   nextBoundaryIndex: number | undefined;
 }
 
+interface FunctionEnd {
+  readonly endIndex: number;
+  readonly nextIndex: number;
+}
+
 const lowerBound = (positions: readonly number[], targetIndex: number): number => {
   let low = 0;
   let high = positions.length;
@@ -182,7 +187,7 @@ const functionEndForTarget = (
   functionStarts: readonly number[],
   targetIndex: number,
   startIndex: number,
-): { endIndex: number; nextIndex: number } => {
+): FunctionEnd => {
   let nextIndex = startIndex;
   while (
     nextIndex < functionStarts.length &&
@@ -205,7 +210,7 @@ const tailEndWithoutEffectCall = (
   sourceIndex: SourceTailIndex,
   targetIndex: number,
   functionStartIndex: number,
-): { endIndex: number; nextIndex: number } => {
+): FunctionEnd => {
   const braceEndIndex = braceEndForTarget(sourceIndex, targetIndex);
   if (braceEndIndex !== undefined) {
     return { endIndex: braceEndIndex, nextIndex: functionStartIndex };

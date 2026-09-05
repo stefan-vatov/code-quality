@@ -1,25 +1,21 @@
 import {
   type NativeReference,
+  type NativeSourceCode,
   nativeSourceCodeFor,
 } from '../../src/rules/effect-native-references';
 import { describe, expect, it } from 'vitest';
 import type { Context } from '../../src/rules/effect-rule-core';
 import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
-import { parseSync } from 'oxc-parser';
 import { runRule } from './effect-rule-test-utils';
 
 const domainFile = 'src/domain/native-provenance.ts';
 
-const parseProgram = (source: string): object =>
-  parseSync(domainFile, source, { sourceType: 'module' }).program as object;
-
-const collectingContext = (sourceCode: unknown, reports: object[]): Context =>
-  ({
-    report(descriptor): void {
-      reports.push(descriptor);
-    },
-    sourceCode,
-  }) as unknown as Context;
+const collectingContext = (sourceCode: NativeSourceCode, reports: object[]): Context => ({
+  report(descriptor): void {
+    reports.push(descriptor);
+  },
+  sourceCode,
+});
 
 describe('source-backed Effect alias provenance', (): void => {
   it.each([
@@ -130,12 +126,11 @@ describe('native reference-index demand and sharing', (): void => {
     };
     let collectionReads = 0;
     let referenceReads = 0;
-    const references = new Proxy([reference], {
-      get(target, property, receiver): unknown {
-        if (property === '0') {
-          referenceReads += 1;
-        }
-        return Reflect.get(target, property, receiver);
+    const references = [reference];
+    Object.defineProperty(references, '0', {
+      get(): NativeReference {
+        referenceReads += 1;
+        return reference;
       },
     });
     const scope = Object.defineProperty({}, 'references', {

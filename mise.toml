@@ -1,0 +1,9 @@
+[tools]
+node = "24.14.0"
+pnpm = "10.12.4"
+erlang = "27.3"
+elixir = "1.18.4-otp-27"
+
+[settings]
+# Keep subprocesses on the pinned runtimes even when a parent shell prepends global tools.
+activate_aggressive = true

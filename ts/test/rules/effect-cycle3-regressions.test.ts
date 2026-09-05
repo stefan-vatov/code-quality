@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { runAllRules, runRule } from './effect-rule-test-utils';
+import type { StrictPathOptions } from '../../src/rules/effect-path-options';
 
-function reportedEffectRules(source: string, filename?: string, options?: object): string[] {
+function reportedEffectRules(
+  source: string,
+  filename?: string,
+  options?: StrictPathOptions,
+): string[] {
   return runAllRules(source, filename, options)
     .map((report) => report.ruleName)
     .filter((ruleName): ruleName is string => Boolean(ruleName?.startsWith('effect-')));
 }
 
-describe('Effect cycle 3 regression coverage', () => {
+const registerEffectAndFiberTests = (): void => {
   it('allows pure Effect namespace predicates returned from Effect.gen', () => {
     const valid = `
       const program = Effect.gen(function* () {
@@ -127,7 +132,9 @@ describe('Effect cycle 3 regression coverage', () => {
     expect(runRule('effect-require-typed-error-in-trypromise', valid)).toHaveLength(0);
     expect(runRule('effect-require-typed-error-in-trypromise', invalid)).toHaveLength(1);
   });
+};
 
+const registerResourceAndPolicyTests = (): void => {
   it('does not let one scoped resource hide a separate unscoped resource workflow', () => {
     const source = `
       const scoped = Effect.scoped(Socket.open(url));
@@ -246,4 +253,9 @@ describe('Effect cycle 3 regression coverage', () => {
 
     expect(reportedEffectRules(source, 'src/domain/user.ts')).toStrictEqual([]);
   });
+};
+
+describe('Effect cycle 3 regression coverage', (): void => {
+  registerEffectAndFiberTests();
+  registerResourceAndPolicyTests();
 });

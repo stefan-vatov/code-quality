@@ -1,30 +1,21 @@
 import type { NativeReference, NativeSourceCode } from '../../src/rules/effect-native-references';
 import { describe, expect, it } from 'vitest';
-import type { Context } from '../../src/rules/effect-rule-core';
+import type { Context, VisitorMap } from '../../src/rules/effect-rule-core';
+import { type ASTNode, type ASTValue, isASTArray, isASTNode } from '../../src/rules/effect-ast';
 import { effectGlobalFetchAST } from '../../src/rules/effect-global-fetch-ast';
 import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
 import { parseSync } from 'oxc-parser';
 
-type ASTNode = {
-  [key: string]: unknown;
-  type: string;
-};
-
-type VisitorMap = Record<string, ((node: object) => void) | undefined>;
-
 const domainFile = 'src/domain/native-demand.ts';
 
-const isNode = (value: unknown): value is ASTNode =>
-  value !== null && typeof value === 'object' && typeof Reflect.get(value, 'type') === 'string';
-
-const visitNode = (value: unknown, visit: (node: ASTNode) => void): void => {
-  if (Array.isArray(value)) {
+const visitNode = (value: ASTValue, visit: (node: ASTNode) => void): void => {
+  if (isASTArray(value)) {
     for (const item of value) {
       visitNode(item, visit);
     }
     return;
   }
-  if (!isNode(value)) {
+  if (!isASTNode(value)) {
     return;
   }
   visit(value);
@@ -36,7 +27,9 @@ const visitNode = (value: unknown, visit: (node: ASTNode) => void): void => {
 };
 
 const parseProgram = (source: string): ASTNode =>
-  parseSync(domainFile, source, { sourceType: 'module' }).program as ASTNode;
+  // SAFETY: Oxc produces a Program with a string type and AST-valued fields consumed by this traversal.
+  parseSync(domainFile, source, { sourceType: 'module' }).program as ASTNode &
+    ReturnType<typeof parseSync>['program'];
 
 const nodesOfType = (program: ASTNode, type: string): ASTNode[] => {
   const nodes: ASTNode[] = [];
@@ -50,7 +43,7 @@ const nodesOfType = (program: ASTNode, type: string): ASTNode[] => {
 
 const lastIdentifier = (program: ASTNode, name: string): ASTNode => {
   const identifiers = nodesOfType(program, 'Identifier').filter(
-    (node): boolean => Reflect.get(node, 'name') === name,
+    (node): boolean => node.name === name,
   );
   const identifier = identifiers.at(-1);
   if (!identifier) {
@@ -59,12 +52,12 @@ const lastIdentifier = (program: ASTNode, name: string): ASTNode => {
   return identifier;
 };
 
-const importReference = (node: object): NativeReference => ({
+const importReference = (node: ASTNode): NativeReference => ({
   identifier: node,
   resolved: { defs: [{ type: 'ImportBinding' }] },
 });
 
-const localReference = (node: object): NativeReference => ({
+const localReference = (node: ASTNode): NativeReference => ({
   identifier: node,
   resolved: { defs: [{ type: 'Variable' }] },
 });
@@ -193,9 +186,7 @@ interface FetchCase {
   source: string;
 }
 
-const runNativeGlobalFetch = (
-  testCase: FetchCase,
-): { referenceReads: number; reports: readonly object[] } => {
+const runNativeGlobalFetch = (testCase: FetchCase) => {
   const program = parseProgram(testCase.source);
   const references = [
     ...testCase.importedNames.map(

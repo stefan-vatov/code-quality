@@ -5,7 +5,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const rootPath = (path) => new URL(`../${path}`, import.meta.url);
-const rootJSON = (path) => JSON.parse(readFileSync(rootPath(path), 'utf8'));
+const rootJSON = (path) =>
+  // SAFETY: callers read the repository-owned package manifest and verify its scripts below.
+  /** @type {{ scripts: Record<string, string> }} */ (
+    JSON.parse(readFileSync(rootPath(path), 'utf8'))
+  );
 const rootText = (path) => readFileSync(rootPath(path), 'utf8');
 const rootTextOrEmpty = (path) => (existsSync(rootPath(path)) ? rootText(path) : '');
 
@@ -111,9 +115,9 @@ describe('Effect slice quality gate portability', () => {
     expect(verifier).toContain('minimumPeerVersion');
     expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
     expect(verifier).toContain("await import('./full.config.mjs')");
-    expect(verifier).toContain('full minimum-peer config must expose 178 rules');
+    expect(verifier).toContain('full minimum-peer config must expose 194 rules');
     expect(verifier).toMatch(/--format(?:=|['",\s]+)json/u);
-    expect(verifier).toContain('JSON.parse');
+    expect(verifier).toContain('Schema.parseJson');
     expect(verifier).toContain('diagnostics');
     expect(verifier).toContain('ruleId');
     expect(verifier).toContain('node:assert/strict');

@@ -33,6 +33,11 @@ export interface ShadowIntervalIndex {
   readonly starts: ReadonlyMap<string, readonly number[]>;
 }
 
+interface IntervalSummary {
+  readonly maxEnds: readonly number[];
+  readonly starts: readonly number[];
+}
+
 type FunctionBodyRange = (
   code: string,
   boundary: ExpressionBoundaryIndex,
@@ -373,9 +378,7 @@ const summarizeIntervals = (
   return { maxEnds, starts };
 };
 
-const summarizeIntervalValues = (
-  values: readonly SourceRange[],
-): { maxEnds: readonly number[]; starts: readonly number[] } => {
+const summarizeIntervalValues = (values: readonly SourceRange[]): IntervalSummary => {
   const maxEnds: number[] = [];
   const starts: number[] = [];
   let maximum = -1;

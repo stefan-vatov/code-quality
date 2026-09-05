@@ -2,17 +2,17 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import plugin from '../../src/rules/plugin';
-import type { Report } from './effect-rule-test-utils';
+import { getEffectRule, type Report } from './effect-rule-test-utils';
+import type { Context } from '../../src/rules/effect-rule-core';
 
 const programNode = { type: 'Program', range: [0, 0] };
 
-function runRuleWithContext(ruleName: string, context: object): Report[] {
+function runRuleWithContext(ruleName: string, context: Omit<Context, 'report'>): Report[] {
   const reports: Report[] = [];
-  const rule = plugin.rules[ruleName as keyof typeof plugin.rules];
+  const rule = getEffectRule(ruleName);
   expect(rule, `${ruleName} must be registered`).toBeDefined();
   const visitors = rule.create({
-    report(report: Report) {
+    report(report) {
       reports.push(report);
     },
     ...context,

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../src/index';
 import { effectSafetyRuleNames } from '../src/rules/effect-rule-names';
-import type { TheThracianEffectStrictOptions } from '../src/index';
+import type { TheThracianEffectStrictOptions, TheThracianOxlintOptions } from '../src/index';
 
 const removedRules = [
   'arrow-body-style',
@@ -126,10 +126,16 @@ const effectRuleKeys = (config: ReturnType<typeof theThracianOxlint>): string[] 
     ruleName.startsWith('thethracian/effect-'),
   );
 
+// SAFETY: this repository's manifest defines these four scripts and arrays of staged-file commands.
 const packageJSON = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 ) as {
-  scripts: Record<string, string>;
+  scripts: {
+    'lint:fix': string;
+    'lint:local:fix': string;
+    'lint:type-aware:fix': string;
+    'lint:local:type-aware:fix': string;
+  };
   'lint-staged': Record<string, string[]>;
 };
 
@@ -143,7 +149,7 @@ describe('high-signal strict config', (): void => {
       { considerQueryString: true, preferInline: false },
     ]);
     expect(config.rules).toHaveProperty('oxc/only-used-in-recursion', 'error');
-    expect(Object.keys(config.rules ?? {})).toHaveLength(128);
+    expect(Object.keys(config.rules ?? {})).toHaveLength(143);
   });
 
   it('adds every semantic native rule only when type-aware linting is requested', (): void => {
@@ -187,7 +193,7 @@ describe('high-signal strict config', (): void => {
       'typescript/switch-exhaustiveness-check',
       'typescript/unbound-method',
     ]);
-    expect(Object.keys(typeAwareRules)).toHaveLength(160);
+    expect(Object.keys(typeAwareRules)).toHaveLength(175);
   });
 
   it('uses strict but non-fragmenting numeric limits', (): void => {
@@ -214,7 +220,9 @@ describe('high-signal strict config', (): void => {
       expect(theThracianOxlint().rules).not.toHaveProperty(ruleName);
     },
   );
+});
 
+describe('high-signal strict config Effect selection', (): void => {
   it('does not enable Effect rules for consumers that did not request them', (): void => {
     expect(effectRuleKeys(theThracianOxlint())).toStrictEqual([]);
   });
@@ -253,7 +261,7 @@ describe('high-signal strict config', (): void => {
   it.each(strictPathRequirements)(
     'requires %s to declare its %s project paths',
     (ruleName, pathOption): void => {
-      const strict = {
+      const strict: TheThracianEffectStrictOptions = {
         ...explicitStrictPaths,
         rules: [ruleName],
       };
@@ -261,17 +269,18 @@ describe('high-signal strict config', (): void => {
 
       expect(() =>
         theThracianOxlint({
-          effect: { enabled: true, strict: strict as TheThracianEffectStrictOptions },
+          effect: { enabled: true, strict },
         }),
       ).toThrowError(`Strict Effect rule ${ruleName} requires explicit path option: ${pathOption}`);
     },
   );
 
   it('rejects malformed strict Effect path groups before defaults can leak in', (): void => {
-    const strict = {
+    const strict: TheThracianEffectStrictOptions = {
+      // @ts-expect-error - negative runtime test: adapterLayers must be a string array, not a string.
       adapterLayers: 'platform/**',
       rules: ['effect-no-global-fetch'],
-    } as unknown as TheThracianEffectStrictOptions;
+    };
 
     expect(() => theThracianOxlint({ effect: { enabled: true, strict } })).toThrowError(
       'Strict Effect path option adapterLayers must be an array of strings',
@@ -288,9 +297,10 @@ describe('high-signal strict config', (): void => {
   });
 
   it('rejects unknown strict Effect rule names at runtime', (): void => {
-    const invalidStrictOptions = {
+    const invalidStrictOptions: TheThracianEffectStrictOptions = {
+      // @ts-expect-error - negative runtime test: this name is outside the registered strict rule union.
       rules: ['effect-not-a-real-rule'],
-    } as unknown as TheThracianEffectStrictOptions;
+    };
 
     expect(() =>
       theThracianOxlint({ effect: { enabled: true, strict: invalidStrictOptions } }),
@@ -298,9 +308,10 @@ describe('high-signal strict config', (): void => {
   });
 
   it('rejects the removed pathless strict boolean shortcut', (): void => {
-    const invalidEffectOptions = {
+    const invalidEffectOptions: TheThracianOxlintOptions = {
+      // @ts-expect-error - negative runtime test: strict accepts false or options, never true.
       effect: { strict: true },
-    } as unknown as Parameters<typeof theThracianOxlint>[0];
+    };
 
     expect(() => theThracianOxlint(invalidEffectOptions)).toThrowError(
       'effect.strict: true is no longer supported; select rules and provide their explicit project paths',
@@ -308,9 +319,10 @@ describe('high-signal strict config', (): void => {
   });
 
   it('rejects malformed strict Effect option objects', (): void => {
-    const invalidEffectOptions = {
+    const invalidEffectOptions: TheThracianOxlintOptions = {
+      // @ts-expect-error - negative runtime test: strict options must include a rules array.
       effect: { strict: { enabled: true } },
-    } as unknown as Parameters<typeof theThracianOxlint>[0];
+    };
 
     expect(() => theThracianOxlint(invalidEffectOptions)).toThrowError(
       'effect.strict must be false or an object with a rules array',
@@ -339,7 +351,9 @@ describe('high-signal strict config', (): void => {
     );
     expect(config.rules).not.toHaveProperty('thethracian/effect-no-global-fetch');
   });
+});
 
+describe('high-signal strict config severity and automatic fixes', (): void => {
   it('exports only error rules, never warnings or rule-level removals', (): void => {
     const strict = {
       adapterLayers: ['platform/**'],

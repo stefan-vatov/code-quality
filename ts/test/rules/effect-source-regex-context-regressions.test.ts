@@ -1,13 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { isREGEXLiteralStart } from '../../src/rules/effect-source-regex-scan';
-import { parseSync } from 'oxc-parser';
+import { parseSync, Visitor, type Program } from 'oxc-parser';
 import { stripComments } from '../../src/rules/effect-source-comments';
 import { stripCommentsAndStrings } from '../../src/rules/effect-source-scan';
-
-interface ASTNode {
-  readonly [key: string]: unknown;
-  readonly type: string;
-}
 
 type RegexSpan = readonly [number, number];
 
@@ -155,49 +150,23 @@ const regexContextFixtures: readonly RegexContextFixture[] = [
   },
 ];
 
-const isASTNode = (value: unknown): value is ASTNode =>
-  value !== null && typeof value === 'object' && typeof Reflect.get(value, 'type') === 'string';
-
-const visitNode = (value: unknown, visit: (node: ASTNode) => void): void => {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      visitNode(item, visit);
-    }
-    return;
-  }
-  if (!isASTNode(value)) {
-    return;
-  }
-  visit(value);
-  for (const [key, child] of Object.entries(value)) {
-    if (key !== 'parent') {
-      visitNode(child, visit);
-    }
-  }
-};
-
-const regexSpansFrom = (program: ASTNode): RegexSpan[] => {
+const regexSpansFrom = (program: Program): RegexSpan[] => {
   const spans: RegexSpan[] = [];
-  visitNode(program, (node): void => {
-    const regex = Reflect.get(node, 'regex');
-    const isREGEXNode = node.type === 'RegExpLiteral' || (node.type === 'Literal' && regex != null);
-    if (!isREGEXNode) {
-      return;
-    }
-    const start = Reflect.get(node, 'start');
-    const end = Reflect.get(node, 'end');
-    if (typeof start !== 'number' || typeof end !== 'number') {
-      throw new Error('Regex AST node is missing source offsets');
-    }
-    spans.push([start, end]);
+  const visitor = new Visitor({
+    Literal(node): void {
+      if ('regex' in node) {
+        spans.push([node.start, node.end]);
+      }
+    },
   });
+  visitor.visit(program);
   return spans;
 };
 
-const parseFixture = (fixture: RegexContextFixture): ASTNode => {
+const parseFixture = (fixture: RegexContextFixture): Program => {
   const parsed = parseSync(`${fixture.name}.ts`, fixture.source, { sourceType: 'module' });
   expect(parsed.errors, fixture.name).toHaveLength(0);
-  return parsed.program as ASTNode;
+  return parsed.program;
 };
 
 const slashOffsets = (source: string): number[] => {

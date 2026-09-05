@@ -2,17 +2,21 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { parseSync } from 'oxc-parser';
+import { Predicate } from 'effect';
 import { expect } from 'vitest';
 import theThracianOxlint from '../../src/index';
+import { isASTArray, isASTNode } from '../../src/rules/effect-ast';
+import type { ASTNode, ASTValue } from '../../src/rules/effect-ast';
+import type { StrictPathOptions } from '../../src/rules/effect-path-options';
+import type { Context, SourceRule, VisitorMap } from '../../src/rules/effect-rule-core';
 import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
 import plugin from '../../src/rules/plugin';
 
-type Report = {
-  loc?: { column: number; line: number };
-  message: string;
-  node: object;
+type Report = Parameters<Context['report']>[0] & {
   ruleName?: string;
 };
+
+type RuleSetting = NonNullable<ReturnType<typeof theThracianOxlint>['rules']>[string];
 
 type RuleCase = {
   filename?: string;
@@ -21,7 +25,7 @@ type RuleCase = {
   valid: string;
 };
 
-const programNode = { type: 'Program', range: [0, 0] };
+const programNode: ASTNode = { type: 'Program', range: [0, 0] };
 
 const strictEffectTestPaths = {
   adapterLayers: ['src/adapters/**', 'src/platform/**', 'src/infrastructure/**'],
@@ -33,16 +37,8 @@ const strictEffectTestPaths = {
   unitTests: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx'],
 } as const;
 
-type VisitorMap = Record<string, ((node: object) => void) | undefined>;
-
-function isNode(value: unknown): value is { type: string } {
-  return Boolean(
-    value && typeof value === 'object' && typeof (value as { type?: unknown }).type === 'string',
-  );
-}
-
-function traverse(node: unknown, visitors: VisitorMap): void {
-  if (!isNode(node)) {
+function traverse(node: ASTValue, visitors: VisitorMap): void {
+  if (!isASTNode(node)) {
     return;
   }
 
@@ -51,7 +47,7 @@ function traverse(node: unknown, visitors: VisitorMap): void {
   }
 
   for (const value of Object.values(node)) {
-    if (Array.isArray(value)) {
+    if (isASTArray(value)) {
       for (const item of value) {
         traverse(item, visitors);
       }
@@ -61,8 +57,26 @@ function traverse(node: unknown, visitors: VisitorMap): void {
   }
 }
 
-function parseProgram(filename: string, source: string): object {
-  return parseSync(filename, source, { sourceType: 'module' }).program as object;
+function effectProgram(program: ReturnType<typeof parseSync>['program'] | ASTNode): ASTNode {
+  // SAFETY: Oxc produces ESTree nodes with string type tags and enumerable child fields;
+  // the Effect AST readers use that same structural contract without native host metadata.
+  return program as ASTNode;
+}
+
+function parseProgram(filename: string, source: string): ASTNode {
+  return effectProgram(parseSync(filename, source, { sourceType: 'module' }).program);
+}
+
+function effectSourceRule(rule: (typeof plugin.rules)[string] | SourceRule): SourceRule {
+  // SAFETY: these tests select registered Effect rules, whose SourceRule create/context
+  // contract is preserved at runtime by eslintCompatPlugin's native type adapter.
+  return rule as SourceRule;
+}
+
+function getEffectRule(ruleName: string): SourceRule {
+  const rule = plugin.rules[ruleName];
+  expect(rule, `${ruleName} must be registered`).toBeDefined();
+  return effectSourceRule(rule);
 }
 
 function sorted(values: readonly string[]): string[] {
@@ -73,7 +87,7 @@ function runRule(
   ruleName: string,
   source: string,
   filename = 'src/domain/user.ts',
-  options?: object,
+  options?: StrictPathOptions,
 ): Report[] {
   const root = mkdtempSync(join(tmpdir(), 'thx-effect-bucket-rule-'));
   const filePath = join(root, filename);
@@ -95,11 +109,10 @@ function runRuleAtPath(
   ruleName: string,
   filePath: string,
   reports: Report[],
-  options?: object,
+  options?: StrictPathOptions,
   source = '',
 ): void {
-  const rule = plugin.rules[ruleName as keyof typeof plugin.rules];
-  expect(rule, `${ruleName} must be registered`).toBeDefined();
+  const rule = getEffectRule(ruleName);
   const visitors = rule.create({
     filename: filePath,
     options: options ? [options] : [],
@@ -113,7 +126,11 @@ function runRuleAtPath(
   traverse(ast, visitors);
 }
 
-function runAllRules(source: string, filename = 'src/domain/user.ts', options?: object): Report[] {
+function runAllRules(
+  source: string,
+  filename = 'src/domain/user.ts',
+  options?: StrictPathOptions,
+): Report[] {
   const root = mkdtempSync(join(tmpdir(), 'thx-effect-all-rules-'));
   const filePath = join(root, filename);
   const reports: Report[] = [];
@@ -122,8 +139,12 @@ function runAllRules(source: string, filename = 'src/domain/user.ts', options?: 
   writeFileSync(filePath, source);
 
   try {
-    for (const [ruleName, rule] of Object.entries(plugin.rules)) {
-      const visitors = rule.create({
+    for (const ruleName of Object.keys(plugin.rules)) {
+      if (!ruleName.startsWith('effect-')) {
+        continue;
+      }
+
+      const visitors = getEffectRule(ruleName).create({
         filename: filePath,
         options: options ? [options] : [],
         report(report: Report) {
@@ -142,13 +163,18 @@ function runAllRules(source: string, filename = 'src/domain/user.ts', options?: 
   return reports;
 }
 
-function ruleOptionsFromSetting(setting: unknown): object | undefined {
+function ruleOptionsFromSetting(setting: RuleSetting | undefined): StrictPathOptions | undefined {
   if (!Array.isArray(setting)) {
     return undefined;
   }
 
   const [, options] = setting;
-  return options && typeof options === 'object' ? options : undefined;
+  if (!Predicate.isRecord(options)) {
+    return undefined;
+  }
+  // SAFETY: the config factory emits StrictPathOptions for configured Effect rules;
+  // Oxlint's generic rule setting type erases that package-owned option contract.
+  return options as StrictPathOptions;
 }
 
 function runConfiguredRules(
@@ -170,8 +196,7 @@ function runConfiguredRules(
       }
 
       const ruleName = fullRuleName.replace(/^thethracian\//, '');
-      const rule = plugin.rules[ruleName as keyof typeof plugin.rules];
-      expect(rule, `${ruleName} must be registered`).toBeDefined();
+      const rule = getEffectRule(ruleName);
       const options = ruleOptionsFromSetting(setting);
       const visitors = rule.create({
         filename: filePath,
@@ -202,8 +227,8 @@ function withAllEffectRules(
   config: ReturnType<typeof theThracianOxlint>,
 ): ReturnType<typeof theThracianOxlint> {
   const strictSetting = config.rules?.['thethracian/effect-no-run-outside-entrypoints'];
-  const strictOptions = Array.isArray(strictSetting) ? strictSetting[1] : undefined;
-  const defaultRuleSetting = strictOptions ? ['error', strictOptions] : 'error';
+  const strictOptions = ruleOptionsFromSetting(strictSetting);
+  const defaultRuleSetting: RuleSetting = strictOptions ? ['error', strictOptions] : 'error';
 
   return {
     ...config,
@@ -217,6 +242,7 @@ function withAllEffectRules(
 }
 
 export {
+  getEffectRule,
   runAllRules,
   runConfiguredRules,
   runRule,

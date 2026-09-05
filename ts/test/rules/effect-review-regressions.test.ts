@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { runAllRules, runRule, runRuleAtPath } from './effect-rule-test-utils';
 import type { Report } from './effect-rule-test-utils';
 
-describe('Effect review regression coverage', () => {
+const registerConfigurationAndAPITests = (): void => {
   it('does not reuse stale source after a file changes at the same path', () => {
     const root = mkdtempSync(join(tmpdir(), 'thx-effect-review-stale-'));
     const filePath = join(root, 'src/domain/user.ts');
@@ -135,7 +135,9 @@ describe('Effect review regression coverage', () => {
     expect(runRule('effect-testClock-requires-fork', valid, 'src/user.test.ts')).toHaveLength(0);
     expect(runRule('effect-testClock-requires-fork', invalid, 'src/user.test.ts')).toHaveLength(1);
   });
+};
 
+const registerSuppressionAndFiberTests = (): void => {
   it('accepts precise Effect rule suppressions with a reason and tracking ticket', () => {
     const valid = `
       // oxlint-disable-next-line thethracian/effect-no-floating-effect -- reason: generated compatibility shim ABC-123
@@ -246,4 +248,9 @@ describe('Effect review regression coverage', () => {
 
     expect(effectRuleNames).toStrictEqual(['effect-no-deprecated-schema-package']);
   });
+};
+
+describe('Effect review regression coverage', (): void => {
+  registerConfigurationAndAPITests();
+  registerSuppressionAndFiberTests();
 });

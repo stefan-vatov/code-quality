@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*         Conservative codemod for arrow-body-style concise bodies.          */
 /* -------------------------------------------------------------------------- */
-import { Array, Option, Order, Predicate, pipe } from 'effect';
+import { Array, Option, Order, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
   BlockStatement,
@@ -9,6 +9,7 @@ import type {
   ReturnStatement,
 } from 'jscodeshift';
 import jscodeshift from 'jscodeshift';
+import { nodeEnd, nodeStart, sourceForNode } from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -19,9 +20,6 @@ interface Replacement {
 const MAX_LINE_LENGTH = 150;
 const NOT_FOUND_INDEX = -1;
 const codemodAPI = jscodeshift.withParser('ts');
-
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   pipe(
@@ -34,41 +32,16 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
     ),
   );
 
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
-
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
-  );
-
-const sourceForNode = (source: string, node: unknown): string =>
-  source.slice(nodeStart(node), nodeEnd(node));
-
 const hasAttachedComments = (node: ReturnStatement): boolean =>
   pipe(
     [
       Option.fromNullable(node.comments),
       pipe(
-        Option.some(node as unknown),
-        Option.filter(isObjectRecord),
-        Option.flatMapNullable((value) => value.leadingComments),
+        Option.fromNullable('leadingComments' in node ? node.leadingComments : undefined),
         Option.filter(globalThis.Array.isArray),
       ),
       pipe(
-        Option.some(node as unknown),
-        Option.filter(isObjectRecord),
-        Option.flatMapNullable((value) => value.trailingComments),
+        Option.fromNullable('trailingComments' in node ? node.trailingComments : undefined),
         Option.filter(globalThis.Array.isArray),
       ),
     ],
@@ -84,17 +57,18 @@ const expressionNeedsParentheses = (expression: Expression): boolean => {
   if (expression.type === 'ObjectExpression') {
     return true;
   }
-  if (!isObjectRecord(expression)) {
+  if (!isExpressionWrapper(expression)) {
     return false;
   }
-  return (
-    (expression.type === 'TSAsExpression' ||
-      expression.type === 'TSSatisfiesExpression' ||
-      expression.type === 'TSTypeAssertion') &&
-    isObjectRecord(expression.expression) &&
-    expression.expression.type === 'ObjectExpression'
-  );
+  return expression.expression.type === 'ObjectExpression';
 };
+
+const isExpressionWrapper = (
+  expression: Expression,
+): expression is Expression & { readonly expression: Expression } =>
+  expression.type === 'TSAsExpression' ||
+  expression.type === 'TSSatisfiesExpression' ||
+  expression.type === 'TSTypeAssertion';
 
 const lineEndAfter = (source: string, end: number): number => {
   const nextLineBreak = source.indexOf('\n', end);

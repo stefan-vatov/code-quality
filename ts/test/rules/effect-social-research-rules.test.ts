@@ -3,7 +3,7 @@ import theThracianOxlint from '../../src/index';
 import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
 import { runConfiguredRules, runRule, strictEffectTestPaths } from './effect-rule-test-utils';
 
-describe('Effect safety and strict rule coverage', () => {
+const registerDefaultResearchRules = (): void => {
   it('keeps strict architecture and style rules out of the default safety preset', () => {
     const config = theThracianOxlint();
     const ruleNames = [
@@ -92,7 +92,9 @@ describe('Effect safety and strict rule coverage', () => {
       ),
     ).toHaveLength(0);
   });
+};
 
+const registerStrictResearchRules = (): void => {
   it('reports strict Effect-native platform and Schema style rules only in strict config', () => {
     const strictConfig = theThracianOxlint({
       effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
@@ -186,4 +188,9 @@ describe('Effect safety and strict rule coverage', () => {
       ),
     ).toHaveLength(0);
   });
+};
+
+describe('Effect safety and strict rule coverage', (): void => {
+  registerDefaultResearchRules();
+  registerStrictResearchRules();
 });

@@ -1,18 +1,28 @@
 /* -------------------------------------------------------------------------- */
 /*         Conservative codemod for return-position no-ternary fixes.         */
 /* -------------------------------------------------------------------------- */
-import { Array, HashSet, Option, Order, Predicate, pipe } from 'effect';
+import { Array, HashSet, Option, Order, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
   AssignmentExpression,
   ConditionalExpression,
   ExpressionStatement,
+  Node,
   ReturnStatement,
   VariableDeclaration,
 } from 'jscodeshift';
 import { collectBranchInitializerRepairs } from './no-ternary-branch-initializers';
 import jscodeshift from 'jscodeshift';
 import { variableReplacement } from './no-ternary-variable-initializers';
+import {
+  codemodObjectValues,
+  isCodemodArray,
+  isCodemodNode,
+  nodeEnd,
+  nodeStart,
+  sourceForNode,
+  type CodemodValue,
+} from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -20,12 +30,14 @@ interface Replacement {
   text: string;
 }
 
+interface NodeRange {
+  readonly end: number;
+  readonly start: number;
+}
+
 const INDENT_STEP = '  ';
 const NOT_FOUND_INDEX = -1;
 const codemodAPI = jscodeshift.withParser('ts');
-
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   pipe(
@@ -37,27 +49,6 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
         current.slice(0, replacement.start) + replacement.text + current.slice(replacement.end),
     ),
   );
-
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
-
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
-  );
-
-const sourceForNode = (source: string, node: unknown): string =>
-  source.slice(nodeStart(node), nodeEnd(node));
 
 const lineIndent = (source: string, index: number): string => {
   const lineStart = source.lastIndexOf('\n', index) + 1;
@@ -72,14 +63,17 @@ const lineIndent = (source: string, index: number): string => {
   return source.slice(lineStart, cursor);
 };
 
-const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<object>): boolean => {
-  if (globalThis.Array.isArray(node)) {
+const containsConditionalExpressionInValue = (
+  node: CodemodValue,
+  seen: WeakSet<object>,
+): boolean => {
+  if (isCodemodArray(node)) {
     return pipe(
       node,
       Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
     );
   }
-  if (!isObjectRecord(node)) {
+  if (!isCodemodNode(node)) {
     return false;
   }
   if (seen.has(node)) {
@@ -90,12 +84,12 @@ const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<objec
     return true;
   }
   return pipe(
-    Object.values(node),
+    codemodObjectValues(node),
     Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
   );
 };
 
-const containsConditionalExpression = (node: unknown): boolean =>
+const containsConditionalExpression = (node: CodemodValue): boolean =>
   containsConditionalExpressionInValue(node, new WeakSet());
 
 const hasUnsafeBranches = (expression: ConditionalExpression): boolean =>
@@ -211,10 +205,7 @@ const arrowBaseIndent = (source: string, node: ArrowFunctionExpression): string 
   );
 };
 
-const arrowBodyRange = (
-  source: string,
-  body: ConditionalExpression,
-): { end: number; start: number } => {
+const arrowBodyRange = (source: string, body: ConditionalExpression): NodeRange => {
   let start = nodeStart(body);
   let end = nodeEnd(body);
   while (start > 0 && end < source.length && source[start - 1] === '(' && source[end] === ')') {
@@ -246,7 +237,7 @@ const arrowReplacement = (source: string, node: ArrowFunctionExpression): Replac
     Option.getOrUndefined,
   );
 
-const replacementOverlaps = (replacements: readonly Replacement[], candidate: unknown): boolean => {
+const replacementOverlaps = (replacements: readonly Replacement[], candidate: Node): boolean => {
   const start = nodeStart(candidate);
   const end = nodeEnd(candidate);
   return pipe(

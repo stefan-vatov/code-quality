@@ -13,14 +13,12 @@ import {
   unwrappedExpression,
 } from './effect-boundary-ast-shared';
 import type { ASTNode } from './effect-ast';
-import type { Context } from './effect-rule-core';
+import type { Context, VisitorMap } from './effect-rule-core';
 import type { EffectAPIBindings } from './effect-boundary-ast-shared';
 import type { EffectResolutionBindings } from './effect-recursion-viability';
 import type { RecursionPhaseBindings } from './effect-recursion-phases';
 import { effectResolutionBindingsFor } from './effect-recursion-viability';
 import { recursiveEffectFacts } from './effect-recursion-execution';
-
-type VisitorMap = Record<string, (node: object) => void>;
 
 interface ReportInput {
   analyzedNames: WeakMap<object, Set<string>>;
@@ -50,8 +48,7 @@ interface FunctionReportOptions {
 }
 
 const shouldAnalyzeFunction = (input: ReportInput): boolean =>
-  Reflect.get(input.node, 'async') !== true &&
-  (input.isEagerGenerator === true || Reflect.get(input.node, 'generator') !== true);
+  input.node.async !== true && (input.isEagerGenerator === true || input.node.generator !== true);
 
 const reportsFunctionName = (
   input: ReportInput,
@@ -120,7 +117,7 @@ const eagerGenerator = (
     return undefined;
   }
   const generator = unwrappedExpression(childNodes(call, 'arguments')[0]);
-  if (isFunctionNode(generator) && Reflect.get(generator, 'generator') === true) {
+  if (isFunctionNode(generator) && generator.generator === true) {
     return generator;
   }
   return undefined;
@@ -141,7 +138,7 @@ const reportFunction = (
   });
 };
 
-const visitCall = (state: RecursionVisitorState, value: object): void => {
+const visitCall = (state: RecursionVisitorState, value: ASTNode): void => {
   const call = asNode(value);
   if (!call) {
     return;
@@ -154,21 +151,21 @@ const visitCall = (state: RecursionVisitorState, value: object): void => {
   }
 };
 
-const visitNamedFunction = (state: RecursionVisitorState, value: object): void => {
+const visitNamedFunction = (state: RecursionVisitorState, value: ASTNode): void => {
   const node = asNode(value);
   if (node) {
     reportFunction(state, node, [identifierName(childNode(node, 'id'))]);
   }
 };
 
-const visitProgram = (state: RecursionVisitorState, value: object): void => {
+const visitProgram = (state: RecursionVisitorState, value: ASTNode): void => {
   const program = asNode(value);
   if (program) {
     indexEffectAPIBindingsFromProgram(state.bindings, program);
   }
 };
 
-const visitVariableDeclarator = (state: RecursionVisitorState, value: object): void => {
+const visitVariableDeclarator = (state: RecursionVisitorState, value: ASTNode): void => {
   const declarator = asNode(value);
   if (!declarator) {
     return;

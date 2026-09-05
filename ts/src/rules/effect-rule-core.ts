@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*      Core runtime for source-backed and AST-backed Effect lint rules.      */
 /* -------------------------------------------------------------------------- */
-import { Array, Option, String, pipe } from 'effect';
+import { Array, Option, Predicate, String, pipe } from 'effect';
 import {
   LINE_START_CACHE_MAX_WEIGHT,
   SOURCE_TOKEN_PRESENCE_CACHE_MAX_WEIGHT,
@@ -15,6 +15,9 @@ import { canonicalIndexToOriginal } from './effect-alias-canonicalization';
 import { canonicalizeEffectAPIAliasesWithMap } from './effect-rule-aliases';
 import { effectDiagnosticMessage } from './diagnostic-guidance';
 import { stripCommentsAndStrings } from './effect-source-helpers';
+import { isASTArray } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
+import type { NativeSourceCode } from './effect-native-types';
 
 /**
  * Describes the Oxlint context exposed to composed Effect rules.
@@ -25,14 +28,11 @@ export interface Context {
   report: (descriptor: {
     loc?: { column: number; line: number };
     message: string;
-    node: object;
+    node: ASTNode;
   }) => void;
   filename?: string;
-  options?: object[];
-  sourceCode?: {
-    getText?: () => string;
-    text?: string;
-  };
+  options?: ASTValue[];
+  sourceCode?: NativeSourceCode;
 }
 
 /**
@@ -49,17 +49,17 @@ export interface SourceRule {
     type: 'problem';
   };
   create: (context: Context) => {
-    [nodeType: string]: ((node: object) => void) | undefined;
-    Program: (node: object) => void;
+    [nodeType: string]: ((node: ASTNode) => void) | undefined;
+    Program: (node: ASTNode) => void;
   };
   createOnce?: (context: Context) => {
-    [nodeType: string]: ((node: object) => void) | undefined;
+    [nodeType: string]: ((node: ASTNode) => void) | undefined;
     before?: () => false | void;
-    Program: (node: object) => void;
+    Program: (node: ASTNode) => void;
   };
 }
 
-type VisitorMap = Record<string, ((node: object) => void) | undefined>;
+export type VisitorMap = Record<string, ((node: ASTNode) => void) | undefined>;
 
 /**
  * Describes one generated Effect lint rule.
@@ -160,7 +160,7 @@ const firstCodeMatchIndex = (
   source: string,
   pattern: RegExp,
   strippedSource?: string,
-): { index?: number; strippedSource?: string } => {
+): PatternMatchResult => {
   let projectedSource = strippedSource;
   let matchIndex: number | undefined = undefined;
   scanPattern(source, pattern, (match): boolean => {
@@ -241,7 +241,7 @@ const lineIndexFor = (starts: readonly number[], index: number): number => {
   return Math.max(0, high);
 };
 
-const locFromIndex = (source: string, index: number): { column: number; line: number } => {
+const locFromIndex = (source: string, index: number): SourceLocation => {
   const starts = lineStartsFor(source);
   const lineIndex = lineIndexFor(starts, index);
   const lineStart = starts[lineIndex] ?? 0;
@@ -279,7 +279,7 @@ const firstPatternLOC = (
 interface ReportPatternMatchesInput {
   canonicalized: CanonicalizedEffectSource;
   context: Context;
-  node: object;
+  node: ASTNode;
   source: string;
   spec: RuleSpec;
 }
@@ -320,11 +320,27 @@ const reportCountedPatternMatches = (input: ReportPatternMatchesInput, message: 
   }
 };
 
-const checkResultIndex = (result: boolean | number | { index: number }): number | undefined => {
-  if (typeof result === 'number') {
+interface PatternMatchResult {
+  readonly index?: number;
+  readonly strippedSource?: string;
+}
+
+interface SourceLocation {
+  readonly column: number;
+  readonly line: number;
+}
+
+interface IndexedCheckResult {
+  readonly index: number;
+}
+
+type CheckResultValue = boolean | number | IndexedCheckResult;
+
+const checkResultIndex = (result: CheckResultValue): number | undefined => {
+  if (Predicate.isNumber(result)) {
     return result;
   }
-  if (typeof result === 'object') {
+  if (Predicate.isObject(result)) {
     return result.index;
   }
   return undefined;
@@ -413,7 +429,7 @@ const guidedContext = (context: Context, spec: RuleSpec): Context => ({
   get filename(): string | undefined {
     return context.filename;
   },
-  get options(): object[] | undefined {
+  get options(): ASTValue[] | undefined {
     return context.options;
   },
   report(descriptor): void {
@@ -435,7 +451,7 @@ const runProgramRule = (
   const canonicalSource = canonicalized.source;
   const checkResult = spec.check?.(canonicalSource, context);
   if (checkResult !== undefined) {
-    if (typeof checkResult !== 'boolean' || checkResult) {
+    if (checkResult !== false) {
       reportCheckResult({ canonicalized, context, node, source, spec }, checkResult);
     }
     return;
@@ -458,7 +474,7 @@ const makeProgramOnlyRule = (spec: RuleSpec, options: MakeRulesOptions): SourceR
       let isSkipped = true;
 
       return {
-        Program(node: object): void {
+        Program(node: ASTNode): void {
           if (isSkipped) {
             return;
           }
@@ -494,9 +510,9 @@ const makeASTCapableRule = (spec: RuleSpec, options: MakeRulesOptions): SourceRu
       const astProgram = astVisitors.Program;
       return {
         ...astVisitors,
-        Program(node: object): void {
+        Program(node: ASTNode): void {
           astProgram?.(node);
-          if (spec.ast && globalThis.Array.isArray((node as { body?: unknown }).body)) {
+          if (spec.ast && isASTArray(node.body)) {
             return;
           }
           runProgramRule({ context, node, source, spec });

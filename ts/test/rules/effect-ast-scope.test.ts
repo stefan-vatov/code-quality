@@ -2,7 +2,31 @@ import type { ASTNode, ScopeStack } from '../../src/rules/effect-ast-scope';
 import { describe, expect, it } from 'vitest';
 import { scopesForChild, withNodeScope } from '../../src/rules/effect-ast-scope';
 
-type Fields = Readonly<Record<string, unknown>>;
+type Fields = {
+  argument?: ASTNode;
+  body?: ASTNode | ASTNode[] | null;
+  boundaries?: ASTNode[];
+  cases?: ASTNode[];
+  consequent?: ASTNode[];
+  declaration?: ASTNode | null;
+  declarations?: ASTNode[];
+  discriminant?: ASTNode;
+  elements?: (ASTNode | null)[];
+  id?: ASTNode;
+  importKind?: 'type' | 'value';
+  init?: ASTNode | null;
+  kind?: 'const' | 'let' | 'var';
+  left?: ASTNode;
+  name?: string;
+  param?: ASTNode;
+  parameter?: ASTNode;
+  params?: ASTNode[];
+  properties?: ASTNode[];
+  right?: ASTNode;
+  specifiers?: ASTNode[];
+  value?: ASTNode;
+  visible?: ASTNode;
+};
 
 const ast = (type: string, fields: Fields = {}): ASTNode => ({ type, ...fields });
 const identifier = (name: string): ASTNode => ast('Identifier', { name });
@@ -13,7 +37,7 @@ const block = (...body: ASTNode[]): ASTNode => ast('BlockStatement', { body });
 const scopeNames = (scopes: ScopeStack): string[][] =>
   scopes.map((scope) => [...scope].sort((left, right) => left.localeCompare(right)));
 
-describe('effect AST lexical scopes', (): void => {
+const registerDeclarationScopeTests = (): void => {
   it('unwraps named and default export declarations without treating export lists as declarations', (): void => {
     const program = ast('Program', {
       body: [
@@ -142,7 +166,9 @@ describe('effect AST lexical scopes', (): void => {
       ],
     ]);
   });
+};
 
+const registerContainerScopeTests = (): void => {
   it.each([
     [
       'Program',
@@ -211,7 +237,9 @@ describe('effect AST lexical scopes', (): void => {
 
     expect(scopeNames(withNodeScope([], program))).toEqual([['programVar']]);
   });
+};
 
+const registerChildScopeTests = (): void => {
   it('separates function header bindings from vars visible only on the body edge', (): void => {
     const functionNode = ast('FunctionDeclaration', {
       body: block(
@@ -315,4 +343,10 @@ describe('effect AST lexical scopes', (): void => {
     expect(withNodeScope(inherited, emptyNode)).toBe(inherited);
     expect(scopesForChild(inherited, emptyNode, 'expression')).toBe(inherited);
   });
+};
+
+describe('effect AST lexical scopes', (): void => {
+  registerDeclarationScopeTests();
+  registerContainerScopeTests();
+  registerChildScopeTests();
 });

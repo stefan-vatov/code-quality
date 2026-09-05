@@ -1071,6 +1071,166 @@
       "operationsPerSample": 1,
       "p95LimitNs": 459876,
       "runs": 20
+    },
+    "no-chained-type-assertions": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 37680,
+      "observedMedianNs": 6280,
+      "observedP95Ns": 16250,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "no-conditional-empty-object-spread": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 42360,
+      "observedMedianNs": 7060,
+      "observedP95Ns": 12020,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "no-known-value-widening": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 227340,
+      "observedMedianNs": 37890,
+      "observedP95Ns": 418191,
+      "operationsPerSample": 1,
+      "p95LimitNs": 2509146,
+      "runs": 20
+    },
+    "no-module-mocking": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 139260,
+      "observedMedianNs": 23210,
+      "observedP95Ns": 86691,
+      "operationsPerSample": 1,
+      "p95LimitNs": 520146,
+      "runs": 20
+    },
+    "no-object-parameters": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 78840,
+      "observedMedianNs": 13140,
+      "observedP95Ns": 35131,
+      "operationsPerSample": 1,
+      "p95LimitNs": 210786,
+      "runs": 20
+    },
+    "no-reflect-apply": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 32340,
+      "observedMedianNs": 5390,
+      "observedP95Ns": 65951,
+      "operationsPerSample": 1,
+      "p95LimitNs": 395706,
+      "runs": 20
+    },
+    "no-reflect-get": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 29160,
+      "observedMedianNs": 4860,
+      "observedP95Ns": 57600,
+      "operationsPerSample": 1,
+      "p95LimitNs": 345600,
+      "runs": 20
+    },
+    "no-runtime-typeof": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3130,
+      "observedP95Ns": 9970,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "no-service-constructor-imports": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 32400,
+      "observedMedianNs": 5400,
+      "observedP95Ns": 73921,
+      "operationsPerSample": 1,
+      "p95LimitNs": 443526,
+      "runs": 20
+    },
+    "no-shape-in-symbol-names": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 4110,
+      "observedP95Ns": 25851,
+      "operationsPerSample": 1,
+      "p95LimitNs": 155106,
+      "runs": 20
+    },
+    "no-unknown-parameters": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3540,
+      "observedP95Ns": 10820,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
+    "no-unknown-returns": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 45600,
+      "observedMedianNs": 7600,
+      "observedP95Ns": 26530,
+      "operationsPerSample": 1,
+      "p95LimitNs": 159180,
+      "runs": 20
+    },
+    "no-unknown-type-aliases": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 44160,
+      "observedMedianNs": 7360,
+      "observedP95Ns": 20080,
+      "operationsPerSample": 1,
+      "p95LimitNs": 120480,
+      "runs": 20
+    },
+    "no-unsafe-dictionary-type": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 75000,
+      "observedMedianNs": 12500,
+      "observedP95Ns": 99520,
+      "operationsPerSample": 1,
+      "p95LimitNs": 597120,
+      "runs": 20
+    },
+    "no-widen-then-assert": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 220680,
+      "observedMedianNs": 36780,
+      "observedP95Ns": 283931,
+      "operationsPerSample": 1,
+      "p95LimitNs": 1703586,
+      "runs": 20
+    },
+    "require-safety-comment-for-type-assertion": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25000,
+      "observedMedianNs": 3770,
+      "observedP95Ns": 231770,
+      "operationsPerSample": 1,
+      "p95LimitNs": 1390620,
+      "runs": 20
     }
   }
 }

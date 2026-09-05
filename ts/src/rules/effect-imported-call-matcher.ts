@@ -2,6 +2,7 @@
 /*    Imported-reference identity for strict AST-backed Effect call rules.    */
 /* -------------------------------------------------------------------------- */
 
+import { Predicate } from 'effect';
 import type { NativeReference, NativeSourceCode } from './effect-native-references';
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
 import {
@@ -10,7 +11,7 @@ import {
   nativeSourceCodeFor,
 } from './effect-native-references';
 import { scopeHasBinding, scopesForChild, withNodeScope } from './effect-ast-scope';
-import type { ASTNode } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
 import type { Context } from './effect-rule-core';
 import type { ScopeStack } from './effect-ast-scope';
 
@@ -35,8 +36,8 @@ interface CalleeReference {
  * @internal
  */
 export interface ImportedEffectCallMatcher {
-  initialize: (node: object) => void;
-  matches: (callee: object | undefined) => boolean;
+  initialize: (node: ASTNode) => void;
+  matches: (callee: ASTNode | undefined) => boolean;
 }
 
 interface MatcherState {
@@ -55,16 +56,16 @@ const literalString = (node: ASTNode | undefined): string | undefined => {
   if (node?.type !== 'Literal') {
     return undefined;
   }
-  const value: unknown = Reflect.get(node, 'value');
-  if (typeof value === 'string') {
+  const value = node.value;
+  if (Predicate.isString(value)) {
     return value;
   }
   return undefined;
 };
 
-const isTypeImport = (node: ASTNode): boolean => Reflect.get(node, 'importKind') === 'type';
+const isTypeImport = (node: ASTNode): boolean => node.importKind === 'type';
 
-const isComputedMember = (node: ASTNode): boolean => Reflect.get(node, 'computed') === true;
+const isComputedMember = (node: ASTNode): boolean => node.computed === true;
 
 const addBinding = (
   bindings: Map<string, Binding>,
@@ -255,7 +256,7 @@ const rootNamespaceReference = (
 };
 
 const calleeReference = (
-  value: object | undefined,
+  value: ASTValue,
   state: MatcherState,
   APIName: string,
   names: ReadonlySet<string>,
@@ -322,6 +323,7 @@ const pushFallbackNodeChildren = (
       pending.push({
         kind: 'visit',
         scopes: scopesForChild(nodeScopes, node, entry[0]),
+        // SAFETY: AST nodes expose only ASTProperty values through Object.entries during fallback traversal.
         value: entry[1] as ASTProperty,
       });
     }

@@ -1,5 +1,10 @@
-import { type Context, type RuleSpec, makeRules } from '../../src/rules/effect-rule-core';
-import { describe, expect, it } from 'vitest';
+import {
+  type Context,
+  type RuleSpec,
+  type VisitorMap,
+  makeRules,
+} from '../../src/rules/effect-rule-core';
+import { describe, expect, it, vi } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 
@@ -9,7 +14,7 @@ const sourceText = (path: string): string =>
 const joinedSourceText = (...paths: string[]): string =>
   paths.map((path): string => sourceText(path)).join('\n');
 
-describe('Effect rule core performance invariants', (): void => {
+const registerCacheInvariants = (): void => {
   it('reuses source text across rules that share the same source object', (): void => {
     let getTextCalls = 0;
     const sourceCode = {
@@ -88,11 +93,29 @@ describe('Effect rule core performance invariants', (): void => {
     expect(source).not.toContain('return [...cachedValue]');
   });
 
-  it('caches token gate decisions by shared token array and source', (): void => {
-    const source = sourceText('../../src/rules/effect-rule-core.ts');
-
-    expect(source).toContain('tokenGateCache');
-    expect(source).toContain('WeakMap<readonly string[], Map<string, boolean>>');
+  it('reuses positive and negative token scans across distinct rule gates per source', (): void => {
+    const token = 'sharedGatePerformanceToken';
+    const sources = ['const sharedGatePerformanceToken = 1;', 'const absentGateToken = 1;'];
+    const rules = makeRules([
+      { name: 'first-gate', message: 'first', tokens: [token] },
+      { name: 'second-gate', message: 'second', tokenGroups: [[token]] },
+    ]);
+    const includes = vi.spyOn(String.prototype, 'includes');
+    try {
+      for (const source of sources) {
+        const context = { report(): void {}, sourceCode: { text: source } } satisfies Context;
+        const expected = source === sources[0] ? undefined : false;
+        for (const rule of Object.values(rules)) {
+          const visitors = rule.createOnce?.(context);
+          expect(visitors?.before).toBeTypeOf('function');
+          expect(visitors?.before?.()).toBe(expected);
+          expect(visitors?.before?.()).toBe(expected);
+        }
+      }
+      expect(includes.mock.calls.filter(([search]) => search === token)).toHaveLength(2);
+    } finally {
+      includes.mockRestore();
+    }
   });
 
   it('caches individual token presence by source so overlapping rule gates do not rescan files', (): void => {
@@ -119,7 +142,9 @@ describe('Effect rule core performance invariants', (): void => {
     expect(defaultHelpersSource).toContain('const floatingEffectPatterns');
     expect(defaultHelpersSource).not.toContain('floatingEffectPatternCache.delete(aliasPattern)');
   });
+};
 
+const registerTokenInvariants = (): void => {
   it('uses per-rule tokens for expensive Program-only Effect checks', (): void => {
     const defaultRulesSource = joinedSourceText(
       '../../src/rules/effect-default.ts',
@@ -233,7 +258,9 @@ describe('Effect rule core performance invariants', (): void => {
 
     expect(checks).toBe(0);
   });
+};
 
+const registerVisitorInvariants = (): void => {
   it('supports shared default tokens for a whole rule bucket', (): void => {
     let checks = 0;
     const context = {
@@ -299,7 +326,7 @@ describe('Effect rule core performance invariants', (): void => {
         patterns: [/Effect\.succeed/],
       },
       {
-        ast: (): Record<string, (node: object) => void> => ({
+        ast: (): VisitorMap => ({
           CallExpression(): void {},
         }),
         message: 'ast rule',
@@ -350,7 +377,7 @@ describe('Effect rule core performance invariants', (): void => {
     } satisfies Context;
     const rules = makeRules([
       {
-        ast: (): Record<string, (node: object) => void> => {
+        ast: (): VisitorMap => {
           factories++;
           return {
             NewExpression(): void {},
@@ -366,4 +393,10 @@ describe('Effect rule core performance invariants', (): void => {
 
     expect(factories).toBe(0);
   });
+};
+
+describe('Effect rule core performance invariants', (): void => {
+  registerCacheInvariants();
+  registerTokenInvariants();
+  registerVisitorInvariants();
 });

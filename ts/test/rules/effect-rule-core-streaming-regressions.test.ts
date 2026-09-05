@@ -44,7 +44,6 @@ describe('Effect rule core streaming regressions', (): void => {
     const source = 'Effect.succeed(1); Effect.succeed(2);';
     const pattern = /Effect[.]succeed/;
     const reports: ReportLocation[] = [];
-    let visitors: ReturnType<SourceRule['create']> | undefined;
     let shouldReenter = true;
     const context: Context = {
       report(descriptor): void {
@@ -63,7 +62,7 @@ describe('Effect rule core streaming regressions', (): void => {
       patterns: [pattern],
       tokens: ['Effect.succeed'],
     });
-    visitors = rule.create(context);
+    const visitors = rule.create(context);
 
     visitors.Program(program);
 

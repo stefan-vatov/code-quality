@@ -1,13 +1,24 @@
 /* -------------------------------------------------------------------------- */
 /*       Contracts for composing AST Program visitors with core rules.        */
 /* -------------------------------------------------------------------------- */
-import { type Context, type RuleSpec, makeRules } from '../../src/rules/effect-rule-core';
+import {
+  type Context,
+  type RuleSpec,
+  type VisitorMap,
+  makeRules,
+} from '../../src/rules/effect-rule-core';
+import type { ASTNode } from '../../src/rules/effect-ast';
 import { describe, expect, it, vi } from 'vitest';
 import { effectDiagnosticMessage } from '../../src/rules/diagnostic-guidance';
 
 interface Report {
   message: string;
-  node: object;
+  node: ASTNode;
+}
+
+interface ContextFixture {
+  context: Context;
+  reports: Report[];
 }
 
 const parsedProgram = {
@@ -17,10 +28,7 @@ const parsedProgram = {
 
 const syntheticProgram = { type: 'Program' };
 
-const makeContext = (
-  source: string,
-  reports: Report[] = [],
-): { context: Context; reports: Report[] } => ({
+const makeContext = (source: string, reports: Report[] = []): ContextFixture => ({
   context: {
     report(descriptor): void {
       reports.push({ message: descriptor.message, node: descriptor.node });
@@ -43,7 +51,7 @@ describe('Effect rule core AST Program composition', (): void => {
     const sourceFallback = vi.fn((): boolean => true);
     const { context } = makeContext('Effect.succeed(1)');
     const rule = ruleFrom({
-      ast: (): Record<string, (node: object) => void> => ({ Program: astProgram }),
+      ast: (): VisitorMap => ({ Program: astProgram }),
       check: sourceFallback,
       message: 'Inspect this Program.',
       name: 'effect-program-composition',
@@ -62,7 +70,7 @@ describe('Effect rule core AST Program composition', (): void => {
     const callExpression = vi.fn();
     const { context } = makeContext('Effect.succeed(1)');
     const rule = ruleFrom({
-      ast: (): Record<string, (node: object) => void> => ({
+      ast: (): VisitorMap => ({
         CallExpression: callExpression,
         Program: astProgram,
       }),
@@ -83,7 +91,7 @@ describe('Effect rule core AST Program composition', (): void => {
 
   it('does not create or invoke AST visitors when token gating skips the rule', (): void => {
     const astFactory = vi.fn(
-      (): Record<string, (node: object) => void> => ({
+      (): VisitorMap => ({
         Program: vi.fn(),
       }),
     );
@@ -109,7 +117,7 @@ describe('Effect rule core AST Program composition', (): void => {
     const calls: string[] = [];
     const { context, reports } = makeContext('Effect.succeed(1)');
     const rule = ruleFrom({
-      ast: (): Record<string, (node: object) => void> => ({
+      ast: (): VisitorMap => ({
         Program(): void {
           calls.push('ast');
         },
@@ -135,7 +143,7 @@ describe('Effect rule core AST Program composition', (): void => {
     const astSummary = 'AST Program finding.';
     const ruleName = 'effect-program-guidance';
     const rule = ruleFrom({
-      ast: (astContext): Record<string, (node: object) => void> => ({
+      ast: (astContext): VisitorMap => ({
         Program(node): void {
           astContext.report({ message: astSummary, node });
         },

@@ -68,6 +68,11 @@ interface BuilderState {
   previousIndex: number;
 }
 
+interface FrameBoundary {
+  readonly closeIndex: number;
+  readonly depth: number;
+}
+
 /**
  * Tests whether a source code unit can occur inside an identifier.
  *
@@ -227,7 +232,7 @@ const frameBoundaryFor = (
   state: BuilderState,
   sourceLength: number,
   frameId: number,
-): { closeIndex: number; depth: number } => {
+): FrameBoundary => {
   if (frameId < 0) {
     return { closeIndex: sourceLength, depth: 0 };
   }

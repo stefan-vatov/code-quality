@@ -1,7 +1,7 @@
 /* -------------------------------------------------------------------------- */
 /*       Variable-initializer repairs for the no-ternary codemod only.        */
 /* -------------------------------------------------------------------------- */
-import { Array, Option, Predicate, pipe } from 'effect';
+import { Array, Option, pipe } from 'effect';
 import type {
   ArrowFunctionExpression,
   BlockStatement,
@@ -13,6 +13,15 @@ import type {
   VariableDeclarator,
 } from 'jscodeshift';
 import jscodeshift from 'jscodeshift';
+import {
+  codemodObjectValues,
+  isCodemodArray,
+  isCodemodNode,
+  nodeEnd,
+  nodeStart,
+  sourceForNode,
+  type CodemodValue,
+} from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -35,35 +44,15 @@ const INDENT_STEP = '  ';
 const NOT_FOUND_INDEX = -1;
 const codemodAPI = jscodeshift.withParser('ts');
 
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
-
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
-
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
-  );
-
-const sourceForNode = (source: string, node: unknown): string =>
-  source.slice(nodeStart(node), nodeEnd(node));
-
 const isIdentifier = (node: Node | null | undefined): node is Identifier =>
   node?.type === 'Identifier';
 
-const isExpressionLike = (value: unknown): value is Expression =>
-  isObjectRecord(value) && typeof value.type === 'string';
+const isExpressionWrapper = (
+  expression: Expression,
+): expression is Expression & { readonly expression: Expression } =>
+  expression.type === 'TSAsExpression' ||
+  expression.type === 'TSSatisfiesExpression' ||
+  expression.type === 'TSTypeAssertion';
 
 const lineIndent = (source: string, index: number): string => {
   const lineStart = source.lastIndexOf('\n', index) + 1;
@@ -78,14 +67,17 @@ const lineIndent = (source: string, index: number): string => {
   return source.slice(lineStart, cursor);
 };
 
-const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<object>): boolean => {
-  if (globalThis.Array.isArray(node)) {
+const containsConditionalExpressionInValue = (
+  node: CodemodValue,
+  seen: WeakSet<object>,
+): boolean => {
+  if (isCodemodArray(node)) {
     return pipe(
       node,
       Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
     );
   }
-  if (!isObjectRecord(node)) {
+  if (!isCodemodNode(node)) {
     return false;
   }
   if (seen.has(node)) {
@@ -96,12 +88,12 @@ const containsConditionalExpressionInValue = (node: unknown, seen: WeakSet<objec
     return true;
   }
   return pipe(
-    Object.values(node),
+    codemodObjectValues(node),
     Array.some((entry): boolean => containsConditionalExpressionInValue(entry, seen)),
   );
 };
 
-const containsConditionalExpression = (node: unknown): boolean =>
+const containsConditionalExpression = (node: CodemodValue): boolean =>
   containsConditionalExpressionInValue(node, new WeakSet());
 
 const hasUnsafeBranches = (expression: ConditionalExpression): boolean =>
@@ -109,13 +101,7 @@ const hasUnsafeBranches = (expression: ConditionalExpression): boolean =>
   containsConditionalExpression(expression.alternate);
 
 const primitiveTypeOf = (expression: Expression): string | undefined => {
-  if (
-    isObjectRecord(expression) &&
-    (expression.type === 'TSAsExpression' ||
-      expression.type === 'TSSatisfiesExpression' ||
-      expression.type === 'TSTypeAssertion') &&
-    isExpressionLike(expression.expression)
-  ) {
+  if (isExpressionWrapper(expression)) {
     return primitiveTypeOf(expression.expression);
   }
 
@@ -308,14 +294,11 @@ const zeroArgArrowIIFE = (declaration: VariableDeclarator): ArrowFunctionExpress
     Option.fromNullable(declaration.init),
     Option.filter((init): boolean => init.type === 'CallExpression'),
     Option.flatMapNullable((init) => {
-      if (isObjectRecord(init)) {
-        return init.callee;
-      }
-      return undefined;
+      return init.type === 'CallExpression' ? init.callee : undefined;
     }),
     Option.filter(
       (callee): callee is ArrowFunctionExpression =>
-        isObjectRecord(callee) &&
+        isCodemodNode(callee) &&
         callee.type === 'ArrowFunctionExpression' &&
         globalThis.Array.isArray(callee.params) &&
         callee.params.length === 0 &&
@@ -369,8 +352,8 @@ const initializerReplacement = (
     Option.getOrUndefined,
   );
 
-const isVariableDeclarator = (node: unknown): node is VariableDeclarator =>
-  isObjectRecord(node) && node.type === 'VariableDeclarator';
+const isVariableDeclarator = (node: CodemodValue): node is VariableDeclarator =>
+  isCodemodNode(node) && node.type === 'VariableDeclarator';
 
 /**
  * Internal helper exported for the no-ternary codemod composition.

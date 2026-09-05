@@ -9,22 +9,9 @@ import {
   reportAST,
 } from './effect-default-ast';
 import { stripComments, stripCommentsAndStrings } from './effect-source-helpers';
-import type { Context as RuleContext } from './effect-rule-core';
+import type { RuleSpec, VisitorMap } from './effect-rule-core';
 import { asNode } from './effect-ast';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
-
-interface RuleSpec {
-  ast?: (
-    context: RuleContext,
-    source: string,
-  ) => Record<string, ((node: object) => void) | undefined>;
-  check?: (source: string, context: RuleContext) => boolean | number | { index: number };
-  message: string;
-  name: string;
-  patterns?: readonly RegExp[];
-  tokenGroups?: readonly (readonly string[])[];
-  tokens?: readonly string[];
-}
 
 const serviceMismatchIndex = (code: string, pattern: RegExp): number | undefined =>
   pipe(
@@ -69,7 +56,7 @@ export const effectDefaultCompatibilitySpecs = [
     tokens: ['@effect/io', '@effect/data'],
   },
   {
-    ast: (context): Record<string, (node: object) => void> => {
+    ast: (context): VisitorMap => {
       const fakeEffectAPI = importedEffectCallMatcher(context, 'Effect', [
         'bracket',
         'fromEither',
@@ -111,7 +98,7 @@ export const effectDefaultCompatibilitySpecs = [
     tokens: ['Context.Tag'],
   },
   {
-    ast: (context, source): Record<string, (node: object) => void> => ({
+    ast: (context, source): VisitorMap => ({
       ClassDeclaration(node): void {
         const className = identifierName(objectValue(node, 'id'));
         const selfName = effectServiceSelfName(objectValue(node, 'superClass'), source);

@@ -10,6 +10,21 @@ const inlineTagPattern = /\s+(@\S+)/u;
 const blockCommentOpenLength = '/**'.length;
 const blockCommentCloseOffset = -'*/'.length;
 
+interface ParsedJSDoc {
+  readonly summary: string;
+  readonly tags: string[];
+}
+
+interface CommentReplacement {
+  readonly end: number;
+  readonly text: string;
+}
+
+interface FormatState {
+  readonly cursor: number;
+  readonly output: string;
+}
+
 const cleanJSDocLine = (line: string): string =>
   line
     .trim()
@@ -32,7 +47,7 @@ const splitInlineTags = (line: string): string[] => {
   );
 };
 
-const parseJSDoc = (body: string): { summary: string; tags: string[] } | undefined => {
+const parseJSDoc = (body: string): ParsedJSDoc | undefined => {
   const lines = pipe(
     body.split('\n'),
     Array.map(cleanJSDocLine),
@@ -62,7 +77,7 @@ const parseJSDoc = (body: string): { summary: string; tags: string[] } | undefin
       );
       return pipe(
         Option.fromNullable(summary || undefined),
-        Option.map((value): { summary: string; tags: string[] } => ({ summary: value, tags })),
+        Option.map((value): ParsedJSDoc => ({ summary: value, tags })),
       );
     }),
     Option.getOrUndefined,
@@ -120,7 +135,7 @@ const blockCommentEnd = (source: string, start: number): number => {
   );
 };
 
-const replacementAt = (source: string, start: number): { end: number; text: string } => {
+const replacementAt = (source: string, start: number): CommentReplacement => {
   const end = blockCommentEnd(source, start);
   const match = source.slice(start, end);
   return {
@@ -158,7 +173,7 @@ const skippedEnd = (source: string, start: number): number | undefined => {
 export const formatJSDocComments = (source: string): string =>
   pipe(
     Array.range(0, source.length - 1),
-    Array.reduce({ cursor: 0, output: '' }, (state, cursor): { cursor: number; output: string } => {
+    Array.reduce({ cursor: 0, output: '' } satisfies FormatState, (state, cursor): FormatState => {
       if (cursor < state.cursor) {
         return state;
       }
@@ -168,17 +183,17 @@ export const formatJSDocComments = (source: string): string =>
     (state): string => state.output,
   );
 
-const formatStep = (source: string, cursor: number): { end: number; text: string } =>
+const formatStep = (source: string, cursor: number): CommentReplacement =>
   pipe(
     Option.fromNullable(skippedEnd(source, cursor)),
     Option.match({
-      onNone: (): { end: number; text: string } => {
+      onNone: (): CommentReplacement => {
         if (source.startsWith('/**', cursor)) {
           return replacementAt(source, cursor);
         }
         return { end: cursor + 1, text: source[cursor] ?? '' };
       },
-      onSome: (nextEnd): { end: number; text: string } => ({
+      onSome: (nextEnd): CommentReplacement => ({
         end: nextEnd,
         text: source.slice(cursor, nextEnd),
       }),

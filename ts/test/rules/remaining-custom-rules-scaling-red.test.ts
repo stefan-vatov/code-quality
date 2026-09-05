@@ -1,24 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import type { SourceRule } from '../../src/rules/effect-rule-core';
+import type { ASTNode, ASTValue } from '../../src/rules/effect-ast';
+import { childNode, isASTArray, isASTObject } from '../../src/rules/effect-ast';
 import { parseSync } from 'oxc-parser';
 import plugin from '../../src/rules/plugin';
 
-const callNamed = (program: object, name: string): object | undefined => {
-  const pending: unknown[] = [program];
+type RuleBridgeInput = (typeof plugin.rules)[string] | SourceRule;
+type ProgramBridgeInput = ReturnType<typeof parseSync>['program'] | ASTNode;
+
+const programNode = (program: ProgramBridgeInput): ASTNode => {
+  // SAFETY: these parser fixtures contain only ESTree nodes and primitive metadata,
+  // which satisfy the Effect AST contract without altering node identity.
+  return program as ASTNode;
+};
+
+const sourceRule = (rule: RuleBridgeInput): SourceRule => {
+  // SAFETY: the selected Effect rule is built by makeRules; eslintCompatPlugin preserves
+  // its source-context create method and AST visitors while widening the public types.
+  return rule as SourceRule;
+};
+
+const callNamed = (program: ASTNode, name: string): ASTNode | undefined => {
+  const pending: ASTValue[] = [program];
   while (pending.length > 0) {
     const value = pending.pop();
-    if (value === null || typeof value !== 'object') {
+    if (!isASTObject(value)) {
       continue;
     }
-    const node = value as {
-      callee?: { property?: { name?: string }; type?: string };
-      type?: string;
-    };
-    if (node.type === 'CallExpression' && node.callee?.property?.name === name) {
-      return value;
+    if (value.type === 'CallExpression') {
+      // SAFETY: the parsed object has the CallExpression discriminator checked above.
+      const node = value as ASTNode;
+      const callee = childNode(node, 'callee');
+      if (callee && childNode(callee, 'property')?.name === name) {
+        return node;
+      }
     }
     for (const child of Object.values(value)) {
-      if (Array.isArray(child)) {
+      if (isASTArray(child)) {
         pending.push(...child);
       } else {
         pending.push(child);
@@ -39,8 +57,8 @@ const runNestedASTRule = (
     wrapperName === 'gen'
       ? `import { Effect } from 'effect'; Effect.gen(function* () { const value = ${nestedValue}; yield* ${yieldedExpression}; });`
       : `import { Effect } from 'effect'; Effect.promise(() => ${'['.repeat(depth)}${yieldedExpression}${']'.repeat(depth)});`;
-  const program = parseSync('nested.ts', source, { sourceType: 'module' }).program as object;
-  const rule: SourceRule = Reflect.get(plugin.rules, ruleName) as SourceRule;
+  const program = programNode(parseSync('nested.ts', source, { sourceType: 'module' }).program);
+  const rule = sourceRule(plugin.rules[ruleName]);
   const reports: object[] = [];
   const visitors = rule.create({
     report({ node }): void {

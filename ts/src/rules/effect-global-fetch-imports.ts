@@ -3,6 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { childNode, childNodes, identifierName } from './effect-ast';
+import { Predicate } from 'effect';
 import type { ASTNode } from './effect-ast';
 import { effectImportAliases } from './effect-rule-core';
 
@@ -29,14 +30,14 @@ const stringValue = (node: ASTNode | undefined): string | undefined => {
   if (node?.type !== 'Literal') {
     return undefined;
   }
-  const value: unknown = Reflect.get(node, 'value');
-  if (typeof value === 'string') {
+  const value = node.value;
+  if (Predicate.isString(value)) {
     return value;
   }
   return undefined;
 };
 
-const isTypeOnly = (node: ASTNode): boolean => Reflect.get(node, 'importKind') === 'type';
+const isTypeOnly = (node: ASTNode): boolean => node.importKind === 'type';
 
 const isOfficialNamespace = (
   specifier: ASTNode,

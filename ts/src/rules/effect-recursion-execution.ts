@@ -19,7 +19,7 @@ import {
   resolveLocalTarget as resolveLocalBindingTarget,
 } from './effect-recursion-local-bindings';
 import { scopesForChild, withNodeScope } from './effect-ast-scope';
-import type { ASTNode } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
 import type { EffectResolutionBindings } from './effect-recursion-viability';
 import type { RecursionPhaseBindings } from './effect-recursion-phases';
 import type { ScopeStack } from './effect-ast-scope';
@@ -58,15 +58,18 @@ const suppliedArgument: InvocationArguments = {
   values: [],
 };
 
-const parameterScopes = (scopes: ScopeStack, node: ASTNode): ScopeStack =>
-  withNodeScope(scopes, {
+const parameterScopes = (scopes: ScopeStack, node: ASTNode): ScopeStack => {
+  // SAFETY: This synthetic node contains only AST children and is consumed by the local scope walker.
+  const parameterScopeNode = {
     params: childNodes(node, 'params'),
     type: 'ArrowFunctionExpression',
-  } as ASTNode);
+  } as ASTNode;
+  return withNodeScope(scopes, parameterScopeNode);
+};
 
 const memberName = (node: ASTNode | undefined): string | undefined => {
   const member = unwrappedExpression(node);
-  if (member?.type !== 'MemberExpression' || Reflect.get(member, 'computed') === true) {
+  if (member?.type !== 'MemberExpression' || member.computed === true) {
     return undefined;
   }
   return identifierName(childNode(member, 'property'));
@@ -159,7 +162,7 @@ const invocationTarget = (
 
 const isUndefinedArgument = (node: ASTNode | undefined): boolean =>
   identifierName(node) === 'undefined' ||
-  (node?.type === 'UnaryExpression' && Reflect.get(node, 'operator') === 'void');
+  (node?.type === 'UnaryExpression' && node.operator === 'void');
 
 const ordinaryArguments = (node: ASTNode): InvocationArguments => {
   const values = childNodes(node, 'arguments');
@@ -274,7 +277,7 @@ const scanFunctionBody = (node: ASTNode, functionScopes: ScopeStack, input: Scan
     return;
   }
   const bodyScopes = scopesForChild(functionScopes, node, 'body');
-  if (Reflect.get(node, 'generator') === true) {
+  if (node.generator === true) {
     scanEagerGeneratorBody(body, bodyScopes, input);
   } else {
     scanRecursiveNode(body, bodyScopes, input);
@@ -288,7 +291,7 @@ const scanExecutedFunction = (
   argumentsValue: InvocationArguments | undefined,
   allowGenerator = false,
 ): void => {
-  if (Reflect.get(node, 'generator') === true && !allowGenerator) {
+  if (node.generator === true && !allowGenerator) {
     return;
   }
   const functionScopes = parameterScopes(scopes, node);
@@ -378,12 +381,12 @@ interface RecursiveScanFrame {
   node?: ASTNode;
   scopes: ScopeStack;
   target?: InvocationTarget;
-  value?: unknown;
+  value?: ASTValue;
 }
 
 const appendRecursiveValue = (
   pending: RecursiveScanFrame[],
-  value: unknown,
+  value: ASTValue,
   scopes: ScopeStack,
   input: ScanInput,
 ): void => {
@@ -392,7 +395,7 @@ const appendRecursiveValue = (
 
 const appendArrayValues = (
   pending: RecursiveScanFrame[],
-  values: readonly unknown[],
+  values: readonly ASTValue[],
   scopes: ScopeStack,
   input: ScanInput,
 ): void => {
@@ -447,7 +450,6 @@ const appendPostNodeFrames = (
   pending.push({ input, kind: 'callbacks', node, scopes });
 };
 
-// oxlint-disable-next-line max-statements -- processes one explicit DFS frame without call-stack growth.
 const processNodeFrame = (
   frame: RecursiveScanFrame,
   pending: RecursiveScanFrame[],
@@ -471,7 +473,6 @@ const processNodeFrame = (
   appendNodeChildren(pending, node, nodeScopes, nodeInput);
 };
 
-// oxlint-disable-next-line max-statements -- dispatches the four explicit DFS frame kinds.
 const processScanFrame = (
   frame: RecursiveScanFrame,
   pending: RecursiveScanFrame[],

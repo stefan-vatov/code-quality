@@ -1,4 +1,8 @@
-import type { NativeReference, NativeSourceCode } from '../../src/rules/effect-native-references';
+import type {
+  NativeDefinition,
+  NativeReference,
+  NativeSourceCode,
+} from '../../src/rules/effect-native-references';
 import { describe, expect, it } from 'vitest';
 import {
   indexNativeReferences,
@@ -6,13 +10,55 @@ import {
   nativeSourceCodeFor,
 } from '../../src/rules/effect-native-references';
 import type { Context } from '../../src/rules/effect-rule-core';
+import type { ASTNode, ASTObject } from '../../src/rules/effect-ast';
 
-const asContext = (sourceCode: unknown): Context =>
-  ({ report: (): void => undefined, sourceCode }) as unknown as Context;
+type ScopeFixture =
+  | null
+  | undefined
+  | number
+  | string
+  | {
+      references?:
+        | null
+        | string
+        | Record<string, never>
+        | readonly (NativeReference | null | number | string)[];
+    };
+type SourceCodeFixture =
+  | NativeSourceCode
+  | null
+  | undefined
+  | string
+  | {
+      isGlobalReference?: boolean | (() => boolean);
+      scopeManager?: null | readonly never[] | { scopes?: string | readonly ScopeFixture[] };
+    };
+type ReferenceFixture =
+  | NativeReference
+  | {
+      identifier: ASTNode;
+      resolved: { defs: NativeDefinition | readonly (NativeDefinition | null | string)[] };
+    };
 
-const asNativeSourceCode = (value: unknown): NativeSourceCode => value as NativeSourceCode;
+const asContext = (sourceCode: SourceCodeFixture): Context => ({
+  report: (): void => undefined,
+  // SAFETY: Invalid host capabilities are deliberate inputs to the runtime capability checks.
+  sourceCode: sourceCode as NativeSourceCode,
+});
 
-const importReference = (identifier: object): NativeReference => ({
+const asNativeSourceCode = (value: SourceCodeFixture): NativeSourceCode =>
+  // SAFETY: Malformed scope collections intentionally exercise the native indexer's rejection paths.
+  value as NativeSourceCode;
+
+const asNativeReference = (value: ReferenceFixture): NativeReference =>
+  // SAFETY: Malformed definitions intentionally exercise runtime validation without changing fixture data.
+  value as NativeReference;
+
+const identifierFixture = (value: ASTObject = {}): ASTNode =>
+  // SAFETY: These identity-only fixtures intentionally omit node metadata; reference lookup uses object identity.
+  value as ASTNode;
+
+const importReference = (identifier: ASTNode): NativeReference => ({
   identifier,
   resolved: { defs: [{ type: 'ImportBinding' }] },
 });
@@ -20,7 +66,7 @@ const importReference = (identifier: object): NativeReference => ({
 class CountingReferenceMap extends WeakMap<object, NativeReference> {
   writes = 0;
 
-  override set(key: object, value: NativeReference): this {
+  override set(key: ASTNode, value: NativeReference): this {
     this.writes += 1;
     return super.set(key, value);
   }
@@ -77,8 +123,8 @@ describe('nativeSourceCodeFor', (): void => {
 
 describe('indexNativeReferences', (): void => {
   it('indexes references from every scope by identifier identity', (): void => {
-    const firstIdentifier = {};
-    const secondIdentifier = {};
+    const firstIdentifier = identifierFixture();
+    const secondIdentifier = identifierFixture();
     const firstReference = importReference(firstIdentifier);
     const secondReference: NativeReference = {
       identifier: secondIdentifier,
@@ -100,7 +146,7 @@ describe('indexNativeReferences', (): void => {
   });
 
   it('indexes each scope references collection once without traversing duplicate through entries', (): void => {
-    const identifier = {};
+    const identifier = identifierFixture();
     const reference = importReference(identifier);
     let throughReads = 0;
     const scope = Object.defineProperty({ references: [reference] }, 'through', {
@@ -119,13 +165,11 @@ describe('indexNativeReferences', (): void => {
   });
 
   it('does not treat a through-only unresolved entry as an indexed import reference', (): void => {
-    const identifier = {};
+    const identifier = identifierFixture();
     const references = new WeakMap<object, NativeReference>();
+    const scope = { references: [], through: [importReference(identifier)] };
 
-    indexNativeReferences(
-      { scopeManager: { scopes: [{ references: [], through: [importReference(identifier)] }] } },
-      references,
-    );
+    indexNativeReferences({ scopeManager: { scopes: [scope] } }, references);
 
     expect(references.has(identifier)).toBe(false);
     expect(isImportReference(identifier, references)).toBe(false);
@@ -147,7 +191,7 @@ describe('indexNativeReferences', (): void => {
   });
 
   it('ignores primitive and null entries in a references collection', (): void => {
-    const identifier = {};
+    const identifier = identifierFixture();
     const reference = importReference(identifier);
     const references = new CountingReferenceMap();
 
@@ -185,7 +229,7 @@ describe('indexNativeReferences', (): void => {
 
 describe('isImportReference', (): void => {
   it('recognizes an ImportBinding definition', (): void => {
-    const identifier = {};
+    const identifier = identifierFixture();
     const references = new WeakMap<object, NativeReference>([
       [identifier, importReference(identifier)],
     ]);
@@ -194,7 +238,7 @@ describe('isImportReference', (): void => {
   });
 
   it('recognizes an import among multiple definition kinds', (): void => {
-    const identifier = {};
+    const identifier = identifierFixture();
     const references = new WeakMap<object, NativeReference>([
       [
         identifier,
@@ -212,8 +256,8 @@ describe('isImportReference', (): void => {
 
   it.each([
     ['undefined node', undefined, new WeakMap<object, NativeReference>()],
-    ['undefined index', {}, undefined],
-    ['absent reference', {}, new WeakMap<object, NativeReference>()],
+    ['undefined index', identifierFixture(), undefined],
+    ['absent reference', identifierFixture(), new WeakMap<object, NativeReference>()],
   ])('rejects an %s', (_label, node, references): void => {
     expect(isImportReference(node, references)).toBe(false);
   });
@@ -226,17 +270,15 @@ describe('isImportReference', (): void => {
     ['non-import definition', { resolved: { defs: [{ type: 'Variable' }] } }],
     ['lookalike definition', { resolved: { defs: [{ type: 'Import' }] } }],
   ])('rejects a %s', (_label, reference): void => {
-    const identifier = {};
-    const references = new WeakMap<object, NativeReference>([
-      [identifier, reference as NativeReference],
-    ]);
+    const identifier = identifierFixture();
+    const references = new WeakMap<object, NativeReference>([[identifier, reference]]);
 
     expect(isImportReference(identifier, references)).toBe(false);
   });
 
   it('uses identifier object identity instead of structural equality', (): void => {
-    const indexedIdentifier = { name: 'Effect' };
-    const lookalikeIdentifier = { name: 'Effect' };
+    const indexedIdentifier = identifierFixture({ name: 'Effect' });
+    const lookalikeIdentifier = identifierFixture({ name: 'Effect' });
     const references = new WeakMap<object, NativeReference>([
       [indexedIdentifier, importReference(indexedIdentifier)],
     ]);
@@ -246,13 +288,13 @@ describe('isImportReference', (): void => {
   });
 
   it('ignores malformed definitions and still recognizes a later import definition', (): void => {
-    const identifier = {};
-    const reference = {
+    const identifier = identifierFixture();
+    const reference = asNativeReference({
       identifier,
       resolved: {
         defs: [null, 'definition', {}, { type: 'ImportBinding' }],
       },
-    } as unknown as NativeReference;
+    });
     const references = new WeakMap<object, NativeReference>([[identifier, reference]]);
 
     expect((): boolean => isImportReference(identifier, references)).not.toThrow();
@@ -260,11 +302,11 @@ describe('isImportReference', (): void => {
   });
 
   it('rejects a malformed non-array definitions collection without throwing', (): void => {
-    const identifier = {};
-    const reference = {
+    const identifier = identifierFixture();
+    const reference = asNativeReference({
       identifier,
       resolved: { defs: { type: 'ImportBinding' } },
-    } as unknown as NativeReference;
+    });
     const references = new WeakMap<object, NativeReference>([[identifier, reference]]);
 
     expect((): boolean => isImportReference(identifier, references)).not.toThrow();

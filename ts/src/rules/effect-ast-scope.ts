@@ -3,7 +3,7 @@
 /* -------------------------------------------------------------------------- */
 
 import { asNode, childNode, childNodes, identifierName } from './effect-ast';
-import type { ASTNode } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
 import { extendScopeStack } from './effect-ast-scope-stack';
 
 export { scopeContainingBinding, scopeHasBinding } from './effect-ast-scope-stack';
@@ -92,7 +92,7 @@ const addLexicalVariableBindings = (bindings: Set<string>, declaration: ASTNode)
   if (declaration.type !== 'VariableDeclaration') {
     return false;
   }
-  if (Reflect.get(declaration, 'kind') !== 'var') {
+  if (declaration.kind !== 'var') {
     addVariableBindings(bindings, declaration);
   }
   return true;
@@ -100,7 +100,7 @@ const addLexicalVariableBindings = (bindings: Set<string>, declaration: ASTNode)
 
 const addTypeScriptLexicalBindings = (bindings: Set<string>, declaration: ASTNode): boolean => {
   if (declaration.type === 'TSImportEqualsDeclaration') {
-    if (Reflect.get(declaration, 'importKind') !== 'type') {
+    if (declaration.importKind !== 'type') {
       addPatternBindings(bindings, childNode(declaration, 'id'));
     }
     return true;
@@ -135,7 +135,7 @@ const addDirectLexicalBindings = (bindings: Set<string>, statements: readonly AS
   }
 };
 
-const functionNodeTypes: ReadonlySet<unknown> = new Set([
+const functionNodeTypes: ReadonlySet<string> = new Set([
   'ArrowFunctionExpression',
   'FunctionDeclaration',
   'FunctionExpression',
@@ -143,7 +143,7 @@ const functionNodeTypes: ReadonlySet<unknown> = new Set([
 
 const isFunctionNode = (node: ASTNode): boolean => functionNodeTypes.has(node.type);
 
-const bindingNodeTypes: ReadonlySet<unknown> = new Set([
+const bindingNodeTypes: ReadonlySet<string> = new Set([
   ...functionNodeTypes,
   'BlockStatement',
   'CatchClause',
@@ -170,12 +170,12 @@ const isVarTraversalBoundary = (node: ASTNode): boolean =>
   node.type === 'TSModuleDeclaration';
 
 const addVarDeclarationBindings = (bindings: Set<string>, node: ASTNode): void => {
-  if (node.type === 'VariableDeclaration' && Reflect.get(node, 'kind') === 'var') {
+  if (node.type === 'VariableDeclaration' && node.kind === 'var') {
     addVariableBindings(bindings, node);
   }
 };
 
-const pushHoistedVarChildren = (pending: unknown[], node: ASTNode): void => {
+const pushHoistedVarChildren = (pending: ASTValue[], node: ASTNode): void => {
   const entries = Object.entries(node);
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index];
@@ -185,15 +185,15 @@ const pushHoistedVarChildren = (pending: unknown[], node: ASTNode): void => {
   }
 };
 
-const pushHoistedVarArrayValues = (pending: unknown[], values: readonly unknown[]): void => {
+const pushHoistedVarArrayValues = (pending: ASTValue[], values: readonly ASTValue[]): void => {
   for (let index = values.length - 1; index >= 0; index -= 1) {
     pending.push(values[index]);
   }
 };
 
 const addHoistedVarArray = (
-  pending: unknown[],
-  values: readonly unknown[],
+  pending: ASTValue[],
+  values: readonly ASTValue[],
   seenArrays: WeakSet<object>,
 ): void => {
   if (!seenArrays.has(values)) {
@@ -204,8 +204,8 @@ const addHoistedVarArray = (
 
 const addHoistedVarNodeValue = (
   bindings: Set<string>,
-  pending: unknown[],
-  value: unknown,
+  pending: ASTValue[],
+  value: ASTValue,
   seenNodes: WeakSet<object>,
 ): void => {
   const child = asNode(value);
@@ -222,8 +222,8 @@ const addHoistedVarNodeValue = (
 
 const addHoistedVarValue = (
   bindings: Set<string>,
-  pending: unknown[],
-  value: unknown,
+  pending: ASTValue[],
+  value: ASTValue,
   seenNodes: WeakSet<object>,
   seenArrays: WeakSet<object>,
 ): void => {
@@ -239,7 +239,7 @@ const hoistedVarBindingsCache = new WeakMap<object, ReadonlySet<string>>();
 const collectHoistedVarBindings = (node: ASTNode): ReadonlySet<string> => {
   const seenNodes = new WeakSet();
   const seenArrays = new WeakSet();
-  const pending: unknown[] = [];
+  const pending: ASTValue[] = [];
   const bindings = new Set<string>();
   pushHoistedVarChildren(pending, node);
   while (pending.length > 0) {
@@ -268,7 +268,7 @@ const addHoistedVarsFromChildren = (bindings: Set<string>, node: ASTNode): void 
 };
 
 const addLoopBindings = (bindings: Set<string>, declaration: ASTNode | undefined): void => {
-  if (declaration?.type === 'VariableDeclaration' && Reflect.get(declaration, 'kind') !== 'var') {
+  if (declaration?.type === 'VariableDeclaration' && declaration.kind !== 'var') {
     addVariableBindings(bindings, declaration);
   }
 };

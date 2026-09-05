@@ -12,9 +12,20 @@ import type {
   Identifier,
   Node,
   ObjectMethod,
+  ReturnStatement,
 } from 'jscodeshift';
 import { Array, HashMap, Option, Order, Predicate, pipe } from 'effect';
 import jscodeshift from 'jscodeshift';
+import {
+  codemodObjectValues,
+  isCodemodArray,
+  isCodemodNode,
+  nodeEnd,
+  nodeStart,
+  sourceForNode,
+  type CodemodRecord,
+  type CodemodValue,
+} from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -31,6 +42,15 @@ type FunctionLike =
   | ObjectMethod;
 type RootCollection = ReturnType<typeof codemodAPI>;
 
+interface CallExpressionLike extends Expression {
+  readonly callee: Expression;
+}
+
+interface MemberExpressionLike extends Expression {
+  readonly object: Expression;
+  readonly property: Expression;
+}
+
 interface ReturnSearch {
   isRoot: boolean;
   seen: WeakSet<object>;
@@ -44,9 +64,6 @@ const HAS_PREFIX_LENGTH = 3;
 const IS_PREFIX_LENGTH = 2;
 const SHOULD_PREFIX_LENGTH = 6;
 
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
-
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   pipe(
     replacements,
@@ -58,32 +75,11 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
     ),
   );
 
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
+const isReturnStatement = (value: CodemodValue): value is ReturnStatement =>
+  isCodemodNode(value) && value.type === 'ReturnStatement';
 
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
-  );
-
-const sourceForNode = (source: string, node: unknown): string =>
-  source.slice(nodeStart(node), nodeEnd(node));
-
-const isExpressionLike = (value: unknown): value is Expression =>
-  isObjectRecord(value) && typeof value.type === 'string';
-
-const isFunctionLikeNode = (node: unknown): node is FunctionLike =>
-  isObjectRecord(node) &&
+const isFunctionLikeNode = (node: CodemodValue): node is FunctionLike =>
+  isCodemodNode(node) &&
   (node.type === 'ArrowFunctionExpression' ||
     node.type === 'ClassMethod' ||
     node.type === 'ClassPrivateMethod' ||
@@ -96,7 +92,7 @@ const nestedSearch = (search: ReturnSearch): ReturnSearch => ({
   seen: search.seen,
 });
 
-const canScanReturnRecord = (value: Record<string, unknown>, search: ReturnSearch): boolean => {
+const canScanReturnRecord = (value: CodemodRecord, search: ReturnSearch): boolean => {
   if (search.seen.has(value)) {
     return false;
   }
@@ -104,30 +100,27 @@ const canScanReturnRecord = (value: Record<string, unknown>, search: ReturnSearc
   return search.isRoot || !isFunctionLikeNode(value);
 };
 
-const hasDirectReturnValueInRecord = (
-  value: Record<string, unknown>,
-  search: ReturnSearch,
-): boolean => {
+const hasDirectReturnValueInRecord = (value: CodemodRecord, search: ReturnSearch): boolean => {
   if (!canScanReturnRecord(value, search)) {
     return false;
   }
-  if (value.type === 'ReturnStatement' && value.argument) {
+  if (isReturnStatement(value) && value.argument) {
     return true;
   }
   return pipe(
-    Object.values(value),
+    codemodObjectValues(value),
     Array.some((entry): boolean => hasDirectReturnValue(entry, nestedSearch(search))),
   );
 };
 
-const hasDirectReturnValue = (value: unknown, search: ReturnSearch): boolean => {
-  if (globalThis.Array.isArray(value)) {
+const hasDirectReturnValue = (value: CodemodValue, search: ReturnSearch): boolean => {
+  if (isCodemodArray(value)) {
     return pipe(
       value,
       Array.some((entry): boolean => hasDirectReturnValue(entry, nestedSearch(search))),
     );
   }
-  if (!isObjectRecord(value)) {
+  if (!isCodemodNode(value)) {
     return false;
   }
   return hasDirectReturnValueInRecord(value, search);
@@ -138,20 +131,20 @@ const hasReturnValue = (node: FunctionLike): boolean =>
 
 const isAsync = (node: FunctionLike): boolean => node.async === true;
 
-const isIdentifier = (node: unknown): node is Identifier =>
-  isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
+const isIdentifier = (node: CodemodValue): node is Identifier =>
+  isCodemodNode(node) && node.type === 'Identifier';
 
-const objectPropertyName = (node: unknown): string | undefined =>
+const objectPropertyName = (node: CodemodValue): string | undefined =>
   pipe(
     Option.some(node),
-    Option.filter(isObjectRecord),
+    Option.filter(isCodemodNode),
     Option.filter((value): boolean => value.type === 'ObjectProperty'),
     Option.flatMapNullable((value) => value.key),
     Option.flatMap((key) => {
       if (isIdentifier(key)) {
         return Option.some(key.name);
       }
-      if (isObjectRecord(key) && key.type === 'StringLiteral' && typeof key.value === 'string') {
+      if (isCodemodNode(key) && key.type === 'StringLiteral' && Predicate.isString(key.value)) {
         return Option.some(key.value);
       }
       return Option.none<string>();
@@ -159,10 +152,10 @@ const objectPropertyName = (node: unknown): string | undefined =>
     Option.getOrUndefined,
   );
 
-const objectPropertyValue = (node: unknown): FunctionLike | undefined =>
+const objectPropertyValue = (node: CodemodValue): FunctionLike | undefined =>
   pipe(
     Option.some(node),
-    Option.filter(isObjectRecord),
+    Option.filter(isCodemodNode),
     Option.flatMapNullable((value) => value.value),
     Option.filter(isFunctionLikeNode),
     Option.getOrUndefined,
@@ -195,17 +188,17 @@ const startsWithPredicatePrefix = (text: string): boolean =>
   (text.startsWith('should') && hasUppercaseAt(text, SHOULD_PREFIX_LENGTH)) ||
   (text.startsWith('can') && hasUppercaseAt(text, CAN_PREFIX_LENGTH));
 
-const isPredicateCall = (expression: unknown): boolean =>
+const isPredicateCall = (expression: CodemodValue): boolean =>
   pipe(
     Option.some(expression),
-    Option.filter(isObjectRecord),
+    Option.filter(isCodemodNode),
     Option.flatMapNullable((value) => value.callee),
-    Option.filter(isObjectRecord),
+    Option.filter(isCodemodNode),
     Option.exists((callee): boolean => {
       if (callee.type === 'MemberExpression' && isIdentifier(callee.property)) {
         return callee.property.name === 'test';
       }
-      if (callee.type === 'Identifier' && typeof callee.name === 'string') {
+      if (isIdentifier(callee)) {
         return startsWithPredicatePrefix(callee.name);
       }
       return false;
@@ -223,23 +216,33 @@ const isComparisonOperator = (operator: string): boolean =>
 const isBooleanLogicalOperator = (operator: string): boolean =>
   operator === '&&' || operator === '||';
 
-const expressionOperator = (expression: Expression): string | undefined =>
-  pipe(
-    Option.some(expression as unknown),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.operator),
-    Option.filter(Predicate.isString),
-    Option.getOrUndefined,
-  );
+const expressionOperator = (expression: Expression): string | undefined => {
+  if (isOperatorExpression(expression)) {
+    return expression.operator;
+  }
+  return undefined;
+};
 
-const expressionSide = (expression: Expression, key: 'left' | 'right'): Expression | undefined =>
-  pipe(
-    Option.some(expression as unknown),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value[key]),
-    Option.filter(isExpressionLike),
-    Option.getOrUndefined,
-  );
+const isOperatorExpression = (
+  expression: Expression,
+): expression is Expression & { readonly operator: string } =>
+  expression.type === 'BinaryExpression' ||
+  expression.type === 'LogicalExpression' ||
+  expression.type === 'UnaryExpression';
+
+const expressionSide = (expression: Expression, key: 'left' | 'right'): Expression | undefined => {
+  if (!isBinaryLikeExpression(expression)) {
+    return undefined;
+  }
+  return key === 'left' ? expression.left : expression.right;
+};
+
+const isBinaryLikeExpression = (
+  expression: Expression,
+): expression is Expression & {
+  readonly left: Expression;
+  readonly right: Expression;
+} => expression.type === 'BinaryExpression' || expression.type === 'LogicalExpression';
 
 const isBooleanLogicalExpression = (expression: Expression): boolean => {
   const left = expressionSide(expression, 'left');
@@ -290,14 +293,9 @@ const primitiveLiteralReturnType = (expression: Expression): string | undefined 
   );
 
 const parameterTypeText = (source: string, parameter: Node): string | undefined =>
-  pipe(
-    Option.some(parameter as unknown),
-    Option.filter(isObjectRecord),
-    Option.filter((value): boolean => value.type === 'Identifier'),
-    Option.flatMapNullable((value) => value.typeAnnotation),
-    Option.map((typeAnnotation): string => sourceForNode(source, typeAnnotation).trim()),
-    Option.getOrUndefined,
-  );
+  isIdentifier(parameter) && parameter.typeAnnotation
+    ? sourceForNode(source, parameter.typeAnnotation).trim()
+    : undefined;
 
 const stringParameterNames = (source: string, node: FunctionLike): ReadonlySet<string> =>
   new Set(
@@ -312,31 +310,23 @@ const stringParameterNames = (source: string, node: FunctionLike): ReadonlySet<s
     ),
   );
 
-const stringMethodName = (expression: Expression): string | undefined =>
-  pipe(
-    Option.some(expression as unknown),
-    Option.filter(isObjectRecord),
-    Option.filter((value): boolean => value.type === 'CallExpression'),
-    Option.flatMapNullable((value) => value.callee),
-    Option.filter(isObjectRecord),
-    Option.filter((callee): boolean => callee.type === 'MemberExpression'),
-    Option.flatMapNullable((callee) => callee.property),
-    Option.filter(isIdentifier),
-    Option.map((property): string => property.name),
-    Option.getOrUndefined,
-  );
+const isCallExpressionLike = (expression: Expression): expression is CallExpressionLike =>
+  expression.type === 'CallExpression';
 
-const stringMethodReceiver = (expression: Expression): unknown =>
-  pipe(
-    Option.some(expression as unknown),
-    Option.filter(isObjectRecord),
-    Option.filter((value): boolean => value.type === 'CallExpression'),
-    Option.flatMapNullable((value) => value.callee),
-    Option.filter(isObjectRecord),
-    Option.filter((callee): boolean => callee.type === 'MemberExpression'),
-    Option.flatMapNullable((callee) => callee.object),
-    Option.getOrUndefined,
-  );
+const isMemberExpressionLike = (expression: Expression): expression is MemberExpressionLike =>
+  expression.type === 'MemberExpression';
+
+const stringMethodName = (expression: Expression): string | undefined => {
+  if (!isCallExpressionLike(expression) || !isMemberExpressionLike(expression.callee)) {
+    return undefined;
+  }
+  return isIdentifier(expression.callee.property) ? expression.callee.property.name : undefined;
+};
+
+const stringMethodReceiver = (expression: Expression): Expression | undefined =>
+  isCallExpressionLike(expression) && isMemberExpressionLike(expression.callee)
+    ? expression.callee.object
+    : undefined;
 
 const isStringReturningMethod = (name: string | undefined): boolean =>
   name === 'slice' || name === 'toLowerCase' || name === 'toUpperCase' || name === 'trim';
@@ -364,26 +354,11 @@ const singleReturnExpression = (node: FunctionLike): Expression | undefined => {
   if (node.type === 'ArrowFunctionExpression' && node.body.type !== 'BlockStatement') {
     return node.body;
   }
-  return pipe(
-    Option.some(node.body as unknown),
-    Option.filter(isObjectRecord),
-    Option.filter((body): boolean => body.type === 'BlockStatement'),
-    Option.flatMapNullable((body) => body.body),
-    Option.filter(globalThis.Array.isArray),
-    Option.filter((body): boolean => body.length === 1),
-    Option.flatMap(Array.head),
-    Option.filter(
-      (statement): boolean => isObjectRecord(statement) && statement.type === 'ReturnStatement',
-    ),
-    Option.flatMapNullable((statement) => {
-      if (isObjectRecord(statement)) {
-        return statement.argument;
-      }
-      return undefined;
-    }),
-    Option.filter(isExpressionLike),
-    Option.getOrUndefined,
-  );
+  if (node.body.type !== 'BlockStatement' || node.body.body.length !== 1) {
+    return undefined;
+  }
+  const [statement] = node.body.body;
+  return statement?.type === 'ReturnStatement' ? (statement.argument ?? undefined) : undefined;
 };
 
 const inferredExpressionReturnTypeText = (

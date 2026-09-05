@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import theThracianOxlint from '../../src/index';
+import theThracianOxlint, { type TheThracianEffectStrictOptions } from '../../src/index';
 import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
 import { runConfiguredRules, runRule } from './effect-rule-test-utils';
 
-describe('Effect strict path options', () => {
+const registerPathConfigurationTests = (): void => {
   it('does not expose a strict console rule or globally ban contextual console use', () => {
     const strictOptions = {
       rules: ['effect-no-crypto-randomUUID'],
-    };
+    } satisfies TheThracianEffectStrictOptions;
     const config = theThracianOxlint({ effect: { strict: strictOptions } });
 
     expect(config.rules).not.toHaveProperty('no-console');
@@ -144,7 +144,9 @@ describe('Effect strict path options', () => {
       ),
     ).not.toContain('effect-no-live-services-in-unit-tests');
   });
+};
 
+const registerConfiguredBucketTests = (): void => {
   it('honors every configured strict project path bucket', () => {
     const cases = [
       {
@@ -193,7 +195,9 @@ describe('Effect strict path options', () => {
       ).toHaveLength(1);
     }
   });
+};
 
+const registerPathRuleCoverageTests = (): void => {
   it('covers each strict rule that branches on project path options', () => {
     const cases = [
       {
@@ -334,4 +338,10 @@ describe('Effect strict path options', () => {
       ).toHaveLength(0);
     }
   });
+};
+
+describe('Effect strict path options', (): void => {
+  registerPathConfigurationTests();
+  registerConfiguredBucketTests();
+  registerPathRuleCoverageTests();
 });

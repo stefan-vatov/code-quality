@@ -21,7 +21,8 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The base config selects 128 reviewed, syntax-only upstream Oxlint rules. Oxlint normally supplies
+The base config selects 143 reviewed rules: 128 syntax-only upstream Oxlint rules and 15
+package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
 warning downgrade and is not a collection of rule-level disables: unapproved rules simply do not
@@ -48,6 +49,36 @@ import-count rule. The base profile also intentionally omits global `console`, n
 ternary, magic-number, documentation, and absolute `any`/assertion bans: those rules produce
 mechanical churn or reject legitimate framework, generated-code, and interop boundaries without a
 reliable defect signal.
+
+## Additional TypeScript safety rules
+
+The package-local plugin enables these 15 rules as errors in every configuration. They use Oxlint's
+ESTree and lexical-scope APIs, resolve same-file aliases, and deliberately stop at file boundaries:
+
+| Rule                                                    | Policy                                                                                          |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `thethracian/no-chained-type-assertions`                | Rejects nested type assertions that fabricate evidence; `as const` chains remain valid.         |
+| `thethracian/no-conditional-empty-object-spread`        | Rejects conditional object spreads whose empty branch silently omits fields.                    |
+| `thethracian/no-known-value-widening`                   | Rejects known values widened into `unknown`, `object`, anonymous objects, or open dictionaries. |
+| `thethracian/no-module-mocking`                         | Rejects Vitest and Jest module-mocking calls.                                                   |
+| `thethracian/no-object-parameters`                      | Rejects `object` and aliases resolving to it on function inputs.                                |
+| `thethracian/no-reflect-apply`                          | Requires typed calls instead of global `Reflect.apply`.                                         |
+| `thethracian/no-reflect-get`                            | Requires typed property access or boundary parsing instead of global `Reflect.get`.             |
+| `thethracian/no-runtime-typeof`                         | Requires boundary parsing instead of ad hoc `typeof` narrowing.                                 |
+| `thethracian/no-shape-in-symbol-names`                  | Rejects locally owned symbol names containing `shape`; static member names remain valid.        |
+| `thethracian/no-unknown-parameters`                     | Rejects `unknown` function inputs except supported predicate and `cause` conventions.           |
+| `thethracian/no-unknown-returns`                        | Rejects explicit `unknown`, `Promise<unknown>`, and `PromiseLike<unknown>` return contracts.    |
+| `thethracian/no-unknown-type-aliases`                   | Rejects aliases that resolve to `unknown`.                                                      |
+| `thethracian/no-unsafe-dictionary-type`                 | Rejects dictionary value contracts based on `unknown`, `any`, `object`, or `{}`.                |
+| `thethracian/no-widen-then-assert`                      | Rejects immutable flows that widen evidence and later assert it back to a narrow type.          |
+| `thethracian/require-safety-comment-for-type-assertion` | Requires a nearby invariant justification for non-const assertions.                             |
+
+These rules have no automatic migration behavior and do not replace the native Oxlint allowlist.
+
+The mocking rule follows named and namespace imports, including `vitest.vi.mock(...)` and
+`globals.jest.mock(...)`, without treating shadowed local objects as test frameworks. The symbol
+naming rule checks local import bindings, not upstream export names: importing `ZodRawShape` as
+`SchemaFields` is allowed.
 
 ## Install
 
@@ -82,7 +113,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode adds all 32 approved semantic rules for 160 upstream errors in total. They include
+Type-aware mode keeps the 15 package-local rules and adds all 32 approved semantic rules for 175
+selected errors in total (160 native upstream errors plus the 15 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 32 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -95,8 +127,9 @@ still reject unchecked use of those values.
 ## Effect safety rules (opt in)
 
 Effect rules are disabled by default. Pass `effect: true` when the project uses Effect and wants
-the 18 retained high-confidence safety rules. These are package-local rules, all reported as
-errors, and focus on observable hazards rather than style preferences:
+the 18 retained high-confidence safety rules plus the additional
+`thethracian/no-service-constructor-imports` rule. These package-local rules are all reported as
+errors and focus on observable hazards rather than style preferences:
 
 ```js
 export default theThracian({
@@ -129,7 +162,9 @@ effect-no-unbounded-stream-buffer
 
 They cover floating Effects and fibers, missing generator delegation, eager recursion, silent
 failures, lost error causes, unscoped resources, unobserved forks, and unbounded queues or
-concurrency. They do not include preference-only migration advice.
+concurrency. The additional service-constructor rule rejects named `make<Capability>Service` imports from
+relative project modules outside focused test files. They do not include preference-only migration
+advice.
 
 ## Strict Effect architecture (explicit opt in)
 
@@ -156,7 +191,8 @@ explicit disable. The path groups are project declarations, not guessed `src/**`
 The plugin also retains 19 specialized migration, version, error-model, schema, and test analyzers
 for explicit rule configuration. They are never in the base preset or the 18-rule safety bucket,
 and they never become warnings. Together with the 18 safety rules and 60 strict architecture rules,
-the retained plugin surface is 97 rules.
+the retained Effect rule surface is 97 rules; the service-constructor rule above is an additional
+opt-in rule outside those buckets.
 
 ## Semantic codemods (explicit only)
 
@@ -180,6 +216,7 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shape                | 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 20                                                                                                             |
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
+| TypeScript safety    | 15 package-local errors for evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                                                     |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
 | Effect               | 18 safety errors with `effect: true`; 60 architecture errors only when explicitly selected with paths                                                                                          |
 | Deliberate omissions | No global `console`, null, ternary, magic-number, naming, file-size, import-count, documentation, or absolute assertion/`any` bans                                                             |

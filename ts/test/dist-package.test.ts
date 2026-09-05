@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Predicate } from 'effect';
 import {
   existsSync,
   mkdirSync,
@@ -8,7 +9,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -17,28 +18,9 @@ import { strictEffectTestPaths } from './rules/effect-rule-test-utils';
 const repoRoot = join(import.meta.dirname, '..', '..');
 const distPackageTestTimeoutMs = 30_000;
 
-type BuiltConfigFactory = (options?: {
-  effect?:
-    | boolean
-    | {
-        enabled?: boolean;
-        strict?: { rules: readonly string[]; [key: string]: unknown };
-      };
-}) => {
-  jsPlugins?: string[];
-  rules?: Record<string, unknown>;
-};
-
-type BuiltPlugin = {
-  default: {
-    rules: Record<string, unknown>;
-  };
-};
-
-type BuiltRuleNames = {
-  effectDefaultRuleNames: readonly string[];
-  effectStrictRuleNames: readonly string[];
-};
+type BuiltConfigFactory = typeof import('../src/index').default;
+type BuiltPlugin = typeof import('../src/rules/plugin');
+type BuiltRuleNames = typeof import('../src/rules/effect-rule-names');
 
 type CliAstCase = {
   filename: string;
@@ -46,7 +28,7 @@ type CliAstCase = {
   source: string;
 };
 
-const astBackedCLICases = [
+const astBackedCLICases: readonly CliAstCase[] = [
   {
     ruleName: 'effect-schema-no-redundant-tag-identifier',
     filename: 'src/domain/redundant-schema-tag-identifier.ts',
@@ -103,8 +85,10 @@ const astBackedCLICases = [
   },
 ];
 
-const importFresh = <T>(path: string): Promise<T> =>
-  import(`${pathToFileURL(path).href}?t=${Date.now()}`) as Promise<T>;
+// SAFETY: callers import freshly compiled local modules using their corresponding source export types.
+const importFresh = <T extends { default: BuiltConfigFactory } | BuiltPlugin | BuiltRuleNames>(
+  path: string,
+): Promise<T> => import(`${pathToFileURL(path).href}?t=${Date.now()}`) as Promise<T>;
 
 const runOxlintJSON = (args: string[], cwd: string): string => {
   try {
@@ -114,12 +98,38 @@ const runOxlintJSON = (args: string[], cwd: string): string => {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (error) {
-    const output = (error as { stdout?: string }).stdout;
-    return output ?? '';
+    return Predicate.hasProperty(error, 'stdout') && Predicate.isString(error.stdout)
+      ? error.stdout
+      : '';
   }
 };
 
 describe('published TypeScript package shape', (): void => {
+  it(
+    'enforces module-mocking policy on executable repository tests',
+    () => {
+      // Keep the real CLI regression with the other builds to avoid concurrent dist cleanup.
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], { cwd: repoRoot, stdio: 'pipe' });
+      const directory = mkdtempSync(join(repoRoot, 'ts/test/lint-regression-'));
+      try {
+        // The .mts extension avoids racing the separate .ts source-inventory test.
+        const filename = join(directory, 'mocking.test.mts');
+        writeFileSync(filename, "import { vi } from 'vitest';\nvi.mock('./dependency');\n");
+        const result = spawnSync(
+          join(repoRoot, 'node_modules/.bin/oxlint'),
+          ['-c', 'oxlint.workspace.config.mjs', '--format', 'json', filename],
+          { cwd: repoRoot, encoding: 'utf8' },
+        );
+        expect(result.error).toBeUndefined();
+        expect(result.stdout).toContain('no-module-mocking');
+        expect(result.status).toBe(1);
+      } finally {
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+    distPackageTestTimeoutMs,
+  );
+
   it(
     'cleans stale renamed build artifacts before packing dist',
     (): void => {
@@ -177,7 +187,9 @@ describe('published TypeScript package shape', (): void => {
       const config = theThracianOxlint({
         effect: { strict: { ...strictEffectTestPaths, rules: effectStrictRuleNames } },
       });
-      const pluginPath = config.jsPlugins?.find((path) => path.endsWith('/dist/rules/plugin.js'));
+      const pluginPath = config.jsPlugins
+        ?.filter(Predicate.isString)
+        .find((path) => path.endsWith('/dist/rules/plugin.js'));
 
       expect(pluginPath).toBeDefined();
       expect(existsSync(pluginPath ?? '')).toBe(true);
@@ -191,7 +203,9 @@ describe('published TypeScript package shape', (): void => {
     },
     distPackageTestTimeoutMs,
   );
+});
 
+describe('published TypeScript package CLI rules', (): void => {
   it(
     'executes built custom Effect rules through the real Oxlint CLI',
     async (): Promise<void> => {
@@ -316,7 +330,9 @@ describe('published TypeScript package shape', (): void => {
     },
     distPackageTestTimeoutMs,
   );
+});
 
+describe('published TypeScript package exports', (): void => {
   it(
     'imports the built package through the public npm exports surface',
     (): void => {
@@ -375,12 +391,14 @@ describe('published TypeScript package shape', (): void => {
           encoding: 'utf-8',
           stdio: ['ignore', 'pipe', 'pipe'],
         });
+        // SAFETY: the local consumer above serializes a numeric array length and a checked plugin path.
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
         expect(parsed.effectRuleCount).toBe(19);
         expect(existsSync(parsed.pluginPath)).toBe(true);
+        // SAFETY: the package manifest is local JSON; only its optional codemod executable mapping is read.
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {
-          bin?: Record<string, string>;
+          bin?: { 'thx-codemod-fix'?: string };
         };
         expect(packageJSON.bin?.['thx-codemod-fix']).toBe('./dist/codemod-fix/cli.js');
       } finally {

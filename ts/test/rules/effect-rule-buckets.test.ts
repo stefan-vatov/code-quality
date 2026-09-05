@@ -41,7 +41,7 @@ describe('Effect rule buckets', (): void => {
       expect(disabledConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
     }
     for (const ruleName of effectDefaultRuleNames) {
-      if (!effectSafetyRuleNames.includes(ruleName)) {
+      if (!effectSafetyRuleNames.some((safetyRuleName) => safetyRuleName === ruleName)) {
         expect(defaultConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
         expect(safetyConfig.rules).not.toHaveProperty(`thethracian/${ruleName}`);
       }
@@ -61,20 +61,18 @@ describe('Effect rule buckets', (): void => {
 
   it('declares options schemas for strict rules that receive project path configuration', (): void => {
     for (const ruleName of effectStrictRuleNames) {
-      const rule = plugin.rules[ruleName as keyof typeof plugin.rules] as {
-        meta?: { schema?: unknown };
-      };
+      const rule = plugin.rules[ruleName];
 
-      expect(rule.meta?.schema, `${ruleName} must accept strict path options`).toBeDefined();
+      expect(rule?.meta?.schema, `${ruleName} must accept strict path options`).toBeDefined();
     }
   });
 
   it('keeps the strict path option schema keys stable', (): void => {
-    const rule = plugin.rules['effect-no-run-outside-entrypoints'] as {
-      meta?: { schema?: Array<{ properties?: Record<string, unknown> }> };
-    };
+    const rule = plugin.rules['effect-no-run-outside-entrypoints'];
+    const schema = rule?.meta?.schema;
+    const firstSchema = Array.isArray(schema) ? schema[0] : undefined;
 
-    expect(Object.keys(rule.meta?.schema?.[0]?.properties ?? {}).sort()).toStrictEqual([
+    expect(Object.keys(firstSchema?.properties ?? {}).sort()).toStrictEqual([
       'adapterLayers',
       'compositionRoots',
       'configLayers',

@@ -1,13 +1,29 @@
 /* -------------------------------------------------------------------------- */
 /*          Allocation-conscious AST access for custom Effect rules.          */
 /* -------------------------------------------------------------------------- */
+import { Predicate } from 'effect';
 
-export type ASTNode = object & { type: string };
+export type ASTValue =
+  | boolean
+  | null
+  | number
+  | string
+  | undefined
+  | readonly ASTValue[]
+  | { readonly [key: string]: ASTValue };
 
-const hasNodeType = (value: object): value is ASTNode =>
-  'type' in value && typeof value.type === 'string';
+export type ASTObject = Extract<ASTValue, { readonly [key: string]: ASTValue }>;
 
-const isUnknownArray = (value: unknown): value is readonly unknown[] => Array.isArray(value);
+export type ASTNode = ASTObject & { readonly type: string };
+
+export const isASTObject = (value: ASTValue): value is ASTObject => Predicate.isRecord(value);
+
+export const isASTArray = (value: ASTValue): value is readonly ASTValue[] => Array.isArray(value);
+
+export const isASTValue = (value: ASTValue): value is ASTValue => !Predicate.isFunction(value);
+
+export const isASTNode = (value: ASTValue): value is ASTNode =>
+  isASTObject(value) && Predicate.isString(value.type);
 
 /**
  * Narrow an unknown AST value to a node.
@@ -17,8 +33,8 @@ const isUnknownArray = (value: unknown): value is readonly unknown[] => Array.is
  * @throws Does not throw.
  * @internal
  */
-export const asNode = <Value>(value: Value): (Value & ASTNode) | undefined => {
-  if (value !== null && typeof value === 'object' && hasNodeType(value)) {
+export const asNode = (value: ASTValue): ASTNode | undefined => {
+  if (isASTNode(value)) {
     return value;
   }
   return undefined;
@@ -34,8 +50,7 @@ export const asNode = <Value>(value: Value): (Value & ASTNode) | undefined => {
  * @internal
  */
 export const childNode = (node: ASTNode, key: string): ASTNode | undefined => {
-  const value: unknown = Reflect.get(node, key);
-  return asNode(value);
+  return asNode(node[key]);
 };
 
 /**
@@ -48,8 +63,8 @@ export const childNode = (node: ASTNode, key: string): ASTNode | undefined => {
  * @internal
  */
 export const childNodes = (node: ASTNode, key: string): ASTNode[] => {
-  const value: unknown = Reflect.get(node, key);
-  if (!isUnknownArray(value)) {
+  const value = node[key];
+  if (!isASTArray(value)) {
     return [];
   }
   const nodes: ASTNode[] = [];
@@ -74,8 +89,8 @@ export const identifierName = (node: ASTNode | undefined): string | undefined =>
   if (node?.type !== 'Identifier') {
     return undefined;
   }
-  const name: unknown = Reflect.get(node, 'name');
-  if (typeof name === 'string') {
+  const name = node.name;
+  if (Predicate.isString(name)) {
     return name;
   }
   return undefined;

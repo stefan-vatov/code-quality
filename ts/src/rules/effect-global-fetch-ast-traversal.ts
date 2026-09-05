@@ -3,14 +3,14 @@
 /* -------------------------------------------------------------------------- */
 
 import { scopesForChild, withNodeScope } from './effect-ast-scope';
-import type { ASTNode } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
 import type { ScopeStack } from './effect-ast-scope';
 import { asNode } from './effect-ast';
 
 type FallbackWorkItem =
-  | { kind: 'visit'; scopes: ScopeStack; value: unknown }
+  | { kind: 'visit'; scopes: ScopeStack; value: ASTValue }
   | { kind: 'leave-node'; node: ASTNode }
-  | { kind: 'leave-array'; value: readonly unknown[] };
+  | { kind: 'leave-array'; value: readonly ASTValue[] };
 
 interface FallbackTraversal {
   activeArrays: WeakSet<object>;
@@ -21,7 +21,7 @@ interface FallbackTraversal {
 }
 
 const pushFallbackArray = (
-  value: readonly unknown[],
+  value: readonly ASTValue[],
   scopes: ScopeStack,
   pending: FallbackWorkItem[],
 ): void => {
@@ -43,7 +43,7 @@ const pushFallbackKeyChildren = (
       pending.push({
         kind: 'visit',
         scopes: scopesForChild(nodeScopes, node, key),
-        value: Reflect.get(node, key),
+        value: node[key],
       });
     }
   }
@@ -83,7 +83,7 @@ const pushFallbackNodeChildren = (
 };
 
 const visitFallbackArray = (
-  value: readonly unknown[],
+  value: readonly ASTValue[],
   scopes: ScopeStack,
   traversal: FallbackTraversal,
 ): void => {
@@ -95,7 +95,7 @@ const visitFallbackArray = (
 };
 
 const visitFallbackNode = (
-  value: unknown,
+  value: ASTValue,
   scopes: ScopeStack,
   traversal: FallbackTraversal,
 ): void => {

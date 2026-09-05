@@ -2,8 +2,21 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
+/**
+ * @typedef {{
+ *   'package.json': { scripts: Record<string, string>, devDependencies: Record<string, string>, 'lint-staged': Record<string, string[]> },
+ *   'knip.json': { ignore: string[] },
+ *   'ts/project.json': { targets: { lint: { command: string } } },
+ *   'stryker.config.json': { thresholds: { break: number, high: number, low: number }, mutate: string[], ignorePatterns: string[], vitest: { configFile: string } }
+ * }} RepositoryConfigs
+ */
+
+/** @template {keyof RepositoryConfigs} Path @param {Path} path @returns {RepositoryConfigs[Path]} */
 const rootJSON = (path) =>
-  JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8'));
+  // SAFETY: the literal filename selects the repository-owned config contract verified by these tests.
+  /** @type {RepositoryConfigs[Path]} */ (
+    JSON.parse(readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8'))
+  );
 const rootText = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf-8');
 const sourceFiles = (directory) =>
   readdirSync(new URL(`../${directory}`, import.meta.url), {
@@ -19,6 +32,7 @@ describe('quality threshold configuration', () => {
       const source = ts.createSourceFile(path, readFileSync(path, 'utf-8'), ts.ScriptTarget.Latest);
       const badSpecifiers = [];
 
+      /** @param {import('typescript').Node} node */
       const checkNode = (node) => {
         if (
           (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
@@ -74,10 +88,8 @@ describe('quality threshold configuration', () => {
     const typeScriptCommands = packageJSON['lint-staged']['*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'];
 
     expect(packageJSON.scripts['codemod:ts']).toBe('thx-codemod-fix ts/src');
-    expect(packageJSON.scripts.lint).toBe('oxlint -c oxlint.config.mjs ts');
-    expect(packageJSON.scripts['lint:type-aware']).toBe(
-      'oxlint -c oxlint.config.mjs ts --type-aware --type-check',
-    );
+    expect(packageJSON.scripts.lint).toBe('pnpm run lint:local');
+    expect(packageJSON.scripts['lint:type-aware']).toBe('pnpm run lint:local:type-aware');
     expect(packageJSON.scripts['lint:staged:typescript']).toBe(
       'pnpm --dir ts build && oxlint -c oxlint.workspace.config.mjs --type-aware --type-check --fix --no-error-on-unmatched-pattern',
     );
@@ -126,12 +138,19 @@ describe('quality threshold configuration', () => {
     expect(localConfig).toContain("'oxlint.workspace.config.mjs'");
     expect(publishedConfig).toContain("'oxlint.workspace.config.mjs'");
     expect(knipConfig.ignore).toContain('oxlint.workspace.config.mjs');
-    expect(packageJSON.scripts.lint).toBe('oxlint -c oxlint.config.mjs ts');
+    expect(packageJSON.scripts.lint).toBe('pnpm run lint:local');
+    expect(packageJSON.scripts['lint:fix']).toBe('pnpm run lint:local:fix');
+    expect(packageJSON.scripts['lint:type-aware:fix']).toBe('pnpm run lint:local:type-aware:fix');
+    expect(rootJSON('ts/project.json').targets.lint.command).toContain(
+      'oxlint -c oxlint.workspace.config.mjs',
+    );
     expect(packageJSON.scripts['lint:ci']).toBe(
       'pnpm run lint:local:type-aware && pnpm run format:check',
     );
   });
+});
 
+describe('quality gate documentation and release verification', () => {
   it('documents native lint fixes and an explicit semantic codemod workflow', () => {
     const readme = rootText('ts/README.md');
 
@@ -169,7 +188,10 @@ describe('quality threshold configuration', () => {
     expect(ciWorkflow).toContain(
       "if: startsWith(github.head_ref, 'codex/verify-published-oxlint-config-')",
     );
-    expect(ciWorkflow).toContain('run: pnpm run lint:type-aware');
+    expect(ciWorkflow).toContain('run: pnpm run lint:published:type-aware');
+    expect(rootJSON('package.json').scripts['lint:published:type-aware']).toBe(
+      'oxlint -c oxlint.config.mjs ts --type-aware --type-check',
+    );
   });
 
   it('runs native plugin compatibility against the exact minimum Oxlint peer', () => {
@@ -187,7 +209,7 @@ describe('quality threshold configuration', () => {
     expect(verifier).toContain('minimumPeerVersion');
     expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
     expect(verifier).toContain("await import('./full.config.mjs')");
-    expect(verifier).toContain('full minimum-peer config must expose 178 rules');
+    expect(verifier).toContain('full minimum-peer config must expose 194 rules');
     expect(verifier).toContain("'--format'");
     expect(verifier).toContain("'json'");
     expect(verifier).toMatch(
@@ -199,7 +221,7 @@ describe('quality threshold configuration', () => {
     expect(verifier).toMatch(/runOxlint\(\s*temporarySafePath\s*,\s*\[\s*'--fix'\s*\]\s*\)/u);
     expect(verifier).toMatch(/assert\.equal\(\s*safeResult\.status\s*,\s*0\s*,/u);
     expect(verifier).toMatch(
-      /assert\.equal\(\s*JSON\.parse\(safeResult\.stdout\)\.diagnostics\.length\s*,\s*0\s*\)/u,
+      /assert\.equal\(\s*parseDiagnostics\(safeResult\.stdout\)\.diagnostics\.length\s*,\s*0\s*\)/u,
     );
     expect(verifier).toMatch(/assert\.equal\(\s*afterFix\s*,\s*beforeFix\s*\)/u);
 
@@ -224,7 +246,9 @@ describe('quality threshold configuration', () => {
     expect(invalidFixture).toContain("try: () => fetch('/users')");
     expect(safeFixture).toContain('Effect.succeed(1).pipe(Effect.map((value) => value + 1))');
   });
+});
 
+describe('coverage and mutation configuration', () => {
   it('enforces coverage watermarks for the TypeScript package source', () => {
     const config = rootText('vitest.config.mts');
 

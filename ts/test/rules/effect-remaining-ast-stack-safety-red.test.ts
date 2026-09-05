@@ -1,42 +1,45 @@
 import { describe, expect, it } from 'vitest';
 import type { SourceRule } from '../../src/rules/effect-rule-core';
 import { parseSync } from 'oxc-parser';
-import plugin from '../../src/rules/plugin';
+import { getEffectRule } from './effect-rule-test-utils';
+import type { ASTNode } from '../../src/rules/effect-ast';
 
-type SyntheticNode = {
-  [key: string]: unknown;
-  type: string;
+type ChainNode = { type: 'ExpressionStatement'; next?: ChainNode };
+type FunctionNode = {
+  async: boolean;
+  body: ChainNode;
+  generator: boolean;
+  id: { name: string; type: 'Identifier' };
+  params: ASTNode[];
+  type: 'FunctionDeclaration';
 };
 
 type VisitorMap = ReturnType<SourceRule['create']>;
 
 const NESTED_DEPTH = 2_048;
 
-const ruleFor = (ruleName: string): SourceRule => {
-  const rule: unknown = Reflect.get(plugin.rules, ruleName);
-  if (!rule || typeof rule !== 'object') {
-    throw new Error(`${ruleName} must be registered`);
-  }
-  return rule as SourceRule;
-};
-
-const visitorFor = (ruleName: string, source: string, reports: SyntheticNode[]): VisitorMap =>
-  ruleFor(ruleName).create({
+const visitorFor = (ruleName: string, source: string, reports: ASTNode[]): VisitorMap =>
+  getEffectRule(ruleName).create({
     filename: 'src/deep.ts',
     report({ node }): void {
-      reports.push(node as SyntheticNode);
+      reports.push(node);
     },
     sourceCode: { text: source },
   });
 
-const parseProgram = (source: string): SyntheticNode =>
-  parseSync('deep.ts', source, { sourceType: 'module' }).program as unknown as SyntheticNode;
+const effectProgram = (program: ReturnType<typeof parseSync>['program'] | ASTNode): ASTNode => {
+  // SAFETY: the parser returns a Program with recursive AST fields; the bridge adds dictionary access only.
+  return program as ASTNode;
+};
 
-const cyclicChain = (count: number): SyntheticNode => {
-  const first: SyntheticNode = { type: 'ExpressionStatement' };
+const parseProgram = (source: string): ASTNode =>
+  effectProgram(parseSync('deep.ts', source, { sourceType: 'module' }).program);
+
+const cyclicChain = (count: number): ChainNode => {
+  const first: ChainNode = { type: 'ExpressionStatement' };
   let current = first;
   for (let index = 1; index < count; index += 1) {
-    const next: SyntheticNode = { type: 'ExpressionStatement' };
+    const next: ChainNode = { type: 'ExpressionStatement' };
     current.next = next;
     current = next;
   }
@@ -44,15 +47,15 @@ const cyclicChain = (count: number): SyntheticNode => {
   return first;
 };
 
-const identifier = (name: string): SyntheticNode => ({ name, type: 'Identifier' });
+const identifier = (name: string): FunctionNode['id'] => ({ name, type: 'Identifier' });
 
 describe('remaining Effect AST stack safety', (): void => {
   it('does not recurse through a deep recursion-analysis body', (): void => {
     const source = 'const marker = "function =>";';
-    const reports: SyntheticNode[] = [];
+    const reports: ASTNode[] = [];
     const visitor = visitorFor('effect-require-suspend-for-recursion', source, reports);
     const program = parseProgram(source);
-    const functionNode: SyntheticNode = {
+    const functionNode: FunctionNode = {
       async: false,
       body: cyclicChain(NESTED_DEPTH),
       generator: false,

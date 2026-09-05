@@ -8,6 +8,11 @@ interface JSDocInput {
   tags?: readonly string[];
 }
 
+interface WrappedTextState {
+  readonly line: string;
+  readonly lines: string[];
+}
+
 const dividerLength = 80;
 const dividerFiller = '-';
 const jsdocTextWidth = 100;
@@ -60,9 +65,8 @@ const wrapTextToWidth = (text: string, width: number): string[] => {
   const wrapped = pipe(
     text.split(' '),
     Array.reduce(
-      { line: '', lines: [] as string[] },
-      (state, word): { line: string; lines: string[] } =>
-        appendWrappedWordToWidth(state, word, width),
+      { line: '', lines: [] } satisfies WrappedTextState,
+      (state, word): WrappedTextState => appendWrappedWordToWidth(state, word, width),
     ),
   );
   return pipe(
@@ -75,10 +79,10 @@ const wrapTextToWidth = (text: string, width: number): string[] => {
 };
 
 const appendWrappedWordToWidth = (
-  state: { line: string; lines: string[] },
+  state: WrappedTextState,
   word: string,
   width: number,
-): { line: string; lines: string[] } => {
+): WrappedTextState => {
   const nextLine = nextWrappedLine(state.line, word);
   if (nextLine.length > width && state.line) {
     return { line: word, lines: Array.append(state.lines, state.line) };

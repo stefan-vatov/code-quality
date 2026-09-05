@@ -1,8 +1,10 @@
 /* -------------------------------------------------------------------------- */
 /*          Path option schema helpers for strict Effect lint rules.          */
 /* -------------------------------------------------------------------------- */
-import { Array, Match, Option, pipe } from 'effect';
+import { Array, Match, Option, Predicate, pipe } from 'effect';
 import type { Context } from './effect-rule-core';
+import { isASTObject } from './effect-ast';
+import type { ASTObject } from './effect-ast';
 import { createWeightedCache } from './source-cache';
 
 /**
@@ -86,6 +88,11 @@ const escapeRegExp = (value: string): string =>
 
 type GlobCache = ReturnType<typeof createWeightedCache<string, RegExp>>;
 
+interface GlobToken {
+  readonly index: number;
+  readonly text: string;
+}
+
 const globCache: GlobCache = createWeightedCache({
   maxEntries: GLOB_CACHE_MAX,
   maxWeight: GLOB_CACHE_MAX_WEIGHT,
@@ -101,7 +108,7 @@ const globCacheWeight = (pattern: string, matcher: RegExp): number =>
   REGEXP_BYTES +
   CACHE_ENTRY_BYTES;
 
-const globToken = (pattern: string, index: number): { index: number; text: string } => {
+const globToken = (pattern: string, index: number): GlobToken => {
   const char = pattern[index];
   const nextChar = pattern[index + 1];
   const afterNextChar = pattern[index + 2];
@@ -158,17 +165,15 @@ const matchesPath = (filename: string | undefined, pattern: string): boolean =>
   );
 
 const isReadonlyStringArray = (value: unknown): value is readonly string[] =>
-  Array.isArray(value) &&
-  pipe(
-    value,
-    Array.every((entry): boolean => typeof entry === 'string'),
-  );
+  Array.isArray(value) && pipe(value, Array.every(Predicate.isString));
 
-const strictOptionsFromUnknown = (options: object): StrictPathOptions =>
+const emptyStrictPathOptions: StrictPathOptions = {};
+
+const strictOptionsFromUnknown = (options: ASTObject): StrictPathOptions =>
   pipe(
     strictPathOptionKeys,
-    Array.reduce({} as StrictPathOptions, (current, optionKey): StrictPathOptions => {
-      const optionValue: unknown = Reflect.get(options, optionKey);
+    Array.reduce(emptyStrictPathOptions, (current, optionKey): StrictPathOptions => {
+      const optionValue = options[optionKey];
       return pipe(
         Option.fromNullable(optionValue),
         Option.filter(isReadonlyStringArray),
@@ -188,7 +193,7 @@ const getStrictOptions = (context: Pick<Context, 'options'>): StrictPathOptions 
   const options = context.options?.[0];
   return pipe(
     Option.fromNullable(options),
-    Option.filter((value): value is object => typeof value === 'object'),
+    Option.filter(isASTObject),
     Option.map(strictOptionsFromUnknown),
     Option.getOrElse((): StrictPathOptions => ({})),
   );
@@ -208,7 +213,7 @@ export const sanitizeStrictPathOptions = (
       const sanitized = pipe(
         strictPathOptionKeys,
         Array.reduce(
-          {} as StrictPathOptions,
+          emptyStrictPathOptions,
           (current, optionKey): StrictPathOptions =>
             Match.value(Object.hasOwn(value, optionKey)).pipe(
               Match.when(

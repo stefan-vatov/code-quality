@@ -6,10 +6,21 @@ import type {
   BlockStatement,
   FunctionDeclaration,
   Identifier,
+  Node,
   Program,
 } from 'jscodeshift';
-import { Array, HashMap, Option, Order, Predicate, pipe } from 'effect';
+import { Array, HashMap, Option, Order, pipe } from 'effect';
 import jscodeshift from 'jscodeshift';
+import {
+  codemodObjectValues,
+  isCodemodArray,
+  isCodemodNode,
+  nodeEnd,
+  nodeStart,
+  sourceForNode,
+  type CodemodRecord,
+  type CodemodValue,
+} from './ast-helpers';
 
 interface Replacement {
   end: number;
@@ -30,10 +41,12 @@ interface ReferenceSearch {
   seen: WeakSet<object>;
 }
 
-const codemodAPI = jscodeshift.withParser('ts');
+interface NodeRange {
+  readonly end: number;
+  readonly start: number;
+}
 
-const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
-  Predicate.isObject(value);
+const codemodAPI = jscodeshift.withParser('ts');
 
 const applyReplacements = (source: string, replacements: readonly Replacement[]): string =>
   pipe(
@@ -46,43 +59,16 @@ const applyReplacements = (source: string, replacements: readonly Replacement[])
     ),
   );
 
-const nodeStart = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.start),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing a start offset')),
-  );
+const nodeKey = (node: Node): string => `${nodeStart(node)}:${nodeEnd(node)}`;
 
-const nodeEnd = (node: unknown): number =>
-  pipe(
-    Option.some(node),
-    Option.filter(isObjectRecord),
-    Option.flatMapNullable((value) => value.end),
-    Option.filter(Predicate.isNumber),
-    Option.getOrThrowWith(() => new Error('jscodeshift node is missing an end offset')),
-  );
+const isIdentifier = (node: CodemodValue): node is Identifier =>
+  isCodemodNode(node) && node.type === 'Identifier';
 
-const sourceForNode = (source: string, node: unknown): string =>
-  pipe(
-    Option.fromNullable(node),
-    Option.match({
-      onNone: (): string => '',
-      onSome: (value): string => source.slice(nodeStart(value), nodeEnd(value)),
-    }),
-  );
-
-const nodeKey = (node: unknown): string => `${nodeStart(node)}:${nodeEnd(node)}`;
-
-const isIdentifier = (node: unknown): node is Identifier =>
-  isObjectRecord(node) && node.type === 'Identifier' && typeof node.name === 'string';
-
-const isFunctionDeclaration = (node: unknown): node is FunctionDeclaration =>
-  isObjectRecord(node) && node.type === 'FunctionDeclaration';
+const isFunctionDeclaration = (node: CodemodValue): node is FunctionDeclaration =>
+  isCodemodNode(node) && node.type === 'FunctionDeclaration';
 
 const typeParameterText = (source: string, declaration: FunctionDeclaration): string =>
-  sourceForNode(source, declaration.typeParameters).trim();
+  declaration.typeParameters ? sourceForNode(source, declaration.typeParameters).trim() : '';
 
 const parameterText = (source: string, declaration: FunctionDeclaration): string =>
   pipe(
@@ -109,22 +95,16 @@ const hasThisExpression = (node: FunctionDeclaration): boolean =>
 const hasThisSemantics = (node: FunctionDeclaration): boolean =>
   hasThisParameter(node) || hasThisExpression(node);
 
-const isFunctionBoundary = (node: unknown): boolean =>
-  isObjectRecord(node) &&
+const isFunctionBoundary = (node: CodemodValue): boolean =>
+  isCodemodNode(node) &&
   (node.type === 'ArrowFunctionExpression' ||
     node.type === 'FunctionDeclaration' ||
     node.type === 'FunctionExpression' ||
     node.type === 'ObjectMethod');
 
-const nodeStartsAtOrAfter = (value: Record<string, unknown>, before: number): boolean => {
-  const { start } = value;
-  return typeof start === 'number' && start >= before;
-};
+const nodeStartsAtOrAfter = (value: Node, before: number): boolean => nodeStart(value) >= before;
 
-const hasEarlierReferenceInRecord = (
-  value: Record<string, unknown>,
-  search: ReferenceSearch,
-): boolean => {
+const hasEarlierReferenceInRecord = (value: CodemodRecord, search: ReferenceSearch): boolean => {
   if (search.seen.has(value)) {
     return false;
   }
@@ -139,19 +119,19 @@ const hasEarlierReferenceInRecord = (
     return false;
   }
   return pipe(
-    Object.values(value),
+    codemodObjectValues(value),
     Array.some((entry): boolean => hasEarlierReferenceInValue(entry, search)),
   );
 };
 
-const hasEarlierReferenceInValue = (value: unknown, search: ReferenceSearch): boolean => {
-  if (globalThis.Array.isArray(value)) {
+const hasEarlierReferenceInValue = (value: CodemodValue, search: ReferenceSearch): boolean => {
+  if (isCodemodArray(value)) {
     return pipe(
       value,
       Array.some((entry): boolean => hasEarlierReferenceInValue(entry, search)),
     );
   }
-  if (!isObjectRecord(value)) {
+  if (!isCodemodNode(value)) {
     return false;
   }
   return hasEarlierReferenceInRecord(value, search);
@@ -268,7 +248,7 @@ const scopeForDeclaration = (
 const replacementSpanForDeclaration = (
   node: FunctionDeclaration,
   exportInfo: ExportInfo | undefined,
-): { end: number; start: number } => ({
+): NodeRange => ({
   end: exportInfo?.end ?? nodeEnd(node),
   start: exportInfo?.start ?? nodeStart(node),
 });

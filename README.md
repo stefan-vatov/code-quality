@@ -33,7 +33,7 @@ for Elixir.
 
 | Package                                      | Registry                                                        | Consumer entrypoint                                    | Purpose                                                                                  |
 | -------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | Upstream Oxlint allowlist plus opt-in Effect safety and architecture checks.             |
+| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | Upstream Oxlint allowlist, 15 TypeScript safety rules, plus opt-in Effect checks.        |
 | [`cargo-thx-lint`](rust/README.md)           | [crates.io](https://crates.io/crates/cargo-thx-lint)            | `cargo thx-lint init --write`                          | Rust installer for `rustfmt.toml`, `clippy.toml`, Cargo lint tables, and a Dylint check. |
 | [`the_thracian_credo`](elixir/README.md)     | [Hex](https://hex.pm/packages/the_thracian_credo)               | `mix thx_lint.install --yes`                           | Credo plugin, custom checks, formatter setup, and Dialyzer helper configuration.         |
 
@@ -72,13 +72,19 @@ individual `off` entries. Oxlint's implicit `correctness` warnings are cleared o
 level, before the allowlist is applied. That reset prevents hidden defaults from leaking noise into
 the result; it does not add warnings or weaken any selected rule.
 
+The package also enables 15 package-local TypeScript safety rules by default. They cover
+evidence-preserving assertions, unknown/object boundaries, runtime reflection, module mocking, and
+unsafe type-shape contracts. The rules are listed in the [TypeScript package README](ts/README.md)
+and share the existing `thethracian` plugin namespace.
+
 The package also ships The Thracian's Effect-specific checks. The audit-listed Effect preference
 rules and semantically unsound module-scope rules were removed from the package; they are not merely
 hidden by configuration. The retained Effect policy is separate from the upstream base: `effect: true`
-enables the 18 safety rules, 19 specialized migration/version/error-model/schema/test analyzers remain
-registered for explicit rule configuration, and the 60 strict architecture rules are selected by
-name and supplied with the path groups they inspect. See the [TypeScript package README](ts/README.md)
-for the complete API and rule behavior.
+enables the 18 safety rules and the additional service-constructor import rule, 19 specialized
+migration/version/error-model/schema/test analyzers remain registered for explicit rule
+configuration, and the 60 strict architecture rules are selected by name and supplied with the path
+groups they inspect. See the [TypeScript package README](ts/README.md) for the complete API and rule
+behavior.
 
 Semantic `thx-codemod-fix` rewrites remain available as explicit, reviewed migration commands. They
 are never invoked by Oxlint, `lint:fix`, `lint-staged`, or other automatic lint hooks.
@@ -117,17 +123,18 @@ managed blocks for owned config, and can be rerun after package upgrades.
 
 ## Rules At A Glance
 
-| Policy                | TypeScript                                 | Rust                                    | Elixir                                               |
-| --------------------- | ------------------------------------------ | --------------------------------------- | ---------------------------------------------------- |
-| Line width            | Formatter-owned (no lint cap)              | 150                                     | 150                                                  |
-| Function length       | 150 lines                                  | 75 lines                                | 75 lines                                             |
-| Nesting depth         | 5                                          | 3                                       | 3                                                    |
-| Parameter count       | 7                                          | 5                                       | 5                                                    |
-| Complexity            | 20                                         | Clippy-supported limits                 | 10                                                   |
-| File/import caps      | None                                       | Package-specific                        | Package-specific                                     |
-| Debug artifacts       | `debugger`; `console` remains contextual   | `dbg!`, `print!`, `println!`            | `IO.inspect`, `IEx.pry`                              |
-| Unsafe escape hatches | Upstream type-aware unsafe-operation rules | `unsafe_code`, lossy `as` casts         | Underspecified public APIs via Credo/Dialyzer config |
-| Immutability pressure | `prefer-const`                             | `unused_mut`, pedantic mutability lints | `VariableRebinding`                                  |
+| Policy                | TypeScript                                   | Rust                                    | Elixir                                               |
+| --------------------- | -------------------------------------------- | --------------------------------------- | ---------------------------------------------------- |
+| Line width            | Formatter-owned (no lint cap)                | 150                                     | 150                                                  |
+| Function length       | 150 lines                                    | 75 lines                                | 75 lines                                             |
+| Nesting depth         | 5                                            | 3                                       | 3                                                    |
+| Parameter count       | 7                                            | 5                                       | 5                                                    |
+| Complexity            | 20                                           | Clippy-supported limits                 | 10                                                   |
+| File/import caps      | None                                         | Package-specific                        | Package-specific                                     |
+| Debug artifacts       | `debugger`; `console` remains contextual     | `dbg!`, `print!`, `println!`            | `IO.inspect`, `IEx.pry`                              |
+| TypeScript safety     | 15 package-local boundary and evidence rules | —                                       | —                                                    |
+| Unsafe escape hatches | Upstream type-aware unsafe-operation rules   | `unsafe_code`, lossy `as` casts         | Underspecified public APIs via Credo/Dialyzer config |
+| Immutability pressure | `prefer-const`                               | `unused_mut`, pedantic mutability lints | `VariableRebinding`                                  |
 
 The TypeScript profile intentionally has no maximum file-length or import-count rule. Those caps
 encourage shim modules and mechanical decomposition without improving behavior. Naming preferences,
@@ -142,6 +149,17 @@ misused promises when those checks are requested.
 
 ## Working On This Repo
 
+Install the repository-pinned Node, pnpm, Erlang, and Elixir toolchain with mise:
+
+```sh
+mise install
+mise exec -- pnpm install --frozen-lockfile
+mise exec -- pnpm run check
+```
+
+With mise activated in your shell, the commands below use those versions automatically. Otherwise,
+prefix them with `mise exec --`. Rust uses the stable toolchain installed through rustup.
+
 ```sh
 pnpm install
 pnpm run lint:policy
@@ -154,6 +172,14 @@ pnpm nx run-many -t pack
 
 This is a pnpm and Nx workspace. TypeScript is packed through npm tooling, Rust through Cargo, and
 Elixir through Mix/Hex. The root package is private and owns workspace orchestration only.
+
+`lint`, `lint:fix`, the type-aware variants, staged hooks, and the Nx TypeScript lint target
+build and use the local TypeScript package. Executable tests are linted too; deliberately invalid
+minimum-peer programs remain fixtures checked by their compatibility harness. Test tooling has
+its own TypeScript project, separate from the published source build.
+
+`pnpm run lint:published:type-aware` checks the installed published package independently. CI uses
+that command for post-release consumer verification.
 
 ## Release Shape
 

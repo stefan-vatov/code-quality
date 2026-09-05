@@ -1,4 +1,5 @@
 import { isAbsolute } from 'node:path';
+import { Predicate } from 'effect';
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../src/index';
 import { effectSafetyRuleNames, effectStrictRuleNames } from '../src/rules/effect-rule-names';
@@ -13,7 +14,9 @@ function effectRuleKeys(config: ReturnType<typeof theThracianOxlint>): string[] 
 describe('theThracianOxlint', () => {
   it('uses an absolute path for its package-local Oxlint plugin', () => {
     const config = theThracianOxlint();
-    const pluginPath = config.jsPlugins?.find((path) => path.endsWith('/rules/plugin.js'));
+    const pluginPath = config.jsPlugins
+      ?.filter(Predicate.isString)
+      .find((path) => path.endsWith('/rules/plugin.js'));
 
     expect(pluginPath).toBeDefined();
     expect(isAbsolute(pluginPath ?? '')).toBe(true);
@@ -74,7 +77,9 @@ describe('theThracianOxlint', () => {
     );
     expect(config.rules).not.toHaveProperty('thethracian/effect-no-run-outside-entrypoints');
   });
+});
 
+describe('strict Effect configuration', () => {
   it('enables opt-in Effect strict project rules with the object form', () => {
     const strictOptions = {
       adapterLayers: ['platform/adapters/**'],
@@ -152,7 +157,9 @@ describe('theThracianOxlint', () => {
       { adapterLayers: ['platform/**'] },
     ]);
   });
+});
 
+describe('native and type-aware configuration', () => {
   it('exports silent catch blocking as an error', () => {
     const config = theThracianOxlint();
 

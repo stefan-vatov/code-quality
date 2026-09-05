@@ -22,6 +22,7 @@ const readBenchFile = (filename: string): string =>
 const gateSource = readBenchFile('performance-gate.ts');
 const supportSource = readBenchFile('performance-gate-support.ts');
 const executableSource = `${gateSource}\n${supportSource}`;
+// SAFETY: this repository-owned JSON uses the benchmark budget contract verified by these tests.
 const budgets = JSON.parse(readBenchFile('performance-budgets.json')) as BudgetFile;
 
 const numericConstant = (name: string): number => {

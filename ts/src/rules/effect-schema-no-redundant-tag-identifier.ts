@@ -2,9 +2,10 @@
 /*       Reject Schema tag identifiers that duplicate the declared tag.       */
 /* -------------------------------------------------------------------------- */
 
+import { Predicate } from 'effect';
 import type { Context, SourceRule } from './effect-rule-core';
 import { asNode, childNode, childNodes } from './effect-ast';
-import type { ASTNode } from './effect-ast';
+import type { ASTNode, ASTValue } from './effect-ast';
 import type { ImportedEffectCallMatcher } from './effect-imported-call-matcher';
 import { diagnosticMessage } from './diagnostic-guidance';
 import { importedEffectCallMatcher } from './effect-imported-call-matcher';
@@ -27,14 +28,14 @@ const literalString = (node: ASTNode | undefined): string | undefined => {
   if (node?.type !== 'Literal') {
     return undefined;
   }
-  const value: unknown = Reflect.get(node, 'value');
-  if (typeof value === 'string') {
+  const value = node.value;
+  if (Predicate.isString(value)) {
     return value;
   }
   return undefined;
 };
 
-const hasTypeArguments = (node: ASTNode): boolean => Boolean(Reflect.get(node, 'typeArguments'));
+const hasTypeArguments = (node: ASTNode): boolean => Boolean(node.typeArguments);
 
 const exactArguments = (
   call: ASTNode | undefined,
@@ -75,7 +76,7 @@ interface TaggedFactoryCandidate {
   tag: ASTNode;
 }
 
-const taggedFactoryCandidate = (value: object): TaggedFactoryCandidate | undefined => {
+const taggedFactoryCandidate = (value: ASTValue): TaggedFactoryCandidate | undefined => {
   const declaration = asNode(value);
   const outerCall = declaration && childNode(declaration, 'superClass');
   if (!outerCall || hasTypeArguments(outerCall)) {

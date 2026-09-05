@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SourceRule } from '../../src/rules/effect-rule-core';
-import plugin from '../../src/rules/plugin';
-import { runRule } from './effect-rule-test-utils';
+import { getEffectRule, runRule } from './effect-rule-test-utils';
 import theThracianOxlint from '../../src/index';
 
 const RULE_NAME = 'effect-schema-no-redundant-tag-identifier';
@@ -24,11 +23,7 @@ const taggedClass = (
   tail = '{ id: Schema.String }',
 ): string => `class ${name} extends Schema.${api}<${name}>(${inner})(${outer}, ${tail}) {}`;
 
-const registeredRule = (): SourceRule => {
-  const rule: unknown = Reflect.get(plugin.rules, RULE_NAME);
-  expect(rule, `${RULE_NAME} must be registered`).toBeDefined();
-  return rule as SourceRule;
-};
+const registeredRule = (): SourceRule => getEffectRule(RULE_NAME);
 
 const reportsFor = (source: string) => {
   registeredRule();
@@ -422,9 +417,9 @@ describe('effect-schema-no-redundant-tag-identifier', (): void => {
     const [report] = reportsFor(root(taggedClass('TaggedErrorClass', 'NotFound')));
 
     expect(report?.message).toBe(EXPECTED_MESSAGE);
-    expect(Reflect.get(report ?? {}, 'fix')).toBeUndefined();
-    expect(Reflect.get(report ?? {}, 'suggest')).toBeUndefined();
-    expect(Reflect.get(report ?? {}, 'suggestions')).toBeUndefined();
+    expect(report && 'fix' in report ? report.fix : undefined).toBeUndefined();
+    expect(report && 'suggest' in report ? report.suggest : undefined).toBeUndefined();
+    expect(report && 'suggestions' in report ? report.suggestions : undefined).toBeUndefined();
   });
 
   it.each([
@@ -436,6 +431,7 @@ describe('effect-schema-no-redundant-tag-identifier', (): void => {
     ],
   ])('reports the redundant inner literal for %s', (_name, source, text): void => {
     const [report] = reportsFor(source);
+    // SAFETY: the rule reports the parser's inner tag literal, whose source offsets are verified below.
     const node = report?.node as { end?: number; start?: number; type?: string } | undefined;
 
     expect(node?.type).toBe('Literal');
