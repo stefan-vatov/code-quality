@@ -191,9 +191,9 @@ and 179 with it. Repository lint scans from the root and includes non-test fixtu
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.
 
-Repository configuration adds no extra rules or path groups. The installed published factory still
-enables 193 errors with Effect (159 native, 15 generic, 18 safety, and the service-constructor rule)
-until the new package is published.
+Repository configuration adds no extra rules or path groups. The installed published 0.8.0 factory
+also enables 210 errors with Effect (160 native, 14 generic, 35 Effect rules, and the
+service-constructor rule).
 
 `pnpm run lint:published:type-aware` checks the installed published package independently. CI uses
 that command for post-release consumer verification.
