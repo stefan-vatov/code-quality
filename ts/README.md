@@ -249,8 +249,8 @@ Semantic codemod implementations remain available for reviewed migrations. They 
 function forms, imports, exports, or control flow, so run them as a deliberate command and validate
 the resulting behavior.
 
-The codemods run on `jscodeshift`, which is an optional peer dependency so lint-only consumers do
-not install its Babel toolchain. Install it before using the codemods:
+The codemods run on `jscodeshift`. The package does not declare it as a dependency or peer, so
+lint-only consumers never install its Babel toolchain. Install it before using the codemods:
 
 ```sh
 pnpm add -D jscodeshift@^17.4.0

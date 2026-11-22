@@ -11,7 +11,7 @@ const hasJscodeshift = Exit.isSuccess(
 
 const writeMissingPeerHint = (): void => {
   process.stderr.write(
-    'thx-codemod-fix requires the optional peer dependency jscodeshift.\n' +
+    'thx-codemod-fix requires jscodeshift, which is not installed.\n' +
       `Install it with: npm install --save-dev jscodeshift@${jscodeshiftRange}\n`,
   );
   process.exitCode = 1;

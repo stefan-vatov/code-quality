@@ -45,6 +45,9 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
+      jscodeshift:
+        specifier: ^17.4.0
+        version: 17.4.0(@babel/preset-env@7.29.5(@babel/core@7.29.13))
       knip:
         specifier: ^6.47.0
         version: 6.47.0
@@ -84,16 +87,12 @@ importers:
       effect:
         specifier: 3.22.5
         version: 3.22.5
+      oxlint:
+        specifier: '>=1.66.0'
+        version: 1.66.0(oxlint-tsgolint@0.22.1)
       oxlint-tsgolint:
         specifier: ^0.22.1
         version: 0.22.1
-    devDependencies:
-      jscodeshift:
-        specifier: ^17.4.0
-        version: 17.4.0(@babel/preset-env@7.29.5(@babel/core@7.29.13))
-      oxlint:
-        specifier: ^1.66.0
-        version: 1.66.0(oxlint-tsgolint@0.22.1)
 
 packages:
 
@@ -4283,7 +4282,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.13
       '@babel/helper-plugin-utils': 7.28.6
-      '@babel/helper-validator-option': 7.27.1
+      '@babel/helper-validator-option': 7.29.7
       '@babel/plugin-transform-flow-strip-types': 7.27.1(@babel/core@7.29.13)
 
   '@babel/preset-modules@0.1.6-no-external-plugins(@babel/core@7.29.13)':
@@ -5977,7 +5976,7 @@ snapshots:
   jscodeshift@17.4.0(@babel/preset-env@7.29.5(@babel/core@7.29.13)):
     dependencies:
       '@babel/core': 7.29.13
-      '@babel/parser': 7.29.3
+      '@babel/parser': 7.29.15
       '@babel/plugin-transform-class-properties': 7.28.6(@babel/core@7.29.13)
       '@babel/plugin-transform-modules-commonjs': 7.28.6(@babel/core@7.29.13)
       '@babel/plugin-transform-nullish-coalescing-operator': 7.28.6(@babel/core@7.29.13)
@@ -5990,7 +5989,7 @@ snapshots:
       graceful-fs: 4.2.11
       neo-async: 2.6.2
       picocolors: 1.1.1
-      picomatch: 4.0.4
+      picomatch: 4.0.7
       recast: 0.23.11
       tmp: 0.2.7
       write-file-atomic: 5.0.1

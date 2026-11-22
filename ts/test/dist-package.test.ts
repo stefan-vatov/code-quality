@@ -653,10 +653,19 @@ const codemodPeerPackageRoot = join(repoRoot, 'ts');
 const codemodPeerTimeoutMs = 60_000;
 const lintRuntimePackages = ['effect', '@oxlint/plugins', 'oxlint'] as const;
 
+const missingJscodeshiftHint =
+  'thx-codemod-fix requires jscodeshift, which is not installed.\n' +
+  'Install it with: npm install --save-dev jscodeshift@^17.4.0\n';
+
+const workspacePackagePath = (name: string): string =>
+  [join(codemodPeerPackageRoot, 'node_modules', name), join(repoRoot, 'node_modules', name)].find(
+    (candidate): boolean => existsSync(candidate),
+  ) ?? join(repoRoot, 'node_modules', name);
+
 const linkPackage = (consumerRoot: string, name: string): void => {
   const target = join(consumerRoot, 'node_modules', name);
   mkdirSync(join(target, '..'), { recursive: true });
-  symlinkSync(realpathSync(join(codemodPeerPackageRoot, 'node_modules', name)), target, 'dir');
+  symlinkSync(realpathSync(workspacePackagePath(name)), target, 'dir');
 };
 
 const createConsumer = (extraPackages: readonly string[]): string => {
@@ -723,10 +732,7 @@ process.stdout.write(String(Object.keys(config.rules ?? {}).length) + '\\n');
       });
       expect(result.status).toBe(1);
       expect(result.stdout).toBe('');
-      expect(result.stderr).toBe(
-        'thx-codemod-fix requires the optional peer dependency jscodeshift.\n' +
-          'Install it with: npm install --save-dev jscodeshift@^17.4.0\n',
-      );
+      expect(result.stderr).toBe(missingJscodeshiftHint);
     },
     codemodPeerTimeoutMs,
   );
@@ -737,13 +743,10 @@ process.stdout.write(String(Object.keys(config.rules ?? {}).length) + '\\n');
       const result = spawnSync('node', [cliPath(consumerRoot), 'src'], {
         cwd: consumerRoot,
         encoding: 'utf8',
-        env: { ...process.env, NODE_PATH: join(codemodPeerPackageRoot, 'node_modules') },
+        env: { ...process.env, NODE_PATH: join(repoRoot, 'node_modules') },
       });
       expect(result.status).toBe(1);
-      expect(result.stderr).toBe(
-        'thx-codemod-fix requires the optional peer dependency jscodeshift.\n' +
-          'Install it with: npm install --save-dev jscodeshift@^17.4.0\n',
-      );
+      expect(result.stderr).toBe(missingJscodeshiftHint);
     },
     codemodPeerTimeoutMs,
   );

@@ -25,22 +25,17 @@ describe('jscodeshift codemod architecture', () => {
     expect(source, basename(path)).not.toContain('ts.forEachChild');
   });
 
-  it('publishes jscodeshift as an optional peer for consumer CLI execution', () => {
+  it('leaves jscodeshift for consumers to install before running the codemod CLI', () => {
     const packageJson = Schema.decodeUnknownSync(
       Schema.parseJson(
         Schema.Struct({
           dependencies: Schema.Record({ key: Schema.String, value: Schema.String }),
           peerDependencies: Schema.Record({ key: Schema.String, value: Schema.String }),
-          peerDependenciesMeta: Schema.Record({
-            key: Schema.String,
-            value: Schema.Struct({ optional: Schema.Boolean }),
-          }),
         }),
       ),
     )(readFileSync('ts/package.json', 'utf8'));
 
     expect(packageJson.dependencies).not.toHaveProperty('jscodeshift');
-    expect(packageJson.peerDependencies).toHaveProperty('jscodeshift');
-    expect(packageJson.peerDependenciesMeta['jscodeshift']?.optional).toBe(true);
+    expect(packageJson.peerDependencies).not.toHaveProperty('jscodeshift');
   });
 });
