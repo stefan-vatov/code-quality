@@ -1,5 +1,4 @@
 import { Array, Effect, pipe } from 'effect';
-import { NodeRuntime } from '@effect/platform-node';
 import { codemodFix } from '../codemod-fix/index';
 
 export {
@@ -29,4 +28,4 @@ const writeCodemodSummary = (result: CodemodFixResult): Effect.Effect<void> => {
 
 const program = pipe(applyCodemodFix, Effect.tap(writeCodemodSummary));
 
-NodeRuntime.runMain(program);
+Effect.runSync(program);

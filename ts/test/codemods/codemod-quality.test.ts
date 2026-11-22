@@ -656,7 +656,7 @@ void value;
       {
         name: 'declarations',
         source: withImportHeader(
-          `import { Array } from 'effect';\nimport { NodeRuntime } from '@effect/platform-node';\n\nvoid Array;\nvoid NodeRuntime;\n`,
+          `import { Array } from 'effect';\nimport { Buffer } from 'node:buffer';\n\nvoid Array;\nvoid Buffer;\n`,
         ),
       },
       {
@@ -674,13 +674,13 @@ void value;
       {
         name: 'mixed-groups',
         source: withImportHeader(
-          `import { NodeRuntime } from '@effect/platform-node';\nimport type { ASTPath } from 'jscodeshift';\nimport { Array } from 'effect';\n\ntype Entry = ASTPath;\ndeclare const entry: Entry | undefined;\nvoid Array;\nvoid entry;\nvoid NodeRuntime;\n`,
+          `import { Buffer } from 'node:buffer';\nimport type { ASTPath } from 'jscodeshift';\nimport { Array } from 'effect';\n\ntype Entry = ASTPath;\ndeclare const entry: Entry | undefined;\nvoid Array;\nvoid entry;\nvoid Buffer;\n`,
         ),
       },
       {
         name: 'single-member',
         source: withImportHeader(
-          `import { Option } from 'effect';\nimport { NodeRuntime } from '@effect/platform-node';\n\nvoid NodeRuntime;\nvoid Option;\n`,
+          `import { Option } from 'effect';\nimport { Buffer } from 'node:buffer';\n\nvoid Buffer;\nvoid Option;\n`,
         ),
       },
       {
@@ -698,19 +698,19 @@ void value;
       {
         name: 'comparison-source',
         source: withImportHeader(
-          `import { Order } from 'effect';\nimport { NodeRuntime } from '@effect/platform-node';\n\nvoid NodeRuntime;\nvoid Order;\n`,
+          `import { Order } from 'effect';\nimport { Buffer } from 'node:buffer';\n\nvoid Buffer;\nvoid Order;\n`,
         ),
       },
       {
         name: 'predicate-source',
         source: withImportHeader(
-          `import { Predicate } from 'effect';\nimport { NodeRuntime } from '@effect/platform-node';\n\nvoid NodeRuntime;\nvoid Predicate;\n`,
+          `import { Predicate } from 'effect';\nimport { Buffer } from 'node:buffer';\n\nvoid Buffer;\nvoid Predicate;\n`,
         ),
       },
       {
         name: 'schema-source',
         source: withImportHeader(
-          `import { Schema } from 'effect';\nimport { NodeRuntime } from '@effect/platform-node';\n\nvoid NodeRuntime;\nvoid Schema;\n`,
+          `import { Schema } from 'effect';\nimport { Buffer } from 'node:buffer';\n\nvoid Buffer;\nvoid Schema;\n`,
         ),
       },
     ],
@@ -1886,7 +1886,7 @@ void EffectOption;
     },
     {
       name: 'multiple-sources',
-      source: withImportHeader(`import { NodeRuntime } from '@effect/platform-node';
+      source: withImportHeader(`import { Buffer } from 'node:buffer';
 import { Array } from 'effect';
 import type { ASTPath } from 'jscodeshift';
 
@@ -1894,7 +1894,7 @@ type Entry = ASTPath;
 declare const entry: Entry | undefined;
 void Array;
 void entry;
-void NodeRuntime;
+void Buffer;
 `),
     },
     {
@@ -1955,12 +1955,12 @@ void jscodeshift;
 `),
     },
     {
-      name: 'effect-platform-order',
-      source: withImportHeader(`import { NodeRuntime } from '@effect/platform-node';
+      name: 'builtin-module-order',
+      source: withImportHeader(`import { Buffer } from 'node:buffer';
 import { Array } from 'effect';
 
 void Array;
-void NodeRuntime;
+void Buffer;
 `),
     },
     {
@@ -3237,11 +3237,11 @@ void status;
   'sort-imports': [
     {
       name: 'comments-between-imports',
-      source: withImportHeader(`import { NodeRuntime } from '@effect/platform-node';
+      source: withImportHeader(`import { Buffer } from 'node:buffer';
 import { Array } from 'effect';
 
 void Array;
-void NodeRuntime;
+void Buffer;
 `),
     },
     {
@@ -3298,14 +3298,14 @@ void value;
     {
       name: 'source-path-order',
       source: withImportHeader(`import type { ASTPath } from 'jscodeshift';
-import { NodeRuntime } from '@effect/platform-node';
+import { Buffer } from 'node:buffer';
 import { Array } from 'effect';
 
 type Entry = ASTPath;
 declare const entry: Entry | undefined;
 void Array;
 void entry;
-void NodeRuntime;
+void Buffer;
 `),
     },
     {
