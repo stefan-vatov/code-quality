@@ -86,7 +86,8 @@ optional registrations. Strict rule selections and path groups are removed. See 
 [TypeScript package README](ts/README.md) for the complete API and rule behavior.
 
 Semantic `thx-codemod-fix` rewrites remain available as explicit, reviewed migration commands. They
-are never invoked by Oxlint, `lint:fix`, `lint-staged`, or other automatic lint hooks.
+are never invoked by Oxlint, `lint:fix`, `lint-staged`, or other automatic lint hooks. They need the
+optional `jscodeshift` peer dependency, which lint-only consumers do not install.
 
 ### Rust
 

@@ -74,6 +74,8 @@ TypeScript/Oxlint high-signal policy:
   Other deleted Effect rules remain absent, with no warnings or optional registrations.
   The public option is `effect?: boolean`; nonboolean values throw `TypeError`.
 - Semantic `thx-codemod-fix` rewrites remain available as an explicit migration command, but are not part of lint fixes or staged-file hooks.
+  `jscodeshift` is an optional peer dependency (and a `ts` devDependency); the lint entry points must
+  never import it, and the CLI prints an install hint when it is missing.
 
 Current implementation:
 

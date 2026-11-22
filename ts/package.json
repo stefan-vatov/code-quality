@@ -39,13 +39,19 @@
   "dependencies": {
     "@oxlint/plugins": "^1.66.0",
     "effect": "3.22.5",
-    "jscodeshift": "^17.4.0",
     "oxlint-tsgolint": "^0.22.1"
   },
   "devDependencies": {
+    "jscodeshift": "^17.4.0",
     "oxlint": "^1.66.0"
   },
   "peerDependencies": {
+    "jscodeshift": "^17.4.0",
     "oxlint": ">=1.66.0"
+  },
+  "peerDependenciesMeta": {
+    "jscodeshift": {
+      "optional": true
+    }
   }
 }

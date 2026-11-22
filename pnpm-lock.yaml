@@ -84,13 +84,13 @@ importers:
       effect:
         specifier: 3.22.5
         version: 3.22.5
-      jscodeshift:
-        specifier: ^17.4.0
-        version: 17.4.0(@babel/preset-env@7.29.5(@babel/core@7.29.13))
       oxlint-tsgolint:
         specifier: ^0.22.1
         version: 0.22.1
     devDependencies:
+      jscodeshift:
+        specifier: ^17.4.0
+        version: 17.4.0(@babel/preset-env@7.29.5(@babel/core@7.29.13))
       oxlint:
         specifier: ^1.66.0
         version: 1.66.0(oxlint-tsgolint@0.22.1)

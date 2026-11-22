@@ -247,7 +247,18 @@ type-aware mode, the totals are 144 and 180 respectively. Internal name lists re
 
 Semantic codemod implementations remain available for reviewed migrations. They can change
 function forms, imports, exports, or control flow, so run them as a deliberate command and validate
-the resulting behavior:
+the resulting behavior.
+
+The codemods run on `jscodeshift`, which is an optional peer dependency so lint-only consumers do
+not install its Babel toolchain. Install it before using the codemods:
+
+```sh
+pnpm add -D jscodeshift@^17.4.0
+pnpm exec thx-codemod-fix --dry-run src
+```
+
+Without `jscodeshift`, `thx-codemod-fix` exits with status 1 and prints the install command. The
+`@thethracian/oxlint-config/codemod-fix` import requires it too:
 
 ```ts
 import { codemodFix } from '@thethracian/oxlint-config/codemod-fix';

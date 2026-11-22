@@ -26,22 +26,37 @@ const collectReplacements = (filePath, text) => {
   const source = ts.createSourceFile(filePath, text, ts.ScriptTarget.Latest, true);
   const replacements = [];
 
-  source.forEachChild((node) => {
+  const addReplacement = (specifierNode) => {
+    const nextSpecifier = rewriteSpecifier(filePath, specifierNode.text);
+    if (nextSpecifier !== specifierNode.text) {
+      replacements.push([
+        specifierNode.getStart(source) + 1,
+        specifierNode.getEnd() - 1,
+        nextSpecifier,
+      ]);
+    }
+  };
+
+  const visit = (node) => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
       ts.isStringLiteral(node.moduleSpecifier)
     ) {
-      const nextSpecifier = rewriteSpecifier(filePath, node.moduleSpecifier.text);
-      if (nextSpecifier !== node.moduleSpecifier.text) {
-        replacements.push([
-          node.moduleSpecifier.getStart(source) + 1,
-          node.moduleSpecifier.getEnd() - 1,
-          nextSpecifier,
-        ]);
-      }
+      addReplacement(node.moduleSpecifier);
     }
-  });
+    if (
+      ts.isCallExpression(node) &&
+      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+      node.arguments.length > 0 &&
+      ts.isStringLiteralLike(node.arguments[0])
+    ) {
+      addReplacement(node.arguments[0]);
+    }
+    node.forEachChild(visit);
+  };
+
+  source.forEachChild(visit);
 
   return replacements;
 };
