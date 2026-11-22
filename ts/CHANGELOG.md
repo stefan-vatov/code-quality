@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.3 - 2026-11-22
+
+### Changes
+
+- chore(ts): credit anti-slop in third-party notice (96be4ae)
+
 ## 0.10.2 - 2026-11-22
 
 ### Fixes
