@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.2 - 2026-11-22
+
+### Fixes
+
+- fix(ts): upgrade to oxlint 1.94 and adopt go-internal boundaries (3c8d1d5)
+
+### Changes
+
+- refactor(ts): organise sources into go-style internal directories (69253af)
+
 ## 0.10.1 - 2026-11-22
 
 ### Fixes
