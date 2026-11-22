@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatFileHeaderComment } from '../../src/codemods/format-file-header';
+import { formatFileHeaderComment } from '../../src/codemod-fix/internal/format-file-header';
 
 describe('formatFileHeaderComment', () => {
   it('formats the first file JSDoc as a divider module header', () => {

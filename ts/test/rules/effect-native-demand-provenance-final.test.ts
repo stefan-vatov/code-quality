@@ -1,9 +1,17 @@
 import { parseSync } from 'oxc-parser';
 import { describe, expect, it } from 'vitest';
-import { type ASTNode, type ASTValue, isASTArray, isASTNode } from '../../src/rules/effect-ast';
-import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
-import type { NativeReference, NativeSourceCode } from '../../src/rules/effect-native-references';
-import type { Context } from '../../src/rules/effect-rule-core';
+import {
+  type ASTNode,
+  type ASTValue,
+  isASTArray,
+  isASTNode,
+} from '../../src/rules/internal/effect-ast';
+import { importedEffectCallMatcher } from '../../src/rules/internal/effect-imported-call-matcher';
+import type {
+  NativeReference,
+  NativeSourceCode,
+} from '../../src/rules/internal/effect-native-references';
+import type { Context } from '../../src/rules/internal/effect-rule-core';
 
 const domainFile = 'src/domain/native-demand.ts';
 

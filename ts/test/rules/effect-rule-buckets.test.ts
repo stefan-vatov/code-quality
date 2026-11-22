@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import effectDefaultRules from '../../src/rules/effect-default';
+import effectDefaultRules from '../../src/rules/internal/effect-default';
 import {
   effectDefaultRuleNames,
   effectSafetyRuleNames,
   effectStrictRuleNames,
-} from '../../src/rules/effect-rule-names';
-import effectStrictRules from '../../src/rules/effect-strict';
+} from '../../src/internal/effect-rule-names';
+import effectStrictRules from '../../src/rules/internal/effect-strict';
 import plugin from '../../src/rules/plugin';
 
 describe('Effect rule buckets', () => {

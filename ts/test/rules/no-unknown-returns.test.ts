@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noUnknownReturnsRule } from '../../src/rules/no-unknown-returns';
+import { noUnknownReturnsRule } from '../../src/rules/internal/no-unknown-returns';
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: 'ts' } } });
 const error = { messageId: 'unknownReturn' };

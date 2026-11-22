@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { Context } from '../../src/rules/effect-rule-core';
-import { hasRunSyncInServerRequestHandler } from '../../src/rules/effect-strict-source-predicates';
+import type { Context } from '../../src/rules/internal/effect-rule-core';
+import { hasRunSyncInServerRequestHandler } from '../../src/rules/internal/effect-strict-source-predicates';
 import { runRule } from './effect-rule-test-utils';
-import { runSyncServerHandlerAST } from '../../src/rules/effect-strict-server-handler-ast';
+import { runSyncServerHandlerAST } from '../../src/rules/internal/effect-strict-server-handler-ast';
 
 const RULE_NAME = 'effect-no-runSync-in-server-request-handlers';
 

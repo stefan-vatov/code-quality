@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseSync } from 'oxc-parser';
-import { stripComments } from '../../src/rules/effect-source-comments';
-import { stripCommentsAndStrings } from '../../src/rules/effect-source-scan';
+import { stripComments } from '../../src/rules/internal/effect-source-comments';
+import { stripCommentsAndStrings } from '../../src/rules/internal/effect-source-scan';
 
 interface SourceSpan {
   readonly end: number;

@@ -2,7 +2,7 @@ import { Predicate } from 'effect';
 import { isAbsolute } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../src/index';
-import { effectDefaultRuleNames, effectStrictRuleNames } from '../src/rules/effect-rule-names';
+import { effectDefaultRuleNames, effectStrictRuleNames } from '../src/internal/effect-rule-names';
 
 function effectRuleKeys(config: ReturnType<typeof theThracianOxlint>): string[] {
   return Object.keys(config.rules ?? {}).filter((ruleName) =>

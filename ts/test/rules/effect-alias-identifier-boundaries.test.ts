@@ -5,7 +5,7 @@ import {
   effectImportAliases,
   hasEffectSignal,
   hasRuntimeCall,
-} from '../../src/rules/effect-rule-aliases';
+} from '../../src/rules/internal/effect-rule-aliases';
 import { describe, expect, it } from 'vitest';
 
 const sorted = (values: readonly string[]): string[] => [...values].sort();

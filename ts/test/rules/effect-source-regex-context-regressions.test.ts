@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isREGEXLiteralStart } from '../../src/rules/effect-source-regex-scan';
+import { isREGEXLiteralStart } from '../../src/rules/internal/effect-source-regex-scan';
 import { parseSync, Visitor, type Program } from 'oxc-parser';
-import { stripComments } from '../../src/rules/effect-source-comments';
-import { stripCommentsAndStrings } from '../../src/rules/effect-source-scan';
+import { stripComments } from '../../src/rules/internal/effect-source-comments';
+import { stripCommentsAndStrings } from '../../src/rules/internal/effect-source-scan';
 
 type RegexSpan = readonly [number, number];
 

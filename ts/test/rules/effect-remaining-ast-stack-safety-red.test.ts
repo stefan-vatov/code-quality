@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { SourceRule } from '../../src/rules/effect-rule-core';
+import type { SourceRule } from '../../src/rules/internal/effect-rule-core';
 import { parseSync } from 'oxc-parser';
 import { getEffectRule } from './effect-rule-test-utils';
-import type { ASTNode } from '../../src/rules/effect-ast';
+import type { ASTNode } from '../../src/rules/internal/effect-ast';
 
 type ChainNode = { type: 'ExpressionStatement'; next?: ChainNode };
 type FunctionNode = {

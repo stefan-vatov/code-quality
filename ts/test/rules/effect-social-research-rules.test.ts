@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import { effectStrictRuleNames } from '../../src/internal/effect-rule-names';
 import { runRule } from './effect-rule-test-utils';
 
 const registerDefaultResearchRules = (): void => {

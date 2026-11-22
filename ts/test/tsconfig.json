@@ -8,7 +8,7 @@
     "noEmit": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["**/*.ts", "**/*.mts", "**/*.mjs"],
+  "include": ["**/*.ts", "**/*.mts", "**/*.mjs", "../bench/**/*.ts"],
   "exclude": [
     "**/fixtures/**",
     "oxlint-min-peer/invalid.ts",

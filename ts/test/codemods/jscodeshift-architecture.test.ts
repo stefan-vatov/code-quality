@@ -4,15 +4,15 @@ import { describe, expect, it } from 'vitest';
 import { Schema } from 'effect';
 
 const codemodFiles = [
-  'ts/src/codemods/arrow-body-style.ts',
-  'ts/src/codemods/explicit-return-types.ts',
-  'ts/src/codemods/function-declarations.ts',
-  'ts/src/codemods/inline-export-lists.ts',
-  'ts/src/codemods/internal-export-docs.ts',
-  'ts/src/codemods/no-ternary-branch-initializers.ts',
-  'ts/src/codemods/no-ternary.ts',
-  'ts/src/codemods/no-ternary-variable-initializers.ts',
-  'ts/src/codemods/sort-imports.ts',
+  'ts/src/codemod-fix/internal/arrow-body-style.ts',
+  'ts/src/codemod-fix/internal/explicit-return-types.ts',
+  'ts/src/codemod-fix/internal/function-declarations.ts',
+  'ts/src/codemod-fix/internal/inline-export-lists.ts',
+  'ts/src/codemod-fix/internal/internal-export-docs.ts',
+  'ts/src/codemod-fix/internal/no-ternary-branch-initializers.ts',
+  'ts/src/codemod-fix/internal/no-ternary.ts',
+  'ts/src/codemod-fix/internal/no-ternary-variable-initializers.ts',
+  'ts/src/codemod-fix/internal/sort-imports.ts',
 ] as const;
 
 describe('jscodeshift codemod architecture', () => {

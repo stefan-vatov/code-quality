@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Context } from '../../src/rules/effect-rule-core';
+import type { Context } from '../../src/rules/internal/effect-rule-core';
 import { getEffectRule, type Report } from './effect-rule-test-utils';
 
 const programNode = { type: 'Program', range: [0, 0] };

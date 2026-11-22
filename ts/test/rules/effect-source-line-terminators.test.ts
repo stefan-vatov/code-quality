@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { findStatementEnd, statementAfter } from '../../src/rules/effect-source-navigation';
-import { isREGEXLiteralStart } from '../../src/rules/effect-source-regex-scan';
-import { stripComments } from '../../src/rules/effect-source-comments';
-import { stripCommentsAndStrings } from '../../src/rules/effect-source-scan';
+import {
+  findStatementEnd,
+  statementAfter,
+} from '../../src/rules/internal/effect-source-navigation';
+import { isREGEXLiteralStart } from '../../src/rules/internal/effect-source-regex-scan';
+import { stripComments } from '../../src/rules/internal/effect-source-comments';
+import { stripCommentsAndStrings } from '../../src/rules/internal/effect-source-scan';
 
 const lineTerminators = [
   { name: 'lone CR', terminator: '\r' },

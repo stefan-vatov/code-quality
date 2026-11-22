@@ -8,7 +8,7 @@ interface ReportLocation {
 }
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
-const ruleCoreURL = new URL('../../src/rules/effect-rule-core.ts', import.meta.url).href;
+const ruleCoreURL = new URL('../../src/rules/internal/effect-rule-core.ts', import.meta.url).href;
 const zeroLengthProbeTimeoutMS = 3_000;
 
 const nativeCodeEmptyMatchColumns = (source: string, flag: 'u' | 'v'): number[] =>

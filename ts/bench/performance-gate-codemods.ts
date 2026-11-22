@@ -1,13 +1,13 @@
-import { addInternalExportDocs } from '../src/codemods/internal-export-docs';
-import { addVoidReturnTypes } from '../src/codemods/explicit-return-types';
+import { addInternalExportDocs } from '../src/codemod-fix/internal/internal-export-docs';
+import { addVoidReturnTypes } from '../src/codemod-fix/internal/explicit-return-types';
 import { applyCodemodFixToSource } from '../src/codemod-fix/index';
-import { formatFileHeaderComment } from '../src/codemods/format-file-header';
-import { formatJSDocComments } from '../src/codemods/format-jsdoc-comments';
-import { inlineLocalExportLists } from '../src/codemods/inline-export-lists';
-import { preferConciseArrowBodies } from '../src/codemods/arrow-body-style';
-import { preferExplicitBranches } from '../src/codemods/no-ternary';
-import { preferFunctionExpressions } from '../src/codemods/function-declarations';
-import { sortImportDeclarations } from '../src/codemods/sort-imports';
+import { formatFileHeaderComment } from '../src/codemod-fix/internal/format-file-header';
+import { formatJSDocComments } from '../src/codemod-fix/internal/format-jsdoc-comments';
+import { inlineLocalExportLists } from '../src/codemod-fix/internal/inline-export-lists';
+import { preferConciseArrowBodies } from '../src/codemod-fix/internal/arrow-body-style';
+import { preferExplicitBranches } from '../src/codemod-fix/internal/no-ternary';
+import { preferFunctionExpressions } from '../src/codemod-fix/internal/function-declarations';
+import { sortImportDeclarations } from '../src/codemod-fix/internal/sort-imports';
 
 export const benchmarkCodemodFixtures = [
   `

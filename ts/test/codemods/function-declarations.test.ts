@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { preferFunctionExpressions } from '../../src/codemods/function-declarations';
+import { preferFunctionExpressions } from '../../src/codemod-fix/internal/function-declarations';
 
 describe('preferFunctionExpressions', () => {
   it('converts safe non-exported function declarations to const arrow expressions', () => {

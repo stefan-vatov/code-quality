@@ -1,6 +1,6 @@
-import type { ASTNode, ScopeStack } from '../../src/rules/effect-ast-scope';
+import type { ASTNode, ScopeStack } from '../../src/rules/internal/effect-ast-scope';
 import { describe, expect, it } from 'vitest';
-import { scopesForChild, withNodeScope } from '../../src/rules/effect-ast-scope';
+import { scopesForChild, withNodeScope } from '../../src/rules/internal/effect-ast-scope';
 
 type Fields = {
   argument?: ASTNode;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasRecursiveEffectSource } from '../../src/rules/effect-recursion-source';
+import { hasRecursiveEffectSource } from '../../src/rules/internal/effect-recursion-source';
 import { performance } from 'node:perf_hooks';
 
 const nestedFunctionSource = (depth: number): string => {

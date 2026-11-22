@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { preferExplicitBranches } from '../../src/codemods/no-ternary';
+import { preferExplicitBranches } from '../../src/codemod-fix/internal/no-ternary';
 
 describe('preferExplicitBranches', (): void => {
   it('converts return-position ternaries to explicit branches', (): void => {

@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noKnownValueWideningRule } from '../../src/rules/no-known-value-widening';
+import { noKnownValueWideningRule } from '../../src/rules/internal/no-known-value-widening';
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: 'ts' } } });
 

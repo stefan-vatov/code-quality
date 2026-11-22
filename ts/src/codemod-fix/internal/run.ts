@@ -1,12 +1,12 @@
 import { Array, Effect, pipe } from 'effect';
-import { codemodFix } from '../codemod-fix/index';
+import { codemodFix } from '../index';
 
 export {
   applyCodemodFixToFile as applyCodemodsToFile,
   applyCodemodFixToSource as applyCodemodsToSource,
   codemodFix as run,
   sourceFilesUnder,
-} from '../codemod-fix/index';
+} from '../index';
 
 const defaultPaths = ['ts/src'] as const;
 

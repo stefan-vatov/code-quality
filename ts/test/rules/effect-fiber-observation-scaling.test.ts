@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   hasRunForkWithoutObserver,
   hasUnobservedFork,
-} from '../../src/rules/effect-default-fiber-helpers';
+} from '../../src/rules/internal/effect-default-fiber-helpers';
 const SAFE_FIXTURE_COUNT = 2_000;
 
 const observedRunForkSource = (count: number): string =>

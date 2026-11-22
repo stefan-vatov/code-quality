@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noReflectGetRule } from '../../src/rules/no-reflect-get';
+import { noReflectGetRule } from '../../src/rules/internal/no-reflect-get';
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: 'ts' } } });
 const error = { messageId: 'reflectGet' };

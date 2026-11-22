@@ -3,7 +3,7 @@ import {
   type RuleSpec,
   type SourceRule,
   makeRules,
-} from '../../src/rules/effect-rule-core';
+} from '../../src/rules/internal/effect-rule-core';
 import { describe, expect, it } from 'vitest';
 
 interface ReportLocation {

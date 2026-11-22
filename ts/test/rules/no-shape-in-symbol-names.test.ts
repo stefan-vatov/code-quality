@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noForbiddenTermInSymbolNamesRule } from '../../src/rules/no-shape-in-symbol-names';
+import { noForbiddenTermInSymbolNamesRule } from '../../src/rules/internal/no-shape-in-symbol-names';
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: 'ts' } } });
 const error = { messageId: 'forbiddenSymbolName' };

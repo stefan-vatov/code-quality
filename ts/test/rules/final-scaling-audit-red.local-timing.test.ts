@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasFloatingEffect } from '../../src/rules/effect-default-floating-helpers';
+import { hasFloatingEffect } from '../../src/rules/internal/effect-default-floating-helpers';
 import { performance } from 'node:perf_hooks';
 
 const SMALL_PIPE_COUNT = 256;

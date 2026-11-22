@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { effectDefaultRuleNames } from '../../src/rules/effect-rule-names';
+import { effectDefaultRuleNames } from '../../src/internal/effect-rule-names';
 import type { RuleCase } from './effect-rule-test-utils';
 import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
-import { effectCanonicalSpecs } from '../../src/rules/effect-canonical-patterns';
+import { effectCanonicalSpecs } from '../../src/rules/internal/effect-canonical-patterns';
 
 const defaultCases: RuleCase[] = [
   {
@@ -163,9 +163,9 @@ describe('retained non-strict Effect rule behavior', (): void => {
 
   it('uses precise token gates for retained source-scan Effect rules', (): void => {
     const source = [
-      '../../src/rules/effect-default.ts',
-      '../../src/rules/effect-default-compat-rules.ts',
-      '../../src/rules/effect-default-env-rules.ts',
+      '../../src/rules/internal/effect-default.ts',
+      '../../src/rules/internal/effect-default-compat-rules.ts',
+      '../../src/rules/internal/effect-default-env-rules.ts',
     ]
       .map((path): string => readFileSync(new URL(path, import.meta.url), 'utf-8'))
       .join('\n');

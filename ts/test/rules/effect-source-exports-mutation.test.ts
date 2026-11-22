@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { exportedDeclarationTexts } from '../../src/rules/effect-exported-declarations';
+import { exportedDeclarationTexts } from '../../src/rules/internal/effect-exported-declarations';
 import {
   findBalancedCallEnd,
   findMatchingBrace,
   stripCommentsAndStrings,
-} from '../../src/rules/effect-source-scan';
+} from '../../src/rules/internal/effect-source-scan';
 
 const sourceLines = (...lines: string[]): string => lines.join('\n');
 

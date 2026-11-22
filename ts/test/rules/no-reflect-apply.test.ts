@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noReflectApplyRule } from '../../src/rules/no-reflect-apply';
+import { noReflectApplyRule } from '../../src/rules/internal/no-reflect-apply';
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: 'ts' } } });
 const error = { messageId: 'reflectApply' };

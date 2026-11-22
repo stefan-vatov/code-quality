@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const strictSourcePredicateURL = new URL(
-  '../../src/rules/effect-strict-source-predicates.ts',
+  '../../src/rules/internal/effect-strict-source-predicates.ts',
   import.meta.url,
 ).href;
 const strictHandlerFixtureURL = new URL(

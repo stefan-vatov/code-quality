@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasRunSyncInServerRequestHandler } from '../../src/rules/effect-strict-source-predicates';
+import { hasRunSyncInServerRequestHandler } from '../../src/rules/internal/effect-strict-source-predicates';
 import { runRule } from './effect-rule-test-utils';
 
 const RULE_NAME = 'effect-no-runSync-in-server-request-handlers';

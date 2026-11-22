@@ -1,7 +1,11 @@
 #!/usr/bin/env node
+import type { Context, ESTree } from '@oxlint/plugins';
 import { writeFileSync } from 'node:fs';
 import plugin from '../src/rules/plugin.js';
-import { effectDefaultRuleNames, effectStrictRuleNames } from '../src/rules/effect-rule-names.js';
+import {
+  effectDefaultRuleNames,
+  effectStrictRuleNames,
+} from '../src/internal/effect-rule-names.js';
 
 type BenchFixture = {
   filename: string;
@@ -25,7 +29,7 @@ const ITERATIONS =
   iterationsArgIndex === -1 ? 2_000 : Number(process.argv[iterationsArgIndex + 1] ?? 2_000);
 const outputPath = outputArgIndex === -1 ? undefined : process.argv[outputArgIndex + 1];
 
-const programNode = { range: [0, 0], type: 'Program' };
+const programNode = { range: [0, 0], type: 'Program' } as unknown as ESTree.Program;
 const fixtures: BenchFixture[] = [
   {
     filename: 'src/domain/user.ts',
@@ -146,8 +150,12 @@ function runRule(ruleName: string, fixture: BenchFixture): number {
     throw new Error(`Missing rule ${ruleName}`);
   }
 
+  if (!rule.create) {
+    throw new Error(`Rule ${ruleName} has no create function`);
+  }
+
   let reports = 0;
-  const visitors = rule.create({
+  const context = {
     filename: fixture.filename,
     options: [],
     report() {
@@ -156,7 +164,8 @@ function runRule(ruleName: string, fixture: BenchFixture): number {
     sourceCode: {
       text: fixture.source,
     },
-  });
+  } as unknown as Context;
+  const visitors = rule.create(context);
   visitors.Program?.(programNode);
   return reports;
 }

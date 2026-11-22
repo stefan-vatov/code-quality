@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ASTNode } from '../../src/rules/effect-ast';
+import type { ASTNode } from '../../src/rules/internal/effect-ast';
 import type { Report } from './effect-rule-test-utils';
 import { getEffectRule } from './effect-rule-test-utils';
 

@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noServiceConstructorImportsRule } from '../../src/rules/no-service-constructor-imports';
+import { noServiceConstructorImportsRule } from '../../src/rules/internal/no-service-constructor-imports';
 
 new RuleTester().run('no-service-constructor-imports', noServiceConstructorImportsRule, {
   valid: [

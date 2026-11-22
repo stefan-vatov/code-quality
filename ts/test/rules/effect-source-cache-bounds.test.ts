@@ -1,12 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { createWeightedCache } from '../../src/rules/source-cache';
+import { createWeightedCache } from '../../src/rules/internal/source-cache';
 
 const sourceText = (path: string): string => readFileSync(path, 'utf8');
 
 const sourcePath = (filename: string): string =>
-  fileURLToPath(new URL(`../../src/rules/${filename}`, import.meta.url));
+  fileURLToPath(new URL(`../../src/rules/internal/${filename}`, import.meta.url));
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 

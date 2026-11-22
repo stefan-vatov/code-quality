@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inlineLocalExportLists } from '../../src/codemods/inline-export-lists';
+import { inlineLocalExportLists } from '../../src/codemod-fix/internal/inline-export-lists';
 
 describe('inlineLocalExportLists', (): void => {
   it('moves simple local export lists onto declarations', (): void => {

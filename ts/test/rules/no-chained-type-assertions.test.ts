@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noChainedTypeAssertionsRule } from '../../src/rules/no-chained-type-assertions';
+import { noChainedTypeAssertionsRule } from '../../src/rules/internal/no-chained-type-assertions';
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: 'ts' } } });
 const error = { messageId: 'chained' };

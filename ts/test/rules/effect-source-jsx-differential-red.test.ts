@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseSync } from 'oxc-parser';
-import { stripComments } from '../../src/rules/effect-source-comments';
+import { stripComments } from '../../src/rules/internal/effect-source-comments';
 
 const source = String.raw`const x = <A>raw // text<B>{/[//]/ /* c */}</B></A>;`;
 

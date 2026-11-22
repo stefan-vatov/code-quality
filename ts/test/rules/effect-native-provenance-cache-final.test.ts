@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { importedEffectCallMatcher } from '../../src/rules/effect-imported-call-matcher';
+import { importedEffectCallMatcher } from '../../src/rules/internal/effect-imported-call-matcher';
 import {
   type NativeReference,
   type NativeSourceCode,
   nativeSourceCodeFor,
-} from '../../src/rules/effect-native-references';
-import type { Context } from '../../src/rules/effect-rule-core';
+} from '../../src/rules/internal/effect-native-references';
+import type { Context } from '../../src/rules/internal/effect-rule-core';
 import { runRule } from './effect-rule-test-utils';
 
 const domainFile = 'src/domain/native-provenance.ts';

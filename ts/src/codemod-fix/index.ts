@@ -1,14 +1,14 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { addInternalExportDocs } from '../codemods/internal-export-docs';
-import { addVoidReturnTypes } from '../codemods/explicit-return-types';
-import { formatFileHeaderComment } from '../codemods/format-file-header';
-import { formatJSDocComments } from '../codemods/format-jsdoc-comments';
-import { inlineLocalExportLists } from '../codemods/inline-export-lists';
-import { preferConciseArrowBodies } from '../codemods/arrow-body-style';
-import { preferExplicitBranches } from '../codemods/no-ternary';
-import { preferFunctionExpressions } from '../codemods/function-declarations';
+import { addInternalExportDocs } from './internal/internal-export-docs';
+import { addVoidReturnTypes } from './internal/explicit-return-types';
+import { formatFileHeaderComment } from './internal/format-file-header';
+import { formatJSDocComments } from './internal/format-jsdoc-comments';
+import { inlineLocalExportLists } from './internal/inline-export-lists';
+import { preferConciseArrowBodies } from './internal/arrow-body-style';
+import { preferExplicitBranches } from './internal/no-ternary';
+import { preferFunctionExpressions } from './internal/function-declarations';
 import { resolve } from 'node:path';
-import { sortImportDeclarations } from '../codemods/sort-imports';
+import { sortImportDeclarations } from './internal/sort-imports';
 
 const defaultPaths = ['src'] as const;
 const sourceExtensions = new Set(['.ts', '.tsx', '.mts', '.cts']);

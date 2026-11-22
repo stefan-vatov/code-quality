@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { LocalBinding } from '../../src/rules/effect-recursion-local-bindings';
-import { resolveLocalTarget } from '../../src/rules/effect-recursion-local-bindings';
+import type { LocalBinding } from '../../src/rules/internal/effect-recursion-local-bindings';
+import { resolveLocalTarget } from '../../src/rules/internal/effect-recursion-local-bindings';
 
 const DEEP_SCAN_SIZES = [10_000, 100_000] as const;
 

@@ -2,15 +2,15 @@ import type {
   NativeDefinition,
   NativeReference,
   NativeSourceCode,
-} from '../../src/rules/effect-native-references';
+} from '../../src/rules/internal/effect-native-references';
 import { describe, expect, it } from 'vitest';
 import {
   indexNativeReferences,
   isImportReference,
   nativeSourceCodeFor,
-} from '../../src/rules/effect-native-references';
-import type { Context } from '../../src/rules/effect-rule-core';
-import type { ASTNode, ASTObject } from '../../src/rules/effect-ast';
+} from '../../src/rules/internal/effect-native-references';
+import type { Context } from '../../src/rules/internal/effect-rule-core';
+import type { ASTNode, ASTObject } from '../../src/rules/internal/effect-ast';
 
 type ScopeFixture =
   | null

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasRecursiveEffectWithoutSuspend } from '../../src/rules/effect-default-workflow-helpers';
+import { hasRecursiveEffectWithoutSuspend } from '../../src/rules/internal/effect-default-workflow-helpers';
 import { runRule } from './effect-rule-test-utils';
 
 interface RecursionCase {

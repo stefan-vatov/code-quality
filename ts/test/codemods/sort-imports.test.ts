@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sortImportDeclarations } from '../../src/codemods/sort-imports';
+import { sortImportDeclarations } from '../../src/codemod-fix/internal/sort-imports';
 
 describe('sortImportDeclarations', (): void => {
   it('sorts import declarations by syntax group and source text', (): void => {

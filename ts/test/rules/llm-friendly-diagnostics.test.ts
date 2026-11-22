@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { effectDefaultRuleNames, effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import {
+  effectDefaultRuleNames,
+  effectStrictRuleNames,
+} from '../../src/internal/effect-rule-names';
 import plugin from '../../src/rules/plugin';
 import { runRule } from './effect-rule-test-utils';
 

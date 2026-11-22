@@ -6,7 +6,7 @@ import {
   hasUnboundedEffectConcurrency,
   hasUnboundedFlatMapConcurrency,
   hasYieldWithoutStarInGen,
-} from '../../src/rules/effect-default-workflow-helpers';
+} from '../../src/rules/internal/effect-default-workflow-helpers';
 
 type BooleanContract = readonly [name: string, source: string, expected: boolean];
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addVoidReturnTypes } from '../../src/codemods/explicit-return-types';
+import { addVoidReturnTypes } from '../../src/codemod-fix/internal/explicit-return-types';
 
 describe('addVoidReturnTypes', (): void => {
   it('adds void to block-bodied arrow functions without returned values', (): void => {

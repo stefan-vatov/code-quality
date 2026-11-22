@@ -6,7 +6,7 @@ import {
   type RuleSpec,
   type VisitorMap,
   makeRules,
-} from '../../src/rules/effect-rule-core';
+} from '../../src/rules/internal/effect-rule-core';
 
 const sourceText = (path: string): string =>
   readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf-8');
@@ -48,27 +48,27 @@ const registerCacheInvariants = (): void => {
   });
 
   it('uses cached line indexes instead of rescanning from the file start for each report', (): void => {
-    const source = sourceText('../../src/rules/effect-rule-core.ts');
+    const source = sourceText('../../src/rules/internal/effect-rule-core.ts');
 
     expect(source).not.toContain('for (let position = 0; position < index; position++)');
   });
 
   it('caches global regex variants instead of reallocating them for every file', (): void => {
-    const source = sourceText('../../src/rules/effect-rule-core.ts');
+    const source = sourceText('../../src/rules/internal/effect-rule-core.ts');
 
     expect(source).toContain('globalPatternCache');
     expect(source).not.toContain('return new RegExp(\n    pattern.source');
   });
 
   it('caches whole-file Effect signal checks used by AST visitors', (): void => {
-    const source = sourceText('../../src/rules/effect-rule-aliases.ts');
+    const source = sourceText('../../src/rules/internal/effect-rule-aliases.ts');
 
     expect(source).toContain('effectSignalCache');
     expect(source).toMatch(/cacheBoolean\(\s*effectSignalCache/);
   });
 
   it('uses a cheap Effect signal prefilter before stripping or alias parsing', (): void => {
-    const source = sourceText('../../src/rules/effect-rule-aliases.ts');
+    const source = sourceText('../../src/rules/internal/effect-rule-aliases.ts');
 
     expect(source).toContain("!source.includes('Effect')");
     expect(source).toContain("!source.includes('effect')");
@@ -76,10 +76,10 @@ const registerCacheInvariants = (): void => {
 
   it('does not mutate LRU maps on hot cache hits', (): void => {
     const source = joinedSourceText(
-      '../../src/rules/effect-rule-core.ts',
-      '../../src/rules/effect-rule-aliases.ts',
-      '../../src/rules/effect-default-scan-helpers.ts',
-      '../../src/rules/effect-default-floating-helpers.ts',
+      '../../src/rules/internal/effect-rule-core.ts',
+      '../../src/rules/internal/effect-rule-aliases.ts',
+      '../../src/rules/internal/effect-default-scan-helpers.ts',
+      '../../src/rules/internal/effect-default-floating-helpers.ts',
     );
 
     expect(source).not.toContain('lineStartCache.delete(source)');
@@ -88,7 +88,7 @@ const registerCacheInvariants = (): void => {
   });
 
   it('does not allocate copied alias arrays on cache hits', (): void => {
-    const source = sourceText('../../src/rules/effect-rule-aliases.ts');
+    const source = sourceText('../../src/rules/internal/effect-rule-aliases.ts');
 
     expect(source).not.toContain('return [...cachedValue]');
   });
@@ -119,7 +119,7 @@ const registerCacheInvariants = (): void => {
   });
 
   it('caches individual token presence by source so overlapping rule gates do not rescan files', (): void => {
-    const source = sourceText('../../src/rules/effect-rule-core.ts');
+    const source = sourceText('../../src/rules/internal/effect-rule-core.ts');
 
     expect(source).toContain('sourceTokenPresenceCache');
     expect(source).toContain('const hasTokenInSourceCached');
@@ -127,7 +127,9 @@ const registerCacheInvariants = (): void => {
   });
 
   it('caches default helper Effect alias patterns and call regexes by source', (): void => {
-    const defaultHelpersSource = sourceText('../../src/rules/effect-default-scan-helpers.ts');
+    const defaultHelpersSource = sourceText(
+      '../../src/rules/internal/effect-default-scan-helpers.ts',
+    );
 
     expect(defaultHelpersSource).toContain('effectAliasesPatternCache');
     expect(defaultHelpersSource).toContain('effectCallPatternCache');
@@ -136,7 +138,9 @@ const registerCacheInvariants = (): void => {
   });
 
   it('caches floating Effect regex bundles by alias pattern', (): void => {
-    const defaultHelpersSource = sourceText('../../src/rules/effect-default-floating-helpers.ts');
+    const defaultHelpersSource = sourceText(
+      '../../src/rules/internal/effect-default-floating-helpers.ts',
+    );
 
     expect(defaultHelpersSource).toContain('floatingEffectPatternCache');
     expect(defaultHelpersSource).toContain('const floatingEffectPatterns');
@@ -147,9 +151,9 @@ const registerCacheInvariants = (): void => {
 const registerTokenInvariants = (): void => {
   it('uses per-rule tokens for expensive Program-only Effect checks', (): void => {
     const defaultRulesSource = joinedSourceText(
-      '../../src/rules/effect-default.ts',
-      '../../src/rules/effect-default-env-rules.ts',
-      '../../src/rules/effect-default-compat-rules.ts',
+      '../../src/rules/internal/effect-default.ts',
+      '../../src/rules/internal/effect-default-env-rules.ts',
+      '../../src/rules/internal/effect-default-compat-rules.ts',
     );
 
     for (const [ruleName, tokenLine] of [
@@ -165,7 +169,9 @@ const registerTokenInvariants = (): void => {
   });
 
   it('checks floating Effect lines without splitting the whole source', (): void => {
-    const defaultHelpersSource = sourceText('../../src/rules/effect-default-floating-helpers.ts');
+    const defaultHelpersSource = sourceText(
+      '../../src/rules/internal/effect-default-floating-helpers.ts',
+    );
 
     expect(defaultHelpersSource).not.toContain("code.split('\\n')");
   });

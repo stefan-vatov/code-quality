@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stripComments } from '../../src/rules/effect-source-helpers';
+import { stripComments } from '../../src/rules/internal/effect-source-helpers';
 
 describe('stripComments Unicode and template contracts', (): void => {
   it('preserves UTF-16 length and offsets around astral comment text', (): void => {

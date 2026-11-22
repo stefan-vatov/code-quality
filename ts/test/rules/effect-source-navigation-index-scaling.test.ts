@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { findStatementEnd, isInsideCall } from '../../src/rules/effect-source-navigation';
-import { sourceNavigationIndex } from '../../src/rules/effect-source-navigation-index';
+import { findStatementEnd, isInsideCall } from '../../src/rules/internal/effect-source-navigation';
+import { sourceNavigationIndex } from '../../src/rules/internal/effect-source-navigation-index';
 
 const CALL_PATTERN = /Effect\.runPromise\s*\(/g;
 

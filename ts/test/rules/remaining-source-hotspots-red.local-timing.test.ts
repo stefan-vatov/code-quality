@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasReturnEffectInGen } from '../../src/rules/effect-default-workflow-helpers';
+import { hasReturnEffectInGen } from '../../src/rules/internal/effect-default-workflow-helpers';
 import { performance } from 'node:perf_hooks';
 
 const SCALING_RATIO_LIMIT = 8;

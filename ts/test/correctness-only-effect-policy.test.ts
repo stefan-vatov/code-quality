@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { effectStrictRuleNames } from '../src/rules/effect-rule-names';
-import { effectStrictCoreSpecs } from '../src/rules/effect-strict-core-specs';
+import { effectStrictRuleNames } from '../src/internal/effect-rule-names';
+import { effectStrictCoreSpecs } from '../src/rules/internal/effect-strict-core-specs';
 import config from '../src/index';
-import { effectDefaultRuleNames } from '../src/rules/effect-rule-names';
+import { effectDefaultRuleNames } from '../src/internal/effect-rule-names';
 import plugin from '../src/rules/plugin';
 
 describe('retained Effect policy', () => {

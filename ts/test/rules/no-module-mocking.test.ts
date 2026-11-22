@@ -1,6 +1,6 @@
 import { RuleTester } from 'oxlint/plugins-dev';
 
-import { noModuleMockingRule } from '../../src/rules/no-module-mocking';
+import { noModuleMockingRule } from '../../src/rules/internal/no-module-mocking';
 
 const tester = new RuleTester({ languageOptions: { parserOptions: { lang: 'ts' } } });
 const error = { messageId: 'moduleMock' };

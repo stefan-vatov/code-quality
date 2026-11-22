@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bindingPatternNames } from '../../src/rules/effect-export-binding-patterns';
+import { bindingPatternNames } from '../../src/rules/internal/effect-export-binding-patterns';
 
 describe('remaining source recursion regressions', (): void => {
   it('keeps deeply nested export binding patterns stack-safe', (): void => {

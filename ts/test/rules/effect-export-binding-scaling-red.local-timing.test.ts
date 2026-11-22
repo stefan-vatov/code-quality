@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bindingPatternNames } from '../../src/rules/effect-export-binding-patterns';
+import { bindingPatternNames } from '../../src/rules/internal/effect-export-binding-patterns';
 import { performance } from 'node:perf_hooks';
 
 const SMALL_DEPTH = 2_000;

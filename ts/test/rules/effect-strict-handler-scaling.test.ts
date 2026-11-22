@@ -9,11 +9,11 @@ import {
   assertNearLinearScaling,
 } from '../../bench/effect-strict-handler-scaling';
 import { describe, expect, it } from 'vitest';
-import type { Context } from '../../src/rules/effect-rule-core';
+import type { Context } from '../../src/rules/internal/effect-rule-core';
 import { fileURLToPath } from 'node:url';
-import { hasRunSyncInServerRequestHandler } from '../../src/rules/effect-strict-source-predicates';
+import { hasRunSyncInServerRequestHandler } from '../../src/rules/internal/effect-strict-source-predicates';
 import { readFileSync } from 'node:fs';
-import { runSyncServerHandlerAST } from '../../src/rules/effect-strict-server-handler-ast';
+import { runSyncServerHandlerAST } from '../../src/rules/internal/effect-strict-server-handler-ast';
 
 const HANDLER_ASSIGNMENT_PATTERN = /\b(?:handler|route|loader|action)\s*=/g;
 

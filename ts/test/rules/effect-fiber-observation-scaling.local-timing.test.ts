@@ -3,8 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
-const fiberHelpersURL = new URL('../../src/rules/effect-default-fiber-helpers.ts', import.meta.url)
-  .href;
+const fiberHelpersURL = new URL(
+  '../../src/rules/internal/effect-default-fiber-helpers.ts',
+  import.meta.url,
+).href;
 const SCALING_SMALL_COUNT = 500;
 const SCALING_LARGE_COUNT = 8_000;
 const SCALING_MULTIPLIER = SCALING_LARGE_COUNT / SCALING_SMALL_COUNT;

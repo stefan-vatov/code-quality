@@ -18,9 +18,11 @@ ts/bench/
 └─ run-all.ts        ← Master runner: one command benchmarks everything
 
 ts/src/rules/
-├─ char-class.ts     ← 256-byte Uint8Array character class table (shared)
-├─ <rule>.ts         ← Rule implementations (use char-class.ts)
-└─ ...
+├─ plugin.ts         ← Public plugin entry
+└─ internal/
+   ├─ char-class.ts  ← 256-byte Uint8Array character class table (shared)
+   ├─ <rule>.ts      ← Rule implementations (use char-class.ts)
+   └─ ...
 ```
 
 ## Phase 1: Establish baseline (passes 0-5)
@@ -58,7 +60,7 @@ For every heuristic function, ask: what does it spend time on?
 This is the **single most impactful optimization**. Build it once, use it everywhere.
 
 ```typescript
-// ts/src/rules/char-class.ts
+// ts/src/rules/internal/char-class.ts
 // 256-byte Uint8Array: one lookup replaces 2-3 comparisons.
 const CHAR_CLASS = new Uint8Array(128);
 

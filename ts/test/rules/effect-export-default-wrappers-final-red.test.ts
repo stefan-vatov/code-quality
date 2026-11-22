@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportedDeclarationTexts } from '../../src/rules/effect-exported-declarations';
+import { exportedDeclarationTexts } from '../../src/rules/internal/effect-exported-declarations';
 
 const sourceLines = (...lines: string[]): string => lines.join('\n');
 

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { findBalancedCallEnd, findMatchingBrace } from '../../src/rules/effect-source-scan';
-import { findStatementEnd, isInsideCall } from '../../src/rules/effect-source-navigation';
+import {
+  findBalancedCallEnd,
+  findMatchingBrace,
+} from '../../src/rules/internal/effect-source-scan';
+import { findStatementEnd, isInsideCall } from '../../src/rules/internal/effect-source-navigation';
 import { parseSync } from 'oxc-parser';
-import { sourceNavigationIndex } from '../../src/rules/effect-source-navigation-index';
+import { sourceNavigationIndex } from '../../src/rules/internal/effect-source-navigation-index';
 
 const CALL_PATTERN = /Effect\.runPromise\s*\(/g;
 const SHALLOW_TEMPLATE_DEPTH = 2;

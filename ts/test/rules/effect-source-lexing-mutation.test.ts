@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { stripComments } from '../../src/rules/effect-source-comments';
+import { stripComments } from '../../src/rules/internal/effect-source-comments';
 import {
   findStatementEnd,
   isInsideCall,
   sameFunctionTail,
   statementAfter,
-} from '../../src/rules/effect-source-navigation';
-import { findREGEXLiteralEnd, isREGEXLiteralStart } from '../../src/rules/effect-source-regex-scan';
+} from '../../src/rules/internal/effect-source-navigation';
+import {
+  findREGEXLiteralEnd,
+  isREGEXLiteralStart,
+} from '../../src/rules/internal/effect-source-regex-scan';
 
 describe('stripComments', (): void => {
   it('preserves CRLF source positions while removing a line comment', (): void => {

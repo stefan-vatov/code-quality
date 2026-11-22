@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path';
 import { parseSync } from 'oxc-parser';
 import { expect } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import type { ASTNode, ASTValue } from '../../src/rules/effect-ast';
-import { isASTArray, isASTNode } from '../../src/rules/effect-ast';
-import type { Context, SourceRule, VisitorMap } from '../../src/rules/effect-rule-core';
+import type { ASTNode, ASTValue } from '../../src/rules/internal/effect-ast';
+import { isASTArray, isASTNode } from '../../src/rules/internal/effect-ast';
+import type { Context, SourceRule, VisitorMap } from '../../src/rules/internal/effect-rule-core';
 import plugin from '../../src/rules/plugin';
 
 type Report = Parameters<Context['report']>[0] & {

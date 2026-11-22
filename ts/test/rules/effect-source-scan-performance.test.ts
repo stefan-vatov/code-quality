@@ -3,13 +3,13 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const sourceScanPath = fileURLToPath(
-  new URL('../../src/rules/effect-source-scan.ts', import.meta.url),
+  new URL('../../src/rules/internal/effect-source-scan.ts', import.meta.url),
 );
 const defaultFloatingHelpersPath = fileURLToPath(
-  new URL('../../src/rules/effect-default-floating-helpers.ts', import.meta.url),
+  new URL('../../src/rules/internal/effect-default-floating-helpers.ts', import.meta.url),
 );
 const exportedDeclarationsPath = fileURLToPath(
-  new URL('../../src/rules/effect-exported-declarations.ts', import.meta.url),
+  new URL('../../src/rules/internal/effect-exported-declarations.ts', import.meta.url),
 );
 
 describe('Effect source scanner performance invariants', () => {

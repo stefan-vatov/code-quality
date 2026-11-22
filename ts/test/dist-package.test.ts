@@ -21,7 +21,7 @@ const distPackageTestTimeoutMs = 30_000;
 
 type BuiltConfigFactory = typeof import('../src/index').default;
 type BuiltPlugin = typeof import('../src/rules/plugin');
-type BuiltRuleNames = typeof import('../src/rules/effect-rule-names');
+type BuiltRuleNames = typeof import('../src/internal/effect-rule-names');
 
 type CliAstCase = {
   filename: string;
@@ -204,7 +204,7 @@ describe('published TypeScript package shape', (): void => {
       });
 
       const declarations = readFileSync(
-        join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.d.ts'),
+        join(repoRoot, 'ts', 'dist', 'internal', 'effect-rule-names.d.ts'),
         'utf8',
       );
       const publicDeclarations = readFileSync(join(repoRoot, 'ts', 'dist', 'index.d.ts'), 'utf8');
@@ -231,7 +231,7 @@ describe('published TypeScript package shape', (): void => {
         join(repoRoot, 'ts', 'dist', 'index.js'),
       );
       const { effectDefaultRuleNames, effectStrictRuleNames } = await importFresh<BuiltRuleNames>(
-        join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
+        join(repoRoot, 'ts', 'dist', 'internal', 'effect-rule-names.js'),
       );
       const config = theThracianOxlint({
         effect: true,
@@ -375,7 +375,7 @@ describe('published TypeScript package CLI rules', (): void => {
           join(repoRoot, 'ts', 'dist', 'index.js'),
         );
         const { effectDefaultRuleNames, effectStrictRuleNames } = await importFresh<BuiltRuleNames>(
-          join(repoRoot, 'ts', 'dist', 'rules', 'effect-rule-names.js'),
+          join(repoRoot, 'ts', 'dist', 'internal', 'effect-rule-names.js'),
         );
         const selectedConfig = theThracianOxlint({
           effect: true,

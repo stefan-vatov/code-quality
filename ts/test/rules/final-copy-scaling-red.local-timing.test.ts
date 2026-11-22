@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { exportedDeclarationTexts } from '../../src/rules/effect-exported-declarations';
-import { hasRecursiveEffectSource } from '../../src/rules/effect-recursion-source';
+import { exportedDeclarationTexts } from '../../src/rules/internal/effect-exported-declarations';
+import { hasRecursiveEffectSource } from '../../src/rules/internal/effect-recursion-source';
 import { performance } from 'node:perf_hooks';
 
 interface Measurement {

@@ -3,10 +3,10 @@ import {
   type RuleSpec,
   type VisitorMap,
   makeRules,
-} from '../../src/rules/effect-rule-core';
-import type { ASTNode } from '../../src/rules/effect-ast';
+} from '../../src/rules/internal/effect-rule-core';
+import type { ASTNode } from '../../src/rules/internal/effect-ast';
 import { describe, expect, it, vi } from 'vitest';
-import { effectDiagnosticMessage } from '../../src/rules/diagnostic-guidance';
+import { effectDiagnosticMessage } from '../../src/rules/internal/diagnostic-guidance';
 
 interface Report {
   message: string;

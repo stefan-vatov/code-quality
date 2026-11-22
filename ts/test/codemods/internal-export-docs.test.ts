@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addInternalExportDocs } from '../../src/codemods/internal-export-docs';
+import { addInternalExportDocs } from '../../src/codemod-fix/internal/internal-export-docs';
 
 describe('addInternalExportDocs', (): void => {
   it('adds internal JSDoc to exported declarations in internal files', (): void => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stripComments } from '../../src/rules/effect-source-comments';
+import { stripComments } from '../../src/rules/internal/effect-source-comments';
 
 describe('final source review regressions', (): void => {
   it('preserves a regex character class after a JSX element', (): void => {

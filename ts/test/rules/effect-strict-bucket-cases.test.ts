@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import theThracianOxlint from '../../src/index';
-import { effectStrictRuleNames } from '../../src/rules/effect-rule-names';
+import { effectStrictRuleNames } from '../../src/internal/effect-rule-names';
 import type { RuleCase } from './effect-rule-test-utils';
 import { runConfiguredRules, runRule, sorted } from './effect-rule-test-utils';
 

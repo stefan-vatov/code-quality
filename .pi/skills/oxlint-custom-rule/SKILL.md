@@ -4,7 +4,7 @@ Use this skill when adding a new custom lint rule to the `@thethracian/oxlint-co
 
 ## Architecture
 
-One package (`ts/`, publishing as `@thethracian/oxlint-config`). Rules go into `ts/src/rules/`, compile to `ts/dist/rules/`, and the config references them via `jsPlugins`.
+One package (`ts/`, publishing as `@thethracian/oxlint-config`). Rule implementations go into `ts/src/rules/internal/` (private to `ts/src/rules/`, enforced by `go-internal/boundaries`), `ts/src/rules/plugin.ts` is the public plugin entry, and everything compiles to `ts/dist/rules/`. The config references the plugin via `jsPlugins`.
 
 ```
 ts/
@@ -30,7 +30,7 @@ ts/
 1. Research the rule semantics thoroughly (what should it catch vs allow).
 2. Write test fixture files (`valid.ts`, `invalid.ts`) first.
 3. Write the test file with the fixture tests and individual behavior tests.
-4. Implement the rule logic in `ts/src/rules/<rule-name>.ts`.
+4. Implement the rule logic in `ts/src/rules/internal/<rule-name>.ts`.
 5. Register the rule in `ts/src/rules/plugin.ts`.
 6. Wire the rule into the config in `ts/src/index.ts`.
 7. Run tests → `npx vitest run --config vitest.config.mts ts/test/rules/<rule-name>.test.ts`
@@ -152,7 +152,7 @@ const rule = {
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import myHeuristic from '../../src/rules/<rule-name>.js';
+import myHeuristic from '../../src/rules/internal/<rule-name>.js';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

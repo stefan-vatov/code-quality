@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatJSDocComments } from '../../src/codemods/format-jsdoc-comments';
+import { formatJSDocComments } from '../../src/codemod-fix/internal/format-jsdoc-comments';
 
 describe('formatJSDocComments', () => {
   it('rewrites single-line JSDoc into classic block JSDoc', () => {

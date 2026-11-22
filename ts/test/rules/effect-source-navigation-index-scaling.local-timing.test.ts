@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { performance } from 'node:perf_hooks';
-import { sourceNavigationIndex } from '../../src/rules/effect-source-navigation-index';
+import { sourceNavigationIndex } from '../../src/rules/internal/effect-source-navigation-index';
 
 const QUERY_ITERATIONS = 1_024;
 const STATEMENT_QUERY_ITERATIONS = 8_192;

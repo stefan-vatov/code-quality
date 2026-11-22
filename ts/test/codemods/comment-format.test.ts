@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { formatJSDoc, formatMainHeader, formatSubheader } from '../../src/codemods/comment-format';
+import {
+  formatJSDoc,
+  formatMainHeader,
+  formatSubheader,
+} from '../../src/codemod-fix/internal/comment-format';
 
 describe('comment-format', () => {
   it('formats JSDoc with text on its own comment line', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { preferConciseArrowBodies } from '../../src/codemods/arrow-body-style';
+import { preferConciseArrowBodies } from '../../src/codemod-fix/internal/arrow-body-style';
 
 describe('preferConciseArrowBodies', () => {
   it('converts single-return arrow blocks to concise expression bodies', () => {

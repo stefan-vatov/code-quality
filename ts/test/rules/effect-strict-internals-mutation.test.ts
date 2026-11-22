@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasRunSyncInServerRequestHandler } from '../../src/rules/effect-strict-internals';
+import { hasRunSyncInServerRequestHandler } from '../../src/rules/internal/effect-strict-internals';
 
 describe('public Effect API boundaries', (): void => {
   const booleanCases = [

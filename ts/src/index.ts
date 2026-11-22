@@ -1,6 +1,6 @@
 import { dirname, join } from 'node:path';
 import { Option, Predicate } from 'effect';
-import { effectDefaultRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
+import { effectDefaultRuleNames, effectStrictRuleNames } from './internal/effect-rule-names';
 import { defineConfig } from 'oxlint';
 import { fileURLToPath } from 'node:url';
 

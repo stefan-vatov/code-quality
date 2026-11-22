@@ -13,6 +13,12 @@ This is a pnpm + Nx workspace. Each package lives at the repository root in a si
 - `ts/`: `@thethracian/oxlint-config`
   - Importable first-party Oxlint config for TypeScript projects.
   - Consumers import this package directly from their Oxlint config.
+  - Source follows Go-style `internal/` directories, enforced by `go-internal/boundaries` in
+    repository lint and pinned by `ts/test/source-layout.test.ts`. Public modules are only
+    `src/index.ts`, `src/rules/plugin.ts`, `src/codemod-fix/index.ts`, and `src/codemod-fix/cli.ts`.
+    Rule modules live in `src/rules/internal/`, codemods in `src/codemod-fix/internal/`, and
+    modules shared by the config entry point and the rules (`effect-rule-names.ts`) in
+    `src/internal/`.
 - `rust/`: `cargo-thx-lint`
   - Cargo subcommand published as a crates.io crate.
   - Consumers install it with `cargo install cargo-thx-lint` and run `cargo thx-lint init --write`.

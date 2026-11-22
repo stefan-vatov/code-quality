@@ -3,8 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const repositoryRoot = fileURLToPath(new URL('../../..', import.meta.url));
-const helperURL = new URL('../../src/rules/effect-default-workflow-helpers.ts', import.meta.url)
-  .href;
+const helperURL = new URL(
+  '../../src/rules/internal/effect-default-workflow-helpers.ts',
+  import.meta.url,
+).href;
 const SMALL_DEPTH = 2_048;
 const LARGE_DEPTH = 6_000;
 const CHILD_TIMEOUT_MS = 2_000;

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readCachedSource } from '../../src/rules/source-cache';
+import { readCachedSource } from '../../src/rules/internal/source-cache';
 
 describe('source cache hot path', () => {
   it('does not call sourceCode.getText more than once for the same source object', () => {
