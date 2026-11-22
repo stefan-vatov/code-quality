@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 - 2026-11-22
+
+### Fixes
+
+- fix(ts): patch vulnerable dependencies (0cb1ec0)
+
 ## 0.9.0 - 2026-11-22
 
 ### Breaking Changes
