@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0 - 2026-11-22
+
+### Breaking Changes
+
+- feat(ts)!: make jscodeshift an optional peer dependency (8d092b6)
+
 ## 0.9.1 - 2026-11-22
 
 ### Fixes
