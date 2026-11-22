@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 - 2026-11-22
+
+### Breaking Changes
+
+- feat(ts)!: forbid try, catch, and throw (9cea810)
+
 ## 0.8.0 - 2026-09-05
 
 ### Breaking Changes
