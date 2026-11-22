@@ -5,6 +5,7 @@ import plugin from '../../src/rules/plugin';
 
 const pluginPath = fileURLToPath(new URL('../../src/rules/plugin.ts', import.meta.url));
 const packagePath = fileURLToPath(new URL('../../package.json', import.meta.url));
+const workspacePackagePath = fileURLToPath(new URL('../../../package.json', import.meta.url));
 
 describe('Oxlint JS plugin performance API', () => {
   it('wraps the published plugin with Oxlint eslintCompatPlugin', () => {
@@ -41,8 +42,13 @@ describe('Oxlint JS plugin performance API', () => {
       peerDependenciesMeta?: Record<string, { optional?: boolean }>;
     };
 
-    expect(packageJson.dependencies?.['oxlint-tsgolint']).toBeDefined();
-    expect(packageJson.devDependencies?.oxlint).toBeDefined();
+    const workspaceJson = JSON.parse(readFileSync(workspacePackagePath, 'utf-8')) as {
+      devDependencies?: Record<string, string>;
+    };
+
+    expect(packageJson.dependencies?.['oxlint-tsgolint']).toBe('^7.0.2008');
+    expect(packageJson).not.toHaveProperty('devDependencies');
+    expect(workspaceJson.devDependencies?.oxlint).toBeDefined();
     expect(packageJson.peerDependencies?.oxlint).toBeDefined();
     expect(packageJson.peerDependenciesMeta?.['oxlint-tsgolint']?.optional).not.toBe(true);
   });

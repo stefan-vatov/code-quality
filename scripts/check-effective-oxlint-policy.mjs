@@ -34,8 +34,12 @@ const normalizeSetting = (setting) => {
   return [normalizeSeverity(severity), ...unwrappedOptions];
 };
 
+const jsPluginNamespaces = ['thethracian/', 'go-internal/'];
+
 const nativeEntries = (rules) =>
-  Object.entries(rules ?? {}).filter(([ruleName]) => !ruleName.startsWith('thethracian/'));
+  Object.entries(rules ?? {}).filter(
+    ([ruleName]) => !jsPluginNamespaces.some((namespace) => ruleName.startsWith(namespace)),
+  );
 
 const sourceConfig = theThracianOxlint({ effect: false, typeAware: true });
 const baseSourceConfig = theThracianOxlint({ effect: false });
@@ -115,6 +119,12 @@ assert.equal(
   normalizeSeverity(severityOf(effectConfig.rules?.['thethracian/no-service-constructor-imports'])),
   'error',
   'effect: true must enable the service-constructor import rule as an error',
+);
+
+assert.equal(
+  normalizeSeverity(severityOf(printedConfig.rules?.['go-internal/boundaries'])),
+  'error',
+  'repository lint must enforce go-internal/boundaries as an error',
 );
 
 console.log(

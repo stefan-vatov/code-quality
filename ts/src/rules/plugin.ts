@@ -20,7 +20,7 @@ import { noServiceConstructorImportsRule } from './no-service-constructor-import
 
 type OxlintPlugin = Parameters<typeof eslintCompatPlugin>[0];
 
-const plugin = {
+const plugin: OxlintPlugin = {
   meta: {
     name: 'thethracian',
   },
@@ -46,12 +46,4 @@ const plugin = {
   },
 };
 
-type PluginBridgeInput = OxlintPlugin | typeof plugin;
-
-const toOxlintPlugin = (value: PluginBridgeInput): OxlintPlugin => {
-  return value as OxlintPlugin;
-};
-
-const validPlugin = toOxlintPlugin(plugin);
-
-export default eslintCompatPlugin(validPlugin);
+export default eslintCompatPlugin(plugin);

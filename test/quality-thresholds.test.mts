@@ -215,7 +215,8 @@ describe('quality gate documentation and release verification', () => {
     expect(packageJSON.scripts['test:oxlint-min-peer']).toBe(
       'pnpm --dir ts build && node ts/test/oxlint-min-peer/verify.mts',
     );
-    expect(packageJSON.devDependencies.oxlint).toBe('^1.66.0');
+    expect(packageJSON.devDependencies.oxlint).toBe('^1.94.0');
+    expect(packageJSON.devDependencies['oxlint-tsgolint']).toBe('^7.0.2008');
     expect(ciWorkflow).toContain('oxlint-min-peer:');
     expect(ciWorkflow).toContain('name: Oxlint 1.66.0 minimum peer compatibility');
     expect(ciWorkflow).toContain('run: pnpm run test:oxlint-min-peer');

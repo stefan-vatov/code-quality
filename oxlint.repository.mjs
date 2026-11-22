@@ -2,6 +2,8 @@ export const repositoryConfig = (factory) => {
   const config = factory({ effect: true, typeAware: true });
   return {
     ...config,
+    jsPlugins: [...(config.jsPlugins ?? []), 'oxlint-plugin-go-internal'],
+    rules: { ...config.rules, 'go-internal/boundaries': 'error' },
     ignorePatterns: [
       '**/*.{js,mjs,cjs,jsx}',
       '**/node_modules/**',

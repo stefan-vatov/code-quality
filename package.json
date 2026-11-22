@@ -69,8 +69,9 @@
     "nx": "^22.7.12",
     "oxc-parser": "0.128.0",
     "oxfmt": "^0.43.0",
-    "oxlint": "^1.66.0",
-    "oxlint-tsgolint": "^0.22.1",
+    "oxlint": "^1.94.0",
+    "oxlint-plugin-go-internal": "0.2.0",
+    "oxlint-tsgolint": "^7.0.2008",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "~4.1.12"

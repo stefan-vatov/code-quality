@@ -18,8 +18,11 @@ describe('repository-wide TypeScript policy', () => {
       const selected = factory({ effect: true, typeAware: true });
 
       expect(calls).toEqual([{ effect: true, typeAware: true }]);
-      expect(config.rules).toEqual(selected.rules);
-      expect(config.jsPlugins).toEqual(selected.jsPlugins);
+      expect(config.rules).toEqual({ ...selected.rules, 'go-internal/boundaries': 'error' });
+      expect(config.jsPlugins).toEqual([
+        ...(selected.jsPlugins ?? []),
+        'oxlint-plugin-go-internal',
+      ]);
       expect(config.plugins).toEqual(selected.plugins);
       expect(config.options.denyWarnings).toBe(true);
       for (const [rule, setting] of Object.entries(config.rules)) {

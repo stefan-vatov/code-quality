@@ -129,11 +129,13 @@ When changing repo tooling:
 - Normal lint commands, staged hooks, and Nx TypeScript lint use the locally built package.
   `lint:published:type-aware` is reserved for validating the installed published consumer config.
   Both configs share `oxlint.repository.mjs`. Repository configuration calls
-  `factory({ effect: true, typeAware: true })` and adds ignores, without extra rules or path groups.
-  The local config enables 211 errors: 160 reviewed native rules, 15 base package rules, the
-  service-constructor rule, and all 35 retained Effect rules. With `typeAware: true`, the base preset
+  `factory({ effect: true, typeAware: true })`, adds ignores, and adds one repository-only rule:
+  `go-internal/boundaries` from `oxlint-plugin-go-internal` (pinned exactly; Go-style `internal/`
+  directory boundaries). It is never part of the published preset. No path groups are added.
+  The local factory enables 211 errors: 160 reviewed native rules, 15 base package rules, the
+  service-constructor rule, and all 35 retained Effect rules; repository lint runs 212 with the plugin. With `typeAware: true`, the base preset
   enables 175 errors; syntax-only totals are 144 without Effect and 180 with Effect.
-  The installed published 0.9.0 factory also enables 211 errors with Effect: 160 native,
+  The installed published 0.10.1 factory also enables 211 errors with Effect: 160 native,
   15 base package rules, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while
   excluding tests, scripts, benchmarks, JavaScript, and generated/dependency output. Test programs

@@ -194,7 +194,9 @@ non-test fixtures.
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.
 
-Repository configuration adds no extra rules or path groups. The installed published 0.9.0 factory
+Repository configuration adds one repository-only rule, `go-internal/boundaries` from
+`oxlint-plugin-go-internal`, which enforces Go-style `internal/` directory boundaries in this repo.
+It is not part of the published preset, and no path groups are added. The installed published 0.10.1 factory
 also enables 211 errors with Effect (160 native, 15 base package rules, 35 Effect rules, and the
 service-constructor rule).
 

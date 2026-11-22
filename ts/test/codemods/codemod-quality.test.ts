@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { addInternalExportDocs } from '../../src/codemods/internal-export-docs';
 import { addVoidReturnTypes } from '../../src/codemods/explicit-return-types';
 import { formatFileHeaderComment } from '../../src/codemods/format-file-header';
@@ -3454,6 +3454,11 @@ describe('codemod quality gate', (): void => {
 
   it('produces repository-lint-clean TypeScript for every codemod sample', (): void => {
     writeTransformedOutputs();
+    const outputFiles = readdirSync(outputRoot, { recursive: true, encoding: 'utf8' })
+      .filter((path): boolean => path.endsWith('.ts'))
+      .map((path): string => join(outputRoot, path))
+      .sort();
+    expect(outputFiles.length).toBeGreaterThan(0);
 
     const result = spawnSync(
       'pnpm',
@@ -3462,7 +3467,7 @@ describe('codemod quality gate', (): void => {
         'oxlint',
         '-c',
         outputOxlintConfig,
-        outputRoot,
+        ...outputFiles,
         '--tsconfig',
         join(outputRoot, 'tsconfig.json'),
         '--type-aware',

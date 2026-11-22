@@ -170,7 +170,7 @@ export const moduleLevelMatches = (
   const matches: ModuleSourceMatch[] = [];
   for (const match of index.code.matchAll(pattern)) {
     if (index.modulePositions[match.index] === 1) {
-      matches.push(match as ModuleSourceMatch);
+      matches.push(match);
     }
   }
   return matches;
