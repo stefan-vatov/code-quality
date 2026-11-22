@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1 - 2026-11-22
+
+### Fixes
+
+- fix(ts): stop declaring jscodeshift in the published manifest (4d2d230)
+
 ## 0.10.0 - 2026-11-22
 
 ### Breaking Changes
