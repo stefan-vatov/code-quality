@@ -231,3 +231,10 @@ rules.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Third-party notice
+
+Portions of the generic TypeScript safety rules (the `no-reflect-*`, `no-unknown-*`,
+`no-known-value-widening`, `no-widen-then-assert`, and related `thethracian/` rules) are adapted
+from [anti-slop](https://github.com/dmmulroy/anti-slop), Copyright (c) 2026 Dillon Mulroy, used
+under the MIT License.
