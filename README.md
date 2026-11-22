@@ -192,8 +192,8 @@ non-test fixtures.
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.
 
-Repository configuration adds no extra rules or path groups. The installed published 0.8.0 factory
-also enables 210 errors with Effect (160 native, 14 generic, 35 Effect rules, and the
+Repository configuration adds no extra rules or path groups. The installed published 0.9.0 factory
+also enables 211 errors with Effect (160 native, 15 base package rules, 35 Effect rules, and the
 service-constructor rule).
 
 `pnpm run lint:published:type-aware` checks the installed published package independently. CI uses
