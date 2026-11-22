@@ -1,5 +1,5 @@
 import { dirname, join } from 'node:path';
-import { Predicate } from 'effect';
+import { Option, Predicate } from 'effect';
 import { effectDefaultRuleNames, effectStrictRuleNames } from './rules/effect-rule-names';
 import { defineConfig } from 'oxlint';
 import { fileURLToPath } from 'node:url';
@@ -251,10 +251,12 @@ const typeAwareNativeRuleNames = [
 const typeAwareNativeRuleNameSet = new Set<string>(typeAwareNativeRuleNames);
 
 const buildEffectRules = (effect: boolean | undefined): RuleMap => {
-  if (effect !== undefined && !Predicate.isBoolean(effect)) {
-    throw new TypeError('effect must be a boolean');
-  }
-  if (!effect) return {};
+  if (effect === undefined) return {};
+  const enabled = Option.getOrThrowWith(
+    Option.liftPredicate(effect, Predicate.isBoolean),
+    () => new TypeError('effect must be a boolean'),
+  );
+  if (!enabled) return {};
   return Object.fromEntries<'error'>([
     ...[...effectDefaultRuleNames, ...effectStrictRuleNames].map((name): [string, 'error'] => [
       `thethracian/${name}`,
@@ -344,6 +346,7 @@ export default function theThracianOxlint(
     rules: {
       ...baseRules(typeAwareRule),
       ...portedRules,
+      'thethracian/no-try-catch-throw': 'error',
       ...buildEffectRules(options.effect),
     },
   });

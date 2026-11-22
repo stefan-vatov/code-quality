@@ -34,7 +34,7 @@ describe('retained Effect policy', () => {
     for (const name of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
       expect(rules).toHaveProperty(`thethracian/${name}`, 'error');
     }
-    expect(Object.keys(rules ?? {})).toHaveLength(210);
+    expect(Object.keys(rules ?? {})).toHaveLength(211);
   });
 
   it('rejects the removed object configuration rather than silently ignoring old selections', () => {

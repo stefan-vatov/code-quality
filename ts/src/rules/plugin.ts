@@ -10,6 +10,7 @@ import { noReflectApplyRule } from './no-reflect-apply';
 import { noReflectGetRule } from './no-reflect-get';
 import { noRuntimeTypeofRule } from './no-runtime-typeof';
 import { noForbiddenTermInSymbolNamesRule } from './no-shape-in-symbol-names';
+import { noTryCatchThrowRule } from './no-try-catch-throw';
 import { noUnknownParametersRule } from './no-unknown-parameters';
 import { noUnknownReturnsRule } from './no-unknown-returns';
 import { noUnknownTypeAliasesRule } from './no-unknown-type-aliases';
@@ -35,6 +36,7 @@ const plugin = {
     'no-reflect-get': noReflectGetRule,
     'no-runtime-typeof': noRuntimeTypeofRule,
     'no-shape-in-symbol-names': noForbiddenTermInSymbolNamesRule,
+    'no-try-catch-throw': noTryCatchThrowRule,
     'no-unknown-parameters': noUnknownParametersRule,
     'no-unknown-returns': noUnknownReturnsRule,
     'no-unknown-type-aliases': noUnknownTypeAliasesRule,

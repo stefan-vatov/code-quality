@@ -1,5 +1,5 @@
 import type { Context } from './effect-rule-core';
-import { Predicate } from 'effect';
+import { Option, Predicate } from 'effect';
 import type {
   NativeDefinition,
   NativeReference,
@@ -19,30 +19,31 @@ export type {
 
 const nativeReferenceIndexes = new WeakMap<NativeSourceCode, WeakMap<object, NativeReference>>();
 
-const nativeScopeManagerFor = (sourceCode: NativeSourceCode): NativeSourceCode['scopeManager'] => {
-  try {
+const readNativeScopeManager = Option.liftThrowable(
+  (sourceCode: NativeSourceCode): NativeSourceCode['scopeManager'] => {
     const scopeManager = sourceCode.scopeManager;
     return Predicate.isRecord(scopeManager) && Array.isArray(scopeManager.scopes)
       ? scopeManager
       : undefined;
-  } catch {
-    return undefined;
-  }
-};
+  },
+);
+
+const readIsGlobalReference = Option.liftThrowable((sourceCode: NativeSourceCode): boolean =>
+  Predicate.isFunction(sourceCode.isGlobalReference),
+);
+
+const nativeScopeManagerFor = (sourceCode: NativeSourceCode): NativeSourceCode['scopeManager'] =>
+  Option.getOrUndefined(readNativeScopeManager(sourceCode));
 
 export const nativeSourceCodeFor = (context: Context): NativeSourceCode | undefined => {
   const sourceCode = context.sourceCode;
   if (!Predicate.isRecord(sourceCode)) {
     return undefined;
   }
-  try {
-    if (!Predicate.isFunction(sourceCode.isGlobalReference)) {
-      return undefined;
-    }
-    return nativeScopeManagerFor(sourceCode) === undefined ? undefined : sourceCode;
-  } catch {
+  if (!Option.getOrElse(readIsGlobalReference(sourceCode), () => false)) {
     return undefined;
   }
+  return nativeScopeManagerFor(sourceCode) === undefined ? undefined : sourceCode;
 };
 
 const addReference = (

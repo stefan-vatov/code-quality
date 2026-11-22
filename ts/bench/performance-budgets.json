@@ -552,6 +552,16 @@
       "p95LimitNs": 155106,
       "runs": 20
     },
+    "no-try-catch-throw": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 33660,
+      "observedMedianNs": 5610,
+      "observedP95Ns": 14657,
+      "operationsPerSample": 1,
+      "p95LimitNs": 100000,
+      "runs": 20
+    },
     "no-unknown-parameters": {
       "inputSamples": 7,
       "iterations": 20,

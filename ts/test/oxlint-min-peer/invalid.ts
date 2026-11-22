@@ -7,3 +7,13 @@ const program = Effect.gen(function* () {
 });
 export { program };
 export const handler = () => Effect.runSync(program);
+
+export const raise = () => {
+  try {
+    throw new Error('failed');
+  } finally {
+    cleanup();
+  }
+};
+
+declare function cleanup(): void;

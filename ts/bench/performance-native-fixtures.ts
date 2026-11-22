@@ -21,6 +21,7 @@ export const nativeRuleFixtures: readonly Fixture[] = [
       function write(input: object): void { consume(input); }
       const payloadShape = 1;
       const kind = typeof input;
+      try { read(input); } catch { throw new Error('failed'); }
     `,
   },
   {

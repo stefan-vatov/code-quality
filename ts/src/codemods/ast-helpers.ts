@@ -1,4 +1,4 @@
-import { Predicate } from 'effect';
+import { Option, Predicate } from 'effect';
 import type { Node } from 'jscodeshift';
 
 export interface CodemodRecord {
@@ -32,18 +32,18 @@ export const isCodemodNode = (value: CodemodValue): value is CodemodRecord =>
 
 export const nodeStart = (node: Node | CodemodRecord): number => {
   const start = 'start' in node ? node.start : undefined;
-  if (!Predicate.isNumber(start)) {
-    throw new Error('jscodeshift node is missing a start offset');
-  }
-  return start;
+  return Option.getOrThrowWith(
+    Option.liftPredicate(start, Predicate.isNumber),
+    () => new Error('jscodeshift node is missing a start offset'),
+  );
 };
 
 export const nodeEnd = (node: Node | CodemodRecord): number => {
   const end = 'end' in node ? node.end : undefined;
-  if (!Predicate.isNumber(end)) {
-    throw new Error('jscodeshift node is missing an end offset');
-  }
-  return end;
+  return Option.getOrThrowWith(
+    Option.liftPredicate(end, Predicate.isNumber),
+    () => new Error('jscodeshift node is missing an end offset'),
+  );
 };
 
 export const sourceForNode = (source: string, node: Node | CodemodRecord): string =>

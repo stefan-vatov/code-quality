@@ -131,11 +131,7 @@ const scanPattern = (
   const globalPattern = toGlobalRegExp(pattern);
   const isUnicodeMode = globalPattern.flags.includes('u') || globalPattern.flags.includes('v');
   globalPattern.lastIndex = 0;
-  try {
-    scanPatternMatches(source, globalPattern, isUnicodeMode, visit);
-  } finally {
-    globalPattern.lastIndex = 0;
-  }
+  scanPatternMatches(source, globalPattern, isUnicodeMode, visit);
 };
 
 const firstCodeMatchIndex = (

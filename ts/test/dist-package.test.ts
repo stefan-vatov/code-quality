@@ -254,6 +254,66 @@ describe('published TypeScript package shape', (): void => {
 
 describe('published TypeScript package CLI rules', (): void => {
   it(
+    'forbids exception syntax in the base preset and recommends typed Effect alternatives',
+    async (): Promise<void> => {
+      execFileSync('pnpm', ['--dir', 'ts', 'build'], {
+        cwd: repoRoot,
+        stdio: 'pipe',
+      });
+
+      const { default: theThracianOxlint } = await importFresh<{ default: BuiltConfigFactory }>(
+        join(repoRoot, 'ts', 'dist', 'index.js'),
+      );
+      const config = theThracianOxlint({ effect: false });
+      const rule = 'thethracian/no-try-catch-throw';
+      expect(config.rules?.[rule]).toBe('error');
+
+      const root = mkdtempSync(join(tmpdir(), 'thx-oxlint-exceptions-'));
+      try {
+        const configPath = join(root, '.oxlintrc.json');
+        writeFileSync(
+          configPath,
+          JSON.stringify({
+            categories: config.categories,
+            jsPlugins: config.jsPlugins,
+            rules: { [rule]: config.rules?.[rule] },
+          }),
+        );
+
+        const cases = [
+          ['throw new Error("failed");', 1],
+          ['try { work(); } catch (error) { handle(error); }', 1],
+          ['try { work(); } catch { recover(); }', 1],
+          ['try { work(); } finally { cleanUp(); }', 1],
+          ['try { throw new Error("failed"); } catch { recover(); }', 2],
+          ['Effect.try({ try: work, catch: handle }); task.catch(handle); task.throw(error);', 0],
+        ] as const;
+        for (const [source, count] of cases) {
+          const sourcePath = join(root, 'example.ts');
+          writeFileSync(sourcePath, source);
+          const output = runOxlintJSON(
+            [sourcePath, '--config', configPath, '--disable-nested-config', '--format', 'json'],
+            repoRoot,
+          );
+
+          expect(output, source).toContain('"diagnostics"');
+          expect(output.match(/"severity":\s*"error"/gu) ?? [], source).toHaveLength(count);
+          if (count > 0) {
+            expect(output).toContain('no-try-catch-throw');
+            expect(output).toContain('Effect');
+            expect(output).toContain('Result');
+            expect(output).toContain('Either');
+            expect(output).toContain('Option');
+          }
+        }
+      } finally {
+        rmSync(root, { force: true, recursive: true });
+      }
+    },
+    distPackageTestTimeoutMs,
+  );
+
+  it(
     'executes built custom Effect rules through the real Oxlint CLI',
     async (): Promise<void> => {
       execFileSync('pnpm', ['--dir', 'ts', 'build'], {
@@ -464,9 +524,13 @@ describe('full preset rule compatibility', (): void => {
       name: 'primitive type guards without instanceof or unchecked assertions',
       errors: [],
       source: `
+        import { Option } from 'effect';
         export function isString(value: unknown): value is string { return typeof value === 'string'; }
         export function assertString(value: unknown): asserts value is string {
-          if (typeof value !== 'string') throw new TypeError('expected string');
+          Option.getOrThrowWith(
+            typeof value === 'string' ? Option.some(value) : Option.none(),
+            () => new TypeError('expected string'),
+          );
         }
       `,
     },

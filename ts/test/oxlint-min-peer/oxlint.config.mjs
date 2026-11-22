@@ -10,5 +10,6 @@ export default {
     'thethracian/effect-no-floating-effect': 'error',
     'thethracian/effect-require-yield-star': 'error',
     'thethracian/effect-no-runSync-in-server-request-handlers': 'error',
+    'thethracian/no-try-catch-throw': packageConfig.rules['thethracian/no-try-catch-throw'],
   },
 };

@@ -56,10 +56,13 @@ TypeScript/Oxlint high-signal policy:
 - Size limits are complexity 10, nesting depth 5, file length 5,000 lines (excluding blank lines and comments), function length 150 lines, nested callbacks 6, and parameters 7. Line width is formatter-owned and has no lint cap.
 - Files are capped at 5,000 lines, excluding blank lines and comments. There is no import-count rule. Split oversized files along meaningful module boundaries rather than creating mechanical shards.
 - General naming preferences (except the imported symbol-name rule), null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
-- The package-local plugin also enables 14 TypeScript safety rules by default: assertion-chain,
+- The package-local plugin enables 15 TypeScript safety rules by default, including assertion-chain,
   conditional-spread, known-value-widening, module-mocking, object-parameter, Reflect, runtime
-  `typeof`, symbol-name, unknown-boundary, and dictionary checks. They remain under
+  `typeof`, symbol-name, unknown-boundary, dictionary, and exception syntax checks. They remain under
   the existing `thethracian` namespace and are all errors.
+- `thethracian/no-try-catch-throw` forbids `try` statements (including `try/finally`) and `throw`
+  statements in the base preset. Its diagnostic recommends Effect `Result` (`Either` in Effect 3)
+  for typed failure and `Option` for absence.
 - Explicit predicate and assertion functions may use runtime `typeof`; ordinary ad hoc narrowing
   remains banned. Predicate calls do not discard caller type evidence and are not widening.
   `typescript/no-unnecessary-type-parameters` is omitted because its broad-type replacements
@@ -121,9 +124,9 @@ When changing repo tooling:
   `lint:published:type-aware` is reserved for validating the installed published consumer config.
   Both configs share `oxlint.repository.mjs`. Repository configuration calls
   `factory({ effect: true, typeAware: true })` and adds ignores, without extra rules or path groups.
-  The local config enables 210 errors: 160 reviewed native rules, 14 generic rules, the
+  The local config enables 211 errors: 160 reviewed native rules, 15 base package rules, the
   service-constructor rule, and all 35 retained Effect rules. With `typeAware: true`, the base preset
-  enables 174 errors; syntax-only totals are 143 without Effect and 179 with Effect.
+  enables 175 errors; syntax-only totals are 144 without Effect and 180 with Effect.
   The installed published 0.8.0 factory also enables 210 errors with Effect: 160 native,
   14 generic, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while

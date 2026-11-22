@@ -37,6 +37,8 @@ const expectedRuleIDs = [
   'thethracian/effect-no-floating-effect',
   'thethracian/effect-require-yield-star',
   'thethracian/effect-no-runSync-in-server-request-handlers',
+  'thethracian/no-try-catch-throw',
+  'thethracian/no-try-catch-throw',
 ];
 
 const runOxlint = (fixturePath: string, extraArguments: readonly string[] = []) =>
@@ -80,7 +82,7 @@ assert.deepStrictEqual(ruleIDs.toSorted(), expectedRuleIDs.toSorted());
 
 const { default: fullConfig } = await import('./full.config.mjs');
 const sourceRuleNames = Object.keys(fullConfig.rules ?? {}).toSorted();
-assert.equal(sourceRuleNames.length, 210, 'full minimum-peer config must expose 210 rules');
+assert.equal(sourceRuleNames.length, 211, 'full minimum-peer config must expose 211 rules');
 const sourceNativeRuleNames = sourceRuleNames.filter(
   (ruleName) => !ruleName.startsWith('thethracian/'),
 );
@@ -91,7 +93,7 @@ const sourceEffectRuleNames = sourcePackageRuleNames.filter((ruleName) =>
   ruleName.startsWith('thethracian/effect-'),
 );
 assert.equal(sourceNativeRuleNames.length, 160, 'full config must expose 160 native rules');
-assert.equal(sourcePackageRuleNames.length, 50, 'full config must expose 50 package rules');
+assert.equal(sourcePackageRuleNames.length, 51, 'full config must expose 51 package rules');
 assert.equal(
   sourceEffectRuleNames.length,
   35,
