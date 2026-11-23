@@ -21,7 +21,7 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The syntax-only base config selects 162 reviewed rules: 145 syntax-only upstream Oxlint rules and 17
+The syntax-only base config selects 163 reviewed rules: 146 syntax-only upstream Oxlint rules and 17
 package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
@@ -57,6 +57,7 @@ The preset treats escape hatches and debug leftovers as errors in every configur
 
 | Rule or option                                    | Policy                                                                                           |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `unicorn/no-abusive-eslint-disable`               | Rejects `oxlint-disable`/`eslint-disable` comments that name no rules, which silence every rule. |
 | `options.reportUnusedDisableDirectives`           | `error`: an `oxlint-disable` or `eslint-disable` comment that suppresses nothing fails the lint. |
 | `typescript/ban-ts-comment`                       | Rejects `@ts-ignore` and `@ts-nocheck`; `@ts-expect-error` needs a description.                  |
 | `jest/no-focused-tests`                           | Rejects `.only` and `f`-prefixed tests in Vitest, Jest, Bun, and `node:test` suites.             |
@@ -87,6 +88,9 @@ with a form that states why the test does not run:
 | `it.skip(...)`, `xit(...)` | `it.skipIf(condition)(...)` or `it.runIf(condition)(...)`  |
 | `test('planned behavior')` | `test.todo('planned behavior')`                            |
 | Skip decided while running | `it('...', (context) => { if (...) context.skip(); ... })` |
+
+Generated files often start with a blanket `/* eslint-disable */` header. Keep them out of the lint
+with `ignorePatterns` instead of relying on that header, because the preset rejects blanket disables.
 
 Rewrite skips rather than suppressing the rule. Older Oxlint releases (including 1.66) do not apply
 `jest/no-disabled-tests` to tests imported from `@effect/vitest`, so a disable comment that is needed
@@ -199,8 +203,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 17 package-local rules and adds all 31 approved semantic rules for 193
-selected errors in total (176 native upstream errors plus the 17 package-local rules). They include
+Type-aware mode keeps the 17 package-local rules and adds all 31 approved semantic rules for 194
+selected errors in total (177 native upstream errors plus the 17 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -300,9 +304,9 @@ groups. Architecture boundaries belong in consuming repositories with concrete p
 contracts, not in this shared preset. The package does not infer module roles from unrelated imports
 or name suffixes, or require consumers to adopt a prescribed folder structure.
 
-With `typeAware: true`, the base preset enables 193 errors (176 native plus 17 package-local), or
-229 with `effect: true` (193 plus 35 Effect rules and the service-constructor rule). Without
-type-aware mode, the totals are 162 and 198 respectively. Internal name lists retain
+With `typeAware: true`, the base preset enables 194 errors (177 native plus 17 package-local), or
+230 with `effect: true` (194 plus 35 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 163 and 199 respectively. Internal name lists retain
 34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)

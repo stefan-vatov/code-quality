@@ -215,6 +215,7 @@ const nativeRuleAllowlist = [
   'typescript/switch-exhaustiveness-check',
   'typescript/triple-slash-reference',
   'typescript/unbound-method',
+  'unicorn/no-abusive-eslint-disable',
   'unicorn/no-accessor-recursion',
   'unicorn/no-empty-file',
   'unicorn/no-instanceof-builtins',

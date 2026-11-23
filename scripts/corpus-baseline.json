@@ -31,7 +31,8 @@
     "thethracian/no-unknown-parameters": 2055,
     "thethracian/no-unknown-returns": 480,
     "thethracian/no-unknown-type-aliases": 1,
-    "thethracian/no-unsafe-dictionary-type": 1904
+    "thethracian/no-unsafe-dictionary-type": 1904,
+    "unicorn/no-abusive-eslint-disable": 8
   },
   "effect-atom": {
     "thethracian/effect-no-error-channel-widening-to-unknown": 2,
@@ -48,7 +49,8 @@
     "thethracian/no-try-catch-throw": 27,
     "thethracian/no-unknown-parameters": 12,
     "thethracian/no-unknown-returns": 1,
-    "thethracian/no-unsafe-dictionary-type": 3
+    "thethracian/no-unsafe-dictionary-type": 3,
+    "unicorn/no-abusive-eslint-disable": 1
   },
   "EffectPatterns": {
     "(unnamed)": 2,

@@ -81,7 +81,8 @@ TypeScript/Oxlint high-signal policy:
   Other deleted Effect rules remain absent, with no warnings or optional registrations.
   The public option is `effect?: boolean`; nonboolean values throw `TypeError`.
 - Suppressions are strict: `options.reportUnusedDisableDirectives: 'error'` in every mode,
-  `typescript/ban-ts-comment`, `jest/no-focused-tests` and `jest/no-disabled-tests` (the `jest`
+  `typescript/ban-ts-comment`, `unicorn/no-abusive-eslint-disable` (blanket disables),
+  `jest/no-focused-tests` and `jest/no-disabled-tests` (the `jest`
   plugin is enabled for them), and
   `no-warning-comments` limited to `@nocommit` (`TODO`/`FIXME` stay allowed). Classic bug catchers
   (`no-fallthrough`, `no-self-compare`, `array-callback-return`, `promise/no-return-in-finally`,
@@ -153,9 +154,9 @@ When changing repo tooling:
   Expected rule counts live only in `scripts/rule-counts.mjs`; the policy lock, the
   minimum-peer verifier, and the config tests read it, and `test/rule-count-docs.test.mts`
   fails when README.md, ts/README.md, or this file disagree with it.
-  The local factory enables 229 errors: 176 reviewed native rules, 17 base package rules, the
-  service-constructor rule, and all 35 retained Effect rules; repository lint runs 230 with the plugin. With `typeAware: true`, the base preset
-  enables 193 errors; syntax-only totals are 162 without Effect and 198 with Effect.
+  The local factory enables 230 errors: 177 reviewed native rules, 17 base package rules, the
+  service-constructor rule, and all 35 retained Effect rules; repository lint runs 231 with the plugin. With `typeAware: true`, the base preset
+  enables 194 errors; syntax-only totals are 163 without Effect and 199 with Effect.
   The installed published 0.12.0 factory also enables 229 errors with Effect: 176 native,
   17 base package rules, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while

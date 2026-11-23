@@ -1,4 +1,4 @@
-const nativeSyntaxOnly = 145;
+const nativeSyntaxOnly = 146;
 const nativeTypeAware = 31;
 const packageBase = 17;
 const effect = 35;

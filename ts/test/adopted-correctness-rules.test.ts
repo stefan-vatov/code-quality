@@ -23,6 +23,12 @@ const adoptedNativeRules = [
   'typescript/no-unsafe-function-type',
 ] as const;
 
+const blanketDisableSources = [
+  '/* oxlint-disable */\nexport const value = 1;\n',
+  '/* eslint-disable */\nexport const value = 1;\n',
+  '// oxlint-disable-next-line\nexport const value = 1;\n',
+] as const;
+
 const oxlintBinary = join(import.meta.dirname, '..', '..', 'node_modules', '.bin', 'oxlint');
 
 const invalidSource = [
@@ -161,6 +167,18 @@ describe('adopted correctness rules', (): void => {
     const disabled = lintFixture().filter(({ code }) => code === 'jest(no-disabled-tests)');
     expect(disabled).toHaveLength(4);
   });
+
+  it.each(blanketDisableSources)(
+    'rejects a disable directive that names no rules: %j',
+    (source) => {
+      expect(theThracianOxlint().rules).toHaveProperty(
+        'unicorn/no-abusive-eslint-disable',
+        'error',
+      );
+      const codes = lintFixture('blanket.ts', source).map(({ code }) => code);
+      expect(codes).toContain('unicorn(no-abusive-eslint-disable)');
+    },
+  );
 
   it('allows conditional, planned, runtime, and parameterised tests', (): void => {
     expect(lintFixture('legitimate-skips.test.ts', legitimateSkipSource)).toStrictEqual([]);

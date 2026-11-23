@@ -187,9 +187,9 @@ Elixir through Mix/Hex. The root package is private and owns workspace orchestra
 `lint`, `lint:fix`, the type-aware variants, staged hooks, and the Nx TypeScript lint target
 build and use the local TypeScript package. Both local and published configs share
 `oxlint.repository.mjs`, which calls `factory({ effect: true, typeAware: true })` and adds ignores.
-Local lint enables 229 errors across 176 native rules, 17 base package rules, 35 Effect rules, and
-the service-constructor rule. The base preset enables 193 errors with `typeAware: true`. Syntax-only
-totals are 162 without Effect and 198 with it. Unused disable directives are errors. Repository lint scans from the root and includes
+Local lint enables 230 errors across 177 native rules, 17 base package rules, 35 Effect rules, and
+the service-constructor rule. The base preset enables 194 errors with `typeAware: true`. Syntax-only
+totals are 163 without Effect and 199 with it. Unused disable directives are errors. Repository lint scans from the root and includes
 non-test fixtures.
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.
