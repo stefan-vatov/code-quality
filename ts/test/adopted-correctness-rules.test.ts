@@ -133,6 +133,13 @@ describe('adopted correctness rules', (): void => {
     );
   });
 
+  it('rejects tautological assertions in the base preset', (): void => {
+    expect(theThracianOxlint().rules).toHaveProperty(
+      'thethracian/no-tautological-assertions',
+      'error',
+    );
+  });
+
   it('bans only the @nocommit marker, not TODO or FIXME comments', (): void => {
     expect(theThracianOxlint().rules).toHaveProperty('no-warning-comments', [
       'error',

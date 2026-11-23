@@ -572,6 +572,16 @@
       "p95LimitNs": 155106,
       "runs": 20
     },
+    "no-tautological-assertions": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 25260,
+      "observedMedianNs": 4210,
+      "observedP95Ns": 23219,
+      "operationsPerSample": 1,
+      "p95LimitNs": 139314,
+      "runs": 20
+    },
     "no-try-catch-throw": {
       "inputSamples": 7,
       "iterations": 20,

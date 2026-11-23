@@ -26,6 +26,7 @@ export const nativeRuleFixtures: readonly Fixture[] = [
       const grown = [1, 2].reduce((all, value) => all.concat(value), [] as number[]);
       // oxlint-disable-next-line no-debugger
       debugger;
+      expect(true).toBe(true);
     `,
   },
   {

@@ -21,7 +21,7 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The syntax-only base config selects 164 reviewed rules: 146 syntax-only upstream Oxlint rules and 18
+The syntax-only base config selects 165 reviewed rules: 146 syntax-only upstream Oxlint rules and 19
 package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
@@ -118,28 +118,29 @@ export default {
 
 ## Additional TypeScript safety rules
 
-The package-local plugin enables these 18 rules as errors in every configuration.
+The package-local plugin enables these 19 rules as errors in every configuration.
 
-| Rule                                             | Policy                                                                                          |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `thethracian/no-array-filter-map`                | Rejects adjacent eager `filter`/`map` passes on known arrays; use one pass or iterator helpers. |
-| `thethracian/no-chained-type-assertions`         | Rejects nested type assertions that fabricate evidence; `as const` chains remain valid.         |
-| `thethracian/no-conditional-empty-object-spread` | Rejects conditional object spreads whose empty branch silently omits fields.                    |
-| `thethracian/no-known-value-widening`            | Rejects known values widened into `unknown`, `object`, anonymous objects, or open dictionaries. |
-| `thethracian/no-module-mocking`                  | Rejects Vitest and Jest module-mocking calls.                                                   |
-| `thethracian/no-object-parameters`               | Rejects `object` and aliases resolving to it on function inputs.                                |
-| `thethracian/no-reduce-accumulator-copy`         | Rejects copying a growing `reduce` accumulator with `Object.assign`, `Array.from`, or `concat`. |
-| `thethracian/no-reflect-apply`                   | Requires typed calls instead of global `Reflect.apply`.                                         |
-| `thethracian/no-reflect-get`                     | Requires typed property access or boundary parsing instead of global `Reflect.get`.             |
-| `thethracian/no-runtime-typeof`                  | Rejects ad hoc `typeof` narrowing; explicit type guards and existence probes remain valid.      |
-| `thethracian/no-shape-in-symbol-names`           | Rejects locally owned symbol names containing `shape`; static member names remain valid.        |
-| `thethracian/no-try-catch-throw`                 | Rejects `try` statements, including `try/finally`, and `throw` statements.                      |
-| `thethracian/no-unknown-parameters`              | Rejects `unknown` function inputs except supported predicate and `cause` conventions.           |
-| `thethracian/no-unknown-returns`                 | Rejects explicit `unknown`, `Promise<unknown>`, and `PromiseLike<unknown>` return contracts.    |
-| `thethracian/no-unknown-type-aliases`            | Rejects aliases that resolve to `unknown`.                                                      |
-| `thethracian/no-unsafe-dictionary-type`          | Rejects dictionary value contracts based on `unknown`, `any`, `object`, or `{}`.                |
-| `thethracian/no-widen-then-assert`               | Rejects immutable flows that widen evidence and later assert it back to a narrow type.          |
-| `thethracian/require-disable-justification`      | Requires `-- <reason>` of at least four words on every disable directive; rejects boilerplate.  |
+| Rule                                             | Policy                                                                                              |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `thethracian/no-array-filter-map`                | Rejects adjacent eager `filter`/`map` passes on known arrays; use one pass or iterator helpers.     |
+| `thethracian/no-chained-type-assertions`         | Rejects nested type assertions that fabricate evidence; `as const` chains remain valid.             |
+| `thethracian/no-conditional-empty-object-spread` | Rejects conditional object spreads whose empty branch silently omits fields.                        |
+| `thethracian/no-known-value-widening`            | Rejects known values widened into `unknown`, `object`, anonymous objects, or open dictionaries.     |
+| `thethracian/no-module-mocking`                  | Rejects Vitest and Jest module-mocking calls.                                                       |
+| `thethracian/no-object-parameters`               | Rejects `object` and aliases resolving to it on function inputs.                                    |
+| `thethracian/no-reduce-accumulator-copy`         | Rejects copying a growing `reduce` accumulator with `Object.assign`, `Array.from`, or `concat`.     |
+| `thethracian/no-reflect-apply`                   | Requires typed calls instead of global `Reflect.apply`.                                             |
+| `thethracian/no-reflect-get`                     | Requires typed property access or boundary parsing instead of global `Reflect.get`.                 |
+| `thethracian/no-runtime-typeof`                  | Rejects ad hoc `typeof` narrowing; explicit type guards and existence probes remain valid.          |
+| `thethracian/no-shape-in-symbol-names`           | Rejects locally owned symbol names containing `shape`; static member names remain valid.            |
+| `thethracian/no-tautological-assertions`         | Rejects assertions on constants or a value compared with itself, such as `expect(true).toBe(true)`. |
+| `thethracian/no-try-catch-throw`                 | Rejects `try` statements, including `try/finally`, and `throw` statements.                          |
+| `thethracian/no-unknown-parameters`              | Rejects `unknown` function inputs except supported predicate and `cause` conventions.               |
+| `thethracian/no-unknown-returns`                 | Rejects explicit `unknown`, `Promise<unknown>`, and `PromiseLike<unknown>` return contracts.        |
+| `thethracian/no-unknown-type-aliases`            | Rejects aliases that resolve to `unknown`.                                                          |
+| `thethracian/no-unsafe-dictionary-type`          | Rejects dictionary value contracts based on `unknown`, `any`, `object`, or `{}`.                    |
+| `thethracian/no-widen-then-assert`               | Rejects immutable flows that widen evidence and later assert it back to a narrow type.              |
+| `thethracian/require-disable-justification`      | Requires `-- <reason>` of at least four words on every disable directive; rejects boilerplate.      |
 
 These rules have no automatic migration behavior and do not replace the native Oxlint allowlist.
 
@@ -205,8 +206,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 18 package-local rules and adds all 31 approved semantic rules for 195
-selected errors in total (177 native upstream errors plus the 18 package-local rules). They include
+Type-aware mode keeps the 19 package-local rules and adds all 31 approved semantic rules for 196
+selected errors in total (177 native upstream errors plus the 19 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -312,9 +313,9 @@ groups. Architecture boundaries belong in consuming repositories with concrete p
 contracts, not in this shared preset. The package does not infer module roles from unrelated imports
 or name suffixes, or require consumers to adopt a prescribed folder structure.
 
-With `typeAware: true`, the base preset enables 195 errors (177 native plus 18 package-local), or
-231 with `effect: true` (195 plus 35 Effect rules and the service-constructor rule). Without
-type-aware mode, the totals are 164 and 200 respectively. Internal name lists retain
+With `typeAware: true`, the base preset enables 196 errors (177 native plus 19 package-local), or
+232 with `effect: true` (196 plus 35 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 165 and 201 respectively. Internal name lists retain
 34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)
@@ -350,7 +351,7 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shape                | 5,000-line files, 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 10                                                                                           |
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
-| TypeScript safety    | 18 package-local errors covering exception syntax, evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                              |
+| TypeScript safety    | 19 package-local errors covering exception syntax, evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                              |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
 | Effect               | 35 Effect errors plus the service-constructor rule with `effect: true`                                                                                                                         |
 | Deliberate omissions | No global `console`, null, ternary, magic-number, general naming (except the imported symbol-name rule), import-count, documentation, or absolute assertion/`any` bans                         |
