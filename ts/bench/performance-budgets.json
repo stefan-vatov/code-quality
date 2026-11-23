@@ -631,6 +631,16 @@
       "operationsPerSample": 1,
       "p95LimitNs": 1703586,
       "runs": 20
+    },
+    "require-disable-justification": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 37674,
+      "observedMedianNs": 6279,
+      "observedP95Ns": 203221,
+      "operationsPerSample": 1,
+      "p95LimitNs": 1219326,
+      "runs": 20
     }
   }
 }

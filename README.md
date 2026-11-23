@@ -33,7 +33,7 @@ for Elixir.
 
 | Package                                      | Registry                                                        | Consumer entrypoint                                    | Purpose                                                                                  |
 | -------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | Upstream Oxlint allowlist, 17 TypeScript safety rules, plus opt-in Effect checks.        |
+| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | Upstream Oxlint allowlist, 18 TypeScript safety rules, plus opt-in Effect checks.        |
 | [`cargo-thx-lint`](rust/README.md)           | [crates.io](https://crates.io/crates/cargo-thx-lint)            | `cargo thx-lint init --write`                          | Rust installer for `rustfmt.toml`, `clippy.toml`, Cargo lint tables, and a Dylint check. |
 | [`the_thracian_credo`](elixir/README.md)     | [Hex](https://hex.pm/packages/the_thracian_credo)               | `mix thx_lint.install --yes`                           | Credo plugin, custom checks, formatter setup, and Dialyzer helper configuration.         |
 
@@ -72,9 +72,10 @@ individual `off` entries. Oxlint's implicit `correctness` warnings are cleared o
 level, before the allowlist is applied. That reset prevents hidden defaults from leaking noise into
 the result; it does not add warnings or weaken any selected rule.
 
-The package also enables 17 package-local TypeScript safety rules by default. They cover
+The package also enables 18 package-local TypeScript safety rules by default. They cover
 `try`/`catch`/`throw`, evidence-preserving assertions, unknown/object boundaries, runtime reflection,
-module mocking, unsafe type-shape contracts, and quadratic array pipelines. The rules share the `thethracian` plugin namespace.
+module mocking, unsafe type-shape contracts, quadratic array pipelines, and unexplained disable
+directives. The rules share the `thethracian` plugin namespace.
 See the [TypeScript package README](ts/README.md) for the full list.
 
 The package also ships 35 Effect checks: the 18 safety rules plus fake-API, service-self-match,
@@ -143,7 +144,7 @@ Repository CI and pre-push run `pnpm run lint:projects` to enforce all three lan
 | Complexity            | 10                                           | Clippy-supported limits                 | 10                                                   |
 | File/import caps      | 5,000 lines; no import-count cap             | Package-specific                        | Package-specific                                     |
 | Debug artifacts       | `debugger`; `console` remains contextual     | `dbg!`, `print!`, `println!`            | `IO.inspect`, `IEx.pry`                              |
-| TypeScript safety     | 17 rules including the `try` and `throw` ban | —                                       | —                                                    |
+| TypeScript safety     | 18 rules including the `try` and `throw` ban | —                                       | —                                                    |
 | Unsafe escape hatches | Upstream type-aware unsafe-operation rules   | `unsafe_code`, lossy `as` casts         | Underspecified public APIs via Credo/Dialyzer config |
 | Immutability pressure | `prefer-const`                               | `unused_mut`, pedantic mutability lints | `VariableRebinding`                                  |
 
@@ -187,9 +188,9 @@ Elixir through Mix/Hex. The root package is private and owns workspace orchestra
 `lint`, `lint:fix`, the type-aware variants, staged hooks, and the Nx TypeScript lint target
 build and use the local TypeScript package. Both local and published configs share
 `oxlint.repository.mjs`, which calls `factory({ effect: true, typeAware: true })` and adds ignores.
-Local lint enables 230 errors across 177 native rules, 17 base package rules, 35 Effect rules, and
-the service-constructor rule. The base preset enables 194 errors with `typeAware: true`. Syntax-only
-totals are 163 without Effect and 199 with it. Unused disable directives are errors. Repository lint scans from the root and includes
+Local lint enables 231 errors across 177 native rules, 18 base package rules, 35 Effect rules, and
+the service-constructor rule. The base preset enables 195 errors with `typeAware: true`. Syntax-only
+totals are 164 without Effect and 200 with it. Unused disable directives are errors. Repository lint scans from the root and includes
 non-test fixtures.
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.

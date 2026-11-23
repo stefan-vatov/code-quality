@@ -18,6 +18,7 @@ import { noUnknownReturnsRule } from './internal/no-unknown-returns';
 import { noUnknownTypeAliasesRule } from './internal/no-unknown-type-aliases';
 import { noUnsafeDictionaryTypeRule } from './internal/no-unsafe-dictionary-type';
 import { noWidenThenAssertRule } from './internal/no-widen-then-assert';
+import { requireDisableJustificationRule } from './internal/require-disable-justification';
 import { noServiceConstructorImportsRule } from './internal/no-service-constructor-imports';
 
 type OxlintPlugin = Parameters<typeof eslintCompatPlugin>[0];
@@ -47,6 +48,7 @@ const plugin: OxlintPlugin = {
     'no-unsafe-dictionary-type': noUnsafeDictionaryTypeRule,
     'no-widen-then-assert': noWidenThenAssertRule,
     'no-service-constructor-imports': noServiceConstructorImportsRule,
+    'require-disable-justification': requireDisableJustificationRule,
   },
 };
 

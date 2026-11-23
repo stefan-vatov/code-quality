@@ -30,7 +30,7 @@ describe('native benchmark host', () => {
 
   it('exercises a reporting candidate for every native rule in both phases', () => {
     const rules = Object.entries(plugin.rules).filter(([name]) => !name.startsWith('effect-'));
-    expect(rules).toHaveLength(18);
+    expect(rules).toHaveLength(19);
     expect(nativeRuleFixtures).toHaveLength(7);
     for (const [name, rule] of rules) {
       for (const cold of [true, false]) {

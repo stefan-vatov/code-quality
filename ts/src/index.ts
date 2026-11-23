@@ -353,6 +353,7 @@ export default function theThracianOxlint(
       ...baseRules(typeAwareRule),
       ...portedRules,
       'thethracian/no-try-catch-throw': 'error',
+      'thethracian/require-disable-justification': 'error',
       ...buildEffectRules(options.effect),
     },
   });

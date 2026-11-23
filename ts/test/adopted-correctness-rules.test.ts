@@ -126,6 +126,13 @@ describe('adopted correctness rules', (): void => {
     expect(Array.isArray(setting) ? setting[0] : setting).toBe('error');
   });
 
+  it('requires a justification on every disable directive in the base preset', (): void => {
+    expect(theThracianOxlint().rules).toHaveProperty(
+      'thethracian/require-disable-justification',
+      'error',
+    );
+  });
+
   it('bans only the @nocommit marker, not TODO or FIXME comments', (): void => {
     expect(theThracianOxlint().rules).toHaveProperty('no-warning-comments', [
       'error',

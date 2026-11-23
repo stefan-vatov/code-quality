@@ -21,7 +21,7 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The syntax-only base config selects 163 reviewed rules: 146 syntax-only upstream Oxlint rules and 17
+The syntax-only base config selects 164 reviewed rules: 146 syntax-only upstream Oxlint rules and 18
 package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
@@ -57,6 +57,7 @@ The preset treats escape hatches and debug leftovers as errors in every configur
 
 | Rule or option                                    | Policy                                                                                           |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `thethracian/require-disable-justification`       | Requires ` -- <reason>` (four or more words) on every disable directive and rejects boilerplate. |
 | `unicorn/no-abusive-eslint-disable`               | Rejects `oxlint-disable`/`eslint-disable` comments that name no rules, which silence every rule. |
 | `options.reportUnusedDisableDirectives`           | `error`: an `oxlint-disable` or `eslint-disable` comment that suppresses nothing fails the lint. |
 | `typescript/ban-ts-comment`                       | Rejects `@ts-ignore` and `@ts-nocheck`; `@ts-expect-error` needs a description.                  |
@@ -117,7 +118,7 @@ export default {
 
 ## Additional TypeScript safety rules
 
-The package-local plugin enables these 17 rules as errors in every configuration.
+The package-local plugin enables these 18 rules as errors in every configuration.
 
 | Rule                                             | Policy                                                                                          |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
@@ -138,6 +139,7 @@ The package-local plugin enables these 17 rules as errors in every configuration
 | `thethracian/no-unknown-type-aliases`            | Rejects aliases that resolve to `unknown`.                                                      |
 | `thethracian/no-unsafe-dictionary-type`          | Rejects dictionary value contracts based on `unknown`, `any`, `object`, or `{}`.                |
 | `thethracian/no-widen-then-assert`               | Rejects immutable flows that widen evidence and later assert it back to a narrow type.          |
+| `thethracian/require-disable-justification`      | Requires `-- <reason>` of at least four words on every disable directive; rejects boilerplate.  |
 
 These rules have no automatic migration behavior and do not replace the native Oxlint allowlist.
 
@@ -203,8 +205,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 17 package-local rules and adds all 31 approved semantic rules for 194
-selected errors in total (177 native upstream errors plus the 17 package-local rules). They include
+Type-aware mode keeps the 18 package-local rules and adds all 31 approved semantic rules for 195
+selected errors in total (177 native upstream errors plus the 18 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -304,9 +306,9 @@ groups. Architecture boundaries belong in consuming repositories with concrete p
 contracts, not in this shared preset. The package does not infer module roles from unrelated imports
 or name suffixes, or require consumers to adopt a prescribed folder structure.
 
-With `typeAware: true`, the base preset enables 194 errors (177 native plus 17 package-local), or
-230 with `effect: true` (194 plus 35 Effect rules and the service-constructor rule). Without
-type-aware mode, the totals are 163 and 199 respectively. Internal name lists retain
+With `typeAware: true`, the base preset enables 195 errors (177 native plus 18 package-local), or
+231 with `effect: true` (195 plus 35 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 164 and 200 respectively. Internal name lists retain
 34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)
@@ -342,7 +344,7 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shape                | 5,000-line files, 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 10                                                                                           |
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
-| TypeScript safety    | 17 package-local errors covering exception syntax, evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                              |
+| TypeScript safety    | 18 package-local errors covering exception syntax, evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                              |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
 | Effect               | 35 Effect errors plus the service-constructor rule with `effect: true`                                                                                                                         |
 | Deliberate omissions | No global `console`, null, ternary, magic-number, general naming (except the imported symbol-name rule), import-count, documentation, or absolute assertion/`any` bans                         |

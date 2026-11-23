@@ -32,6 +32,7 @@
     "thethracian/no-unknown-returns": 480,
     "thethracian/no-unknown-type-aliases": 1,
     "thethracian/no-unsafe-dictionary-type": 1904,
+    "thethracian/require-disable-justification": 43,
     "unicorn/no-abusive-eslint-disable": 8
   },
   "effect-atom": {
@@ -50,6 +51,7 @@
     "thethracian/no-unknown-parameters": 12,
     "thethracian/no-unknown-returns": 1,
     "thethracian/no-unsafe-dictionary-type": 3,
+    "thethracian/require-disable-justification": 6,
     "unicorn/no-abusive-eslint-disable": 1
   },
   "EffectPatterns": {
@@ -73,7 +75,8 @@
     "thethracian/no-try-catch-throw": 339,
     "thethracian/no-unknown-parameters": 132,
     "thethracian/no-unknown-returns": 6,
-    "thethracian/no-unsafe-dictionary-type": 181
+    "thethracian/no-unsafe-dictionary-type": 181,
+    "thethracian/require-disable-justification": 1
   },
   "effect-smol": {
     "thethracian/effect-no-error-channel-widening-to-unknown": 6,
@@ -108,6 +111,7 @@
     "thethracian/no-unknown-parameters": 390,
     "thethracian/no-unknown-returns": 91,
     "thethracian/no-unknown-type-aliases": 7,
-    "thethracian/no-unsafe-dictionary-type": 282
+    "thethracian/no-unsafe-dictionary-type": 282,
+    "thethracian/require-disable-justification": 72
   }
 }
