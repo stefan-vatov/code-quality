@@ -54,6 +54,7 @@ export const effectDefaultRuleNames = [
   'effect-no-error-channel-widening-to-unknown',
   'effect-require-service-class-pattern',
   'effect-require-deterministic-service-keys',
+  'effect-no-run-inside-effect',
 ] as const;
 
 export const effectStrictRuleNames = ['effect-no-runSync-in-server-request-handlers'] as const;

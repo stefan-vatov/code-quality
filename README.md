@@ -78,9 +78,9 @@ module mocking, unsafe type-shape contracts, quadratic array pipelines, unexplai
 directives, and tautological test assertions. The rules share the `thethracian` plugin namespace.
 See the [TypeScript package README](ts/README.md) for the full list.
 
-The package also ships 35 Effect checks: the 18 safety rules plus fake-API, service-self-match,
-focused-test, skipped-test, synchronous server-handler checks, and 12 canonical-pattern guardrails.
-`effect: true` enables all 35
+The package also ships 36 Effect checks: the 18 safety rules plus fake-API, service-self-match,
+focused-test, skipped-test, synchronous server-handler, run-inside-Effect checks, and 12
+canonical-pattern guardrails. `effect: true` enables all 36
 and the protected service-constructor import rule. The public option is boolean-only; nonboolean
 values throw `TypeError`. All other Effect rules are physically deleted, with no warnings or
 optional registrations. Strict rule selections and path groups are removed. See the
@@ -188,9 +188,9 @@ Elixir through Mix/Hex. The root package is private and owns workspace orchestra
 `lint`, `lint:fix`, the type-aware variants, staged hooks, and the Nx TypeScript lint target
 build and use the local TypeScript package. Both local and published configs share
 `oxlint.repository.mjs`, which calls `factory({ effect: true, typeAware: true })` and adds ignores.
-Local lint enables 232 errors across 177 native rules, 19 base package rules, 35 Effect rules, and
+Local lint enables 233 errors across 177 native rules, 19 base package rules, 36 Effect rules, and
 the service-constructor rule. The base preset enables 196 errors with `typeAware: true`. Syntax-only
-totals are 165 without Effect and 201 with it. Unused disable directives are errors. Repository lint scans from the root and includes
+totals are 165 without Effect and 202 with it. Unused disable directives are errors. Repository lint scans from the root and includes
 non-test fixtures.
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.

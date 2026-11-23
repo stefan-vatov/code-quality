@@ -12,6 +12,7 @@ import {
 import { makeRules } from './effect-rule-core';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
+import { effectNoRunInsideEffectSpec } from './effect-runtime-boundaries';
 import { effectCanonicalSpecs, effectSilentErrorSwallowingSpec } from './effect-canonical-patterns';
 
 type RuleSpec = Parameters<typeof makeRules>[0][number];
@@ -85,6 +86,7 @@ const effectDefaultSpecs = [
     name: 'effect-no-runfork-without-observer',
     tokens: ['runFork'],
   },
+  effectNoRunInsideEffectSpec,
   ...effectDefaultEnvironmentSpecs,
   ...effectDefaultCompatibilitySpecs,
   ...effectCanonicalSpecs,

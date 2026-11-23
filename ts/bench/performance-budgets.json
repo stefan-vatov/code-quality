@@ -172,6 +172,16 @@
       "p95LimitNs": 100000,
       "runs": 20
     },
+    "effect-no-run-inside-effect": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 77034,
+      "observedMedianNs": 12839,
+      "observedP95Ns": 1418923,
+      "operationsPerSample": 1,
+      "p95LimitNs": 8513538,
+      "runs": 20
+    },
     "effect-no-runfork-without-observer": {
       "inputSamples": 7,
       "iterations": 20,

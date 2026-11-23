@@ -1,4 +1,5 @@
 import { Predicate } from 'effect';
+import { expectedRuleCounts } from '../../scripts/rule-counts.mjs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
   cpSync,
@@ -496,7 +497,7 @@ describe('published TypeScript package exports', (): void => {
 
         const parsed = JSON.parse(output) as { effectRuleCount: number; pluginPath: string };
 
-        expect(parsed.effectRuleCount).toBe(35);
+        expect(parsed.effectRuleCount).toBe(expectedRuleCounts.effect);
         expect(existsSync(parsed.pluginPath)).toBe(true);
 
         const packageJSON = JSON.parse(readFileSync(packagePath, 'utf8')) as {

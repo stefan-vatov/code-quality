@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { expectedRuleCounts } from '../../../scripts/rule-counts.mjs';
 import theThracianOxlint from '../../src/index';
 import effectDefaultRules from '../../src/rules/internal/effect-default';
 import {
@@ -12,10 +13,10 @@ import plugin from '../../src/rules/plugin';
 describe('Effect rule buckets', () => {
   it('keeps names, implementations, and registration in exact sync', () => {
     expect(effectSafetyRuleNames).toHaveLength(18);
-    expect(effectDefaultRuleNames).toHaveLength(34);
+    expect(effectDefaultRuleNames).toHaveLength(expectedRuleCounts.effect - 1);
     expect(effectStrictRuleNames).toStrictEqual(['effect-no-runSync-in-server-request-handlers']);
     const names = [...effectDefaultRuleNames, ...effectStrictRuleNames];
-    expect(new Set(names).size).toBe(35);
+    expect(new Set(names).size).toBe(expectedRuleCounts.effect);
     expect(Object.keys(effectDefaultRules).sort()).toEqual([...effectDefaultRuleNames].sort());
     expect(Object.keys(effectStrictRules).sort()).toEqual([...effectStrictRuleNames].sort());
     expect(

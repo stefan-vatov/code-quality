@@ -7,7 +7,7 @@ import { canonicalIsUnbound } from './effect-canonical-scope';
 import { nativeSourceCodeFor } from './effect-native-references';
 import type { Context, RuleSpec, VisitorMap } from './effect-rule-core';
 
-type Matches = (node: ASTNode | undefined, api: string, method: string) => boolean;
+export type Matches = (node: ASTNode | undefined, api: string, method: string) => boolean;
 type Check = (node: ASTNode, matches: Matches) => boolean;
 
 const field = (node: ASTNode | undefined, key: string): ASTNode | undefined =>
@@ -132,7 +132,12 @@ const serviceKey: Check = (node, matches) => {
   );
 };
 
-const visitors = (context: Context, check: Check, requireEffectImport = true): VisitorMap => {
+export interface EffectMatching {
+  readonly begin: (program: ASTNode) => void;
+  readonly matches: Matches;
+}
+
+export const effectMatching = (context: Context): EffectMatching => {
   const nativeSource = nativeSourceCodeFor(context);
   const matcherContext: Context = nativeSource
     ? {
@@ -143,7 +148,6 @@ const visitors = (context: Context, check: Check, requireEffectImport = true): V
         },
       }
     : context;
-  let enabled = false;
   let root: ASTNode | undefined;
   const importedNames = new Set<string>();
   const matchers = new Map<string, ImportedEffectCallMatcher>();
@@ -160,30 +164,40 @@ const visitors = (context: Context, check: Check, requireEffectImport = true): V
     }
     return matcher.matches(node);
   };
+  const begin = (program: ASTNode): void => {
+    root = program;
+    for (const statement of childNodes(program, 'body')) {
+      if (statement.type !== 'ImportDeclaration') continue;
+      for (const binding of childNodes(statement, 'specifiers')) {
+        const name = identifierName(field(binding, 'local'));
+        if (name) importedNames.add(name);
+      }
+    }
+  };
+  return { begin, matches };
+};
+
+const importsEffect = (program: ASTNode): boolean =>
+  childNodes(program, 'body').some((statement) => {
+    const source = field(statement, 'source')?.value;
+    return (
+      statement.type === 'ImportDeclaration' &&
+      Predicate.isString(source) &&
+      (source === 'effect' || source.startsWith('effect/'))
+    );
+  });
+
+const visitors = (context: Context, check: Check, requireEffectImport = true): VisitorMap => {
+  const { begin, matches } = effectMatching(context);
+  let enabled = false;
   const visit = (node: ASTNode): void => {
     if (enabled && check(node, matches))
       context.report({ node, message: 'Use the canonical Effect pattern.' });
   };
   return {
     Program(node): void {
-      root = node;
-      for (const statement of childNodes(node, 'body')) {
-        if (statement.type !== 'ImportDeclaration') continue;
-        for (const binding of childNodes(statement, 'specifiers')) {
-          const name = identifierName(field(binding, 'local'));
-          if (name) importedNames.add(name);
-        }
-      }
-      enabled =
-        !requireEffectImport ||
-        childNodes(node, 'body').some((statement) => {
-          const source = field(statement, 'source')?.value;
-          return (
-            statement.type === 'ImportDeclaration' &&
-            Predicate.isString(source) &&
-            (source === 'effect' || source.startsWith('effect/'))
-          );
-        });
+      begin(node);
+      enabled = !requireEffectImport || importsEffect(node);
     },
     CallExpression: visit,
     ClassDeclaration: visit,

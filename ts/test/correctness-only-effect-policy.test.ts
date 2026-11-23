@@ -31,7 +31,7 @@ describe('retained Effect policy', () => {
 
   it('enables every retained Effect rule together at error severity', () => {
     const rules = config({ effect: true, typeAware: true }).rules;
-    expect(effectDefaultRuleNames).toHaveLength(34);
+    expect(effectDefaultRuleNames).toHaveLength(expectedRuleCounts.effect - 1);
     for (const name of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
       expect(rules).toHaveProperty(`thethracian/${name}`, 'error');
     }

@@ -220,7 +220,7 @@ still reject unchecked use of those values.
 ## Effect safety and canonical-pattern rules (opt in)
 
 Effect-specific checks are disabled by default. Pass `effect: true` when the project uses Effect and wants
-all 35 retained Effect rules plus the additional
+all 36 retained Effect rules plus the additional
 `thethracian/no-service-constructor-imports` rule. These package-local rules are all reported as
 errors. They combine safety checks with deliberate canonical-pattern guardrails for consistent
 Effect code, including AI-generated code:
@@ -264,7 +264,7 @@ both Effect 3 and Effect 4 names: it reports `Effect.catch`, `catchAll`, `catchC
 relative project modules outside focused test files. They do not include preference-only migration
 advice.
 
-The other five retained Effect rules are also enabled by `effect: true`:
+The other six retained Effect rules are also enabled by `effect: true`:
 
 ```text
 effect-no-known-fake-api
@@ -272,7 +272,17 @@ effect-require-service-self-match
 effect-no-focused-effect-tests
 effect-no-skipped-effect-tests
 effect-no-runSync-in-server-request-handlers
+effect-no-run-inside-effect
 ```
+
+`effect-no-run-inside-effect` rejects `Effect.runSync`, `runPromise`, `runPromiseExit`, `runFork`,
+and related runners called inside an `Effect.gen` or `Effect.fn` generator, a callback passed to an
+Effect API, an object-literal handler passed to an Effect API, or an immediately invoked function
+there. Those calls start a separate root fiber that loses services, interruption, and typed
+failures; compose with `yield*`, `Effect.exit`, or `Effect.forkDaemon`/`Effect.forkScoped` instead.
+Callbacks handed to non-Effect APIs or constructors (a storage transaction, a `ReadableStream`
+source, an event listener), named local helpers, and `Runtime.run*` on a captured runtime are treated
+as bridges and stay allowed.
 
 The public option is `effect?: boolean`. Omit it or pass `false` to disable Effect rules and the
 service-constructor rule. Any nonboolean value, including the former strict options object, throws
@@ -314,9 +324,9 @@ contracts, not in this shared preset. The package does not infer module roles fr
 or name suffixes, or require consumers to adopt a prescribed folder structure.
 
 With `typeAware: true`, the base preset enables 196 errors (177 native plus 19 package-local), or
-232 with `effect: true` (196 plus 35 Effect rules and the service-constructor rule). Without
-type-aware mode, the totals are 165 and 201 respectively. Internal name lists retain
-34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
+233 with `effect: true` (196 plus 36 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 165 and 202 respectively. Internal name lists retain
+35 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)
 
@@ -353,7 +363,7 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
 | TypeScript safety    | 19 package-local errors covering exception syntax, evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                              |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
-| Effect               | 35 Effect errors plus the service-constructor rule with `effect: true`                                                                                                                         |
+| Effect               | 36 Effect errors plus the service-constructor rule with `effect: true`                                                                                                                         |
 | Deliberate omissions | No global `console`, null, ternary, magic-number, general naming (except the imported symbol-name rule), import-count, documentation, or absolute assertion/`any` bans                         |
 
 ## Registry links

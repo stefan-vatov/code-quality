@@ -55,6 +55,11 @@ const defaultCases: RuleCase[] = [
     valid: 'const fiber = Effect.runFork(program); fiber.addObserver(() => undefined);',
   },
   {
+    name: 'effect-no-run-inside-effect',
+    invalid: 'const p = Effect.gen(function* () { return Effect.runSync(load); });',
+    valid: 'const p = Effect.gen(function* () { return yield* load; });',
+  },
+  {
     name: 'effect-require-acquire-release',
     invalid: 'Effect.tryPromise(() => openConnection());',
     valid: 'Effect.acquireRelease(openConnection, closeConnection);',

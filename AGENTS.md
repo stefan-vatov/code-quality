@@ -79,7 +79,7 @@ TypeScript/Oxlint high-signal policy:
   conflict with the generic boundary rules.
 - Preserve the 16 imported generic rules and `no-service-constructor-imports`.
   The separate TypeScript `no-comments` rule is deleted. Effect is disabled by default;
-  `effect: true` enables all 35 retained Effect rules plus the service-constructor rule.
+  `effect: true` enables all 36 retained Effect rules plus the service-constructor rule.
   The retained set includes 12 canonical-pattern guardrails documented in `ts/README.md`.
   Other deleted Effect rules remain absent, with no warnings or optional registrations.
   The public option is `effect?: boolean`; nonboolean values throw `TypeError`.
@@ -105,7 +105,7 @@ TypeScript/Oxlint high-signal policy:
 
 Current implementation:
 
-- TypeScript/Effect: retain the 18 safety rules plus `effect-no-known-fake-api`, `effect-require-service-self-match`, `effect-no-focused-effect-tests`, `effect-no-skipped-effect-tests`, `effect-no-runSync-in-server-request-handlers`, and 12 canonical-pattern guardrails listed in `ts/README.md`. All 35 are errors with `effect: true`, alongside the service-constructor rule. The old strict selections, path groups, and public strict/options types are removed. Internal default and strict name lists contain 34 and one rule respectively; these do not expose separate consumer options.
+- TypeScript/Effect: retain the 18 safety rules plus `effect-no-known-fake-api`, `effect-require-service-self-match`, `effect-no-focused-effect-tests`, `effect-no-skipped-effect-tests`, `effect-no-runSync-in-server-request-handlers`, `effect-no-run-inside-effect`, and 12 canonical-pattern guardrails listed in `ts/README.md`. All 36 are errors with `effect: true`, alongside the service-constructor rule. The old strict selections, path groups, and public strict/options types are removed. Internal default and strict name lists contain 35 and one rule respectively; these do not expose separate consumer options.
 - TypeScript/Oxlint: `max-lines` (5,000 lines, excluding blank lines and comments), `max-depth` (5 levels), `max-nested-callbacks` (6 levels), `max-params` (7 params), `max-lines-per-function` (150 lines), and `complexity` (10) are errors. Safety rules include `no-debugger`, `no-empty` (with `allowEmptyCatch: false`), `no-eval`, `no-new-func`, `no-script-url`, `prefer-const`, `preserve-caught-error`, strict equality, and type-aware unsafe/async operations. Line width is formatter-owned; global `console`, noisy naming, null, ternary, magic-number, import-count, documentation, and absolute `any`/assertion bans are intentionally absent.
 - Rust: rustfmt uses `max_width = 150`; Clippy uses `too-many-arguments-threshold = 5`, `excessive-nesting-threshold = 3`, `too_many_lines = "deny"`, `too-many-lines-threshold = 75`, `print_stdout = "deny"`, `print_stderr = "deny"`, `todo = "deny"`, `unwrap_used = "deny"`, `expect_used = "deny"`, `unused_result_ok = "deny"` (calling .ok() discards errors), `as_conversions = "deny"` (no implicit type coercion via `as`), and `wildcard_enum_match_arm = "deny"` (restriction); pedantic group covers `dbg_macro`, `match_wild_err_arm`, `unused_async`, `match_wildcard_for_single_variants`, `cast_possible_truncation`, `cast_sign_loss`, `cast_lossless`, `unnecessary_mut_passed`, and `mut_mut`; rustc lints `unsafe_code` (`forbid`), `missing_debug_implementations`, `unused_must_use`, `unused_mut`, and `unused_crate_dependencies` are all `deny`; silent error swallowing is handled by `unused_must_use` (ignored Results), `unused_result_ok` (discarded errors via .ok()), and compiler exhaustiveness (Rust has no catch/empty catch equivalent); immutability is enforced by Rust's `let`/`let mut` semantics plus `unused_mut` and pedantic Clippy mutability lints; tests are granted unwrap/expect/panic exceptions via clippy.toml. `cargo thx-lint check` rejects lexical comments with a compiler-derived lexer; Clippy alone cannot enforce this. Documentation requirements are disabled, including inherited Clippy `missing_errors_doc`, `missing_panics_doc`, and `missing_safety_doc`.
 - Elixir: Credo uses `MaxLineLength`, `Nesting` (3 levels), `FunctionArity` (5 params), `CyclomaticComplexity` (10), `IoInspect`, `IExPry`, `VariableRebinding`, `Specs` (every public function requires @spec), and a custom shipped `FunctionBodyLength` check, all with failing exit status. Dialyxir snippet uses `:unmatched_returns` (catches unhandled return values including async operations and incomplete pattern matches), `:underspecs`, `:no_return`, `:error_handling`, `:extra_return`, and `:missing_return` flags; Elixir has no static exhaustive pattern match checker, but Dialyzer's type narrowing and unmatched returns cover the closest equivalents; immutability is enforced by Elixir's immutable data structures plus `VariableRebinding` to forbid variable rebinding within a scope.
@@ -118,7 +118,7 @@ Elixir documentation attributes remain allowed. CI and pre-push run `lint:projec
 ### Working on retained Effect rules
 
 Effect checks are package behavior, not a replacement for the upstream Oxlint allowlist. Keep
-the 35 retained rules explicit, import-aware, and error-only. Preserve the imported 16 generic
+the 36 retained rules explicit, import-aware, and error-only. Preserve the imported 16 generic
 rules and service-constructor rule. Add a new Effect rule only when it has a reproducible
 correctness, resource-safety, or deliberate canonical-pattern signal. Opinionated rules must
 reliably identify their target and avoid semantic damage or superficial lint evasion. Boundary
@@ -157,9 +157,9 @@ When changing repo tooling:
   Expected rule counts live only in `scripts/rule-counts.mjs`; the policy lock, the
   minimum-peer verifier, and the config tests read it, and `test/rule-count-docs.test.mts`
   fails when README.md, ts/README.md, or this file disagree with it.
-  The local factory enables 232 errors: 177 reviewed native rules, 19 base package rules, the
-  service-constructor rule, and all 35 retained Effect rules; repository lint runs 233 with the plugin. With `typeAware: true`, the base preset
-  enables 196 errors; syntax-only totals are 165 without Effect and 201 with Effect.
+  The local factory enables 233 errors: 177 reviewed native rules, 19 base package rules, the
+  service-constructor rule, and all 36 retained Effect rules; repository lint runs 234 with the plugin. With `typeAware: true`, the base preset
+  enables 196 errors; syntax-only totals are 165 without Effect and 202 with Effect.
   The installed published 0.12.0 factory also enables 229 errors with Effect: 176 native,
   17 base package rules, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while
