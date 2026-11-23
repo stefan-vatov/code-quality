@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0 - 2026-11-23
+
+### Breaking Changes
+
+- feat(ts)!: reject disabled tests and non-null-asserted nullish fallbacks (fd23485)
+
 ## 0.11.0 - 2026-11-23
 
 ### Breaking Changes
