@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.0 - 2026-11-23
+
+### Breaking Changes
+
+- feat(ts)!: reject tautological test assertions (c490452)
+- feat(ts)!: catch Effect 4 error swallowing with an AST check (47dfd41)
+- feat(ts)!: require a justification on every disable directive (6caedea)
+- feat(ts)!: reject blanket disable directives (f164511)
+
 ## 0.12.0 - 2026-11-23
 
 ### Breaking Changes
