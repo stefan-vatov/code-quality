@@ -187,16 +187,16 @@ Elixir through Mix/Hex. The root package is private and owns workspace orchestra
 `lint`, `lint:fix`, the type-aware variants, staged hooks, and the Nx TypeScript lint target
 build and use the local TypeScript package. Both local and published configs share
 `oxlint.repository.mjs`, which calls `factory({ effect: true, typeAware: true })` and adds ignores.
-Local lint enables 211 errors across 160 native rules, 15 base package rules, 35 Effect rules, and
-the service-constructor rule. The base preset enables 175 errors with `typeAware: true`. Syntax-only
-totals are 144 without Effect and 180 with it. Repository lint scans from the root and includes
+Local lint enables 225 errors across 174 native rules, 15 base package rules, 35 Effect rules, and
+the service-constructor rule. The base preset enables 189 errors with `typeAware: true`. Syntax-only
+totals are 158 without Effect and 194 with it. Unused disable directives are errors. Repository lint scans from the root and includes
 non-test fixtures.
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.
 
 Repository configuration adds one repository-only rule, `go-internal/boundaries` from
 `oxlint-plugin-go-internal`, which enforces Go-style `internal/` directory boundaries in this repo.
-It is not part of the published preset, and no path groups are added. The installed published 0.10.1 factory
+It is not part of the published preset, and no path groups are added. The installed published 0.10.3 factory
 also enables 211 errors with Effect (160 native, 15 base package rules, 35 Effect rules, and the
 service-constructor rule).
 
@@ -238,3 +238,7 @@ Portions of the generic TypeScript safety rules (the `no-reflect-*`, `no-unknown
 `no-known-value-widening`, `no-widen-then-assert`, and related `thethracian/` rules) are adapted
 from [anti-slop](https://github.com/dmmulroy/anti-slop), Copyright (c) 2026 Dillon Mulroy, used
 under the MIT License.
+
+The suppression, focused-test, `@nocommit`, and classic bug-catcher selections added in 0.11.0 were
+informed by [@nkzw/oxlint-config](https://github.com/nkzw-tech/oxlint-config), Copyright (c) 2026
+Nakazawa Tech, MIT License.

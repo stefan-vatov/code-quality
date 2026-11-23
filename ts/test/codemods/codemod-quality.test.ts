@@ -632,7 +632,7 @@ void value;
       {
         name: 'assignment-string',
         source: withHeader(
-          `const isEnabled = true;\nlet label = '';\nlabel = isEnabled ? 'on' : 'off';\nvoid label;\n`,
+          `const isEnabled = true;\nlet label = '';\nvoid label;\nlabel = isEnabled ? 'on' : 'off';\nvoid label;\n`,
         ),
       },
       {
@@ -1710,6 +1710,7 @@ ${internalDeclarationDoc}export const beta = 2;\n`),
       name: 'assignment-number',
       source: withHeader(`const isEnabled = true;
 let count = 0;
+void count;
 count = isEnabled ? 1 : 2;
 void count;
 `),
@@ -1718,6 +1719,7 @@ void count;
       name: 'assignment-boolean',
       source: withHeader(`const isEnabled = true;
 let hasAccess = false;
+void hasAccess;
 hasAccess = isEnabled ? true : false;
 void hasAccess;
 `),
@@ -1793,6 +1795,7 @@ void count;
       name: 'assignment-with-parenthesized-condition',
       source: withHeader(`const isEnabled = true;
 let count = 1;
+void count;
 count = (isEnabled) ? 1 : 2;
 void count;
 `),

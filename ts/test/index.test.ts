@@ -133,6 +133,7 @@ describe('native and type-aware configuration', () => {
     const config = theThracianOxlint({ typeAware: true });
 
     expect(config.options).toStrictEqual({
+      reportUnusedDisableDirectives: 'error',
       typeAware: true,
       typeCheck: true,
     });

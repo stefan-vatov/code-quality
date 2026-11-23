@@ -97,17 +97,16 @@ const pushJSDocTextLines = (lines: string[], text: string): void => {
 export const formatJSDoc = (input: JSDocInput): string => {
   const lines = [jsdocOpen];
   pushJSDocTextLines(lines, input.summary);
-  pipe(
+  const tags = pipe(
     Option.fromNullable(input.tags),
-    Option.filter((tags): boolean => tags.length > 0),
-    Option.map((tags): void => {
-      lines.push(' *');
-      pipe(
-        tags,
-        Array.map((tag): void => pushJSDocTextLines(lines, tag)),
-      );
-    }),
+    Option.getOrElse((): readonly string[] => []),
   );
+  if (Array.isNonEmptyReadonlyArray(tags)) {
+    lines.push(' *');
+    for (const tag of tags) {
+      pushJSDocTextLines(lines, tag);
+    }
+  }
   lines.push(jsdocClose);
   return `${lines.join('\n')}\n`;
 };

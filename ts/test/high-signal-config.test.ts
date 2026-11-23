@@ -22,7 +22,6 @@ const removedRules = [
   'no-multi-str',
   'no-nested-ternary',
   'no-ternary',
-  'no-warning-comments',
   'no-underscore-dangle',
   'prefer-arrow-callback',
   'prefer-destructuring',
@@ -100,7 +99,7 @@ describe('high-signal strict config', (): void => {
       { considerQueryString: true, preferInline: false },
     ]);
     expect(config.rules).toHaveProperty('oxc/only-used-in-recursion', 'error');
-    expect(Object.keys(config.rules ?? {})).toHaveLength(144);
+    expect(Object.keys(config.rules ?? {})).toHaveLength(158);
   });
 
   it('adds every semantic native rule only when type-aware linting is requested', (): void => {
@@ -143,7 +142,7 @@ describe('high-signal strict config', (): void => {
       'typescript/switch-exhaustiveness-check',
       'typescript/unbound-method',
     ]);
-    expect(Object.keys(typeAwareRules)).toHaveLength(175);
+    expect(Object.keys(typeAwareRules)).toHaveLength(189);
     expect(typeAwareRules).not.toHaveProperty('typescript/no-unnecessary-type-parameters');
   });
 

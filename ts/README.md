@@ -21,7 +21,7 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The syntax-only base config selects 144 reviewed rules: 129 syntax-only upstream Oxlint rules and 15
+The syntax-only base config selects 158 reviewed rules: 143 syntax-only upstream Oxlint rules and 15
 package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
@@ -50,6 +50,46 @@ The base profile also intentionally omits global `console`, null,
 ternary, magic-number, documentation, and absolute `any`/assertion bans: those rules produce
 mechanical churn or reject legitimate framework, generated-code, and interop boundaries without a
 reliable defect signal.
+
+## Suppressions, focused tests, and classic bugs
+
+The preset treats escape hatches and debug leftovers as errors in every configuration:
+
+| Rule or option                                    | Policy                                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `options.reportUnusedDisableDirectives`           | `error`: an `oxlint-disable` or `eslint-disable` comment that suppresses nothing fails the lint. |
+| `typescript/ban-ts-comment`                       | Rejects `@ts-ignore` and `@ts-nocheck`; `@ts-expect-error` needs a description.                  |
+| `jest/no-focused-tests`                           | Rejects `.only` and `f`-prefixed tests in Vitest, Jest, Bun, and `node:test` suites.             |
+| `no-warning-comments` with `terms: ['@nocommit']` | Rejects the `@nocommit` marker. `TODO` and `FIXME` stay allowed.                                 |
+
+It also enables classic bug catchers whose every hit is a defect:
+
+- `no-fallthrough`, `no-case-declarations`: switch cases that run into each other or leak declarations.
+- `no-self-compare`, `oxc/bad-bitwise-operator`: `x === x` and `|`/`&` written where `||`/`&&` was meant.
+- `array-callback-return`: `map`, `filter`, `find`, and similar callbacks that forget to return.
+- `promise/no-return-in-finally`: a value returned from `.finally()` that is silently discarded.
+- `no-useless-assignment`: values that are overwritten before anyone reads them.
+- `no-var`: function-scoped bindings; pairs with `prefer-const`.
+- `typescript/no-unsafe-function-type`, `typescript/no-empty-object-type`: the `Function` and `{}`
+  types that accept almost anything.
+- `oxc/no-accumulating-spread`: spreading the accumulator in `reduce`, which is quadratic.
+
+### Migrating to 0.11.0
+
+These rules are breaking for existing code. To adopt them gradually, override individual rules in
+your own config and remove the overrides as you fix each one:
+
+```js
+import theThracian from '@thethracian/oxlint-config';
+
+const config = theThracian({ typeAware: true });
+
+export default {
+  ...config,
+  options: { ...config.options, reportUnusedDisableDirectives: 'allow' },
+  rules: { ...config.rules, 'no-useless-assignment': 'allow' },
+};
+```
 
 ## Additional TypeScript safety rules
 
@@ -137,8 +177,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 15 package-local rules and adds all 31 approved semantic rules for 175
-selected errors in total (160 native upstream errors plus the 15 package-local rules). They include
+Type-aware mode keeps the 15 package-local rules and adds all 31 approved semantic rules for 189
+selected errors in total (174 native upstream errors plus the 15 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -238,9 +278,9 @@ groups. Architecture boundaries belong in consuming repositories with concrete p
 contracts, not in this shared preset. The package does not infer module roles from unrelated imports
 or name suffixes, or require consumers to adopt a prescribed folder structure.
 
-With `typeAware: true`, the base preset enables 175 errors (160 native plus 15 package-local), or
-211 with `effect: true` (175 plus 35 Effect rules and the service-constructor rule). Without
-type-aware mode, the totals are 144 and 180 respectively. Internal name lists retain
+With `typeAware: true`, the base preset enables 189 errors (174 native plus 15 package-local), or
+225 with `effect: true` (189 plus 35 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 158 and 194 respectively. Internal name lists retain
 34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)
@@ -297,3 +337,7 @@ Portions of the generic TypeScript safety rules (the `no-reflect-*`, `no-unknown
 `no-known-value-widening`, `no-widen-then-assert`, and related `thethracian/` rules) are adapted
 from [anti-slop](https://github.com/dmmulroy/anti-slop), Copyright (c) 2026 Dillon Mulroy, used
 under the MIT License.
+
+The suppression, focused-test, `@nocommit`, and classic bug-catcher selections added in 0.11.0 were
+informed by [@nkzw/oxlint-config](https://github.com/nkzw-tech/oxlint-config), Copyright (c) 2026
+Nakazawa Tech, MIT License.

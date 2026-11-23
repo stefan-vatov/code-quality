@@ -80,18 +80,18 @@ assert.deepStrictEqual(
 
 assert.equal(
   baseSourceNativeEntries.length,
-  129,
-  'base source config must expose 129 syntax-only native rules',
+  143,
+  'base source config must expose 143 syntax-only native rules',
 );
 assert.equal(
   sourceNativeEntries.length,
-  160,
-  'type-aware source config must expose 160 native rules',
+  174,
+  'type-aware source config must expose 174 native rules',
 );
 assert.equal(
   printedNativeEntries.length,
-  160,
-  'resolved type-aware config must expose 160 native rules',
+  174,
+  'resolved type-aware config must expose 174 native rules',
 );
 
 const sourceNative = Object.fromEntries(

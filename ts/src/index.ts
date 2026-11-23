@@ -13,20 +13,17 @@ type ToggleRuleSetting = 'error';
 type DefineConfigInput = Parameters<typeof defineConfig>[0];
 type RuleMap = NonNullable<DefineConfigInput['rules']>;
 
-interface TypeAwareConfigOptions {
-  readonly typeAware: true;
-  readonly typeCheck: true;
-}
-
 interface ConfigOptions {
-  readonly options?: TypeAwareConfigOptions;
+  readonly reportUnusedDisableDirectives: 'error';
+  readonly typeAware?: true;
+  readonly typeCheck?: true;
 }
 
 const categories = {
   correctness: 'allow',
 } as const;
 
-const plugins = ['typescript', 'oxc', 'import', 'promise', 'unicorn'] as const;
+const plugins = ['typescript', 'oxc', 'import', 'jest', 'promise', 'unicorn'] as const;
 
 const portedRuleNames = [
   'no-chained-type-assertions',
@@ -52,6 +49,7 @@ const portedRules: RuleMap = {
 };
 
 const nativeRuleAllowlist = [
+  'array-callback-return',
   'block-scoped-var',
   'complexity',
   'constructor-super',
@@ -61,11 +59,12 @@ const nativeRuleAllowlist = [
   'import/default',
   'import/namespace',
   'import/no-absolute-path',
+  'import/no-duplicates',
   'import/no-empty-named-blocks',
   'import/no-named-as-default',
   'import/no-named-as-default-member',
-  'import/no-duplicates',
   'import/no-self-import',
+  'jest/no-focused-tests',
   'max-depth',
   'max-lines',
   'max-lines-per-function',
@@ -73,6 +72,7 @@ const nativeRuleAllowlist = [
   'max-params',
   'no-async-promise-executor',
   'no-caller',
+  'no-case-declarations',
   'no-class-assign',
   'no-compare-neg-zero',
   'no-cond-assign',
@@ -95,6 +95,7 @@ const nativeRuleAllowlist = [
   'no-extend-native',
   'no-extra-bind',
   'no-extra-boolean-cast',
+  'no-fallthrough',
   'no-func-assign',
   'no-global-assign',
   'no-implied-eval',
@@ -111,6 +112,7 @@ const nativeRuleAllowlist = [
   'no-param-reassign',
   'no-script-url',
   'no-self-assign',
+  'no-self-compare',
   'no-setter-return',
   'no-shadow',
   'no-shadow-restricted-names',
@@ -128,15 +130,19 @@ const nativeRuleAllowlist = [
   'no-unused-labels',
   'no-unused-private-class-members',
   'no-unused-vars',
+  'no-useless-assignment',
   'no-useless-backreference',
   'no-useless-catch',
   'no-useless-concat',
   'no-useless-constructor',
   'no-useless-escape',
   'no-useless-rename',
+  'no-var',
+  'no-warning-comments',
   'no-with',
   'oxc/approx-constant',
   'oxc/bad-array-method-on-arguments',
+  'oxc/bad-bitwise-operator',
   'oxc/bad-char-at-comparison',
   'oxc/bad-comparison-sequence',
   'oxc/bad-min-max-func',
@@ -147,6 +153,7 @@ const nativeRuleAllowlist = [
   'oxc/erasing-op',
   'oxc/misrefactored-assign-op',
   'oxc/missing-throw',
+  'oxc/no-accumulating-spread',
   'oxc/number-arg-out-of-range',
   'oxc/only-used-in-recursion',
   'oxc/uninvoked-array-callback',
@@ -154,15 +161,18 @@ const nativeRuleAllowlist = [
   'preserve-caught-error',
   'promise/no-multiple-resolved',
   'promise/no-new-statics',
+  'promise/no-return-in-finally',
   'promise/valid-params',
   'require-yield',
   'typescript/await-thenable',
+  'typescript/ban-ts-comment',
   'typescript/consistent-return',
   'typescript/no-array-delete',
   'typescript/no-base-to-string',
   'typescript/no-confusing-non-null-assertion',
   'typescript/no-duplicate-enum-values',
   'typescript/no-duplicate-type-constituents',
+  'typescript/no-empty-object-type',
   'typescript/no-extra-non-null-assertion',
   'typescript/no-floating-promises',
   'typescript/no-for-in-array',
@@ -186,6 +196,7 @@ const nativeRuleAllowlist = [
   'typescript/no-unsafe-call',
   'typescript/no-unsafe-declaration-merging',
   'typescript/no-unsafe-enum-comparison',
+  'typescript/no-unsafe-function-type',
   'typescript/no-unsafe-member-access',
   'typescript/no-unsafe-return',
   'typescript/no-unsafe-unary-minus',
@@ -273,23 +284,11 @@ const typeAwareRuleSetting = (isTypeAware: boolean | undefined): ToggleRuleSetti
   return undefined;
 };
 
-const typeAwareConfigOptions = (
-  isTypeAware: boolean | undefined,
-): TypeAwareConfigOptions | undefined => {
+const configOptions = (isTypeAware: boolean | undefined): ConfigOptions => {
   if (isTypeAware) {
-    return {
-      typeAware: true,
-      typeCheck: true,
-    };
+    return { reportUnusedDisableDirectives: 'error', typeAware: true, typeCheck: true };
   }
-  return undefined;
-};
-
-const configOptions = (typeAwareOptions: TypeAwareConfigOptions | undefined): ConfigOptions => {
-  if (typeAwareOptions) {
-    return { options: typeAwareOptions };
-  }
-  return {};
+  return { reportUnusedDisableDirectives: 'error' };
 };
 
 const configuredNativeRules: RuleMap = {
@@ -320,6 +319,7 @@ const configuredNativeRules: RuleMap = {
   'no-new-func': 'error',
   'no-param-reassign': ['error', { props: false }],
   'no-script-url': 'error',
+  'no-warning-comments': ['error', { terms: ['@nocommit'] }],
   'prefer-const': ['error', { destructuring: 'any' }],
   'preserve-caught-error': 'error',
 };
@@ -335,11 +335,10 @@ export default function theThracianOxlint(
   options: TheThracianOxlintOptions = {},
 ): ReturnType<typeof defineConfig> {
   const pluginPath = join(dirname(fileURLToPath(import.meta.url)), 'rules', 'plugin.js');
-  const typeAwareOptions = typeAwareConfigOptions(options.typeAware);
   const typeAwareRule = typeAwareRuleSetting(options.typeAware);
 
   return defineConfig({
-    ...configOptions(typeAwareOptions),
+    options: configOptions(options.typeAware),
     categories,
     jsPlugins: [pluginPath],
     plugins: [...plugins],
