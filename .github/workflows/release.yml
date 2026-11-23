@@ -215,6 +215,9 @@ jobs:
           PACKAGE_VERSION: ${{ needs.prepare.outputs.ts_version }}
         run: pnpm add --save-dev --save-exact --workspace-root "@thethracian/oxlint-config@$PACKAGE_VERSION"
 
+      - name: Install every workspace package
+        run: pnpm install --frozen-lockfile
+
       - name: Lint the repository with the published package
         run: pnpm run lint:published:type-aware
 

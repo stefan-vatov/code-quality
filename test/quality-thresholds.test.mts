@@ -201,6 +201,13 @@ describe('quality gate documentation and release verification', () => {
     expect(verifyJob).toContain(
       'pnpm add --save-dev --save-exact --workspace-root "@thethracian/oxlint-config@$PACKAGE_VERSION"',
     );
+    expect(verifyJob).toContain('run: pnpm install --frozen-lockfile');
+    expect(verifyJob.indexOf('run: pnpm install --frozen-lockfile')).toBeGreaterThan(
+      verifyJob.indexOf('pnpm add --save-dev --save-exact --workspace-root'),
+    );
+    expect(verifyJob.indexOf('run: pnpm install --frozen-lockfile')).toBeLessThan(
+      verifyJob.indexOf('run: pnpm run lint:published:type-aware'),
+    );
     expect(verifyJob).toContain('run: pnpm run lint:published:type-aware');
     expect(verifyJob).toContain(
       'git commit -m "ci(ts): use published oxlint config $PACKAGE_VERSION"',
