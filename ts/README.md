@@ -255,7 +255,11 @@ effect-no-unbounded-stream-buffer
 
 They cover floating Effects and fibers, missing generator delegation, eager recursion, silent
 failures, lost error causes, unscoped resources, unobserved forks, and unbounded queues or
-concurrency. The additional service-constructor rule rejects named `make<Capability>Service` imports from
+concurrency. `effect-no-silent-error-swallowing` checks the AST of each recovery call and covers
+both Effect 3 and Effect 4 names: it reports `Effect.catch`, `catchAll`, `catchCause`, and
+`catchAllCause` handlers that only return `Effect.void` or `Effect.succeed(undefined)`, plus every
+`Effect.ignore(...)` call. Targeted `catchTag`/`catchTags` recovery and Effect 3's
+`Effect.catch("_tag", { ... })` discriminator form are allowed. The additional service-constructor rule rejects named `make<Capability>Service` imports from
 relative project modules outside focused test files. They do not include preference-only migration
 advice.
 
@@ -296,6 +300,8 @@ These are intentional conventions, not claims that every rejected alternative is
 The checks use AST structure and Effect import identity rather than nearby text. Pure result
 discarding excludes side-effecting callbacks; literal-union simplification excludes annotated
 alternatives. Service keys must equal the class name or end with `/ClassName`.
+`effect-no-catchAll-with-mapError` treats Effect 4's `Effect.catch` like `catchAll` when the handler
+only re-fails.
 Schema cast checks cover direct assertions of decoder calls, not arbitrary downstream dataflow;
 the error-channel rule rejects explicit `unknown` error arguments, not every inferred widening.
 Rules report errors without semantic autofixes.

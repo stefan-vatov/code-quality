@@ -105,11 +105,11 @@
     "effect-no-catchAll-with-mapError": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 176220,
-      "observedMedianNs": 29370,
-      "observedP95Ns": 145630,
+      "medianLimitNs": 242508,
+      "observedMedianNs": 40418,
+      "observedP95Ns": 157302,
       "operationsPerSample": 1,
-      "p95LimitNs": 873780,
+      "p95LimitNs": 943812,
       "runs": 20
     },
     "effect-no-error-channel-widening-to-unknown": {
@@ -195,11 +195,11 @@
     "effect-no-silent-error-swallowing": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 28314,
-      "observedMedianNs": 4719,
-      "observedP95Ns": 9440,
+      "medianLimitNs": 30300,
+      "observedMedianNs": 5050,
+      "observedP95Ns": 160403,
       "operationsPerSample": 1,
-      "p95LimitNs": 100000,
+      "p95LimitNs": 962418,
       "runs": 20
     },
     "effect-no-skipped-effect-tests": {

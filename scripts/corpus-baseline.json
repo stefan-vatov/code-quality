@@ -1,9 +1,10 @@
 {
   "alchemy": {
+    "thethracian/effect-no-catchAll-with-mapError": 4,
     "thethracian/effect-no-error-channel-widening-to-unknown": 215,
     "thethracian/effect-no-floating-effect": 7210,
     "thethracian/effect-no-runfork-without-observer": 6,
-    "thethracian/effect-no-silent-error-swallowing": 24,
+    "thethracian/effect-no-silent-error-swallowing": 159,
     "thethracian/effect-prefer-asVoid": 1,
     "thethracian/effect-prefer-effect-void": 494,
     "thethracian/effect-prefer-succeed-for-static-layers": 20,
@@ -60,7 +61,7 @@
     "thethracian/effect-no-error-channel-widening-to-unknown": 23,
     "thethracian/effect-no-floating-effect": 106,
     "thethracian/effect-no-fork-daemon-without-cleanup": 2,
-    "thethracian/effect-no-silent-error-swallowing": 13,
+    "thethracian/effect-no-silent-error-swallowing": 21,
     "thethracian/effect-prefer-effect-void": 46,
     "thethracian/effect-require-bounded-concurrency": 1,
     "thethracian/effect-require-error-cause-preserved": 4,
@@ -79,6 +80,7 @@
     "thethracian/require-disable-justification": 1
   },
   "effect-smol": {
+    "thethracian/effect-no-catchAll-with-mapError": 2,
     "thethracian/effect-no-error-channel-widening-to-unknown": 6,
     "thethracian/effect-no-floating-effect": 409,
     "thethracian/effect-no-runfork-without-observer": 23,

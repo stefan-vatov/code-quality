@@ -132,7 +132,7 @@ const serviceKey: Check = (node, matches) => {
   );
 };
 
-const visitors = (context: Context, check: Check): VisitorMap => {
+const visitors = (context: Context, check: Check, requireEffectImport = true): VisitorMap => {
   const nativeSource = nativeSourceCodeFor(context);
   const matcherContext: Context = nativeSource
     ? {
@@ -174,20 +174,63 @@ const visitors = (context: Context, check: Check): VisitorMap => {
           if (name) importedNames.add(name);
         }
       }
-      enabled = childNodes(node, 'body').some((statement) => {
-        const source = field(statement, 'source')?.value;
-        return (
-          statement.type === 'ImportDeclaration' &&
-          Predicate.isString(source) &&
-          (source === 'effect' || source.startsWith('effect/'))
-        );
-      });
+      enabled =
+        !requireEffectImport ||
+        childNodes(node, 'body').some((statement) => {
+          const source = field(statement, 'source')?.value;
+          return (
+            statement.type === 'ImportDeclaration' &&
+            Predicate.isString(source) &&
+            (source === 'effect' || source.startsWith('effect/'))
+          );
+        });
     },
     CallExpression: visit,
     ClassDeclaration: visit,
     TSAsExpression: visit,
     TSTypeAssertion: visit,
   };
+};
+
+const recoveryMethods = ['catch', 'catchAll', 'catchCause', 'catchAllCause'] as const;
+
+const returnsVoidEffect = (node: ASTNode | undefined, matches: Matches): boolean =>
+  matches(node, 'Effect', 'void') ||
+  (isCall(node, matches, 'Effect', 'succeed') &&
+    (args(node).length === 0 || (args(node).length === 1 && isPureVoid(args(node)[0], matches))));
+
+const isTagDiscriminatorCall = (node: ASTNode): boolean => {
+  const discriminator = args(node)[0];
+  return discriminator?.type === 'Literal' && Predicate.isString(discriminator.value);
+};
+
+const swallowsFailure: Check = (node, matches) => {
+  if (isCall(node, matches, 'Effect', 'ignore')) return true;
+  const handler = callbackValue(args(node).at(-1));
+  return (
+    recoveryMethods.some((method) => isCall(node, matches, 'Effect', method)) &&
+    !isTagDiscriminatorCall(node) &&
+    returnsVoidEffect(handler, matches)
+  );
+};
+
+const silentErrorSwallowingMessage =
+  'Do not erase Effect failures. Recover expected errors with Effect.catchTag or Effect.catchTags, or log with Effect.tapError and keep failing; Effect.catch(() => Effect.void), catchAll, catchCause, and Effect.ignore hide the error.';
+
+export const effectSilentErrorSwallowingSpec: RuleSpec = {
+  name: 'effect-no-silent-error-swallowing',
+  message: silentErrorSwallowingMessage,
+  tokens: ['catch', 'ignore'],
+  ast: (context): VisitorMap =>
+    visitors(
+      {
+        ...context,
+        report: (report): void =>
+          context.report({ ...report, message: silentErrorSwallowingMessage }),
+      },
+      swallowsFailure,
+      false,
+    ),
 };
 
 const spec = (name: string, message: string, check: Check): RuleSpec => ({
@@ -268,7 +311,8 @@ export const effectCanonicalSpecs: readonly RuleSpec[] = [
     'no-catchAll-with-mapError',
     'Use Effect.mapError for pure error transformations.',
     (node, matches) =>
-      isCall(node, matches, 'Effect', 'catchAll') &&
+      (isCall(node, matches, 'Effect', 'catchAll') ||
+        (isCall(node, matches, 'Effect', 'catch') && !isTagDiscriminatorCall(node))) &&
       isCall(callbackValue(args(node).at(-1)), matches, 'Effect', 'fail'),
   ),
   spec(

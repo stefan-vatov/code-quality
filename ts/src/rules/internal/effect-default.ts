@@ -12,7 +12,7 @@ import {
 import { makeRules } from './effect-rule-core';
 import { effectDefaultCompatibilitySpecs } from './effect-default-compat-rules';
 import { effectDefaultEnvironmentSpecs } from './effect-default-env-rules';
-import { effectCanonicalSpecs } from './effect-canonical-patterns';
+import { effectCanonicalSpecs, effectSilentErrorSwallowingSpec } from './effect-canonical-patterns';
 
 type RuleSpec = Parameters<typeof makeRules>[0][number];
 const effectDefaultRuleTokens = [
@@ -65,15 +65,7 @@ const effectDefaultSpecs = [
     name: 'effect-require-suspend-for-recursion',
     tokens: ['function', '=>'],
   },
-  {
-    message:
-      'Do not erase Effect failures without recovery, logging, or explicit typed replacement.',
-    name: 'effect-no-silent-error-swallowing',
-    patterns: [
-      /Effect\.(?:catchAll|ignore)\s*\([\s\S]*?(?:Effect\.void|Effect\.succeed\s*\(\s*undefined|undefined)/,
-    ],
-    tokens: ['catchAll', 'ignore'],
-  },
+  effectSilentErrorSwallowingSpec,
   {
     check: hasTryPromiseWithoutTypedCatch,
     message:

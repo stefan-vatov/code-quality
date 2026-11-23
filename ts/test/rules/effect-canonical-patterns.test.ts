@@ -60,6 +60,27 @@ const canonicalCases = [
 ] as const;
 
 describe('canonical Effect patterns', () => {
+  it('treats Effect 4 catch like catchAll when the handler only re-fails', () => {
+    const imports = 'import { Effect } from "effect"; ';
+    expect(
+      runRule(
+        'effect-no-catchAll-with-mapError',
+        `${imports}job.pipe(Effect.catch((e) => Effect.fail(wrap(e))))`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      runRule(
+        'effect-no-catchAll-with-mapError',
+        `${imports}Effect.catch(job, (e) => Effect.fail(wrap(e)))`,
+      ),
+    ).toHaveLength(1);
+    expect(
+      runRule(
+        'effect-no-catchAll-with-mapError',
+        `${imports}job.pipe(Effect.catch("_tag", { failure: "NotFound", onFailure: (e) => Effect.fail(wrap(e)) }))`,
+      ),
+    ).toHaveLength(0);
+  });
   it('does not recommend string-tagged structs for numeric tags', () => {
     expect(
       runRule(
