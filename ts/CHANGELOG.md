@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0 - 2026-11-23
+
+### Breaking Changes
+
+- feat(ts)!: reject test-environment branches in production code (50c0f74)
+- feat(ts)!: reject throwing parses inside Effect.sync (71ded9f)
+- feat(ts)!: reject running effects inside Effect code (77b8cdd)
+
 ## 0.13.0 - 2026-11-23
 
 ### Breaking Changes
