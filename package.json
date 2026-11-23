@@ -45,6 +45,8 @@
     "test:projects": "nx run-many -t test",
     "test:mutation": "stryker run",
     "test:mutation:incremental": "stryker run --incremental",
+    "corpus:gate": "pnpm --dir ts build && node scripts/corpus-gate.mjs",
+    "corpus:gate:update": "pnpm --dir ts build && node scripts/corpus-gate.mjs --update",
     "knip": "knip --cache --strict",
     "knip:watch": "knip --watch --strict",
     "knip:ci": "knip --cache --strict",

@@ -9,6 +9,7 @@
     ".": {
       "includeEntryExports": true,
       "entry": [
+        "scripts/corpus-gate.mjs",
         "scripts/release-plan.mjs",
         "test/**/*.test.mjs",
         "test/setup.ts",

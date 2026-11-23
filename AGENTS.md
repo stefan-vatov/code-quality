@@ -199,6 +199,13 @@ Use lowercase conventional commits. Examples:
 - `fix: copy elixir credo checks`
 - `chore: update workspace hooks`
 
+Rule precision is checked against real code with `pnpm run corpus:gate`. It clones the
+repositories pinned in `scripts/corpus-gate.json` into the ignored `.cache/corpus/` (it never
+installs or runs their code), lints them with the locally built package rules plus
+`trackedNativeRules`, and prints per-rule hit deltas against `scripts/corpus-baseline.json`.
+Deltas are review prompts: sample new hits and classify them as true or false positives before
+shipping a new or widened rule, then refresh the baseline with `pnpm run corpus:gate:update`.
+
 Publishing is owned by GitHub Actions. Do not manually publish from local agent sessions unless explicitly asked.
 
 After a TypeScript publish, the release workflow waits for npm's publish-time malware scan

@@ -33,6 +33,7 @@ export default defineConfig({
     environment: 'node',
     exclude: [
       ...configDefaults.exclude,
+      '.cache/**',
       '**/dist/**',
       '**/build/**',
       '**/coverage/**',

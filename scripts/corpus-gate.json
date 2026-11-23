@@ -1,0 +1,25 @@
+{
+  "repositories": [
+    {
+      "name": "alchemy",
+      "sha": "5f190f51db57b2412991d75304309d1cb95b9186",
+      "url": "https://github.com/alchemy-run/alchemy.git"
+    },
+    {
+      "name": "effect-atom",
+      "sha": "2fc0f70457df43ff40139f6792348e0effa1a514",
+      "url": "https://github.com/tim-smart/effect-atom.git"
+    },
+    {
+      "name": "EffectPatterns",
+      "sha": "f3a0da2299717cf31d31313c5661cebd2446d5a3",
+      "url": "https://github.com/PaulJPhilp/EffectPatterns.git"
+    },
+    {
+      "name": "effect-smol",
+      "sha": "3a1128c7684e04d34d9f541f77adaac38a513056",
+      "url": "https://github.com/Effect-TS/effect-smol.git"
+    }
+  ],
+  "trackedNativeRules": []
+}
