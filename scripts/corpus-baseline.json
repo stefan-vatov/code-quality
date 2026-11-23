@@ -31,6 +31,7 @@
     "thethracian/no-service-constructor-imports": 2,
     "thethracian/no-shape-in-symbol-names": 1013,
     "thethracian/no-tautological-assertions": 4,
+    "thethracian/no-test-environment-branches": 1,
     "thethracian/no-try-catch-throw": 2192,
     "thethracian/no-unknown-parameters": 2055,
     "thethracian/no-unknown-returns": 480,

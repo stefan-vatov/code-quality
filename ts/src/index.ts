@@ -353,6 +353,7 @@ export default function theThracianOxlint(
       ...baseRules(typeAwareRule),
       ...portedRules,
       'thethracian/no-tautological-assertions': 'error',
+      'thethracian/no-test-environment-branches': 'error',
       'thethracian/no-try-catch-throw': 'error',
       'thethracian/require-disable-justification': 'error',
       ...buildEffectRules(options.effect),

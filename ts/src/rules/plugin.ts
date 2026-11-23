@@ -13,6 +13,7 @@ import { noReflectGetRule } from './internal/no-reflect-get';
 import { noRuntimeTypeofRule } from './internal/no-runtime-typeof';
 import { noForbiddenTermInSymbolNamesRule } from './internal/no-shape-in-symbol-names';
 import { noTautologicalAssertionsRule } from './internal/no-tautological-assertions';
+import { noTestEnvironmentBranchesRule } from './internal/no-test-environment-branches';
 import { noTryCatchThrowRule } from './internal/no-try-catch-throw';
 import { noUnknownParametersRule } from './internal/no-unknown-parameters';
 import { noUnknownReturnsRule } from './internal/no-unknown-returns';
@@ -43,6 +44,7 @@ const plugin: OxlintPlugin = {
     'no-runtime-typeof': noRuntimeTypeofRule,
     'no-shape-in-symbol-names': noForbiddenTermInSymbolNamesRule,
     'no-tautological-assertions': noTautologicalAssertionsRule,
+    'no-test-environment-branches': noTestEnvironmentBranchesRule,
     'no-try-catch-throw': noTryCatchThrowRule,
     'no-unknown-parameters': noUnknownParametersRule,
     'no-unknown-returns': noUnknownReturnsRule,

@@ -1,6 +1,6 @@
 const nativeSyntaxOnly = 146;
 const nativeTypeAware = 31;
-const packageBase = 19;
+const packageBase = 20;
 const effect = 37;
 const effectServiceConstructor = 1;
 const repositoryOnly = 1;

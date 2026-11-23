@@ -27,6 +27,7 @@ export const nativeRuleFixtures: readonly Fixture[] = [
       // oxlint-disable-next-line no-debugger
       debugger;
       expect(true).toBe(true);
+      const testing = process.env.VITEST;
     `,
   },
   {

@@ -225,11 +225,11 @@
     "effect-no-throwing-parse-in-sync": {
       "inputSamples": 7,
       "iterations": 20,
-      "medianLimitNs": 30714,
-      "observedMedianNs": 5119,
-      "observedP95Ns": 229609,
+      "medianLimitNs": 39960,
+      "observedMedianNs": 6660,
+      "observedP95Ns": 284506,
       "operationsPerSample": 1,
-      "p95LimitNs": 1377654,
+      "p95LimitNs": 1707036,
       "runs": 20
     },
     "effect-no-unbounded-queue": {
@@ -600,6 +600,16 @@
       "observedP95Ns": 23219,
       "operationsPerSample": 1,
       "p95LimitNs": 139314,
+      "runs": 20
+    },
+    "no-test-environment-branches": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 36360,
+      "observedMedianNs": 6060,
+      "observedP95Ns": 76047,
+      "operationsPerSample": 1,
+      "p95LimitNs": 456282,
       "runs": 20
     },
     "no-try-catch-throw": {

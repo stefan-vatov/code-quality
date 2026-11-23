@@ -3,6 +3,7 @@ import type { ASTNode } from './effect-ast';
 import { effectMatching } from './effect-canonical-patterns';
 import type { Matches } from './effect-canonical-patterns';
 import type { Context, RuleSpec, VisitorMap } from './effect-rule-core';
+import { isTestOrToolingFile } from './shared/test-paths';
 
 interface Frame {
   readonly inEffect: boolean;
@@ -191,14 +192,9 @@ const eagerParseScope = (call: ASTNode, matches: Matches): ASTNode | undefined =
   return name === 'succeed' && !isFunction(first) ? first : undefined;
 };
 
-const testCodePath = /(?:\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:__tests__|tests?|fixtures)\/)/u;
-
-const isTestCode = (filename: string | undefined): boolean =>
-  filename !== undefined && testCodePath.test(filename.replaceAll('\\', '/'));
-
 const throwingParseVisitors = (context: Context): VisitorMap => {
   const { begin, matches } = effectMatching(context);
-  const skip = isTestCode(context.filename);
+  const skip = isTestOrToolingFile(context.filename);
   return {
     Program(program): void {
       begin(program);

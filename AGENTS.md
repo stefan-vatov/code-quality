@@ -62,13 +62,14 @@ TypeScript/Oxlint high-signal policy:
 - Size limits are complexity 10, nesting depth 5, file length 5,000 lines (excluding blank lines and comments), function length 150 lines, nested callbacks 6, and parameters 7. Line width is formatter-owned and has no lint cap.
 - Files are capped at 5,000 lines, excluding blank lines and comments. There is no import-count rule. Split oversized files along meaningful module boundaries rather than creating mechanical shards.
 - General naming preferences (except the imported symbol-name rule), null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
-- The package-local plugin enables 19 TypeScript safety rules by default, including assertion-chain,
+- The package-local plugin enables 20 TypeScript safety rules by default, including assertion-chain,
   conditional-spread, known-value-widening, module-mocking, object-parameter, Reflect, runtime
   `typeof`, symbol-name, unknown-boundary, dictionary, exception syntax, and quadratic array-pipeline
   (`no-array-filter-map`, `no-reduce-accumulator-copy`), and disable-justification
   (`require-disable-justification`: four-word reasons, no boilerplate, no disabling the
   suppression rules), and tautological-assertion (`no-tautological-assertions`: constant or
-  self comparisons in `expect`/`assert`, never call results) checks. They remain under
+  self comparisons in `expect`/`assert`, never call results), and test-environment-branch
+  (`no-test-environment-branches`: production code must not detect the test runner) checks. They remain under
   the existing `thethracian` namespace and are all errors.
 - `thethracian/no-try-catch-throw` forbids `try` statements (including `try/finally`) and `throw`
   statements in the base preset. Its diagnostic recommends Effect `Result` (`Either` in Effect 3)
@@ -157,9 +158,9 @@ When changing repo tooling:
   Expected rule counts live only in `scripts/rule-counts.mjs`; the policy lock, the
   minimum-peer verifier, and the config tests read it, and `test/rule-count-docs.test.mts`
   fails when README.md, ts/README.md, or this file disagree with it.
-  The local factory enables 234 errors: 177 reviewed native rules, 19 base package rules, the
-  service-constructor rule, and all 37 retained Effect rules; repository lint runs 235 with the plugin. With `typeAware: true`, the base preset
-  enables 196 errors; syntax-only totals are 165 without Effect and 203 with Effect.
+  The local factory enables 235 errors: 177 reviewed native rules, 20 base package rules, the
+  service-constructor rule, and all 37 retained Effect rules; repository lint runs 236 with the plugin. With `typeAware: true`, the base preset
+  enables 197 errors; syntax-only totals are 166 without Effect and 204 with Effect.
   The installed published 0.12.0 factory also enables 229 errors with Effect: 176 native,
   17 base package rules, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while

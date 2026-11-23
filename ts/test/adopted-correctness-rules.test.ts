@@ -140,6 +140,13 @@ describe('adopted correctness rules', (): void => {
     );
   });
 
+  it('rejects test-environment branches in the base preset', (): void => {
+    expect(theThracianOxlint().rules).toHaveProperty(
+      'thethracian/no-test-environment-branches',
+      'error',
+    );
+  });
+
   it('bans only the @nocommit marker, not TODO or FIXME comments', (): void => {
     expect(theThracianOxlint().rules).toHaveProperty('no-warning-comments', [
       'error',
