@@ -5,6 +5,7 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { expectedRuleCounts } from '../../../scripts/rule-counts.mjs';
 
 const parsePackage = Schema.decodeUnknownSync(
   Schema.parseJson(Schema.Struct({ peerDependencies: Schema.Struct({ oxlint: Schema.String }) })),
@@ -82,7 +83,11 @@ assert.deepStrictEqual(ruleIDs.toSorted(), expectedRuleIDs.toSorted());
 
 const { default: fullConfig } = await import('./full.config.mjs');
 const sourceRuleNames = Object.keys(fullConfig.rules ?? {}).toSorted();
-assert.equal(sourceRuleNames.length, 229, 'full minimum-peer config must expose 229 rules');
+assert.equal(
+  sourceRuleNames.length,
+  expectedRuleCounts.typeAwareWithEffect,
+  'full minimum-peer config must match expectedRuleCounts.typeAwareWithEffect',
+);
 const sourceNativeRuleNames = sourceRuleNames.filter(
   (ruleName) => !ruleName.startsWith('thethracian/'),
 );
@@ -92,12 +97,20 @@ const sourcePackageRuleNames = sourceRuleNames.filter((ruleName) =>
 const sourceEffectRuleNames = sourcePackageRuleNames.filter((ruleName) =>
   ruleName.startsWith('thethracian/effect-'),
 );
-assert.equal(sourceNativeRuleNames.length, 176, 'full config must expose 176 native rules');
-assert.equal(sourcePackageRuleNames.length, 53, 'full config must expose 53 package rules');
+assert.equal(
+  sourceNativeRuleNames.length,
+  expectedRuleCounts.native,
+  'full config must match expectedRuleCounts.native',
+);
+assert.equal(
+  sourcePackageRuleNames.length,
+  expectedRuleCounts.packageWithEffect,
+  'full config must match expectedRuleCounts.packageWithEffect',
+);
 assert.equal(
   sourceEffectRuleNames.length,
-  35,
-  'full config must expose all 35 retained Effect rules',
+  expectedRuleCounts.effect,
+  'full config must expose every retained Effect rule',
 );
 assert.ok(
   sourceRuleNames.includes('thethracian/no-service-constructor-imports'),

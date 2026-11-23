@@ -150,6 +150,9 @@ When changing repo tooling:
   `factory({ effect: true, typeAware: true })`, adds ignores, and adds one repository-only rule:
   `go-internal/boundaries` from `oxlint-plugin-go-internal` (pinned exactly; Go-style `internal/`
   directory boundaries). It is never part of the published preset. No path groups are added.
+  Expected rule counts live only in `scripts/rule-counts.mjs`; the policy lock, the
+  minimum-peer verifier, and the config tests read it, and `test/rule-count-docs.test.mts`
+  fails when README.md, ts/README.md, or this file disagree with it.
   The local factory enables 229 errors: 176 reviewed native rules, 17 base package rules, the
   service-constructor rule, and all 35 retained Effect rules; repository lint runs 230 with the plugin. With `typeAware: true`, the base preset
   enables 193 errors; syntax-only totals are 162 without Effect and 198 with Effect.

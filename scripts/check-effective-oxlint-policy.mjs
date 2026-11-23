@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { expectedRuleCounts } from './rule-counts.mjs';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
@@ -80,18 +81,18 @@ assert.deepStrictEqual(
 
 assert.equal(
   baseSourceNativeEntries.length,
-  145,
-  'base source config must expose 145 syntax-only native rules',
+  expectedRuleCounts.nativeSyntaxOnly,
+  'base source config must match expectedRuleCounts.nativeSyntaxOnly',
 );
 assert.equal(
   sourceNativeEntries.length,
-  176,
-  'type-aware source config must expose 176 native rules',
+  expectedRuleCounts.native,
+  'type-aware source config must match expectedRuleCounts.native',
 );
 assert.equal(
   printedNativeEntries.length,
-  176,
-  'resolved type-aware config must expose 176 native rules',
+  expectedRuleCounts.native,
+  'resolved type-aware config must match expectedRuleCounts.native',
 );
 
 const sourceNative = Object.fromEntries(
@@ -110,7 +111,11 @@ const effectConfig = theThracianOxlint({ effect: true, typeAware: true });
 const effectRules = Object.entries(effectConfig.rules ?? {}).filter(([ruleName]) =>
   ruleName.startsWith('thethracian/effect-'),
 );
-assert.equal(effectRules.length, 35, 'effect: true must enable every retained Effect rule');
+assert.equal(
+  effectRules.length,
+  expectedRuleCounts.effect,
+  'effect: true must enable every retained Effect rule',
+);
 assert.ok(
   effectRules.every(([, setting]) => normalizeSeverity(severityOf(setting)) === 'error'),
   'Active custom Effect rules must all be errors',

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { effectStrictRuleNames } from '../src/internal/effect-rule-names';
 import { effectStrictCoreSpecs } from '../src/rules/internal/effect-strict-core-specs';
 import config from '../src/index';
+import { expectedRuleCounts } from '../../scripts/rule-counts.mjs';
 import { effectDefaultRuleNames } from '../src/internal/effect-rule-names';
 import plugin from '../src/rules/plugin';
 
@@ -34,7 +35,7 @@ describe('retained Effect policy', () => {
     for (const name of [...effectDefaultRuleNames, ...effectStrictRuleNames]) {
       expect(rules).toHaveProperty(`thethracian/${name}`, 'error');
     }
-    expect(Object.keys(rules ?? {})).toHaveLength(229);
+    expect(Object.keys(rules ?? {})).toHaveLength(expectedRuleCounts.typeAwareWithEffect);
   });
 
   it('rejects the removed object configuration rather than silently ignoring old selections', () => {
