@@ -42,10 +42,6 @@ jobs:
       - name: Lint and format check
         run: pnpm run lint:ci
 
-      - name: Verify a newly published TypeScript config as a consumer
-        if: startsWith(github.head_ref, 'codex/verify-published-oxlint-config-')
-        run: pnpm run lint:published:type-aware
-
   oxlint-min-peer:
     name: Oxlint 1.66.0 minimum peer compatibility
     runs-on: ubuntu-latest

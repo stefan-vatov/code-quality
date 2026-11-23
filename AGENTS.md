@@ -199,6 +199,12 @@ Use lowercase conventional commits. Examples:
 
 Publishing is owned by GitHub Actions. Do not manually publish from local agent sessions unless explicitly asked.
 
+After a TypeScript publish, the release workflow waits for npm's publish-time malware scan
+(`scripts/wait-for-npm-version.sh`, up to 20 minutes), lints the repository with the published
+package, and commits `ci(ts): use published oxlint config <version>` directly to `main`. Do not bump
+the root pin by hand after a release; pull the bot commit instead. The job pushes no branches and
+opens no PRs.
+
 ## Important Constraints
 
 - The repo is MIT licensed.

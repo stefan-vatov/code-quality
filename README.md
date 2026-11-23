@@ -200,8 +200,8 @@ It is not part of the published preset, and no path groups are added. The instal
 also enables 227 errors with Effect (174 native, 17 base package rules, 35 Effect rules, and the
 service-constructor rule).
 
-`pnpm run lint:published:type-aware` checks the installed published package independently. CI uses
-that command for post-release consumer verification.
+`pnpm run lint:published:type-aware` checks the installed published package independently. The
+release workflow runs it after every TypeScript publish, as described below.
 
 ## Release Shape
 
@@ -214,6 +214,15 @@ Each package is published independently:
 Releases are CI-owned. After a Conventional Commit lands on `main`, GitHub Actions validates the
 repo, updates package versions and changelogs, commits that release metadata back to `main`,
 publishes changed packages from the release commit, and tags the published package versions.
+
+After a TypeScript publish, the `verify published npm consumption` job pins the new version in the
+root `package.json` and commits `ci(ts): use published oxlint config <version>` to `main`. npm
+[scans new versions for malware before serving them](https://github.blog/changelog/2026-07-28-npm-publish-time-malware-scanning-and-dual-use-metadata/),
+which typically takes about five minutes and can take 15 or more. So the job first runs
+`scripts/wait-for-npm-version.sh`, which polls `npm view` every 15 seconds for up to 20 minutes.
+It then installs the exact published version and runs `lint:published:type-aware` before
+committing. If npm takes longer than 20 minutes, re-run only the failed job with
+`gh run rerun <run-id> --failed`.
 
 ## Documentation
 

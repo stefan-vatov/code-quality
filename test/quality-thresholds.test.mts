@@ -181,27 +181,36 @@ describe('quality gate documentation and release verification', () => {
     expect(readme).not.toMatch(/workspace copy|monorepo has an extra local package build step/u);
   });
 
-  it('opens a CI-running PR after publishing the TypeScript package', () => {
+  it('pins the published TypeScript package on main once npm serves it', () => {
     const ciWorkflow = rootText('.github/workflows/ci.yml');
     const releaseWorkflow = rootText('.github/workflows/release.yml');
+    const verifyJob = releaseWorkflow.slice(
+      releaseWorkflow.indexOf('verify-published-npm-consumption:'),
+      releaseWorkflow.indexOf('publish-crate:'),
+    );
 
-    expect(releaseWorkflow).toContain('verify-published-npm-consumption:');
-    expect(releaseWorkflow).toContain('- publish-npm');
-    expect(releaseWorkflow).toContain(
+    expect(verifyJob).toContain('- publish-npm');
+    expect(verifyJob).toContain(
       "needs.prepare.outputs.ts_released == 'true' && needs.publish-npm.result == 'success'",
     );
-    expect(releaseWorkflow).toContain('pull-requests: write');
-    expect(releaseWorkflow).toContain('PUBLISHED_CONFIG_PR_TOKEN');
-    expect(releaseWorkflow).toContain('codex/verify-published-oxlint-config');
-    expect(releaseWorkflow).toContain('ci(ts): verify published oxlint config');
-    expect(releaseWorkflow).toContain('https://x-access-token:$GH_TOKEN@github.com');
-    expect(releaseWorkflow).toContain('gh pr create');
-    expect(releaseWorkflow).not.toContain('ci(ts): verify published oxlint config [skip ci]');
-    expect(ciWorkflow).toContain('Verify a newly published TypeScript config as a consumer');
-    expect(ciWorkflow).toContain(
-      "if: startsWith(github.head_ref, 'codex/verify-published-oxlint-config-')",
+    expect(verifyJob).toContain('timeout-minutes: 30');
+    expect(verifyJob).toContain('ref: main');
+    expect(verifyJob).toContain(
+      'scripts/wait-for-npm-version.sh "@thethracian/oxlint-config" "$PACKAGE_VERSION" 1200 15',
     );
-    expect(ciWorkflow).toContain('run: pnpm run lint:published:type-aware');
+    expect(verifyJob).toContain(
+      'pnpm add --save-dev --save-exact --workspace-root "@thethracian/oxlint-config@$PACKAGE_VERSION"',
+    );
+    expect(verifyJob).toContain('run: pnpm run lint:published:type-aware');
+    expect(verifyJob).toContain(
+      'git commit -m "ci(ts): use published oxlint config $PACKAGE_VERSION"',
+    );
+    expect(verifyJob).toContain('git push origin HEAD:main');
+    expect(verifyJob).not.toContain('pull-requests: write');
+    expect(releaseWorkflow).not.toContain('PUBLISHED_CONFIG_PR_TOKEN');
+    expect(releaseWorkflow).not.toContain('gh pr create');
+    expect(releaseWorkflow).not.toContain('codex/verify-published-oxlint-config');
+    expect(ciWorkflow).not.toContain('codex/verify-published-oxlint-config');
     expect(rootJSON('package.json').scripts['lint:published:type-aware']).toBe(
       'oxlint -c oxlint.config.mjs . --type-aware --type-check',
     );
