@@ -1,5 +1,5 @@
 import { dirname, join } from 'node:path';
-import { Option, Predicate } from 'effect';
+import { Array, Option, Predicate } from 'effect';
 import { effectDefaultRuleNames, effectStrictRuleNames } from './internal/effect-rule-names';
 import { defineConfig } from 'oxlint';
 import { fileURLToPath } from 'node:url';
@@ -26,11 +26,13 @@ const categories = {
 const plugins = ['typescript', 'oxc', 'import', 'jest', 'promise', 'unicorn'] as const;
 
 const portedRuleNames = [
+  'no-array-filter-map',
   'no-chained-type-assertions',
   'no-conditional-empty-object-spread',
   'no-known-value-widening',
   'no-module-mocking',
   'no-object-parameters',
+  'no-reduce-accumulator-copy',
   'no-reflect-apply',
   'no-reflect-get',
   'no-runtime-typeof',
@@ -326,9 +328,11 @@ const configuredNativeRules: RuleMap = {
 
 const baseRules = (typeAwareRule: ToggleRuleSetting | undefined): RuleMap =>
   Object.fromEntries(
-    nativeRuleAllowlist
-      .filter((ruleName) => !typeAwareNativeRuleNameSet.has(ruleName) || typeAwareRule)
-      .map((ruleName) => [ruleName, configuredNativeRules[ruleName] ?? 'error']),
+    Array.filterMap(nativeRuleAllowlist, (ruleName) =>
+      !typeAwareNativeRuleNameSet.has(ruleName) || typeAwareRule
+        ? Option.some([ruleName, configuredNativeRules[ruleName] ?? 'error'] as const)
+        : Option.none(),
+    ),
   );
 
 export default function theThracianOxlint(

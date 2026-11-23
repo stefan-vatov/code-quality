@@ -112,7 +112,7 @@ describe('Effect slice quality gate portability', () => {
     expect(verifier).toContain('minimumPeerVersion');
     expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
     expect(verifier).toContain("await import('./full.config.mjs')");
-    expect(verifier).toContain('full minimum-peer config must expose 225 rules');
+    expect(verifier).toContain('full minimum-peer config must expose 227 rules');
     expect(verifier).toMatch(/--format(?:=|['",\s]+)json/u);
     expect(verifier).toContain('Schema.parseJson');
     expect(verifier).toContain('diagnostics');

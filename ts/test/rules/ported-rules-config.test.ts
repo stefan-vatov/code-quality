@@ -9,11 +9,13 @@ const pluginSpecifier = (entry: PluginEntry): string =>
   Predicate.isString(entry) ? entry : entry.specifier;
 
 const genericRuleNames = [
+  'no-array-filter-map',
   'no-chained-type-assertions',
   'no-conditional-empty-object-spread',
   'no-known-value-widening',
   'no-module-mocking',
   'no-object-parameters',
+  'no-reduce-accumulator-copy',
   'no-reflect-apply',
   'no-reflect-get',
   'no-runtime-typeof',

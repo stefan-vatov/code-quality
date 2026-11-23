@@ -62,9 +62,10 @@ TypeScript/Oxlint high-signal policy:
 - Size limits are complexity 10, nesting depth 5, file length 5,000 lines (excluding blank lines and comments), function length 150 lines, nested callbacks 6, and parameters 7. Line width is formatter-owned and has no lint cap.
 - Files are capped at 5,000 lines, excluding blank lines and comments. There is no import-count rule. Split oversized files along meaningful module boundaries rather than creating mechanical shards.
 - General naming preferences (except the imported symbol-name rule), null bans, ternary bans, magic-number bans, and file/function documentation requirements are absent. They produced noise or changed valid code without a dependable correctness signal.
-- The package-local plugin enables 15 TypeScript safety rules by default, including assertion-chain,
+- The package-local plugin enables 17 TypeScript safety rules by default, including assertion-chain,
   conditional-spread, known-value-widening, module-mocking, object-parameter, Reflect, runtime
-  `typeof`, symbol-name, unknown-boundary, dictionary, and exception syntax checks. They remain under
+  `typeof`, symbol-name, unknown-boundary, dictionary, exception syntax, and quadratic array-pipeline
+  (`no-array-filter-map`, `no-reduce-accumulator-copy`) checks. They remain under
   the existing `thethracian` namespace and are all errors.
 - `thethracian/no-try-catch-throw` forbids `try` statements (including `try/finally`) and `throw`
   statements in the base preset. Its diagnostic recommends Effect `Result` (`Either` in Effect 3)
@@ -73,7 +74,7 @@ TypeScript/Oxlint high-signal policy:
   remains banned. Predicate calls do not discard caller type evidence and are not widening.
   `typescript/no-unnecessary-type-parameters` is omitted because its broad-type replacements
   conflict with the generic boundary rules.
-- Preserve the 14 imported generic rules and `no-service-constructor-imports`.
+- Preserve the 16 imported generic rules and `no-service-constructor-imports`.
   The separate TypeScript `no-comments` rule is deleted. Effect is disabled by default;
   `effect: true` enables all 35 retained Effect rules plus the service-constructor rule.
   The retained set includes 12 canonical-pattern guardrails documented in `ts/README.md`.
@@ -111,7 +112,7 @@ Elixir documentation attributes remain allowed. CI and pre-push run `lint:projec
 ### Working on retained Effect rules
 
 Effect checks are package behavior, not a replacement for the upstream Oxlint allowlist. Keep
-the 35 retained rules explicit, import-aware, and error-only. Preserve the imported 14 generic
+the 35 retained rules explicit, import-aware, and error-only. Preserve the imported 16 generic
 rules and service-constructor rule. Add a new Effect rule only when it has a reproducible
 correctness, resource-safety, or deliberate canonical-pattern signal. Opinionated rules must
 reliably identify their target and avoid semantic damage or superficial lint evasion. Boundary
@@ -147,9 +148,9 @@ When changing repo tooling:
   `factory({ effect: true, typeAware: true })`, adds ignores, and adds one repository-only rule:
   `go-internal/boundaries` from `oxlint-plugin-go-internal` (pinned exactly; Go-style `internal/`
   directory boundaries). It is never part of the published preset. No path groups are added.
-  The local factory enables 225 errors: 174 reviewed native rules, 15 base package rules, the
-  service-constructor rule, and all 35 retained Effect rules; repository lint runs 226 with the plugin. With `typeAware: true`, the base preset
-  enables 189 errors; syntax-only totals are 158 without Effect and 194 with Effect.
+  The local factory enables 227 errors: 174 reviewed native rules, 17 base package rules, the
+  service-constructor rule, and all 35 retained Effect rules; repository lint runs 228 with the plugin. With `typeAware: true`, the base preset
+  enables 191 errors; syntax-only totals are 160 without Effect and 196 with Effect.
   The installed published 0.10.3 factory also enables 211 errors with Effect: 160 native,
   15 base package rules, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while

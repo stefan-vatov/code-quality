@@ -21,7 +21,7 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The syntax-only base config selects 158 reviewed rules: 143 syntax-only upstream Oxlint rules and 15
+The syntax-only base config selects 160 reviewed rules: 143 syntax-only upstream Oxlint rules and 17
 package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
@@ -93,15 +93,17 @@ export default {
 
 ## Additional TypeScript safety rules
 
-The package-local plugin enables these 15 rules as errors in every configuration.
+The package-local plugin enables these 17 rules as errors in every configuration.
 
 | Rule                                             | Policy                                                                                          |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `thethracian/no-array-filter-map`                | Rejects adjacent eager `filter`/`map` passes on known arrays; use one pass or iterator helpers. |
 | `thethracian/no-chained-type-assertions`         | Rejects nested type assertions that fabricate evidence; `as const` chains remain valid.         |
 | `thethracian/no-conditional-empty-object-spread` | Rejects conditional object spreads whose empty branch silently omits fields.                    |
 | `thethracian/no-known-value-widening`            | Rejects known values widened into `unknown`, `object`, anonymous objects, or open dictionaries. |
 | `thethracian/no-module-mocking`                  | Rejects Vitest and Jest module-mocking calls.                                                   |
 | `thethracian/no-object-parameters`               | Rejects `object` and aliases resolving to it on function inputs.                                |
+| `thethracian/no-reduce-accumulator-copy`         | Rejects copying a growing `reduce` accumulator with `Object.assign`, `Array.from`, or `concat`. |
 | `thethracian/no-reflect-apply`                   | Requires typed calls instead of global `Reflect.apply`.                                         |
 | `thethracian/no-reflect-get`                     | Requires typed property access or boundary parsing instead of global `Reflect.get`.             |
 | `thethracian/no-runtime-typeof`                  | Rejects ad hoc `typeof` narrowing; explicit type guards and existence probes remain valid.      |
@@ -177,8 +179,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 15 package-local rules and adds all 31 approved semantic rules for 189
-selected errors in total (174 native upstream errors plus the 15 package-local rules). They include
+Type-aware mode keeps the 17 package-local rules and adds all 31 approved semantic rules for 191
+selected errors in total (174 native upstream errors plus the 17 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -278,9 +280,9 @@ groups. Architecture boundaries belong in consuming repositories with concrete p
 contracts, not in this shared preset. The package does not infer module roles from unrelated imports
 or name suffixes, or require consumers to adopt a prescribed folder structure.
 
-With `typeAware: true`, the base preset enables 189 errors (174 native plus 15 package-local), or
-225 with `effect: true` (189 plus 35 Effect rules and the service-constructor rule). Without
-type-aware mode, the totals are 158 and 194 respectively. Internal name lists retain
+With `typeAware: true`, the base preset enables 191 errors (174 native plus 17 package-local), or
+227 with `effect: true` (191 plus 35 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 160 and 196 respectively. Internal name lists retain
 34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)
@@ -316,7 +318,7 @@ Do not add this call to `lint`, `lint:fix`, `lint-staged`, or a pre-commit hook.
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shape                | 5,000-line files, 150-line functions, depth 5, six nested callbacks, seven parameters, complexity 10                                                                                           |
 | Upstream safety      | `import/no-duplicates`, `no-debugger`, empty-block checks, `no-eval`, `no-new-func`, `no-script-url`, strict equality, `oxc/only-used-in-recursion`, `prefer-const`, caught-error preservation |
-| TypeScript safety    | 15 package-local errors covering exception syntax, evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                              |
+| TypeScript safety    | 17 package-local errors covering exception syntax, evidence-preserving assertions, unknown/object boundaries, runtime reflection, mocking, and type-shape hygiene                              |
 | Type-aware safety    | Unsafe operations, floating/misused promises, promise rejection errors, exhaustive switches                                                                                                    |
 | Effect               | 35 Effect errors plus the service-constructor rule with `effect: true`                                                                                                                         |
 | Deliberate omissions | No global `console`, null, ternary, magic-number, general naming (except the imported symbol-name rule), import-count, documentation, or absolute assertion/`any` bans                         |
@@ -334,7 +336,8 @@ MIT. See [LICENSE](LICENSE).
 ### Third-party notice
 
 Portions of the generic TypeScript safety rules (the `no-reflect-*`, `no-unknown-*`,
-`no-known-value-widening`, `no-widen-then-assert`, and related `thethracian/` rules) are adapted
+`no-known-value-widening`, `no-widen-then-assert`, `no-array-filter-map`,
+`no-reduce-accumulator-copy`, and related `thethracian/` rules) are adapted
 from [anti-slop](https://github.com/dmmulroy/anti-slop), Copyright (c) 2026 Dillon Mulroy, used
 under the MIT License.
 

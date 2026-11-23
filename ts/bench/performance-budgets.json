@@ -452,6 +452,16 @@
       "p95LimitNs": 2639646,
       "runs": 20
     },
+    "no-array-filter-map": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 76494,
+      "observedMedianNs": 12749,
+      "observedP95Ns": 53648,
+      "operationsPerSample": 1,
+      "p95LimitNs": 321888,
+      "runs": 20
+    },
     "no-chained-type-assertions": {
       "inputSamples": 7,
       "iterations": 20,
@@ -500,6 +510,16 @@
       "observedP95Ns": 35131,
       "operationsPerSample": 1,
       "p95LimitNs": 210786,
+      "runs": 20
+    },
+    "no-reduce-accumulator-copy": {
+      "inputSamples": 7,
+      "iterations": 20,
+      "medianLimitNs": 39780,
+      "observedMedianNs": 6630,
+      "observedP95Ns": 177891,
+      "operationsPerSample": 1,
+      "p95LimitNs": 1067346,
       "runs": 20
     },
     "no-reflect-apply": {

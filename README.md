@@ -33,7 +33,7 @@ for Elixir.
 
 | Package                                      | Registry                                                        | Consumer entrypoint                                    | Purpose                                                                                  |
 | -------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | Upstream Oxlint allowlist, 15 TypeScript safety rules, plus opt-in Effect checks.        |
+| [`@thethracian/oxlint-config`](ts/README.md) | [npm](https://www.npmjs.com/package/@thethracian/oxlint-config) | `import theThracian from "@thethracian/oxlint-config"` | Upstream Oxlint allowlist, 17 TypeScript safety rules, plus opt-in Effect checks.        |
 | [`cargo-thx-lint`](rust/README.md)           | [crates.io](https://crates.io/crates/cargo-thx-lint)            | `cargo thx-lint init --write`                          | Rust installer for `rustfmt.toml`, `clippy.toml`, Cargo lint tables, and a Dylint check. |
 | [`the_thracian_credo`](elixir/README.md)     | [Hex](https://hex.pm/packages/the_thracian_credo)               | `mix thx_lint.install --yes`                           | Credo plugin, custom checks, formatter setup, and Dialyzer helper configuration.         |
 
@@ -72,9 +72,9 @@ individual `off` entries. Oxlint's implicit `correctness` warnings are cleared o
 level, before the allowlist is applied. That reset prevents hidden defaults from leaking noise into
 the result; it does not add warnings or weaken any selected rule.
 
-The package also enables 15 package-local TypeScript safety rules by default. They cover
+The package also enables 17 package-local TypeScript safety rules by default. They cover
 `try`/`catch`/`throw`, evidence-preserving assertions, unknown/object boundaries, runtime reflection,
-module mocking, and unsafe type-shape contracts. The rules share the `thethracian` plugin namespace.
+module mocking, unsafe type-shape contracts, and quadratic array pipelines. The rules share the `thethracian` plugin namespace.
 See the [TypeScript package README](ts/README.md) for the full list.
 
 The package also ships 35 Effect checks: the 18 safety rules plus fake-API, service-self-match,
@@ -129,7 +129,7 @@ managed blocks for owned config, and can be rerun after package upgrades.
 Rust and Elixir ban lexical source comments. Literal strings containing comment markers are
 allowed, as are interpreter shebangs and Elixir documentation attributes. Elixir ships `NoComments`;
 Rust enforces its ban through `cargo thx-lint check`. TypeScript/JavaScript no longer ship
-`thethracian/no-comments`; the 14 imported generic rules remain protected.
+`thethracian/no-comments`; the 16 imported generic rules remain protected.
 Repository CI and pre-push run `pnpm run lint:projects` to enforce all three language policies.
 
 ## Rules At A Glance
@@ -143,7 +143,7 @@ Repository CI and pre-push run `pnpm run lint:projects` to enforce all three lan
 | Complexity            | 10                                           | Clippy-supported limits                 | 10                                                   |
 | File/import caps      | 5,000 lines; no import-count cap             | Package-specific                        | Package-specific                                     |
 | Debug artifacts       | `debugger`; `console` remains contextual     | `dbg!`, `print!`, `println!`            | `IO.inspect`, `IEx.pry`                              |
-| TypeScript safety     | 15 rules including the `try` and `throw` ban | —                                       | —                                                    |
+| TypeScript safety     | 17 rules including the `try` and `throw` ban | —                                       | —                                                    |
 | Unsafe escape hatches | Upstream type-aware unsafe-operation rules   | `unsafe_code`, lossy `as` casts         | Underspecified public APIs via Credo/Dialyzer config |
 | Immutability pressure | `prefer-const`                               | `unused_mut`, pedantic mutability lints | `VariableRebinding`                                  |
 
@@ -187,9 +187,9 @@ Elixir through Mix/Hex. The root package is private and owns workspace orchestra
 `lint`, `lint:fix`, the type-aware variants, staged hooks, and the Nx TypeScript lint target
 build and use the local TypeScript package. Both local and published configs share
 `oxlint.repository.mjs`, which calls `factory({ effect: true, typeAware: true })` and adds ignores.
-Local lint enables 225 errors across 174 native rules, 15 base package rules, 35 Effect rules, and
-the service-constructor rule. The base preset enables 189 errors with `typeAware: true`. Syntax-only
-totals are 158 without Effect and 194 with it. Unused disable directives are errors. Repository lint scans from the root and includes
+Local lint enables 227 errors across 174 native rules, 17 base package rules, 35 Effect rules, and
+the service-constructor rule. The base preset enables 191 errors with `typeAware: true`. Syntax-only
+totals are 160 without Effect and 196 with it. Unused disable directives are errors. Repository lint scans from the root and includes
 non-test fixtures.
 Tests, scripts, and benchmarks are excluded, as are JavaScript and generated/dependency output;
 the scope is owned TypeScript (`.ts`, `.tsx`, `.mts`, `.cts`). Tests remain typechecked separately.
@@ -235,7 +235,8 @@ MIT. See [LICENSE](LICENSE).
 ### Third-party notice
 
 Portions of the generic TypeScript safety rules (the `no-reflect-*`, `no-unknown-*`,
-`no-known-value-widening`, `no-widen-then-assert`, and related `thethracian/` rules) are adapted
+`no-known-value-widening`, `no-widen-then-assert`, `no-array-filter-map`,
+`no-reduce-accumulator-copy`, and related `thethracian/` rules) are adapted
 from [anti-slop](https://github.com/dmmulroy/anti-slop), Copyright (c) 2026 Dillon Mulroy, used
 under the MIT License.
 

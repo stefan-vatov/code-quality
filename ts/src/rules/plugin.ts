@@ -1,11 +1,13 @@
 import { eslintCompatPlugin } from '@oxlint/plugins';
 import effectDefaultRules from './internal/effect-default';
 import effectStrictRules from './internal/effect-strict';
+import { noArrayFilterMapRule } from './internal/no-array-filter-map';
 import { noChainedTypeAssertionsRule } from './internal/no-chained-type-assertions';
 import { noConditionalEmptyObjectSpreadRule } from './internal/no-conditional-empty-object-spread';
 import { noKnownValueWideningRule } from './internal/no-known-value-widening';
 import { noModuleMockingRule } from './internal/no-module-mocking';
 import { noObjectParametersRule } from './internal/no-object-parameters';
+import { noReduceAccumulatorCopyRule } from './internal/no-reduce-accumulator-copy';
 import { noReflectApplyRule } from './internal/no-reflect-apply';
 import { noReflectGetRule } from './internal/no-reflect-get';
 import { noRuntimeTypeofRule } from './internal/no-runtime-typeof';
@@ -27,11 +29,13 @@ const plugin: OxlintPlugin = {
   rules: {
     ...effectDefaultRules,
     ...effectStrictRules,
+    'no-array-filter-map': noArrayFilterMapRule,
     'no-chained-type-assertions': noChainedTypeAssertionsRule,
     'no-conditional-empty-object-spread': noConditionalEmptyObjectSpreadRule,
     'no-known-value-widening': noKnownValueWideningRule,
     'no-module-mocking': noModuleMockingRule,
     'no-object-parameters': noObjectParametersRule,
+    'no-reduce-accumulator-copy': noReduceAccumulatorCopyRule,
     'no-reflect-apply': noReflectApplyRule,
     'no-reflect-get': noReflectGetRule,
     'no-runtime-typeof': noRuntimeTypeofRule,

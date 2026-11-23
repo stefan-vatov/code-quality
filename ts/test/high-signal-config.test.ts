@@ -99,7 +99,7 @@ describe('high-signal strict config', (): void => {
       { considerQueryString: true, preferInline: false },
     ]);
     expect(config.rules).toHaveProperty('oxc/only-used-in-recursion', 'error');
-    expect(Object.keys(config.rules ?? {})).toHaveLength(158);
+    expect(Object.keys(config.rules ?? {})).toHaveLength(160);
   });
 
   it('adds every semantic native rule only when type-aware linting is requested', (): void => {
@@ -142,7 +142,7 @@ describe('high-signal strict config', (): void => {
       'typescript/switch-exhaustiveness-check',
       'typescript/unbound-method',
     ]);
-    expect(Object.keys(typeAwareRules)).toHaveLength(189);
+    expect(Object.keys(typeAwareRules)).toHaveLength(191);
     expect(typeAwareRules).not.toHaveProperty('typescript/no-unnecessary-type-parameters');
   });
 

@@ -22,6 +22,8 @@ export const nativeRuleFixtures: readonly Fixture[] = [
       const payloadShape = 1;
       const kind = typeof input;
       try { read(input); } catch { throw new Error('failed'); }
+      const labels = [1, 2].filter(Boolean).map(String);
+      const grown = [1, 2].reduce((all, value) => all.concat(value), [] as number[]);
     `,
   },
   {
