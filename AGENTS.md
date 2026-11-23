@@ -153,7 +153,7 @@ When changing repo tooling:
   The local factory enables 229 errors: 176 reviewed native rules, 17 base package rules, the
   service-constructor rule, and all 35 retained Effect rules; repository lint runs 230 with the plugin. With `typeAware: true`, the base preset
   enables 193 errors; syntax-only totals are 162 without Effect and 198 with Effect.
-  The installed published 0.11.0 factory also enables 227 errors with Effect: 174 native,
+  The installed published 0.12.0 factory also enables 229 errors with Effect: 176 native,
   17 base package rules, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while
   excluding tests, scripts, benchmarks, JavaScript, and generated/dependency output. Test programs
