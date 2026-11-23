@@ -7,6 +7,7 @@ import theThracianOxlint from '../src/index';
 
 const adoptedNativeRules = [
   'array-callback-return',
+  'jest/no-disabled-tests',
   'jest/no-focused-tests',
   'no-case-declarations',
   'no-fallthrough',
@@ -18,6 +19,7 @@ const adoptedNativeRules = [
   'promise/no-return-in-finally',
   'typescript/ban-ts-comment',
   'typescript/no-empty-object-type',
+  'typescript/no-non-null-asserted-nullish-coalescing',
   'typescript/no-unsafe-function-type',
 ] as const;
 
@@ -51,6 +53,12 @@ const invalidSource = [
   '// @ts-ignore',
   'export const ignored: number = legacy;',
   "test.only('focused', () => {});",
+  "it.skip('skipped', () => {});",
+  "describe.skip('skipped suite', () => {});",
+  "xit('prefixed skip', () => {});",
+  "test('bodiless placeholder');",
+  'declare const settings: { label?: string };',
+  "export const forced = settings.label! ?? 'fallback';",
   'export const grown = [1, 2].reduce((all, value) => [...all, value], [] as number[]);',
   'export type AnyFunction = Function;',
   'export type Empty = {};',
@@ -58,6 +66,18 @@ const invalidSource = [
   '// @nocommit',
   '// oxlint-disable-next-line no-debugger',
   'export const done = 1;',
+  '',
+].join('\n');
+
+const legitimateSkipSource = [
+  "import { describe, it, test } from 'vitest';",
+  'declare const onWindows: boolean;',
+  "it.skipIf(onWindows)('conditional skip', () => {});",
+  "it.runIf(onWindows)('conditional run', () => {});",
+  "describe.skipIf(onWindows)('conditional suite', () => {});",
+  "test.todo('planned test');",
+  "it('runtime skip', (context) => { context.skip(); });",
+  "it.each([1, 2])('parameterised %i', () => {});",
   '',
 ].join('\n');
 
@@ -75,11 +95,14 @@ const nativeOnlyConfig = (): Record<string, unknown> => {
   return { categories: config.categories, options: config.options, plugins: config.plugins, rules };
 };
 
-const lintFixture = (): readonly { code?: string; message: string }[] => {
+const lintFixture = (
+  name = 'adopted.test.ts',
+  source = invalidSource,
+): readonly { code?: string; message: string }[] => {
   const configPath = join(workspace, '.oxlintrc.json');
-  const fixturePath = join(workspace, 'adopted.test.ts');
+  const fixturePath = join(workspace, name);
   writeFileSync(configPath, JSON.stringify(nativeOnlyConfig()));
-  writeFileSync(fixturePath, invalidSource);
+  writeFileSync(fixturePath, source);
   const result = spawnSync(oxlintBinary, ['-c', configPath, '-f', 'json', fixturePath], {
     cwd: workspace,
     encoding: 'utf8',
@@ -132,5 +155,14 @@ describe('adopted correctness rules', (): void => {
     expect(diagnostics.map(({ message }) => message)).toContain(
       'Unused oxlint-disable directive (no problems were reported).',
     );
+  });
+
+  it('reports every unconditional skip form as a disabled test', (): void => {
+    const disabled = lintFixture().filter(({ code }) => code === 'jest(no-disabled-tests)');
+    expect(disabled).toHaveLength(4);
+  });
+
+  it('allows conditional, planned, runtime, and parameterised tests', (): void => {
+    expect(lintFixture('legitimate-skips.test.ts', legitimateSkipSource)).toStrictEqual([]);
   });
 });

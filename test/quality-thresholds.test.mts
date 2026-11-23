@@ -232,7 +232,7 @@ describe('quality gate documentation and release verification', () => {
     expect(verifier).toContain('minimumPeerVersion');
     expect(verifier).toContain('`oxlint@${minimumPeerVersion}`');
     expect(verifier).toContain("await import('./full.config.mjs')");
-    expect(verifier).toContain('full minimum-peer config must expose 227 rules');
+    expect(verifier).toContain('full minimum-peer config must expose 229 rules');
     expect(verifier).toContain("'--format'");
     expect(verifier).toContain("'json'");
     expect(verifier).toMatch(

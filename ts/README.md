@@ -21,7 +21,7 @@ export default theThracian({ typeAware: true });
 
 ## Base policy
 
-The syntax-only base config selects 160 reviewed rules: 143 syntax-only upstream Oxlint rules and 17
+The syntax-only base config selects 162 reviewed rules: 145 syntax-only upstream Oxlint rules and 17
 package-local TypeScript safety rules. Oxlint normally supplies
 implicit `correctness` warnings; the config performs one category-level reset with
 `correctness: 'allow'` and then assigns `error` to the approved rules explicitly. This is not a
@@ -60,6 +60,7 @@ The preset treats escape hatches and debug leftovers as errors in every configur
 | `options.reportUnusedDisableDirectives`           | `error`: an `oxlint-disable` or `eslint-disable` comment that suppresses nothing fails the lint. |
 | `typescript/ban-ts-comment`                       | Rejects `@ts-ignore` and `@ts-nocheck`; `@ts-expect-error` needs a description.                  |
 | `jest/no-focused-tests`                           | Rejects `.only` and `f`-prefixed tests in Vitest, Jest, Bun, and `node:test` suites.             |
+| `jest/no-disabled-tests`                          | Rejects `.skip`, `x`-prefixed, and bodiless tests. Conditional and planned tests stay allowed.   |
 | `no-warning-comments` with `terms: ['@nocommit']` | Rejects the `@nocommit` marker. `TODO` and `FIXME` stay allowed.                                 |
 
 It also enables classic bug catchers whose every hit is a defect:
@@ -73,8 +74,27 @@ It also enables classic bug catchers whose every hit is a defect:
 - `typescript/no-unsafe-function-type`, `typescript/no-empty-object-type`: the `Function` and `{}`
   types that accept almost anything.
 - `oxc/no-accumulating-spread`: spreading the accumulator in `reduce`, which is quadratic.
+- `typescript/no-non-null-asserted-nullish-coalescing`: `value.field! ?? fallback`, where the `!`
+  contradicts the fallback. Oxlint checks member and call operands; bare identifiers are not checked.
 
-### Migrating to 0.11.0
+### Skipped tests
+
+A committed skip passes CI while the behavior it covered goes untested. Replace unconditional skips
+with a form that states why the test does not run:
+
+| Instead of                 | Use                                                        |
+| -------------------------- | ---------------------------------------------------------- |
+| `it.skip(...)`, `xit(...)` | `it.skipIf(condition)(...)` or `it.runIf(condition)(...)`  |
+| `test('planned behavior')` | `test.todo('planned behavior')`                            |
+| Skip decided while running | `it('...', (context) => { if (...) context.skip(); ... })` |
+
+Rewrite skips rather than suppressing the rule. Older Oxlint releases (including 1.66) do not apply
+`jest/no-disabled-tests` to tests imported from `@effect/vitest`, so a disable comment that is needed
+on a newer Oxlint becomes an unused directive, which is an error, on an older one. With
+`effect: true`, `thethracian/effect-no-skipped-effect-tests` also reports Effect test skips,
+including `it.effect.skip`.
+
+### Migrating to 0.11.0 and 0.12.0
 
 These rules are breaking for existing code. To adopt them gradually, override individual rules in
 your own config and remove the overrides as you fix each one:
@@ -179,8 +199,8 @@ export default theThracian({
 });
 ```
 
-Type-aware mode keeps the 17 package-local rules and adds all 31 approved semantic rules for 191
-selected errors in total (174 native upstream errors plus the 17 package-local rules). They include
+Type-aware mode keeps the 17 package-local rules and adds all 31 approved semantic rules for 193
+selected errors in total (176 native upstream errors plus the 17 package-local rules). They include
 checks for floating and misused promises, awaiting non-thenables, unsafe calls, member access,
 assignments, arguments, and returns, plus promise rejection and switch exhaustiveness. None of
 those 31 rules is emitted by the syntax-only config, where Oxlint's semantic backend would not run
@@ -280,9 +300,9 @@ groups. Architecture boundaries belong in consuming repositories with concrete p
 contracts, not in this shared preset. The package does not infer module roles from unrelated imports
 or name suffixes, or require consumers to adopt a prescribed folder structure.
 
-With `typeAware: true`, the base preset enables 191 errors (174 native plus 17 package-local), or
-227 with `effect: true` (191 plus 35 Effect rules and the service-constructor rule). Without
-type-aware mode, the totals are 160 and 196 respectively. Internal name lists retain
+With `typeAware: true`, the base preset enables 193 errors (176 native plus 17 package-local), or
+229 with `effect: true` (193 plus 35 Effect rules and the service-constructor rule). Without
+type-aware mode, the totals are 162 and 198 respectively. Internal name lists retain
 34 default rules and one server-handler rule for compatibility; they do not expose strict opt-ins.
 
 ## Semantic codemods (explicit only)

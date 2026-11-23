@@ -81,12 +81,14 @@ TypeScript/Oxlint high-signal policy:
   Other deleted Effect rules remain absent, with no warnings or optional registrations.
   The public option is `effect?: boolean`; nonboolean values throw `TypeError`.
 - Suppressions are strict: `options.reportUnusedDisableDirectives: 'error'` in every mode,
-  `typescript/ban-ts-comment`, `jest/no-focused-tests` (the `jest` plugin is enabled for it), and
+  `typescript/ban-ts-comment`, `jest/no-focused-tests` and `jest/no-disabled-tests` (the `jest`
+  plugin is enabled for them), and
   `no-warning-comments` limited to `@nocommit` (`TODO`/`FIXME` stay allowed). Classic bug catchers
   (`no-fallthrough`, `no-self-compare`, `array-callback-return`, `promise/no-return-in-finally`,
   `no-case-declarations`, `oxc/bad-bitwise-operator`, `no-useless-assignment`, `no-var`,
   `oxc/no-accumulating-spread`, `typescript/no-unsafe-function-type`,
-  `typescript/no-empty-object-type`) are part of the allowlist. Every new native rule must exist
+  `typescript/no-empty-object-type`, `typescript/no-non-null-asserted-nullish-coalescing`) are part
+  of the allowlist. Every new native rule must exist
   in the minimum peer (oxlint 1.66); `unicorn/no-array-fill-with-reference-type` is omitted for
   that reason.
 - Semantic `thx-codemod-fix` rewrites remain available as an explicit migration command, but are not part of lint fixes or staged-file hooks.
@@ -148,9 +150,9 @@ When changing repo tooling:
   `factory({ effect: true, typeAware: true })`, adds ignores, and adds one repository-only rule:
   `go-internal/boundaries` from `oxlint-plugin-go-internal` (pinned exactly; Go-style `internal/`
   directory boundaries). It is never part of the published preset. No path groups are added.
-  The local factory enables 227 errors: 174 reviewed native rules, 17 base package rules, the
-  service-constructor rule, and all 35 retained Effect rules; repository lint runs 228 with the plugin. With `typeAware: true`, the base preset
-  enables 191 errors; syntax-only totals are 160 without Effect and 196 with Effect.
+  The local factory enables 229 errors: 176 reviewed native rules, 17 base package rules, the
+  service-constructor rule, and all 35 retained Effect rules; repository lint runs 230 with the plugin. With `typeAware: true`, the base preset
+  enables 193 errors; syntax-only totals are 162 without Effect and 198 with Effect.
   The installed published 0.11.0 factory also enables 227 errors with Effect: 174 native,
   17 base package rules, 35 Effect rules, and the service-constructor rule.
   Repository lint scans all owned TypeScript from the root, including non-test fixtures, while
