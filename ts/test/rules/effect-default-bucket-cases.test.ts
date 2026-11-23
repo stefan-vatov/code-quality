@@ -60,6 +60,12 @@ const defaultCases: RuleCase[] = [
     valid: 'const p = Effect.gen(function* () { return yield* load; });',
   },
   {
+    name: 'effect-no-throwing-parse-in-sync',
+    invalid: 'const p = Effect.sync(() => JSON.parse(text));',
+    valid:
+      'const p = Effect.try({ try: () => JSON.parse(text), catch: (cause) => new ParseError({ cause }) });',
+  },
+  {
     name: 'effect-require-acquire-release',
     invalid: 'Effect.tryPromise(() => openConnection());',
     valid: 'Effect.acquireRelease(openConnection, closeConnection);',

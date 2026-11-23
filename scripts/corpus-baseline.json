@@ -6,6 +6,7 @@
     "thethracian/effect-no-run-inside-effect": 7,
     "thethracian/effect-no-runfork-without-observer": 6,
     "thethracian/effect-no-silent-error-swallowing": 159,
+    "thethracian/effect-no-throwing-parse-in-sync": 5,
     "thethracian/effect-prefer-asVoid": 1,
     "thethracian/effect-prefer-effect-void": 494,
     "thethracian/effect-prefer-succeed-for-static-layers": 20,

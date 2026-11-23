@@ -55,6 +55,7 @@ export const effectDefaultRuleNames = [
   'effect-require-service-class-pattern',
   'effect-require-deterministic-service-keys',
   'effect-no-run-inside-effect',
+  'effect-no-throwing-parse-in-sync',
 ] as const;
 
 export const effectStrictRuleNames = ['effect-no-runSync-in-server-request-handlers'] as const;

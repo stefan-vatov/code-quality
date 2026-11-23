@@ -144,3 +144,81 @@ export const effectNoRunInsideEffectSpec: RuleSpec = {
   tokens: [...runMethods],
   ast: runInsideEffectVisitors,
 };
+
+const throwingGlobalFunctions = ['decodeURI', 'decodeURIComponent'] as const;
+
+const throwingParseMessage =
+  'JSON.parse, decodeURI, and decodeURIComponent throw on malformed input. Inside Effect.sync the throw becomes an untyped defect, and as an eager Effect.succeed argument it escapes Effect entirely. Use `Effect.try({ try: () => JSON.parse(text), catch: (cause) => new ParseError({ cause }) })` or `Schema.parseJson` so the failure is typed.';
+
+const isGlobalCall = (node: ASTNode, matches: Matches): boolean => {
+  const callee = childNode(node, 'callee');
+  if (callee?.type === 'MemberExpression') {
+    const object = childNode(callee, 'object');
+    return (
+      memberName(callee) === 'parse' &&
+      identifierName(object) === 'JSON' &&
+      matches(object, 'global', 'JSON')
+    );
+  }
+  const name = identifierName(callee);
+  return (
+    throwingGlobalFunctions.some((candidate) => candidate === name) &&
+    name !== undefined &&
+    matches(callee, 'global', name)
+  );
+};
+
+const throwingCallsIn = (root: ASTNode, matches: Matches): ASTNode[] => {
+  const found: ASTNode[] = [];
+  const pending = [...childrenOf(root)];
+  while (pending.length > 0) {
+    const node = pending.pop();
+    if (node === undefined) break;
+    if (isFunction(node)) continue;
+    if (node.type === 'CallExpression' && isGlobalCall(node, matches)) found.push(node);
+    const guarded = node.type === 'TryStatement' ? childNode(node, 'block') : undefined;
+    pending.push(...childrenOf(node).filter((child) => child !== guarded));
+  }
+  return found;
+};
+
+const eagerParseScope = (call: ASTNode, matches: Matches): ASTNode | undefined => {
+  const callee = childNode(call, 'callee');
+  const name = memberName(callee);
+  const [first] = childNodes(call, 'arguments');
+  if (first === undefined || !isEffectMember(callee, matches)) return undefined;
+  if (name === 'sync') return isFunction(first) ? first : undefined;
+  return name === 'succeed' && !isFunction(first) ? first : undefined;
+};
+
+const testCodePath = /(?:\.(?:test|spec)\.[cm]?[jt]sx?$|(?:^|\/)(?:__tests__|tests?|fixtures)\/)/u;
+
+const isTestCode = (filename: string | undefined): boolean =>
+  filename !== undefined && testCodePath.test(filename.replaceAll('\\', '/'));
+
+const throwingParseVisitors = (context: Context): VisitorMap => {
+  const { begin, matches } = effectMatching(context);
+  const skip = isTestCode(context.filename);
+  return {
+    Program(program): void {
+      begin(program);
+    },
+    CallExpression(node): void {
+      if (skip) return;
+      const scope = eagerParseScope(node, matches);
+      if (scope === undefined) return;
+      const targets =
+        scope.type === 'CallExpression' && isGlobalCall(scope, matches) ? [scope] : [];
+      for (const target of [...targets, ...throwingCallsIn(scope, matches)]) {
+        context.report({ node: target, message: throwingParseMessage });
+      }
+    },
+  };
+};
+
+export const effectNoThrowingParseInSyncSpec: RuleSpec = {
+  name: 'effect-no-throwing-parse-in-sync',
+  message: throwingParseMessage,
+  tokens: ['JSON.parse', 'decodeURI'],
+  ast: throwingParseVisitors,
+};
