@@ -31,8 +31,8 @@ importers:
         specifier: ~9.6.0
         version: 9.6.1(@stryker-mutator/core@9.6.1(@types/node@24.12.3))(vitest@4.1.12)
       '@thethracian/oxlint-config':
-        specifier: 0.13.0
-        version: 0.13.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2008))
+        specifier: 0.14.0
+        version: 0.14.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2008))
       '@types/jscodeshift':
         specifier: ^17.3.0
         version: 17.3.0
@@ -1991,8 +1991,8 @@ packages:
       '@stryker-mutator/core': 9.6.1
       vitest: '>=2.0.0'
 
-  '@thethracian/oxlint-config@0.13.0':
-    resolution: {integrity: sha512-f0iFHdqfz7FvEGkAUMgtK2FeH3ITmV4IyYj6a6/5YR+thSOJ2FPa+CnQ1FadaxP6aeZL7NnH+S6Fu2XjLgFMHg==}
+  '@thethracian/oxlint-config@0.14.0':
+    resolution: {integrity: sha512-IKiQicKPnnIo6ce3QXupAMTRTYqZRHwGFWADWgFUGMobiI2BUl0kTlxJkd4wVHIoZRqDGyxBTIa7aZFwgSEbJw==}
     hasBin: true
     peerDependencies:
       oxlint: '>=1.66.0'
@@ -5289,7 +5289,7 @@ snapshots:
       tslib: 2.8.1
       vitest: 4.1.12(@types/node@24.12.3)(@vitest/coverage-v8@4.1.12)(vite@8.3.8(@types/node@24.12.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
-  '@thethracian/oxlint-config@0.13.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2008))':
+  '@thethracian/oxlint-config@0.14.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2008))':
     dependencies:
       '@oxlint/plugins': 1.94.0
       effect: 3.22.5
