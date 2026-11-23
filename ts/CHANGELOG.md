@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.0 - 2026-11-23
+
+### Breaking Changes
+
+- feat(ts)!: port anti-slop quadratic array rules (c716e1b)
+- feat(ts)!: enforce strict suppressions and classic bug catchers (62dc68a)
+
 ## 0.10.3 - 2026-11-22
 
 ### Changes
